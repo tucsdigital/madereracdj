@@ -1,0 +1,122 @@
+[
+  {
+    "id": "LEAD-1001",
+    "nombre": "Juan Pérez",
+    "email": "juan.perez@email.com",
+    "telefono": "+54 9 11 1234-5678",
+    "mensaje": "Estoy interesado en el proyecto Lux Tower. ¿Podrían enviarme más información?",
+    "estado": "nuevo",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-01",
+    "proyecto": "Lux Tower"
+  },
+  {
+    "id": "LEAD-1002",
+    "nombre": "María Gómez",
+    "email": "maria.gomez@email.com",
+    "telefono": "+54 9 11 8765-4321",
+    "mensaje": "Quisiera agendar una visita para el desarrollo Green Park.",
+    "estado": "en seguimiento",
+    "origen": "Meta",
+    "prioridad": "media",
+    "fecha": "2024-06-02",
+    "proyecto": "Green Park"
+  },
+  {
+    "id": "LEAD-1003",
+    "nombre": "Carlos López",
+    "email": "carlos.lopez@email.com",
+    "telefono": "+54 9 11 2345-6789",
+    "mensaje": "¿Cuáles son los requisitos para acceder a financiación en el proyecto Urban Life?",
+    "estado": "contactado",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-03",
+    "proyecto": "Urban Life"
+  },
+  {
+    "id": "LEAD-1004",
+    "nombre": "Ana Torres",
+    "email": "ana.torres@email.com",
+    "telefono": "+54 9 11 3456-7890",
+    "mensaje": "Me gustaría recibir el brochure de Lux Tower y saber si hay unidades disponibles.",
+    "estado": "nuevo",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-04",
+    "proyecto": "Lux Tower"
+  },
+  {
+    "id": "LEAD-1005",
+    "nombre": "Federico Ruiz",
+    "email": "federico.ruiz@email.com",
+    "telefono": "+54 9 11 4567-8901",
+    "mensaje": "¿Tienen opciones de departamentos de 2 ambientes en Green Park?",
+    "estado": "en seguimiento",
+    "origen": "Meta",
+    "prioridad": "media",
+    "fecha": "2024-06-05",
+    "proyecto": "Green Park"
+  },
+  {
+    "id": "LEAD-1006",
+    "nombre": "Lucía Fernández",
+    "email": "lucia.fernandez@email.com",
+    "telefono": "+54 9 11 5678-9012",
+    "mensaje": "Estoy buscando invertir en Urban Life. ¿Pueden enviarme precios y planos?",
+    "estado": "contactado",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-06",
+    "proyecto": "Urban Life"
+  },
+  {
+    "id": "LEAD-1007",
+    "nombre": "Martín Castro",
+    "email": "martin.castro@email.com",
+    "telefono": "+54 9 11 6789-0123",
+    "mensaje": "¿Cuándo es la próxima visita guiada a Lux Tower?",
+    "estado": "nuevo",
+    "origen": "Meta",
+    "prioridad": "baja",
+    "fecha": "2024-06-07",
+    "proyecto": "Lux Tower"
+  },
+  {
+    "id": "LEAD-1008",
+    "nombre": "Sofía Martínez",
+    "email": "sofia.martinez@email.com",
+    "telefono": "+54 9 11 7890-1234",
+    "mensaje": "¿Qué amenities incluye Green Park?",
+    "estado": "en seguimiento",
+    "origen": "Meta",
+    "prioridad": "media",
+    "fecha": "2024-06-08",
+    "proyecto": "Green Park"
+  },
+  {
+    "id": "LEAD-1009",
+    "nombre": "Diego Ramírez",
+    "email": "diego.ramirez@email.com",
+    "telefono": "+54 9 11 8901-2345",
+    "mensaje": "Estoy interesado en conocer los plazos de entrega de Urban Life.",
+    "estado": "contactado",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-09",
+    "proyecto": "Urban Life"
+  },
+  {
+    "id": "LEAD-1010",
+    "nombre": "Valentina Silva",
+    "email": "valentina.silva@email.com",
+    "telefono": "+54 9 11 9012-3456",
+    "mensaje": "¿Puedo reservar una unidad en Lux Tower de forma online?",
+    "estado": "nuevo",
+    "origen": "Meta",
+    "prioridad": "alta",
+    "fecha": "2024-06-10",
+    "proyecto": "Lux Tower"
+  }
+]
