@@ -53,7 +53,7 @@ export default function RootLayout({ children, params: { lang } }) {
   return (
     <html lang={lang}>
       <head>
-        <link rel="icon" href="/luxfavicon.ico" />
+        <link rel="icon" href="/" />
         <meta name="description" content={siteConfig.description} />
         <meta name="keywords" content={siteConfig.keywords} />
         <meta name="author" content={siteConfig.author} />

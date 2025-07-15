@@ -83,7 +83,7 @@ const FooterContent = () => {
   return (
     <div className="block md:flex md:justify-between text-muted-foreground">
       <p className="sm:mb-0 text-xs md:text-sm">
-        COPYRIGHT © {new Date().getFullYear()} SomosLuxGroup. Todos los derechos reservados.
+        COPYRIGHT © {new Date().getFullYear()} Maderas CJD. Todos los derechos reservados.
       </p>
       <p className="mb-0 text-xs md:text-sm">
       Desarrollado por{" "}
@@ -92,7 +92,7 @@ const FooterContent = () => {
           target="__blank"
           href="https://github.com/lauticodes"
         >
-          Lautaro Maza
+          Tucs Digital
         </a>
       </p>
     </div>

@@ -9,96 +9,92 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import DashboardSelect from "@/components/dasboard-select";
 import { cn } from "@/lib/utils";
 import { useLeads } from "@/hooks/useLeads";
+import { useState } from "react";
 
 const ReportsSnapshot = () => {
-  const { theme: config, setTheme: setConfig } = useThemeStore();
-  const { theme: mode } = useTheme();
-  const theme = themes.find((theme) => theme.name === config);
-  const primary = `hsl(${theme?.cssVars[mode === "dark" ? "dark" : "light"].primary})`;
-  const warning = `hsl(${theme?.cssVars[mode === "dark" ? "dark" : "light"].warning})`;
-  const success = `hsl(${theme?.cssVars[mode === "dark" ? "dark" : "light"].success})`;
-  const info = `hsl(${theme?.cssVars[mode === "dark" ? "dark" : "light"].info})`;
+  // Simulación de datos POS para maderera
+  const [loading] = useState(false);
+  // Datos simulados
+  const ventasTotales = 152000; // en pesos
+  const productosVendidos = 320;
+  const ingresosPorCategoria = [
+    { categoria: "Maderas", monto: 90000 },
+    { categoria: "Tableros", monto: 40000 },
+    { categoria: "Insumos", monto: 22000 },
+  ];
+  const stockBajo = [
+    { producto: "Madera Pino 2x4", stock: 5 },
+    { producto: "Tablero MDF 18mm", stock: 2 },
+  ];
+  const clientesNuevos = 12;
 
-  // Obtener leads en tiempo real
-  const { leads, loading } = useLeads();
-
-  // Agrupar y calcular totales
-  const todas = leads;
-  const activas = leads.filter(l => l.estado && ["En seguimiento", "Contactado"].includes(l.estado));
-  const proyectos = leads.filter(l => l.proyecto);
-  // Nuevos contactos: últimos 30 días
-  const nuevos = leads.filter(l => {
-    const fecha = l.createdAt || l.fecha;
-    if (!fecha) return false;
-    const leadDate = new Date(fecha);
-    const now = new Date();
-    const diff = (now - leadDate) / (1000 * 60 * 60 * 24);
-    return diff <= 30;
-  });
-
-  // Generar series para los gráficos (ejemplo: leads por día en los últimos 10 días)
-  function getSeries(leadsArr) {
-    // Agrupar por día (últimos 10 días)
-    const days = Array.from({ length: 10 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (9 - i));
-      return d.toISOString().slice(0, 10);
-    });
-    const data = days.map(day =>
-      leadsArr.filter(l => {
-        const fecha = l.createdAt || l.fecha;
-        return fecha && fecha.startsWith(day);
-      }).length
-    );
-    return [{ data }];
+  // Series para gráficos (simulados)
+  function getSeriesVentas() {
+    // Ventas últimos 10 días
+    return [{ data: [12, 15, 10, 18, 20, 22, 19, 25, 30, 31] }];
+  }
+  function getSeriesProductos() {
+    // Productos vendidos últimos 10 días
+    return [{ data: [20, 22, 18, 25, 30, 28, 32, 35, 40, 50] }];
+  }
+  function getSeriesCategorias() {
+    // Ingresos por categoría
+    return [
+      { data: ingresosPorCategoria.map((c) => c.monto) },
+    ];
+  }
+  function getSeriesClientes() {
+    // Nuevos clientes últimos 10 días
+    return [{ data: [1, 0, 2, 1, 3, 2, 1, 1, 0, 1] }];
   }
 
   const tabsTrigger = [
     {
-      value: "todas",
-      text: "Todas las consultas",
-      total: todas.length,
+      value: "ventas",
+      text: "Ventas totales",
+      total: `$${ventasTotales.toLocaleString()}`,
       color: "primary",
     },
     {
-      value: "proyectos",
-      text: "Proyectos interesados",
-      total: proyectos.length,
-      color: "warning",
-    },
-    {
-      value: "activas",
-      text: "Consultas activas",
-      total: activas.length,
+      value: "productos",
+      text: "Productos vendidos",
+      total: productosVendidos,
       color: "success",
     },
     {
-      value: "nuevos",
-      text: "Nuevos contactos",
-      total: nuevos.length,
+      value: "categorias",
+      text: "Ingresos por categoría",
+      total: `$${ingresosPorCategoria.reduce((a, b) => a + b.monto, 0).toLocaleString()}`,
+      color: "warning",
+    },
+    {
+      value: "clientes",
+      text: "Clientes nuevos",
+      total: clientesNuevos,
       color: "info",
     },
   ];
   const tabsContentData = [
     {
-      value: "todas",
-      series: getSeries(todas),
-      color: primary,
+      value: "ventas",
+      series: getSeriesVentas(),
+      color: "hsl(220, 90%, 56%)",
     },
     {
-      value: "proyectos",
-      series: getSeries(proyectos),
-      color: warning,
+      value: "productos",
+      series: getSeriesProductos(),
+      color: "hsl(140, 70%, 45%)",
     },
     {
-      value: "activas",
-      series: getSeries(activas),
-      color: success,
+      value: "categorias",
+      series: getSeriesCategorias(),
+      color: "hsl(40, 90%, 60%)",
+      categorias: ingresosPorCategoria,
     },
     {
-      value: "nuevos",
-      series: getSeries(nuevos),
-      color: info,
+      value: "clientes",
+      series: getSeriesClientes(),
+      color: "hsl(200, 90%, 60%)",
     },
   ];
   return (
@@ -107,10 +103,10 @@ const ReportsSnapshot = () => {
         <div className="flex items-center gap-2 flex-wrap ">
           <div className="flex-1">
             <div className="text-xl font-semibold text-default-900 whitespace-nowrap">
-              Consultas
+              Estadísticas POS
             </div>
             <span className="text-xs text-default-600">
-              Seguimiento profesional de consultas inmobiliarias provenientes de Meta
+              Resumen de ventas y stock
             </span>
           </div>
           <div className="flex-none">
@@ -120,9 +116,11 @@ const ReportsSnapshot = () => {
       </CardHeader>
       <CardContent className="p-1 md:p-5">
         {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Cargando datos de Firebase...</div>
+          <div className="p-8 text-center text-muted-foreground">
+            Cargando datos...
+          </div>
         ) : (
-          <Tabs defaultValue="todas">
+          <Tabs defaultValue="ventas">
             <TabsList className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 justify-start w-full bg-transparent h-full">
               {tabsTrigger.map((item, index) => (
                 <TabsTrigger
@@ -142,21 +140,6 @@ const ReportsSnapshot = () => {
                     }
                   )}
                 >
-                  <span
-                    className={cn(
-                      "h-10 w-10 rounded-full bg-primary/40 absolute -top-3 -right-3 ring-8 ring-primary/30",
-                      {
-                        "bg-primary/50  ring-primary/20 dark:bg-primary dark:ring-primary/40":
-                          item.color === "primary",
-                        "bg-orange-200 ring-orange-100 dark:bg-orange-300 dark:ring-orange-400":
-                          item.color === "warning",
-                        "bg-green-200 ring-green-100 dark:bg-green-300 dark:ring-green-400":
-                          item.color === "success",
-                        "bg-cyan-200 ring-cyan-100 dark:bg-cyan-300 dark:ring-cyan-400":
-                          item.color === "info",
-                      }
-                    )}
-                  ></span>
                   <span className="text-sm text-default-800 dark:text-primary-foreground font-semibold capitalize relative z-10">
                     {item.text}
                   </span>
@@ -172,6 +155,32 @@ const ReportsSnapshot = () => {
             {tabsContentData.map((item, index) => (
               <TabsContent key={`report-tab-${index}`} value={item.value}>
                 <ReportsChart series={item.series} chartColor={item.color} />
+                {/* Mostrar detalle de categorías si corresponde */}
+                {item.value === "categorias" && (
+                  <div className="mt-4">
+                    <div className="font-semibold mb-2">Detalle por categoría:</div>
+                    <ul className="text-sm">
+                      {item.categorias.map((cat, i) => (
+                        <li key={i}>
+                          {cat.categoria}: <span className="font-bold">${cat.monto.toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* Mostrar productos con stock bajo */}
+                {item.value === "productos" && (
+                  <div className="mt-4">
+                    <div className="font-semibold mb-2">Productos con stock bajo:</div>
+                    <ul className="text-sm">
+                      {stockBajo.map((prod, i) => (
+                        <li key={i}>
+                          {prod.producto}: <span className="font-bold">{prod.stock} unidades</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </TabsContent>
             ))}
           </Tabs>

@@ -1,5 +1,4 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -258,7 +257,6 @@ const CustomDropdown = () => {
           </DropdownMenuGroup>
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
           <DropdownMenuItem
-            onSelect={() => signOut()}
             className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize my-1 px-3 dark:hover:bg-background cursor-pointer"
           >
             <Icon icon="heroicons:power" className="w-4 h-4 " />
@@ -402,7 +400,6 @@ const CustomDropdown = () => {
           </DropdownMenuGroup>
           <DropdownMenuSeparator className="mb-0 dark:bg-background" />
           <DropdownMenuItem
-            onSelect={() => signOut()}
             className="flex items-center gap-2 text-sm font-medium text-default-600 capitalize my-1 px-3 dark:hover:bg-background cursor-pointer"
           >
             <Icon icon="heroicons:power" className="w-4 h-4 " />

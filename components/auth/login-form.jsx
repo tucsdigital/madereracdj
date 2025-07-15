@@ -52,10 +52,18 @@ const LogInForm = () => {
 
   const onSubmit = (data) => {
     startTransition(async () => {
-      // Login hardcodeado temporal: omitir autenticación real
-      toast.success("Inicio de sesión exitoso (modo desarrollo)");
-      window.location.assign("/dashboard");
-      reset();
+      try {
+        await loginWithEmail(data.email, data.password);
+        toast.success("Inicio de sesión exitoso");
+        window.location.assign("/dashboard");
+        reset();
+      } catch (error) {
+        let msg = "Error al iniciar sesión";
+        if (error.code === "auth/user-not-found") msg = "Usuario no encontrado.";
+        else if (error.code === "auth/wrong-password") msg = "Contraseña incorrecta.";
+        else if (error.code === "auth/invalid-email") msg = "Correo inválido.";
+        toast.error(msg);
+      }
     });
   };
   return (

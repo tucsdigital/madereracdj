@@ -13,11 +13,6 @@ import DatePickerWithRange from "@/components/date-picker-with-range";
 import Link from "next/link";
 
 const DashboardPageView = ({ trans }) => {
-  // Protección temporal de ruta: solo si está logueado (modo desarrollo)
-  if (typeof window !== "undefined" && localStorage.getItem("isLoggedIn") !== "true") {
-    window.location.assign("/auth/login");
-    return null;
-  }
   return (
     <div className="space-y-6">
       <div className="flex items-center flex-wrap justify-between gap-4">
@@ -31,9 +26,9 @@ const DashboardPageView = ({ trans }) => {
         <div className="col-span-12 lg:col-span-8">
           <ReportsSnapshot />
         </div>
-        <div className="col-span-12 lg:col-span-4">
+        {/* <div className="col-span-12 lg:col-span-4">
           <UsersStat />
-        </div>
+        </div> */}
       </div>
       {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

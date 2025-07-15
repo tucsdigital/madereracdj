@@ -9,63 +9,86 @@ import {
 export const menusConfig = {
   mainNav: [
     {
-      title: "Inicio",
+      title: "Sección dashboard",
       icon: DashBoard,
       href: "/dashboard",
     },
     {
-      title: "Leads",
-      icon: Users,
-      href: "/leads",
-    },
-    {
-      title: "Vendedores",
-      icon: Building,
-      href: "/vendedores",
-    },
-    {
-      title: "Métricas",
+      title: "Ventas / Presupuestos",
       icon: Graph,
-      href: "/metricas",
+      href: "/ventas",
     },
     {
-      title: "Configuración",
+      title: "Envíos",
       icon: Settings,
-      href: "/configuracion",
+      href: "/envios",
+    },
+    {
+      title: "Productos",
+      icon: Building,
+      href: "/productos",
+    },
+    {
+      title: "Stock y Compras",
+      icon: Users,
+      href: "/stock-compras",
+    },
+    {
+      title: "Gastos",
+      icon: Graph,
+      href: "/gastos",
+    },
+    {
+      title: "Obras / Proyectos",
+      icon: Settings,
+      href: "/obras-proyectos",
+    },
+    {
+      title: "Clientes",
+      icon: Users,
+      href: "/clientes",
     },
   ],
   sidebarNav: {
     modern: [
       {
         title: "Sección dashboard",
+        icon: DashBoard,
         href: "/dashboard",
       },
       {
         title: "Ventas / Presupuestos",
+        icon: Graph,
         href: "/ventas",
       },
       {
         title: "Envíos",
+        icon: Settings,
         href: "/envios",
       },
       {
         title: "Productos",
+        icon: Building,
         href: "/productos",
       },
       {
         title: "Stock y Compras",
+        icon: Users,
         href: "/stock-compras",
       },
       {
         title: "Gastos",
+        icon: Graph,
         href: "/gastos",
       },
       {
         title: "Obras / Proyectos",
+        icon: Settings,
         href: "/obras-proyectos",
       },
       {
         title: "Clientes",
+        icon: Users,
         href: "/clientes",
       },
     ],
@@ -76,34 +99,42 @@ export const menusConfig = {
       },
       {
         title: "Sección dashboard",
+        icon: DashBoard,
         href: "/dashboard",
       },
       {
         title: "Ventas / Presupuestos",
+        icon: Graph,
         href: "/ventas",
       },
       {
         title: "Envíos",
+        icon: Settings,
         href: "/envios",
       },
       {
         title: "Productos",
+        icon: Building,
         href: "/productos",
       },
       {
         title: "Stock y Compras",
+        icon: Users,
         href: "/stock-compras",
       },
       {
         title: "Gastos",
+        icon: Graph,
         href: "/gastos",
       },
       {
         title: "Obras / Proyectos",
+        icon: Settings,
         href: "/obras-proyectos",
       },
       {
         title: "Clientes",
+        icon: Users,
         href: "/clientes",
       },
     ],
