@@ -1,8 +1,8 @@
 export const siteConfig = {
-  name: "Somos Lux Group | Panel CRM Inmobiliario",
-  description: "CRM inmobiliario profesional para gestión de leads, proyectos y ventas de lujo. Administra, filtra y convierte oportunidades en clientes con SomosLuxGroup.",
-  keywords: "CRM inmobiliario, gestión de leads, panel de ventas, proyectos de lujo, SomosLuxGroup, bienes raíces, administración de clientes, ventas inmobiliarias, seguimiento de leads, panel profesional, dashboard inmobiliario",
-  author: "SomosLuxGroup",
+  name: "Maderas CJD | Panel Administrativo",
+  description: "Sistema interno para la gestión de ventas, stock, clientes y proyectos de Maderas CJD. Administra, organiza y haz crecer tu maderera con tecnología.",
+  keywords: "maderera, Maderas CJD, gestión de ventas, stock, clientes, proyectos, administración, POS, panel administrativo, comercio de maderas",
+  author: "Maderas CJD",
   theme: "violet",
   layout: "vertical",
   // semi-box, horizontal, vertical

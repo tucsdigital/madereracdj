@@ -19,7 +19,7 @@ const DashboardPageView = ({ trans }) => {
         <div className="text-2xl font-medium text-default-800 ">
           Panel Administrativo
         </div>
-        <DatePickerWithRange />
+        {/* <DatePickerWithRange /> */}
       </div>
       {/* área de reportes */}
       <div className="grid grid-cols-12  gap-6 ">
