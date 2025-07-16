@@ -5,11 +5,12 @@ import {
   Graph,
   Settings,
 } from "@/components/svg";
+import { Users2, Boxes } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
     {
-      title: "Sección dashboard",
+      title: "Inicio",
       icon: DashBoard,
       href: "/dashboard",
     },
@@ -30,7 +31,7 @@ export const menusConfig = {
     },
     {
       title: "Stock y Compras",
-      icon: Users,
+      icon: Boxes,
       href: "/stock-compras",
     },
     {
@@ -39,13 +40,13 @@ export const menusConfig = {
       href: "/gastos",
     },
     {
-      title: "Obras / Proyectos",
+      title: "Obras",
       icon: Settings,
       href: "/obras-proyectos",
     },
     {
       title: "Clientes",
-      icon: Users,
+      icon: Users2,
       href: "/clientes",
     },
   ],
@@ -73,7 +74,7 @@ export const menusConfig = {
       },
       {
         title: "Stock y Compras",
-        icon: Users,
+        icon: Boxes,
         href: "/stock-compras",
       },
       {
@@ -88,7 +89,7 @@ export const menusConfig = {
       },
       {
         title: "Clientes",
-        icon: Users,
+        icon: Users2,
         href: "/clientes",
       },
     ],
@@ -119,7 +120,7 @@ export const menusConfig = {
       },
       {
         title: "Stock y Compras",
-        icon: Users,
+        icon: Boxes,
         href: "/stock-compras",
       },
       {
@@ -134,7 +135,7 @@ export const menusConfig = {
       },
       {
         title: "Clientes",
-        icon: Users,
+        icon: Users2,
         href: "/clientes",
       },
     ],

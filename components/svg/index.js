@@ -59,7 +59,7 @@ export { default as Map } from "./duel-tone/map.svg";
 import Image from "next/image";
 
 export const SiteLogo = (props) => (
-  <Image src="/images/logo/lux_logo.png" alt="Logo" width={32} height={32} {...props} />
+  <Image src="/" alt="Logo" width={32} height={32} {...props} />
 );
 
 export { default as Settings } from "./duel-tone/settings.svg";
