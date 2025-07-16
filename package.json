@@ -27,7 +27,7 @@
     "@fullcalendar/list": "^6.1.9",
     "@fullcalendar/react": "^6.1.9",
     "@fullcalendar/timegrid": "^6.1.9",
-    "@hookform/resolvers": "^3.3.2",
+    "@hookform/resolvers": "^3.10.0",
     "@iconify/react": "^4.1.1",
     "@mdx-js/loader": "^3.0.1",
     "@mdx-js/react": "^3.0.1",
@@ -136,6 +136,7 @@
     "tailwindcss-animate": "^1.0.6",
     "unist-util-visit": "^5.0.0",
     "vaul": "^0.8.0",
+    "yup": "^1.6.1",
     "zod": "^3.22.4",
     "zustand": "^4.4.1"
   },

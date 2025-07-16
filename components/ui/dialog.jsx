@@ -6,24 +6,24 @@ import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const dialogVariants = cva(
-  " fixed  left-1/2 top-1/2 z-9999 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2  bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg grid gap-4",
+  "fixed left-1/2 top-1/2 z-9999 grid w-full -translate-x-1/2 -translate-y-1/2 bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg grid gap-4",
   {
     variants: {
       size: {
-        xs: "md:max-w-[332px] w-[90%]",
-        sm: "md:max-w-[384px] w-[90%]",
-        md: "md:max-w-[444px] w-[90%]",
-        lg: "md:max-w-[536px] w-[90%]",
-        xl: "md:max-w-[628px] w-[90%]",
-        "2xl": "md:max-w-[720px] w-[90%]",
-        "3xl": "md:max-w-[812px] w-[90%]",
-        "4xl": "md:max-w-[904px] w-[90%]",
-        "5xl": "md:max-w-[996px] w-[90%]",
+        xs: "w-[90%]",
+        sm: "w-[90%]",
+        md: "w-[90%]",
+        lg: "w-[90%]",
+        xl: "w-[90%]",
+        "2xl": "w-[90%]",
+        "3xl": "w-[90%]",
+        "4xl": "w-[90%]",
+        "5xl": "w-[90%]",
         full: "h-screen max-w-full",
       },
     },
     defaultVariants: {
-      size: "md",
+      size: undefined,
     },
   }
 );
