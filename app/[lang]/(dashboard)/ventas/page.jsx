@@ -394,6 +394,7 @@ const VentasPage = () => {
   const [open, setOpen] = useState(null); // null | 'presupuesto' | 'venta'
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -408,15 +409,30 @@ const VentasPage = () => {
 
   const handleClose = () => setOpen(null);
   const handleSubmit = async (data) => {
-    let docRef;
-    if (open === "venta") {
-      docRef = await addDoc(collection(db, "ventas"), data);
-      setOpen(null);
-      router.push(`/ventas/${docRef.id}`);
-    } else if (open === "presupuesto") {
-      docRef = await addDoc(collection(db, "presupuestos"), data);
-      setOpen(null);
-      router.push(`/presupuestos/${docRef.id}`);
+    setLoading(true);
+    try {
+      // Asegurarse de enviar los productos seleccionados y datos del cliente
+      const formData = {
+        ...data,
+        cliente: clientesState.find(c => c.id === Number(data.clienteId)),
+        items: productosSeleccionados,
+        total: productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad - (p.descuento || 0) * p.cantidad), 0),
+      };
+      let docRef;
+      if (open === "venta") {
+        docRef = await addDoc(collection(db, "ventas"), formData);
+        setOpen(null);
+        router.push(`/ventas/${docRef.id}`);
+      } else if (open === "presupuesto") {
+        docRef = await addDoc(collection(db, "presupuestos"), formData);
+        setOpen(null);
+        router.push(`/presupuestos/${docRef.id}`);
+      }
+    } catch (error) {
+      alert("Error al guardar: " + error.message);
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -445,6 +461,7 @@ const VentasPage = () => {
       </div>
       <Dialog open={!!open} onOpenChange={handleClose}>
         <DialogContent className="w-[95vw] max-w-[1500px] h-[150vh] max-h-[1000px] flex flex-col">
+          {loading && <div className="text-center text-primary font-bold py-4">Guardando...</div>}
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
