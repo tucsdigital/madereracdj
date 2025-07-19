@@ -30,6 +30,8 @@ export function DataTable({ columns, data }) {
   const [columnFilters, setColumnFilters] = React.useState([]);
   const [sorting, setSorting] = React.useState([]);
 
+  console.log("DataTable data:", data);
+
   const table = useReactTable({
     data,
     columns,
@@ -84,9 +86,9 @@ export function DataTable({ columns, data }) {
           </TableHeader>
           <TableBody className="[&_tr:last-child]:border-1">
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, idx) => (
                 <TableRow
-                  key={row.id}
+                  key={row.original.id ? String(row.original.id) : String(idx)}
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (

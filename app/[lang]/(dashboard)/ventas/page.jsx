@@ -13,57 +13,11 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Autocomplete, AutocompleteItem } from "@/components/ui/autocomplete";
 import { Box, Layers, Settings } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { db, uploadInitialClientes } from "@/lib/firebase";
 import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-// Datos de ejemplo para presupuestos
-const presupuestosData = [
-  {
-    id: "#P-001",
-    customer: { name: "Juan Pérez", email: "juan@mail.com", avatar: avatar1 },
-    date: "01-06-2024",
-    amount: "15000",
-    status: "pendiente",
-    paymentStatus: "-"
-  },
-  {
-    id: "#P-002",
-    customer: { name: "Ana López", email: "ana@mail.com", avatar: avatar1 },
-    date: "02-06-2024",
-    amount: "22000",
-    status: "aceptado",
-    paymentStatus: "-"
-  },
-];
-
-// Datos de ejemplo para ventas
-const ventasData = [
-  {
-    id: "#V-001",
-    customer: { name: "Carlos Gómez", email: "carlos@mail.com", avatar: avatar1 },
-    date: "03-06-2024",
-    amount: "18000",
-    status: "confirmado",
-    paymentStatus: "pagado"
-  },
-  {
-    id: "#V-002",
-    customer: { name: "Lucía Torres", email: "lucia@mail.com", avatar: avatar1 },
-    date: "04-06-2024",
-    amount: "25000",
-    status: "entregado",
-    paymentStatus: "pagado"
-  },
-];
-
-// Datos hardcodeados de clientes
-const clientes = [
-  { id: 1, nombre: "Carpintería El Roble", cuit: "20-12345678-9", direccion: "Av. Madera 123", telefono: "1122334455", email: "roble@ejemplo.com" },
-  { id: 2, nombre: "Obras SRL", cuit: "30-87654321-0", direccion: "Ruta 8 Km 45", telefono: "1144556677", email: "obras@ejemplo.com" },
-  { id: 3, nombre: "Muebles Modernos", cuit: "27-11223344-5", direccion: "Calle Nogal 456", telefono: "1133445566", email: "muebles@ejemplo.com" },
-];
-
+// Eliminar datos de ejemplo para presupuestos y ventas
 // Categorías y productos ficticios
 const categorias = [
   { id: 1, nombre: "Maderas", icon: <Box className="w-5 h-5 mr-2 text-primary" /> },
@@ -89,20 +43,14 @@ const productosPorCategoria = {
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const schema = yup.object().shape({
     nombre: yup.string().required("El nombre es obligatorio"),
-    id: yup.string().required("El ID es obligatorio"),
     fecha: yup.string().required("La fecha es obligatoria"),
-    vencimiento: yup.string().required("La fecha de vencimiento es obligatoria"),
-    empresa: yup.object().shape({
-      nombre: yup.string().required("Obligatorio"),
-      email: yup.string().email("Email inválido").required("Obligatorio"),
-      telefono: yup.string().required("Obligatorio"),
-      direccion: yup.string().required("Obligatorio"),
-    }),
+    vencimiento: tipo === 'presupuesto' ? yup.string().required("La fecha de vencimiento es obligatoria") : yup.string().notRequired(),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").required("Obligatorio"),
       telefono: yup.string().required("Obligatorio"),
       direccion: yup.string().required("Obligatorio"),
+      cuit: yup.string().required("Obligatorio"),
     }),
     items: yup.array().of(
       yup.object().shape({
@@ -115,18 +63,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     ).min(1, "Agrega al menos un ítem"),
   });
 
-  const { register, handleSubmit, control, formState: { errors }, setValue, watch, reset } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors }, watch, reset, trigger } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       nombre: "",
-      id: "",
       fecha: "",
       vencimiento: "",
-      empresa: { nombre: "", email: "", telefono: "", direccion: "" },
-      cliente: { nombre: "", email: "", telefono: "", direccion: "" },
-      items: [
-        { descripcion: "", cantidad: 1, precio: 0, unidad: "unidades", moneda: "$" }
-      ]
+      cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
+      items: [],
     }
   });
 
@@ -134,8 +78,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Estado para cliente seleccionado
   const [clienteId, setClienteId] = useState("");
-  const [clientesState, setClientesState] = useState(clientes);
-  const clienteSeleccionado = clientesState.find(c => c.id === Number(clienteId));
+  // Estado para clientes desde Firestore
+  const [clientesState, setClientesState] = useState([]);
+  const [clientesLoading, setClientesLoading] = useState(true);
+  const clienteSeleccionado = clientesState.find(c => c.id === clienteId);
   // Estado para modal de nuevo cliente
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
@@ -183,21 +129,61 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
 
   // Guardar nuevo cliente
-  const handleGuardarNuevoCliente = () => {
-    const nuevoId = clientesState.length > 0 ? Math.max(...clientesState.map(c => c.id)) + 1 : 1;
-    const clienteObj = { id: nuevoId, ...nuevoCliente };
-    setClientesState([...clientesState, clienteObj]);
-    setClienteId(nuevoId.toString());
+  const handleGuardarNuevoCliente = async () => {
+    const clienteObj = { ...nuevoCliente };
+    const docRef = await addDoc(collection(db, "clientes"), clienteObj);
+    setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
+    setClienteId(docRef.id);
     setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
     setOpenNuevoCliente(false);
   };
+
+  // React.useEffect(() => {
+  //   const fetchClientes = async () => {
+  //     // Subir los clientes iniciales solo si la colección está vacía
+  //     await uploadInitialClientes([
+  //       { nombre: "Carpintería El Roble", cuit: "20-12345678-9", direccion: "Av. Madera 123", telefono: "1122334455", email: "roble@ejemplo.com" },
+  //       { nombre: "Obras SRL", cuit: "30-87654321-0", direccion: "Ruta 8 Km 45", telefono: "1144556677", email: "obras@ejemplo.com" },
+  //       { nombre: "Muebles Modernos", cuit: "27-11223344-5", direccion: "Calle Nogal 456", telefono: "1133445566", email: "muebles@ejemplo.com" },
+  //     ]);
+  //     const snap = await getDocs(collection(db, "clientes"));
+  //     setClientesState(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  //     setClientesLoading(false);
+  //   };
+  //   fetchClientes();
+  // }, []);
+
+  // Sincronizar cliente seleccionado con el objeto cliente del formulario
+  React.useEffect(() => {
+    if (clienteSeleccionado) {
+      setValue("cliente", {
+        nombre: clienteSeleccionado.nombre || "",
+        email: clienteSeleccionado.email || "",
+        telefono: clienteSeleccionado.telefono || "",
+        direccion: clienteSeleccionado.direccion || "",
+        cuit: clienteSeleccionado.cuit || "",
+      });
+    }
+  }, [clienteSeleccionado, setValue]);
+
+  // Sincronizar productos seleccionados con items del formulario
+  React.useEffect(() => {
+    setValue("items", productosSeleccionados.map(p => ({
+      descripcion: p.nombre,
+      cantidad: p.cantidad,
+      precio: p.precio,
+      unidad: p.unidad,
+      moneda: "$",
+      descuento: p.descuento || 0,
+    })));
+  }, [productosSeleccionados, setValue]);
 
   return (
     <>
       <DialogHeader className="mb-2">
         <DialogTitle>{tipo === 'presupuesto' ? 'Nuevo Presupuesto' : 'Nueva Venta'}</DialogTitle>
       </DialogHeader>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
+      <form onSubmit={handleSubmit((data) => { onSubmit(data); })} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
@@ -206,6 +192,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               value={clienteId}
               onChange={e => setClienteId(e.target.value)}
               className="border rounded px-2 py-2 w-full"
+              name="clienteId"
+              ref={register ? register("clienteId").ref : undefined}
+              disabled={clientesLoading}
             >
               <option value="">Seleccionar cliente...</option>
               {clientesState.map(c => (
@@ -216,14 +205,30 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               + Nuevo
             </Button>
           </div>
+          {errors.clienteId && <span className="text-red-500 text-xs">{errors.clienteId.message}</span>}
           <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
             <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
-              <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
-              <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
-              <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
-              <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
+              <div>
+                <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
+                {errors.cliente?.nombre && <span className="text-red-500 text-xs">{errors.cliente?.nombre.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
+                {errors.cliente?.cuit && <span className="text-red-500 text-xs">{errors.cliente?.cuit.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
+                {errors.cliente?.direccion && <span className="text-red-500 text-xs">{errors.cliente?.direccion.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
+                {errors.cliente?.telefono && <span className="text-red-500 text-xs">{errors.cliente?.telefono.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
+                {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
+              </div>
             </div>
           </div>
         </section>
@@ -400,9 +405,48 @@ const VentasPage = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       const ventasSnap = await getDocs(collection(db, "ventas"));
-      setVentasData(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-      setPresupuestosData(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      // Si ambas colecciones están vacías, crear datos de prueba
+      if (ventasSnap.empty) {
+        await addDoc(collection(db, "ventas"), {
+          nombre: "Venta de prueba",
+          fecha: new Date().toISOString().slice(0, 10),
+          cliente: {
+            nombre: "Cliente Demo",
+            cuit: "00-00000000-0",
+            direccion: "Demo 123",
+            telefono: "0000000000",
+            email: "demo@demo.com"
+          },
+          items: [
+            { descripcion: "Producto Demo", cantidad: 2, precio: 1000, unidad: "u", moneda: "$", descuento: 0 }
+          ],
+          total: 2000
+        });
+      }
+      if (presupuestosSnap.empty) {
+        await addDoc(collection(db, "presupuestos"), {
+          nombre: "Presupuesto de prueba",
+          fecha: new Date().toISOString().slice(0, 10),
+          vencimiento: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0, 10),
+          cliente: {
+            nombre: "Cliente Demo",
+            cuit: "00-00000000-0",
+            direccion: "Demo 123",
+            telefono: "0000000000",
+            email: "demo@demo.com"
+          },
+          items: [
+            { descripcion: "Producto Demo", cantidad: 1, precio: 500, unidad: "u", moneda: "$", descuento: 0 }
+          ],
+          total: 500
+        });
+      }
+      // Volver a cargar los datos
+      const ventasSnap2 = await getDocs(collection(db, "ventas"));
+      setVentasData(ventasSnap2.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      const presupuestosSnap2 = await getDocs(collection(db, "presupuestos"));
+      setPresupuestosData(presupuestosSnap2.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     };
     fetchData();
   }, []);

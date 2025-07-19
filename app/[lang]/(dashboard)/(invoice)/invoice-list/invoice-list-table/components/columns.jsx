@@ -47,15 +47,9 @@ export const columns = [
     accessorKey: "customer",
     header: "Customer",
     cell: ({ row }) => (
-      <div className="flex gap-2 items-center">
-        <Avatar className=" rounded-full">
-          <AvatarImage src={row?.original?.customer.avatar.src} />
-          <AvatarFallback>AB</AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col">
-          <span className=" text-sm font-medium text-default-600 whitespace-nowrap"> {row?.original?.customer.name} </span>
-          <span className=" text-xs text-default-500 whitespace-nowrap"> {row?.original?.customer.email} </span>
-        </div>
+      <div className="flex flex-col">
+        <span className=" text-sm font-medium text-default-600 whitespace-nowrap"> {row?.original?.customer?.name} </span>
+        <span className=" text-xs text-default-500 whitespace-nowrap"> {row?.original?.customer?.email} </span>
       </div>
     ),
   },
