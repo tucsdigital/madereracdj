@@ -6,4 +6,10 @@ const dictionaries = {
   ar: () => import("./dictionaries/ar.json").then((module) => module.default),
 };
 
-export const getDictionary = async (locale) => dictionaries[locale]();
+export const getDictionary = async (locale) => {
+  if (!dictionaries[locale]) {
+    console.warn(`No existe el diccionario para el locale '${locale}', usando 'en' por defecto.`);
+    return dictionaries["en"]();
+  }
+  return dictionaries[locale]();
+};

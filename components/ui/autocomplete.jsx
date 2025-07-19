@@ -15,43 +15,53 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 const Autocomplete = React.forwardRef(
-  ({ label, className, children, labelClass, ...props }, ref) => {
+  (
+    {
+      label,
+      className,
+      children,
+      labelClass,
+      value,
+      onValueChange,
+      placeholder = "Seleccionar...",
+      ...props
+    },
+    ref
+  ) => {
     const [open, setOpen] = React.useState(false);
-    const [value, setValue] = React.useState("");
-    const [selectedLabel, setSelectedLabel] = React.useState("Select item...");
+    // Buscar el label del item seleccionado
+    let selectedLabel = placeholder;
+    React.Children.forEach(children, (child) => {
+      if (child && child.props && child.props.value === value) {
+        selectedLabel = child.props.children;
+      }
+    });
 
     const handleSelect = (newValue, newLabel) => {
-      setValue(newValue);
-      setSelectedLabel(newLabel);
+      if (onValueChange) onValueChange(newValue);
       setOpen(false);
     };
 
     return (
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
           <Button
+            type="button"
             variant="outline"
             role="combobox"
-            className={cn(" w-full justify-between", labelClass)}
+            aria-expanded={open}
+            className={cn("w-full justify-between", labelClass)}
           >
             {selectedLabel}
-            <ChevronsUpDown className="me-2 h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className="me-2 shrink-0 opacity-50" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[500px]" align="start">
+        </PopoverTrigger>
+        <PopoverContent className="w-[500px] p-0" align="start">
           <Command>
-            <CommandInput placeholder={`Search ${label.toLowerCase()}...`} />
-            <CommandEmpty>No item found.</CommandEmpty>
+            <CommandInput placeholder={`Buscar ${label ? label.toLowerCase() : ''}...`} />
+            <CommandEmpty>No se encontró ningún cliente.</CommandEmpty>
             <CommandGroup>
               {React.Children.map(children, (child) =>
                 React.cloneElement(child, {
@@ -61,8 +71,8 @@ const Autocomplete = React.forwardRef(
               )}
             </CommandGroup>
           </Command>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
     );
   }
 );
@@ -83,7 +93,6 @@ const AutocompleteItem = React.forwardRef(
             isSelected ? "opacity-100" : "opacity-0"
           )}
         />
-
       </CommandItem>
     );
   }

@@ -6,30 +6,16 @@ import { columns } from "../(invoice)/invoice-list/invoice-list-table/components
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import avatar1 from "@/public/images/avatar/avatar-1.jpg";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from "@/components/ui/dialog";
-import { Icon } from "@iconify/react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Upload, X } from "lucide-react";
-import Flatpickr from "react-flatpickr";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import { Autocomplete, AutocompleteItem } from "@/components/ui/autocomplete";
+import { Box, Layers, Settings } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 // Datos de ejemplo para presupuestos
 const presupuestosData = [
@@ -80,9 +66,9 @@ const clientes = [
 
 // Categorías y productos ficticios
 const categorias = [
-  { id: 1, nombre: "Maderas" },
-  { id: 2, nombre: "Tableros" },
-  { id: 3, nombre: "Accesorios" },
+  { id: 1, nombre: "Maderas", icon: <Box className="w-5 h-5 mr-2 text-primary" /> },
+  { id: 2, nombre: "Tableros", icon: <Layers className="w-5 h-5 mr-2 text-primary" /> },
+  { id: 3, nombre: "Accesorios", icon: <Settings className="w-5 h-5 mr-2 text-primary" /> },
 ];
 const productosPorCategoria = {
   1: [
@@ -148,11 +134,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Estado para cliente seleccionado
   const [clienteId, setClienteId] = useState("");
-  const clienteSeleccionado = clientes.find(c => c.id === Number(clienteId));
+  const [clientesState, setClientesState] = useState(clientes);
+  const clienteSeleccionado = clientesState.find(c => c.id === Number(clienteId));
+  // Estado para modal de nuevo cliente
+  const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
 
   // Estado para selección de categoría y productos
   const [categoriaId, setCategoriaId] = useState("");
   const [productosSeleccionados, setProductosSeleccionados] = useState([]); // [{id, nombre, precio, cantidad, unidad, descuento}]
+  // Estado para búsqueda global de productos
+  const [busquedaProducto, setBusquedaProducto] = useState("");
 
   // Manejo de selección de productos
   const handleAgregarProducto = (producto) => {
@@ -181,6 +173,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setValue(field, date[0]);
   };
 
+  // Manejo de selección en Autocomplete
+  const handleClienteChange = (val) => {
+    if (val === "nuevo") {
+      setOpenNuevoCliente(true);
+    } else {
+      setClienteId(val);
+    }
+  };
+
+  // Guardar nuevo cliente
+  const handleGuardarNuevoCliente = () => {
+    const nuevoId = clientesState.length > 0 ? Math.max(...clientesState.map(c => c.id)) + 1 : 1;
+    const clienteObj = { id: nuevoId, ...nuevoCliente };
+    setClientesState([...clientesState, clienteObj]);
+    setClienteId(nuevoId.toString());
+    setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+    setOpenNuevoCliente(false);
+  };
+
   return (
     <>
       <DialogHeader className="mb-2">
@@ -190,41 +201,116 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
-          <select value={clienteId} onChange={e => setClienteId(e.target.value)} className="border rounded px-2 py-2 w-full">
-            <option value="">Seleccionar cliente...</option>
-            {clientes.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
-            ))}
-          </select>
-          {clienteSeleccionado && (
-            <div className="text-xs text-default-600 mt-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div><b>Dirección:</b> {clienteSeleccionado.direccion}</div>
-              <div><b>Tel:</b> {clienteSeleccionado.telefono} <b>Email:</b> {clienteSeleccionado.email}</div>
+          <div className="flex gap-2 items-center">
+            <select
+              value={clienteId}
+              onChange={e => setClienteId(e.target.value)}
+              className="border rounded px-2 py-2 w-full"
+            >
+              <option value="">Seleccionar cliente...</option>
+              {clientesState.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
+              ))}
+            </select>
+            <Button type="button" variant="default" onClick={() => setOpenNuevoCliente(true)}>
+              + Nuevo
+            </Button>
+          </div>
+          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+            <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
+              <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
+              <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
+              <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
+              <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
             </div>
-          )}
+          </div>
         </section>
+        {/* Modal alta rápida de cliente */}
+        <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
+          <DialogContent className="w-[95vw] max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Agregar Cliente</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 py-2">
+              <Input placeholder="Nombre" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
+              <Input placeholder="CUIT" className="w-full" value={nuevoCliente.cuit} onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
+              <Input placeholder="Dirección" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
+              <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
+              <Input placeholder="Email" className="w-full" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>
+              <Button variant="default" onClick={handleGuardarNuevoCliente}>Guardar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Selección de productos */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Productos</label>
-          <div className="flex flex-col md:flex-row gap-2 mb-2">
-            <select value={categoriaId} onChange={e => setCategoriaId(e.target.value)} className="border rounded px-2 py-2 w-full md:w-60">
-              <option value="">Seleccionar categoría...</option>
-              {categorias.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-              ))}
-            </select>
-            {categoriaId && (
-              <div className="flex flex-row gap-2 overflow-x-auto pb-2">
-                {productosPorCategoria[categoriaId]?.map(prod => (
-                  <div key={prod.id} className="border rounded px-3 py-2 flex items-center gap-2 bg-gray-50 min-w-[180px]">
-                    <span>{prod.nombre} <span className="text-xs text-default-500">({prod.unidad})</span> - <b>${prod.precio}</b></span>
-                    <Button type="button" size="sm" onClick={() => handleAgregarProducto(prod)} disabled={productosSeleccionados.some(p => p.id === prod.id)}>+
-                    </Button>
+          {/* Categorías como items con iconos */}
+          <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
+            {categorias.map(cat => (
+              <Button
+                key={cat.id}
+                variant={categoriaId === cat.id.toString() ? "default" : "soft"}
+                size="sm"
+                color={categoriaId === cat.id.toString() ? "primary" : "secondary"}
+                className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                onClick={() => setCategoriaId(cat.id.toString())}
+              >
+                {cat.icon}
+                {cat.nombre}
+              </Button>
+            ))}
+          </div>
+          {/* Lista de productos de la categoría seleccionada */}
+          {categoriaId && (
+            <div className="w-full mb-2 animate-fade-in">
+              {/* Buscador global de productos */}
+              <div className="mb-2 flex justify-end">
+                <Input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  value={busquedaProducto}
+                  onChange={e => setBusquedaProducto(e.target.value)}
+                  className="w-full md:w-80"
+                />
+              </div>
+              <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
+                <div className="col-span-5">Producto</div>
+                <div className="col-span-2">Medida</div>
+                <div className="col-span-2">Precio</div>
+                <div className="col-span-3"></div>
+              </div>
+              <div className="divide-y divide-gray-200 bg-white rounded-b">
+                {productosPorCategoria[categoriaId]?.filter(prod =>
+                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                  prod.unidad.toLowerCase().includes(busquedaProducto.toLowerCase())
+                ).map(prod => (
+                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                    <div className="col-span-5 font-medium">{prod.nombre}</div>
+                    <div className="col-span-2 text-xs text-default-500">{prod.unidad}</div>
+                    <div className="col-span-2 font-bold text-primary">${prod.precio}</div>
+                    <div className="col-span-3 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                        color="primary"
+                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                        onClick={() => handleAgregarProducto(prod)}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id)}
+                      >
+                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
           {/* Lista de productos seleccionados */}
           {productosSeleccionados.length > 0 && (
             <div className="overflow-x-auto">
@@ -257,28 +343,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </section>
         {/* Datos adicionales según tipo */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-            <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
-            <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
-            <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
-            <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
-            <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
-            <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
-          </div>
-          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-            <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
-            <Input {...register("fecha")} placeholder="Fecha de emisión" type="date" className="w-full" />
-            {tipo === 'presupuesto' && <Input {...register("vencimiento")} placeholder="Validez hasta" type="date" className="w-full" />}
-            <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full">
-              <option value="">Condiciones de pago...</option>
-              <option value="contado">Contado</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="cheque">Cheque</option>
-            </select>
-            {tipo === 'venta' && <>
+         
+          {tipo === 'venta' && (
+            <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+              <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
+              <Input {...register("fecha")} placeholder="Fecha de emisión" type="date" className="w-full" />
               <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" />
               <Input {...register("transportista")} placeholder="Transportista" className="w-full" />
               <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" />
+              <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full">
+                <option value="">Condiciones de pago...</option>
+                <option value="contado">Contado</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="cheque">Cheque</option>
+              </select>
               <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full">
                 <option value="">Estado de pago...</option>
                 <option value="pagado">Pagado</option>
@@ -290,9 +368,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <option value="transferencia">Transferencia</option>
                 <option value="tarjeta">Tarjeta</option>
               </select>
-            </>}
-            <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" />
-          </div>
+              <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" />
+            </div>
+          )}
         </section>
         {/* Resumen de totales */}
         <section className="flex flex-col items-end gap-2 mt-4 pr-2">
@@ -314,11 +392,32 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
 const VentasPage = () => {
   const [open, setOpen] = useState(null); // null | 'presupuesto' | 'venta'
+  const [ventasData, setVentasData] = useState([]);
+  const [presupuestosData, setPresupuestosData] = useState([]);
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      const ventasSnap = await getDocs(collection(db, "ventas"));
+      setVentasData(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
+      setPresupuestosData(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchData();
+  }, []);
+
   const handleClose = () => setOpen(null);
-  const handleSubmit = (data) => {
-    // Aquí puedes manejar el guardado (mock)
-    alert(`¡${open === 'presupuesto' ? 'Presupuesto' : 'Venta'} guardado!`);
-    setOpen(null);
+  const handleSubmit = async (data) => {
+    let docRef;
+    if (open === "venta") {
+      docRef = await addDoc(collection(db, "ventas"), data);
+      setOpen(null);
+      router.push(`/ventas/${docRef.id}`);
+    } else if (open === "presupuesto") {
+      docRef = await addDoc(collection(db, "presupuestos"), data);
+      setOpen(null);
+      router.push(`/presupuestos/${docRef.id}`);
+    }
   };
   return (
     <div className="flex flex-col gap-6 py-8">
@@ -345,7 +444,7 @@ const VentasPage = () => {
         </Card>
       </div>
       <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[95vw] max-w-[900px] h-[95vh] max-h-[700px] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-[1500px] h-[150vh] max-h-[1000px] flex flex-col">
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
