@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { columns } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
@@ -11,11 +11,10 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Box, Layers, Settings } from "lucide-react";
-import { db, uploadInitialClientes } from "@/lib/firebase";
-import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-// Eliminar datos de ejemplo para presupuestos y ventas
 // Categorías y productos ficticios
 const categorias = [
   { id: 1, nombre: "Maderas", icon: <Box className="w-5 h-5 mr-2 text-primary" /> },
@@ -135,22 +134,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
     setOpenNuevoCliente(false);
   };
-
-  // React.useEffect(() => {
-  //   const fetchClientes = async () => {
-  //     // Subir los clientes iniciales solo si la colección está vacía
-  //     await uploadInitialClientes([
-  //       { nombre: "Carpintería El Roble", cuit: "20-12345678-9", direccion: "Av. Madera 123", telefono: "1122334455", email: "roble@ejemplo.com" },
-  //       { nombre: "Obras SRL", cuit: "30-87654321-0", direccion: "Ruta 8 Km 45", telefono: "1144556677", email: "obras@ejemplo.com" },
-  //       { nombre: "Muebles Modernos", cuit: "27-11223344-5", direccion: "Calle Nogal 456", telefono: "1133445566", email: "muebles@ejemplo.com" },
-  //     ]);
-  //     const snap = await getDocs(collection(db, "clientes"));
-  //     setClientesState(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-  //     setClientesLoading(false);
-  //   };
-  //   fetchClientes();
-  // }, []);
-
   // Sincronizar cliente seleccionado con el objeto cliente del formulario
   React.useEffect(() => {
     if (clienteSeleccionado) {
@@ -175,6 +158,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       descuento: p.descuento || 0,
     })));
   }, [productosSeleccionados, setValue]);
+
+  useEffect(() => {
+    const fetchClientes = async () => {
+      setClientesLoading(true);
+      const snap = await getDocs(collection(db, "clientes"));
+      setClientesState(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setClientesLoading(false);
+    };
+    fetchClientes();
+  }, []);
 
   return (
     <>
