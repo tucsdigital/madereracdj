@@ -4,14 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { columns } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
-import avatar1 from "@/public/images/avatar/avatar-1.jpg";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { Autocomplete, AutocompleteItem } from "@/components/ui/autocomplete";
 import { Box, Layers, Settings } from "lucide-react";
 import { db, uploadInitialClientes } from "@/lib/firebase";
 import { collection, getDocs, addDoc, doc, getDoc } from "firebase/firestore";
@@ -405,48 +403,9 @@ const VentasPage = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       const ventasSnap = await getDocs(collection(db, "ventas"));
+      setVentasData(ventasSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-      // Si ambas colecciones están vacías, crear datos de prueba
-      if (ventasSnap.empty) {
-        await addDoc(collection(db, "ventas"), {
-          nombre: "Venta de prueba",
-          fecha: new Date().toISOString().slice(0, 10),
-          cliente: {
-            nombre: "Cliente Demo",
-            cuit: "00-00000000-0",
-            direccion: "Demo 123",
-            telefono: "0000000000",
-            email: "demo@demo.com"
-          },
-          items: [
-            { descripcion: "Producto Demo", cantidad: 2, precio: 1000, unidad: "u", moneda: "$", descuento: 0 }
-          ],
-          total: 2000
-        });
-      }
-      if (presupuestosSnap.empty) {
-        await addDoc(collection(db, "presupuestos"), {
-          nombre: "Presupuesto de prueba",
-          fecha: new Date().toISOString().slice(0, 10),
-          vencimiento: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0, 10),
-          cliente: {
-            nombre: "Cliente Demo",
-            cuit: "00-00000000-0",
-            direccion: "Demo 123",
-            telefono: "0000000000",
-            email: "demo@demo.com"
-          },
-          items: [
-            { descripcion: "Producto Demo", cantidad: 1, precio: 500, unidad: "u", moneda: "$", descuento: 0 }
-          ],
-          total: 500
-        });
-      }
-      // Volver a cargar los datos
-      const ventasSnap2 = await getDocs(collection(db, "ventas"));
-      setVentasData(ventasSnap2.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-      const presupuestosSnap2 = await getDocs(collection(db, "presupuestos"));
-      setPresupuestosData(presupuestosSnap2.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setPresupuestosData(presupuestosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     };
     fetchData();
   }, []);
@@ -458,8 +417,8 @@ const VentasPage = () => {
       // Asegurarse de enviar los productos seleccionados y datos del cliente
       const formData = {
         ...data,
-        cliente: clientesState.find(c => c.id === Number(data.clienteId)),
-        items: productosSeleccionados,
+        // NO incluir campo id
+        // cliente y items ya están sincronizados correctamente
         total: productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad - (p.descuento || 0) * p.cantidad), 0),
       };
       let docRef;
