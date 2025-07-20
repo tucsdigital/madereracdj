@@ -718,7 +718,6 @@ const VentasPage = () => {
   const [open, setOpen] = useState(null); // null | 'presupuesto' | 'venta'
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
-  const [enviosData, setEnviosData] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const params = useParams();
@@ -736,10 +735,6 @@ const VentasPage = () => {
         // Cargar presupuestos
         const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
         setPresupuestosData(presupuestosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-        
-        // Cargar envíos
-        const enviosSnap = await getDocs(collection(db, "envios"));
-        setEnviosData(enviosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
         
       } catch (error) {
         console.error("Error al cargar datos:", error);
@@ -851,15 +846,6 @@ const VentasPage = () => {
           </CardHeader>
           <CardContent>
             <DataTable data={ventasData} columns={columns} />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Envíos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable data={enviosData} columns={enviosColumns} />
           </CardContent>
         </Card>
       </div>
