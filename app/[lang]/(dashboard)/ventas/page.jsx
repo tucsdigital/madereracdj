@@ -15,6 +15,95 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 
+// Columnas para la tabla de envíos
+const enviosColumns = [
+  {
+    accessorKey: "numeroPedido",
+    header: "N° Pedido",
+  },
+  {
+    accessorKey: "cliente.nombre",
+    header: "Cliente",
+  },
+  {
+    accessorKey: "fechaEntrega",
+    header: "Fecha Entrega",
+    cell: ({ row }) => {
+      const fecha = row.getValue("fechaEntrega");
+      return fecha ? new Date(fecha).toLocaleDateString('es-AR') : "-";
+    },
+  },
+  {
+    accessorKey: "estado",
+    header: "Estado",
+    cell: ({ row }) => {
+      const estado = row.getValue("estado");
+      const estados = {
+        pendiente: { label: "Pendiente", color: "bg-yellow-100 text-yellow-800" },
+        en_preparacion: { label: "En Preparación", color: "bg-blue-100 text-blue-800" },
+        listo_para_envio: { label: "Listo para Envío", color: "bg-purple-100 text-purple-800" },
+        en_transito: { label: "En Tránsito", color: "bg-orange-100 text-orange-800" },
+        entregado: { label: "Entregado", color: "bg-green-100 text-green-800" },
+        cancelado: { label: "Cancelado", color: "bg-red-100 text-red-800" },
+      };
+      const estadoInfo = estados[estado] || { label: estado, color: "bg-gray-100 text-gray-800" };
+      return (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${estadoInfo.color}`}>
+          {estadoInfo.label}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "prioridad",
+    header: "Prioridad",
+    cell: ({ row }) => {
+      const prioridad = row.getValue("prioridad");
+      const prioridades = {
+        alta: { label: "Alta", color: "bg-red-100 text-red-800" },
+        media: { label: "Media", color: "bg-yellow-100 text-yellow-800" },
+        baja: { label: "Baja", color: "bg-green-100 text-green-800" },
+      };
+      const prioridadInfo = prioridades[prioridad] || { label: prioridad, color: "bg-gray-100 text-gray-800" };
+      return (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${prioridadInfo.color}`}>
+          {prioridadInfo.label}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: "tipoEnvio",
+    header: "Tipo Envío",
+    cell: ({ row }) => {
+      const tipo = row.getValue("tipoEnvio");
+      const tipos = {
+        retiro_local: "Retiro Local",
+        envio_domicilio: "Domicilio",
+        envio_obra: "Obra",
+        transporte_propio: "Transporte Propio",
+      };
+      return tipos[tipo] || tipo;
+    },
+  },
+  {
+    accessorKey: "transportista",
+    header: "Transportista",
+  },
+  {
+    accessorKey: "totalVenta",
+    header: "Total",
+    cell: ({ row }) => {
+      const total = row.getValue("totalVenta");
+      return total ? `$${parseFloat(total).toFixed(2)}` : "-";
+    },
+  },
+  {
+    accessorKey: "vendedor",
+    header: "Vendedor",
+  },
+];
+
 // Categorías y productos ficticios
 const categorias = [
   { id: 1, nombre: "Maderas", icon: <Box className="w-5 h-5 mr-2 text-primary" /> },
@@ -558,7 +647,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
 
         {/* Sección fija de totales y footer */}
-        <div className="border-t bg-white space-y-4 flex-shrink-0">
+        <div className="border-t bg-white p-4 space-y-4 flex-shrink-0">
           {/* Resumen de totales */}
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
@@ -629,6 +718,7 @@ const VentasPage = () => {
   const [open, setOpen] = useState(null); // null | 'presupuesto' | 'venta'
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
+  const [enviosData, setEnviosData] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const params = useParams();
@@ -636,10 +726,26 @@ const VentasPage = () => {
 
   React.useEffect(() => {
     const fetchData = async () => {
-      const ventasSnap = await getDocs(collection(db, "ventas"));
-      setVentasData(ventasSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-      const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-      setPresupuestosData(presupuestosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      try {
+        setLoading(true);
+        
+        // Cargar ventas
+        const ventasSnap = await getDocs(collection(db, "ventas"));
+        setVentasData(ventasSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        
+        // Cargar presupuestos
+        const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
+        setPresupuestosData(presupuestosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        
+        // Cargar envíos
+        const enviosSnap = await getDocs(collection(db, "envios"));
+        setEnviosData(enviosSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);
@@ -652,12 +758,66 @@ const VentasPage = () => {
     try {
       let docRef;
       if (open === "venta") {
+        // Crear la venta
         docRef = await addDoc(collection(db, "ventas"), formData);
+        
+        // Si la venta tiene envío, crear automáticamente el registro de envío
+        if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+          const envioData = {
+            ventaId: docRef.id,
+            clienteId: formData.clienteId,
+            cliente: formData.cliente,
+            fechaCreacion: new Date().toISOString(),
+            fechaEntrega: formData.fechaEntrega,
+            estado: "pendiente",
+            prioridad: formData.prioridad || "media",
+            vendedor: formData.vendedor,
+            
+            // Datos de envío
+            direccionEnvio: formData.direccionEnvio,
+            localidadEnvio: formData.localidadEnvio,
+            codigoPostal: formData.codigoPostal,
+            tipoEnvio: formData.tipoEnvio,
+            transportista: formData.transportista,
+            costoEnvio: parseFloat(formData.costoEnvio) || 0,
+            
+            // Datos de la venta
+            numeroFactura: formData.numeroFactura,
+            numeroRemito: formData.numeroRemito,
+            numeroPedido: formData.numeroPedido,
+            totalVenta: formData.total,
+            
+            // Productos
+            productos: formData.productos,
+            cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+            
+            // Seguimiento
+            historialEstados: [
+              {
+                estado: "pendiente",
+                fecha: new Date().toISOString(),
+                comentario: "Envío creado automáticamente desde la venta"
+              }
+            ],
+            
+            // Observaciones
+            observaciones: formData.observaciones,
+            instruccionesEspeciales: "",
+            
+            // Timestamps
+            fechaActualizacion: new Date().toISOString(),
+            creadoPor: "sistema", // En una app real sería el usuario actual
+          };
+          
+          await addDoc(collection(db, "envios"), envioData);
+          console.log("Envío creado automáticamente para la venta:", docRef.id);
+        }
+        
         setOpen(null);
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
         docRef = await addDoc(collection(db, "presupuestos"), formData);
-    setOpen(null);
+        setOpen(null);
         router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
     } catch (error) {
@@ -674,7 +834,8 @@ const VentasPage = () => {
         <Button variant="default" onClick={() => setOpen('presupuesto')}>Agregar Presupuesto</Button>
         <Button variant="default" onClick={() => setOpen('venta')}>Agregar Venta</Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Presupuestos</CardTitle>
@@ -683,6 +844,7 @@ const VentasPage = () => {
             <DataTable data={presupuestosData} columns={columns} />
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader>
             <CardTitle>Ventas</CardTitle>
@@ -691,7 +853,17 @@ const VentasPage = () => {
             <DataTable data={ventasData} columns={columns} />
           </CardContent>
         </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Envíos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable data={enviosData} columns={enviosColumns} />
+          </CardContent>
+        </Card>
       </div>
+      
       <Dialog open={!!open} onOpenChange={handleClose}>
         <DialogContent className="w-[95vw] max-w-[1500px] h-[85vh] flex flex-col">
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
