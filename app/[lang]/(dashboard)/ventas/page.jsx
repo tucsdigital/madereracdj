@@ -275,289 +275,298 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
-        {/* Información básica */}
-        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-          <label className="font-semibold">Información básica</label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Input 
-                {...register("nombre")} 
-                placeholder="Nombre del documento" 
-                className="w-full" 
-                disabled={isSubmitting}
-              />
-              {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
-            </div>
-            <div>
-              <Input 
-                {...register("fecha")} 
-                placeholder="Fecha de emisión" 
-                type="date" 
-                className="w-full" 
-                disabled={isSubmitting}
-              />
-              {errors.fecha && <span className="text-red-500 text-xs">{errors.fecha.message}</span>}
-            </div>
-            {tipo === 'presupuesto' && (
-              <div>
-                <Input 
-                  {...register("vencimiento")} 
-                  placeholder="Fecha de vencimiento" 
-                  type="date" 
-                  className="w-full" 
-                  disabled={isSubmitting}
-                />
-                {errors.vencimiento && <span className="text-red-500 text-xs">{errors.vencimiento.message}</span>}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Selección de cliente */}
-        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-          <label className="font-semibold">Cliente</label>
-          <div className="flex gap-2 items-center">
-            <select
-              value={clienteId}
-              onChange={e => setClienteId(e.target.value)}
-              className="border rounded px-2 py-2 w-full"
-              name="clienteId"
-              ref={register ? register("clienteId").ref : undefined}
-              disabled={clientesLoading || isSubmitting}
-            >
-              <option value="">Seleccionar cliente...</option>
-              {clientesState.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
-              ))}
-            </select>
-            <Button 
-              type="button" 
-              variant="default" 
-              onClick={() => setOpenNuevoCliente(true)}
-              disabled={isSubmitting}
-            >
-              + Nuevo
-            </Button>
-          </div>
-          {errors.clienteId && <span className="text-red-500 text-xs">{errors.clienteId.message}</span>}
-          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-            <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
-                {errors.cliente?.nombre && <span className="text-red-500 text-xs">{errors.cliente?.nombre.message}</span>}
-              </div>
-              <div>
-                <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
-                {errors.cliente?.cuit && <span className="text-red-500 text-xs">{errors.cliente?.cuit.message}</span>}
-              </div>
-              <div>
-                <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
-                {errors.cliente?.direccion && <span className="text-red-500 text-xs">{errors.cliente?.direccion.message}</span>}
-              </div>
-              <div>
-                <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
-                {errors.cliente?.telefono && <span className="text-red-500 text-xs">{errors.cliente?.telefono.message}</span>}
-              </div>
-              <div>
-                <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
-                {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Modal alta rápida de cliente */}
-        <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-          <DialogContent className="w-[95vw] max-w-[420px]">
-            <DialogHeader>
-              <DialogTitle>Agregar Cliente</DialogTitle>
-              <DialogDescription>
-                Complete los datos del nuevo cliente para agregarlo al sistema.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 py-2">
-              <Input placeholder="Nombre" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
-              <Input placeholder="CUIT" className="w-full" value={nuevoCliente.cuit} onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
-              <Input placeholder="Dirección" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
-              <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
-              <Input placeholder="Email" className="w-full" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>
-              <Button variant="default" onClick={handleGuardarNuevoCliente}>Guardar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Selección de productos */}
-        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-          <label className="font-semibold">Productos</label>
-          {/* Categorías como items con iconos */}
-          <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
-            {categorias.map(cat => (
-              <Button
-                key={cat.id}
-                variant={categoriaId === cat.id.toString() ? "default" : "soft"}
-                size="sm"
-                color={categoriaId === cat.id.toString() ? "primary" : "secondary"}
-                className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
-                onClick={() => setCategoriaId(cat.id.toString())}
-                disabled={isSubmitting}
-              >
-                {cat.icon}
-                {cat.nombre}
-              </Button>
-            ))}
-          </div>
-          {/* Lista de productos de la categoría seleccionada */}
-          {categoriaId && (
-            <div className="w-full mb-2 animate-fade-in">
-              {/* Buscador global de productos */}
-              <div className="mb-2 flex justify-end">
-                <Input
-                  type="text"
-                  placeholder="Buscar producto..."
-                  value={busquedaProducto}
-                  onChange={e => setBusquedaProducto(e.target.value)}
-                  className="w-full md:w-80"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
-                <div className="col-span-5">Producto</div>
-                <div className="col-span-2">Medida</div>
-                <div className="col-span-2">Precio</div>
-                <div className="col-span-3"></div>
-              </div>
-              <div className="divide-y divide-gray-200 bg-white rounded-b">
-                {productosPorCategoria[categoriaId]?.filter(prod =>
-                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                  prod.unidad.toLowerCase().includes(busquedaProducto.toLowerCase())
-                ).map(prod => (
-                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
-                    <div className="col-span-5 font-medium">{prod.nombre}</div>
-                    <div className="col-span-2 text-xs text-default-500">{prod.unidad}</div>
-                    <div className="col-span-2 font-bold text-primary">${prod.precio}</div>
-                    <div className="col-span-3 flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
-                        color="primary"
-                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
-                        onClick={() => handleAgregarProducto(prod)}
-                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
-                      >
-                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
-                      </Button>
-                    </div>
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
+        {/* Contenido scrolleable */}
+        <div className="flex-1 overflow-y-auto px-1 pb-4">
+          <div className="flex flex-col gap-6">
+            {/* Información básica */}
+            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+              <label className="font-semibold">Información básica</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Input 
+                    {...register("nombre")} 
+                    placeholder="Nombre del documento" 
+                    className="w-full" 
+                    disabled={isSubmitting}
+                  />
+                  {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
+                </div>
+                <div>
+                  <Input 
+                    {...register("fecha")} 
+                    placeholder="Fecha de emisión" 
+                    type="date" 
+                    className="w-full" 
+                    disabled={isSubmitting}
+                  />
+                  {errors.fecha && <span className="text-red-500 text-xs">{errors.fecha.message}</span>}
+                </div>
+                {tipo === 'presupuesto' && (
+                  <div>
+                    <Input 
+                      {...register("vencimiento")} 
+                      placeholder="Fecha de vencimiento" 
+                      type="date" 
+                      className="w-full" 
+                      disabled={isSubmitting}
+                    />
+                    {errors.vencimiento && <span className="text-red-500 text-xs">{errors.vencimiento.message}</span>}
                   </div>
+                )}
+              </div>
+            </section>
+
+            {/* Selección de cliente */}
+            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+              <label className="font-semibold">Cliente</label>
+              <div className="flex gap-2 items-center">
+                <select
+                  value={clienteId}
+                  onChange={e => setClienteId(e.target.value)}
+                  className="border rounded px-2 py-2 w-full"
+                  name="clienteId"
+                  ref={register ? register("clienteId").ref : undefined}
+                  disabled={clientesLoading || isSubmitting}
+                >
+                  <option value="">Seleccionar cliente...</option>
+                  {clientesState.map(c => (
+                    <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
+                  ))}
+                </select>
+                <Button 
+                  type="button" 
+                  variant="default" 
+                  onClick={() => setOpenNuevoCliente(true)}
+                  disabled={isSubmitting}
+                >
+                  + Nuevo
+                </Button>
+              </div>
+              {errors.clienteId && <span className="text-red-500 text-xs">{errors.clienteId.message}</span>}
+              <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
+                    {errors.cliente?.nombre && <span className="text-red-500 text-xs">{errors.cliente?.nombre.message}</span>}
+                  </div>
+                  <div>
+                    <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
+                    {errors.cliente?.cuit && <span className="text-red-500 text-xs">{errors.cliente?.cuit.message}</span>}
+                  </div>
+                  <div>
+                    <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
+                    {errors.cliente?.direccion && <span className="text-red-500 text-xs">{errors.cliente?.direccion.message}</span>}
+                  </div>
+                  <div>
+                    <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
+                    {errors.cliente?.telefono && <span className="text-red-500 text-xs">{errors.cliente?.telefono.message}</span>}
+                  </div>
+                  <div>
+                    <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
+                    {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Selección de productos */}
+            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+              <label className="font-semibold">Productos</label>
+              {/* Categorías como items con iconos */}
+              <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
+                {categorias.map(cat => (
+                  <Button
+                    key={cat.id}
+                    variant={categoriaId === cat.id.toString() ? "default" : "soft"}
+                    size="sm"
+                    color={categoriaId === cat.id.toString() ? "primary" : "secondary"}
+                    className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                    onClick={() => setCategoriaId(cat.id.toString())}
+                    disabled={isSubmitting}
+                  >
+                    {cat.icon}
+                    {cat.nombre}
+                  </Button>
                 ))}
               </div>
-            </div>
-          )}
-          {/* Lista de productos seleccionados */}
-          {productosSeleccionados.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm mt-2 min-w-[600px]">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2">Producto</th>
-                    <th>Cant.</th>
-                    <th>Precio</th>
-                    <th>Desc.</th>
-                    <th>Subtotal</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productosSeleccionados.map(p => (
-                    <tr key={p.id}>
-                      <td className="p-2">{p.nombre}</td>
-                      <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                      <td>${p.precio}</td>
-                      <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                      <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
-                      <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {errors.items && <span className="text-red-500 text-xs">{errors.items.message}</span>}
-        </section>
+              {/* Lista de productos de la categoría seleccionada */}
+              {categoriaId && (
+                <div className="w-full mb-2 animate-fade-in">
+                  {/* Buscador global de productos */}
+                  <div className="mb-2 flex justify-end">
+                    <Input
+                      type="text"
+                      placeholder="Buscar producto..."
+                      value={busquedaProducto}
+                      onChange={e => setBusquedaProducto(e.target.value)}
+                      className="w-full md:w-80"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
+                    <div className="col-span-5">Producto</div>
+                    <div className="col-span-2">Medida</div>
+                    <div className="col-span-2">Precio</div>
+                    <div className="col-span-3"></div>
+                  </div>
+                  <div className="divide-y divide-gray-200 bg-white rounded-b">
+                    {productosPorCategoria[categoriaId]?.filter(prod =>
+                      prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                      prod.unidad.toLowerCase().includes(busquedaProducto.toLowerCase())
+                    ).map(prod => (
+                      <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                        <div className="col-span-5 font-medium">{prod.nombre}</div>
+                        <div className="col-span-2 text-xs text-default-500">{prod.unidad}</div>
+                        <div className="col-span-2 font-bold text-primary">${prod.precio}</div>
+                        <div className="col-span-3 flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                            color="primary"
+                            className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                            onClick={() => handleAgregarProducto(prod)}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
+                          >
+                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Lista de productos seleccionados */}
+              {productosSeleccionados.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm mt-2 min-w-[600px]">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="p-2">Producto</th>
+                        <th>Cant.</th>
+                        <th>Precio</th>
+                        <th>Desc.</th>
+                        <th>Subtotal</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productosSeleccionados.map(p => (
+                        <tr key={p.id}>
+                          <td className="p-2">{p.nombre}</td>
+                          <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
+                          <td>${p.precio}</td>
+                          <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
+                          <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
+                          <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {errors.items && <span className="text-red-500 text-xs">{errors.items.message}</span>}
+            </section>
 
-        {/* Datos adicionales según tipo */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         
-          {tipo === 'venta' && (
-            <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-              <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
-              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
-              <Input {...register("transportista")} placeholder="Transportista" className="w-full" disabled={isSubmitting} />
-              <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" disabled={isSubmitting} />
-              <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                <option value="">Condiciones de pago...</option>
-                <option value="contado">Contado</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="cheque">Cheque</option>
-              </select>
-              <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                <option value="">Estado de pago...</option>
-                <option value="pagado">Pagado</option>
-                <option value="pendiente">Pendiente</option>
-              </select>
-              <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                <option value="">Método de pago...</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-              </select>
-              <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" disabled={isSubmitting} />
-            </div>
-          )}
-        </section>
-
-        {/* Resumen de totales */}
-        <section className="flex flex-col items-end gap-2 mt-4 pr-2">
-          <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
-            <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
-            <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
-            <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
-            <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
+            {/* Datos adicionales según tipo */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             
+              {tipo === 'venta' && (
+                <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
+                  <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
+                  <Input {...register("transportista")} placeholder="Transportista" className="w-full" disabled={isSubmitting} />
+                  <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" disabled={isSubmitting} />
+                  <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <option value="">Condiciones de pago...</option>
+                    <option value="contado">Contado</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="cheque">Cheque</option>
+                  </select>
+                  <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <option value="">Estado de pago...</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="pendiente">Pendiente</option>
+                  </select>
+                  <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <option value="">Método de pago...</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                  </select>
+                  <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" disabled={isSubmitting} />
+                </div>
+              )}
+            </section>
           </div>
-        </section>
+        </div>
 
-        <DialogFooter className="mt-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={handleClose} 
-            className="hover:bg-gray-100"
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            type="submit" 
-            variant="default" 
-            className="shadow-md min-w-[140px]"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              `Guardar ${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'}`
-            )}
-          </Button>
-        </DialogFooter>
+        {/* Sección fija de totales y footer */}
+        <div className="border-t bg-white p-4 space-y-4">
+          {/* Resumen de totales */}
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
+              <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
+              <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
+              <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
+              <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleClose} 
+              className="hover:bg-gray-100"
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              variant="default" 
+              className="shadow-md min-w-[140px]"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                `Guardar ${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'}`
+              )}
+            </Button>
+          </DialogFooter>
+        </div>
       </form>
+
+      {/* Modal para nuevo cliente */}
+      <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
+        <DialogContent className="w-[95vw] max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Agregar Cliente</DialogTitle>
+            <DialogDescription>
+              Complete los datos del nuevo cliente para agregarlo al sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Input placeholder="Nombre" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
+            <Input placeholder="CUIT" className="w-full" value={nuevoCliente.cuit} onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
+            <Input placeholder="Dirección" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
+            <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
+            <Input placeholder="Email" className="w-full" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>
+            <Button variant="default" onClick={handleGuardarNuevoCliente}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -594,7 +603,7 @@ const VentasPage = () => {
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
         docRef = await addDoc(collection(db, "presupuestos"), formData);
-        setOpen(null);
+    setOpen(null);
         router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
     } catch (error) {
@@ -630,7 +639,7 @@ const VentasPage = () => {
         </Card>
       </div>
       <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[95vw] max-w-[1500px] h-[150vh] max-h-[1000px] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
