@@ -9,28 +9,52 @@ import { ArrowLeft, Printer, Download } from "lucide-react";
 const PresupuestoDetalle = () => {
   const params = useParams();
   const router = useRouter();
-  const { id } = params;
+  const { id, lang } = params;
   const [presupuesto, setPresupuesto] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchPresupuesto = async () => {
       try {
+        console.log("=== DEBUG PRESUPUESTO ===");
+        console.log("Params completos:", params);
+        console.log("ID extraído:", id);
+        console.log("Lang extraído:", lang);
+        console.log("URL actual:", window.location.href);
+        
+        if (!id) {
+          console.error("No se encontró ID en los parámetros");
+          setError("No se proporcionó ID de presupuesto");
+          setLoading(false);
+          return;
+        }
+        
         const docRef = doc(db, "presupuestos", id);
+        console.log("Referencia del documento:", docRef);
+        
         const docSnap = await getDoc(docRef);
+        console.log("Documento existe:", docSnap.exists());
+        console.log("Datos del documento:", docSnap.data());
+        
         if (docSnap.exists()) {
-          setPresupuesto({ id: docSnap.id, ...docSnap.data() });
+          const presupuestoData = { id: docSnap.id, ...docSnap.data() };
+          console.log("Presupuesto cargado exitosamente:", presupuestoData);
+          setPresupuesto(presupuestoData);
         } else {
-          console.error("Presupuesto no encontrado");
+          console.error("Presupuesto no encontrado en Firebase");
+          setError("El presupuesto no existe en la base de datos");
         }
       } catch (error) {
         console.error("Error al cargar presupuesto:", error);
+        setError(`Error al cargar el presupuesto: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchPresupuesto();
-  }, [id]);
+  }, [id, lang, params]);
 
   if (loading) {
     return (
@@ -38,21 +62,47 @@ const PresupuestoDetalle = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando presupuesto...</p>
+          <p className="text-sm text-gray-500 mt-2">ID: {id}</p>
+          <p className="text-sm text-gray-500">Lang: {lang}</p>
         </div>
       </div>
     );
   }
 
-  if (!presupuesto) {
+  if (error || !presupuesto) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Presupuesto no encontrado</h2>
-          <p className="text-gray-600 mb-6">El presupuesto que buscas no existe o ha sido eliminado.</p>
-          <Button onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
-          </Button>
+          <p className="text-gray-600 mb-4">
+            {error || "El presupuesto que buscas no existe o ha sido eliminado."}
+          </p>
+          <div className="bg-gray-100 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm text-gray-700">
+              <strong>ID buscado:</strong> {id}
+            </p>
+            <p className="text-sm text-gray-700">
+              <strong>Lang:</strong> {lang}
+            </p>
+            <p className="text-sm text-gray-700">
+              <strong>URL:</strong> {window.location.href}
+            </p>
+            <p className="text-sm text-gray-700">
+              <strong>Params:</strong> {JSON.stringify(params)}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => router.back()}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver
+            </Button>
+            <Button variant="outline" onClick={() => router.push(`/${lang}/presupuestos`)}>
+              Ver todos los presupuestos
+            </Button>
+            <Button variant="outline" onClick={() => router.push(`/${lang}/presupuestos/debug`)}>
+              Debug
+            </Button>
+          </div>
         </div>
       </div>
     );

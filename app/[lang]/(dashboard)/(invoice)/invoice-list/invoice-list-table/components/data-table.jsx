@@ -23,7 +23,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 
 export function DataTable({ columns, data }) {
@@ -32,6 +32,8 @@ export function DataTable({ columns, data }) {
   const [columnFilters, setColumnFilters] = React.useState([]);
   const [sorting, setSorting] = React.useState([]);
   const router = useRouter();
+  const params = useParams();
+  const { lang } = params;
 
   console.log("DataTable data:", data);
 
@@ -63,9 +65,9 @@ export function DataTable({ columns, data }) {
     const id = row.original?.id;
     
     if (tipo === 'presupuesto') {
-      router.push(`/presupuestos/${id}`);
+      router.push(`/${lang}/presupuestos/${id}`);
     } else if (tipo === 'venta') {
-      router.push(`/ventas/${id}`);
+      router.push(`/${lang}/ventas/${id}`);
     }
   };
 

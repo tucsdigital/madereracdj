@@ -13,7 +13,7 @@ import * as yup from "yup";
 import { Box, Layers, Settings, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 // Categorías y productos ficticios
 const categorias = [
@@ -568,6 +568,8 @@ const VentasPage = () => {
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const params = useParams();
+  const { lang } = params;
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -589,11 +591,11 @@ const VentasPage = () => {
       if (open === "venta") {
         docRef = await addDoc(collection(db, "ventas"), formData);
         setOpen(null);
-        router.push(`/ventas/${docRef.id}`);
+        router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
         docRef = await addDoc(collection(db, "presupuestos"), formData);
         setOpen(null);
-        router.push(`/presupuestos/${docRef.id}`);
+        router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
     } catch (error) {
       console.error("Error al guardar:", error);
