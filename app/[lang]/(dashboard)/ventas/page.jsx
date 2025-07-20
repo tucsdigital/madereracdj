@@ -647,7 +647,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
 
         {/* Sección fija de totales y footer */}
-        <div className="border-t bg-white p-4 space-y-4 flex-shrink-0">
+        <div className="bg-white p-4 space-y-4 flex-shrink-0">
           {/* Resumen de totales */}
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
@@ -851,7 +851,7 @@ const VentasPage = () => {
       </div>
       
       <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[95vw] max-w-[1500px] h-[85vh] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
