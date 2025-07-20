@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { columns } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
@@ -69,7 +69,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     resolver: yupResolver(schema),
     defaultValues: {
       nombre: "",
-      fecha: "",
+      fecha: new Date().toISOString().split('T')[0], // Fecha actual por defecto
       vencimiento: "",
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
@@ -177,6 +177,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función de envío del formulario con validación profesional
   const handleFormSubmit = async (data) => {
+    console.log("Formulario enviado con datos:", data); // Debug
+    
     // Resetear estados previos
     setSubmitStatus(null);
     setSubmitMessage("");
@@ -218,6 +220,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         tipo: tipo,
       };
 
+      console.log("Datos preparados para envío:", formData); // Debug
+
       // Llamar a la función onSubmit del componente padre
       await onSubmit(formData);
       
@@ -250,6 +254,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     <>
       <DialogHeader className="mb-2">
         <DialogTitle>{tipo === 'presupuesto' ? 'Nuevo Presupuesto' : 'Nueva Venta'}</DialogTitle>
+        <DialogDescription>
+          Complete todos los campos requeridos para crear un nuevo {tipo === 'presupuesto' ? 'presupuesto' : 'venta'}.
+        </DialogDescription>
       </DialogHeader>
       
       {/* Indicador de estado de envío */}
@@ -269,6 +276,44 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       )}
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
+        {/* Información básica */}
+        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+          <label className="font-semibold">Información básica</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Input 
+                {...register("nombre")} 
+                placeholder="Nombre del documento" 
+                className="w-full" 
+                disabled={isSubmitting}
+              />
+              {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
+            </div>
+            <div>
+              <Input 
+                {...register("fecha")} 
+                placeholder="Fecha de emisión" 
+                type="date" 
+                className="w-full" 
+                disabled={isSubmitting}
+              />
+              {errors.fecha && <span className="text-red-500 text-xs">{errors.fecha.message}</span>}
+            </div>
+            {tipo === 'presupuesto' && (
+              <div>
+                <Input 
+                  {...register("vencimiento")} 
+                  placeholder="Fecha de vencimiento" 
+                  type="date" 
+                  className="w-full" 
+                  disabled={isSubmitting}
+                />
+                {errors.vencimiento && <span className="text-red-500 text-xs">{errors.vencimiento.message}</span>}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
@@ -328,6 +373,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           <DialogContent className="w-[95vw] max-w-[420px]">
             <DialogHeader>
               <DialogTitle>Agregar Cliente</DialogTitle>
+              <DialogDescription>
+                Complete los datos del nuevo cliente para agregarlo al sistema.
+              </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3 py-2">
               <Input placeholder="Nombre" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
@@ -439,6 +487,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </table>
             </div>
           )}
+          {errors.items && <span className="text-red-500 text-xs">{errors.items.message}</span>}
         </section>
 
         {/* Datos adicionales según tipo */}
@@ -447,7 +496,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           {tipo === 'venta' && (
             <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
               <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
-              <Input {...register("fecha")} placeholder="Fecha de emisión" type="date" className="w-full" disabled={isSubmitting} />
               <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
               <Input {...register("transportista")} placeholder="Transportista" className="w-full" disabled={isSubmitting} />
               <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" disabled={isSubmitting} />
@@ -534,6 +582,7 @@ const VentasPage = () => {
   const handleClose = () => setOpen(null);
   
   const handleSubmit = async (formData) => {
+    console.log("Recibiendo datos en VentasPage:", formData); // Debug
     setLoading(true);
     try {
       let docRef;
