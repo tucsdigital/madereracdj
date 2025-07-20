@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { Box, Layers, Settings } from "lucide-react";
+import { Box, Layers, Settings, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,11 @@ const productosPorCategoria = {
 };
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+  // Estados de carga y feedback
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [submitMessage, setSubmitMessage] = useState("");
+
   const schema = yup.object().shape({
     nombre: yup.string().required("El nombre es obligatorio"),
     fecha: yup.string().required("La fecha es obligatoria"),
@@ -134,6 +139,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
     setOpenNuevoCliente(false);
   };
+
   // Sincronizar cliente seleccionado con el objeto cliente del formulario
   React.useEffect(() => {
     if (clienteSeleccionado) {
@@ -169,12 +175,100 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     fetchClientes();
   }, []);
 
+  // Función de envío del formulario con validación profesional
+  const handleFormSubmit = async (data) => {
+    // Resetear estados previos
+    setSubmitStatus(null);
+    setSubmitMessage("");
+    
+    // Validaciones adicionales
+    if (!clienteId) {
+      setSubmitStatus("error");
+      setSubmitMessage("Debe seleccionar un cliente");
+      return;
+    }
+
+    if (productosSeleccionados.length === 0) {
+      setSubmitStatus("error");
+      setSubmitMessage("Debe agregar al menos un producto");
+      return;
+    }
+
+    // Validar que todos los productos tengan cantidad > 0
+    const productosInvalidos = productosSeleccionados.filter(p => p.cantidad <= 0);
+    if (productosInvalidos.length > 0) {
+      setSubmitStatus("error");
+      setSubmitMessage("Todos los productos deben tener una cantidad mayor a 0");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // Preparar datos del formulario
+      const formData = {
+        ...data,
+        clienteId: clienteId,
+        productos: productosSeleccionados,
+        subtotal: subtotal,
+        descuentoTotal: descuentoTotal,
+        iva: iva,
+        total: total,
+        fechaCreacion: new Date().toISOString(),
+        tipo: tipo,
+      };
+
+      // Llamar a la función onSubmit del componente padre
+      await onSubmit(formData);
+      
+      // Éxito
+      setSubmitStatus("success");
+      setSubmitMessage(`${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'} guardado exitosamente`);
+      
+      // Cerrar modal después de un breve delay para mostrar el mensaje de éxito
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      setSubmitStatus("error");
+      setSubmitMessage(`Error al guardar: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Función para manejar el cierre del modal
+  const handleClose = () => {
+    if (!isSubmitting) {
+      onClose();
+    }
+  };
+
   return (
     <>
       <DialogHeader className="mb-2">
         <DialogTitle>{tipo === 'presupuesto' ? 'Nuevo Presupuesto' : 'Nueva Venta'}</DialogTitle>
       </DialogHeader>
-      <form onSubmit={handleSubmit((data) => { onSubmit(data); })} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
+      
+      {/* Indicador de estado de envío */}
+      {submitStatus && (
+        <div className={`mb-4 p-4 rounded-lg flex items-center gap-3 ${
+          submitStatus === 'success' 
+            ? 'bg-green-50 border border-green-200 text-green-800' 
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          {submitStatus === 'success' ? (
+            <CheckCircle className="w-5 h-5 text-green-600" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-red-600" />
+          )}
+          <span className="font-medium">{submitMessage}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-6 flex-1 overflow-y-auto px-1">
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
@@ -185,14 +279,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               className="border rounded px-2 py-2 w-full"
               name="clienteId"
               ref={register ? register("clienteId").ref : undefined}
-              disabled={clientesLoading}
+              disabled={clientesLoading || isSubmitting}
             >
               <option value="">Seleccionar cliente...</option>
               {clientesState.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
               ))}
             </select>
-            <Button type="button" variant="default" onClick={() => setOpenNuevoCliente(true)}>
+            <Button 
+              type="button" 
+              variant="default" 
+              onClick={() => setOpenNuevoCliente(true)}
+              disabled={isSubmitting}
+            >
               + Nuevo
             </Button>
           </div>
@@ -223,6 +322,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </div>
           </div>
         </section>
+
         {/* Modal alta rápida de cliente */}
         <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
           <DialogContent className="w-[95vw] max-w-[420px]">
@@ -242,6 +342,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
         {/* Selección de productos */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Productos</label>
@@ -255,6 +356,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 color={categoriaId === cat.id.toString() ? "primary" : "secondary"}
                 className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
                 onClick={() => setCategoriaId(cat.id.toString())}
+                disabled={isSubmitting}
               >
                 {cat.icon}
                 {cat.nombre}
@@ -272,6 +374,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   value={busquedaProducto}
                   onChange={e => setBusquedaProducto(e.target.value)}
                   className="w-full md:w-80"
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
@@ -297,7 +400,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         color="primary"
                         className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
                         onClick={() => handleAgregarProducto(prod)}
-                        disabled={productosSeleccionados.some(p => p.id === prod.id)}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
                       >
                         {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
                       </Button>
@@ -325,11 +428,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   {productosSeleccionados.map(p => (
                     <tr key={p.id}>
                       <td className="p-2">{p.nombre}</td>
-                      <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" /></td>
+                      <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
                       <td>${p.precio}</td>
-                      <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" /></td>
+                      <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
                       <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
-                      <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)}>-</Button></td>
+                      <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -337,37 +440,39 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </div>
           )}
         </section>
+
         {/* Datos adicionales según tipo */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
          
           {tipo === 'venta' && (
             <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
               <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
-              <Input {...register("fecha")} placeholder="Fecha de emisión" type="date" className="w-full" />
-              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" />
-              <Input {...register("transportista")} placeholder="Transportista" className="w-full" />
-              <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" />
-              <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full">
+              <Input {...register("fecha")} placeholder="Fecha de emisión" type="date" className="w-full" disabled={isSubmitting} />
+              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
+              <Input {...register("transportista")} placeholder="Transportista" className="w-full" disabled={isSubmitting} />
+              <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" disabled={isSubmitting} />
+              <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                 <option value="">Condiciones de pago...</option>
                 <option value="contado">Contado</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="cheque">Cheque</option>
               </select>
-              <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full">
+              <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                 <option value="">Estado de pago...</option>
                 <option value="pagado">Pagado</option>
                 <option value="pendiente">Pendiente</option>
               </select>
-              <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full">
+              <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                 <option value="">Método de pago...</option>
                 <option value="efectivo">Efectivo</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="tarjeta">Tarjeta</option>
               </select>
-              <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" />
+              <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" disabled={isSubmitting} />
             </div>
           )}
         </section>
+
         {/* Resumen de totales */}
         <section className="flex flex-col items-end gap-2 mt-4 pr-2">
           <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
@@ -377,9 +482,32 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
           </div>
         </section>
+
         <DialogFooter className="mt-6">
-          <Button type="button" variant="outline" onClick={onClose} className="hover:bg-gray-100">Cancelar</Button>
-          <Button type="submit" variant="default" className="shadow-md">Guardar {tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'}</Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleClose} 
+            className="hover:bg-gray-100"
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            variant="default" 
+            className="shadow-md min-w-[140px]"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              `Guardar ${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'}`
+            )}
+          </Button>
         </DialogFooter>
       </form>
     </>
@@ -404,16 +532,10 @@ const VentasPage = () => {
   }, []);
 
   const handleClose = () => setOpen(null);
-  const handleSubmit = async (data) => {
+  
+  const handleSubmit = async (formData) => {
     setLoading(true);
     try {
-      // Asegurarse de enviar los productos seleccionados y datos del cliente
-      const formData = {
-        ...data,
-        // NO incluir campo id
-        // cliente y items ya están sincronizados correctamente
-        total: productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad - (p.descuento || 0) * p.cantidad), 0),
-      };
       let docRef;
       if (open === "venta") {
         docRef = await addDoc(collection(db, "ventas"), formData);
@@ -425,12 +547,13 @@ const VentasPage = () => {
         router.push(`/presupuestos/${docRef.id}`);
       }
     } catch (error) {
-      alert("Error al guardar: " + error.message);
-      console.error(error);
+      console.error("Error al guardar:", error);
+      throw error; // Re-lanzar el error para que el componente hijo lo maneje
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <div className="flex flex-col gap-6 py-8">
       <div className="flex gap-4 mb-4 justify-end">
@@ -457,7 +580,6 @@ const VentasPage = () => {
       </div>
       <Dialog open={!!open} onOpenChange={handleClose}>
         <DialogContent className="w-[95vw] max-w-[1500px] h-[150vh] max-h-[1000px] flex flex-col">
-          {loading && <div className="text-center text-primary font-bold py-4">Guardando...</div>}
           <FormularioVentaPresupuesto tipo={open} onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
