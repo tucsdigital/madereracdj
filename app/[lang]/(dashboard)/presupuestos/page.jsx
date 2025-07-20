@@ -277,7 +277,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
         {/* Contenido scrolleable */}
-        <div className="flex-1 overflow-y-auto px-1 pb-4">
+        <div className="flex-1 overflow-y-auto px-1 pb-4 max-h-[calc(85vh-200px)]">
           <div className="flex flex-col gap-6">
             {/* Información básica */}
             <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
@@ -434,7 +434,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
         </div>
 
         {/* Sección fija de totales y footer */}
-        <div className="border-t bg-white p-4 space-y-4">
+        <div className="border-t bg-white p-4 space-y-4 flex-shrink-0">
           {/* Totales */}
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
@@ -598,7 +598,7 @@ const PresupuestosPage = () => {
       </Card>
 
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-[1500px] h-[85vh] flex flex-col">
           <FormularioPresupuesto onClose={handleClose} onSubmit={handleSubmit} />
         </DialogContent>
       </Dialog>
