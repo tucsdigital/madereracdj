@@ -1,88 +1,240 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft, Printer, Download } from "lucide-react";
 
 const VentaDetalle = () => {
   const params = useParams();
+  const router = useRouter();
   const { id } = params;
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchVenta = async () => {
-      const docRef = doc(db, "ventas", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setVenta({ id: docSnap.id, ...docSnap.data() });
+      try {
+        const docRef = doc(db, "ventas", id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setVenta({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          console.error("Venta no encontrada");
+        }
+      } catch (error) {
+        console.error("Error al cargar venta:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchVenta();
   }, [id]);
 
-  if (loading) return <div className="p-8">Cargando...</div>;
-  if (!venta) return <div className="p-8">No se encontró la venta.</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando venta...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!venta) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Venta no encontrada</h2>
+          <p className="text-gray-600 mb-6">La venta que buscas no existe o ha sido eliminada.</p>
+          <Button onClick={() => router.back()}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Función para formatear fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      return new Date(dateString).toLocaleDateString('es-AR');
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Función para imprimir
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Función para obtener el estado del pago
+  const getEstadoPagoColor = (estado) => {
+    switch (estado) {
+      case 'pagado':
+        return 'bg-green-100 text-green-800';
+      case 'pendiente':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="max-w-3xl mx-auto p-8 bg-white rounded shadow">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Detalle de Venta</h1>
-        <Button onClick={() => window.print()}>Imprimir</Button>
-      </div>
-      <div className="mb-4">
-        <b>ID:</b> {venta.id}
-      </div>
-      <div className="mb-4">
-        <b>Cliente:</b> {venta.cliente?.nombre} <br />
-        <b>CUIT:</b> {venta.cliente?.cuit} <br />
-        <b>Dirección:</b> {venta.cliente?.direccion} <br />
-        <b>Teléfono:</b> {venta.cliente?.telefono} <br />
-        <b>Email:</b> {venta.cliente?.email}
-      </div>
-      <div className="mb-4">
-        <b>Fecha de emisión:</b> {venta.fecha} <br />
-        <b>Fecha de entrega:</b> {venta.fechaEntrega} <br />
-        <b>Transportista:</b> {venta.transportista} <br />
-        <b>Remito/Factura:</b> {venta.remito}
-      </div>
-      <div className="mb-4">
-        <b>Condiciones de pago:</b> {venta.condicionesPago} <br />
-        <b>Estado de pago:</b> {venta.estadoPago} <br />
-        <b>Método de pago:</b> {venta.metodoPago}
-      </div>
-      <div className="mb-4">
-        <b>Observaciones:</b> {venta.observaciones}
-      </div>
-      <div className="mb-4">
-        <b>Productos:</b>
-        <table className="w-full mt-2 text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="p-2">Producto</th>
-              <th>Cant.</th>
-              <th>Precio</th>
-              <th>Desc.</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {venta.items?.map((p, idx) => (
-              <tr key={idx}>
-                <td className="p-2">{p.descripcion || p.nombre}</td>
-                <td>{p.cantidad}</td>
-                <td>${p.precio}</td>
-                <td>${p.descuento || 0}</td>
-                <td>${(p.precio * p.cantidad - (p.descuento || 0) * p.cantidad).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex justify-end gap-8 mt-6">
-        <div> <b>Total:</b> ${venta.total || "-"}</div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Venta #{venta.id.slice(-8)}</h1>
+              <p className="text-gray-600 mt-1">
+                {venta.nombre || `Venta ${formatDate(venta.fecha)}`}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => router.back()}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver
+              </Button>
+              <Button onClick={handlePrint}>
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir
+              </Button>
+            </div>
+          </div>
+
+          {/* Información del cliente */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-lg mb-3 text-gray-900">Información del Cliente</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="font-medium">Nombre:</span> {venta.cliente?.nombre || "-"}</div>
+                <div><span className="font-medium">CUIT:</span> {venta.cliente?.cuit || "-"}</div>
+                <div><span className="font-medium">Dirección:</span> {venta.cliente?.direccion || "-"}</div>
+                <div><span className="font-medium">Teléfono:</span> {venta.cliente?.telefono || "-"}</div>
+                <div><span className="font-medium">Email:</span> {venta.cliente?.email || "-"}</div>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-lg mb-3 text-gray-900">Información de la Venta</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="font-medium">Fecha de emisión:</span> {formatDate(venta.fecha)}</div>
+                <div><span className="font-medium">Fecha de entrega:</span> {formatDate(venta.fechaEntrega)}</div>
+                <div><span className="font-medium">Tipo:</span> {venta.tipo || "Venta"}</div>
+                <div><span className="font-medium">Estado de pago:</span> 
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getEstadoPagoColor(venta.estadoPago)}`}>
+                    {venta.estadoPago || "No especificado"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Información de entrega y pago */}
+        {(venta.transportista || venta.remito || venta.condicionesPago || venta.metodoPago) && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">Información de Entrega y Pago</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div><span className="font-medium">Transportista:</span> {venta.transportista || "-"}</div>
+                <div><span className="font-medium">N° Remito/Factura:</span> {venta.remito || "-"}</div>
+              </div>
+              <div className="space-y-3">
+                <div><span className="font-medium">Condiciones de pago:</span> {venta.condicionesPago || "-"}</div>
+                <div><span className="font-medium">Método de pago:</span> {venta.metodoPago || "-"}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Productos */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-lg mb-4 text-gray-900">Productos y Servicios</h3>
+          
+          {/* Usar productos si existe, sino usar items */}
+          {(venta.productos || venta.items) && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-100 border-b">
+                    <th className="text-left p-3 font-medium">Producto</th>
+                    <th className="text-center p-3 font-medium">Cantidad</th>
+                    <th className="text-center p-3 font-medium">Unidad</th>
+                    <th className="text-right p-3 font-medium">Precio Unit.</th>
+                    <th className="text-right p-3 font-medium">Descuento</th>
+                    <th className="text-right p-3 font-medium">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(venta.productos || venta.items || []).map((producto, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">
+                        {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                      </td>
+                      <td className="p-3 text-center">{producto.cantidad || 0}</td>
+                      <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                      <td className="p-3 text-right">${(producto.precio || 0).toFixed(2)}</td>
+                      <td className="p-3 text-right">${(producto.descuento || 0).toFixed(2)}</td>
+                      <td className="p-3 text-right font-medium">
+                        ${((producto.precio || 0) * (producto.cantidad || 0) - (producto.descuento || 0) * (producto.cantidad || 0)).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Totales */}
+          <div className="mt-6 flex justify-end">
+            <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${(venta.subtotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Descuento total:</span>
+                  <span>${(venta.descuentoTotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>IVA (21%):</span>
+                  <span>${(venta.iva || 0).toFixed(2)}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                  <span>Total:</span>
+                  <span className="text-primary">${(venta.total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Observaciones */}
+        {venta.observaciones && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-3 text-gray-900">Observaciones</h3>
+            <p className="text-gray-700 whitespace-pre-wrap">{venta.observaciones}</p>
+          </div>
+        )}
+
+        {/* Información adicional */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="font-semibold text-lg mb-3 text-gray-900">Información Adicional</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div><span className="font-medium">ID del documento:</span> {venta.id}</div>
+            <div><span className="font-medium">Fecha de creación:</span> {formatDate(venta.fechaCreacion)}</div>
+            <div><span className="font-medium">Cliente ID:</span> {venta.clienteId || "-"}</div>
+            <div><span className="font-medium">Cantidad de productos:</span> {(venta.productos || venta.items || []).length}</div>
+          </div>
+        </div>
       </div>
     </div>
   );
