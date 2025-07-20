@@ -67,12 +67,12 @@ export function DataTableToolbar({ table }) {
           </Button>
         )}
 
-        <Button asChild>
+        {/* <Button asChild>
           <Link href="/create-invoice">
             <Plus className="w-5 h-5 ltr:mr-2 rtl:ml-2" />
             Create Invoice
           </Link>
-        </Button>
+        </Button> */}
       </div>
     </div>
 
