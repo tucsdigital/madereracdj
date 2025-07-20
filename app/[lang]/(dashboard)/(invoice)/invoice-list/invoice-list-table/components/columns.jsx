@@ -8,10 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
 import Link from "next/link";
 
+// Función para formatear fecha
+const formatDate = (dateString) => {
+  if (!dateString) return "-";
+  try {
+    return new Date(dateString).toLocaleDateString('es-AR');
+  } catch {
+    return dateString;
+  }
+};
+
+// Función para obtener el color del estado
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'pagado':
+    case 'paid':
+    case 'confirmed':
+      return 'success';
+    case 'pendiente':
+    case 'pending':
+    case 'closed':
+      return 'warning';
+    default:
+      return 'default';
+  }
+};
 
 export const columns = [
   {
-    id: "id",
+    id: "select",
     header: ({ table }) => (
       <Checkbox
         checked={
@@ -37,91 +62,116 @@ export const columns = [
   {
     accessorKey: "id",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="INVOICE ID" />
+      <DataTableColumnHeader column={column} title="ID" />
     ),
-    cell: ({ row }) => <div className="w-[80px]">{row.getValue("id")}</div>,
+    cell: ({ row }) => (
+      <div className="w-[80px] font-mono text-xs">
+        {row.getValue("id")?.slice(-8) || "-"}
+      </div>
+    ),
     enableSorting: true,
     enableHiding: false,
   },
   {
-    accessorKey: "customer",
-    header: "Customer",
+    accessorKey: "nombre",
+    header: "Nombre",
     cell: ({ row }) => (
       <div className="flex flex-col">
-        <span className=" text-sm font-medium text-default-600 whitespace-nowrap"> {row?.original?.customer?.name} </span>
-        <span className=" text-xs text-default-500 whitespace-nowrap"> {row?.original?.customer?.email} </span>
+        <span className="text-sm font-medium text-default-600 whitespace-nowrap">
+          {row.getValue("nombre") || `Documento ${row.getValue("id")?.slice(-8)}`}
+        </span>
+        <span className="text-xs text-default-500 whitespace-nowrap">
+          {row.original?.tipo || "Documento"}
+        </span>
       </div>
     ),
   },
   {
-    accessorKey: "date",
-    header: "Date",
+    accessorKey: "cliente",
+    header: "Cliente",
     cell: ({ row }) => (
-      <span className="whitespace-nowrap">{row.getValue("date")}</span>
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-default-600 whitespace-nowrap">
+          {row?.original?.cliente?.nombre || "-"}
+        </span>
+        <span className="text-xs text-default-500 whitespace-nowrap">
+          {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+        </span>
+      </div>
     ),
   },
   {
-    accessorKey: "amount",
+    accessorKey: "fecha",
+    header: "Fecha",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap text-sm">
+        {formatDate(row.getValue("fecha"))}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "total",
     header: "Total",
     cell: ({ row }) => (
-      <span>${row.getValue("amount")}</span>
+      <span className="font-medium text-sm">
+        ${(row.getValue("total") || 0).toFixed(2)}
+      </span>
     ),
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: "estadoPago",
+    header: "Estado",
+    cell: ({ row }) => {
+      const status = row.getValue("estadoPago") || row.getValue("status");
+      return (
+        <Badge
+          className="rounded capitalize whitespace-nowrap"
+          variant="soft"
+          color={getStatusColor(status)}
+        >
+          {status || "No especificado"}
+        </Badge>
+      );
+    },
+  },
+  {
+    accessorKey: "vencimiento",
+    header: "Vencimiento",
     cell: ({ row }) => (
-      <Badge
-        className="rounded capitalize whitespace-nowrap"
-        variant="soft"
-        color={row.getValue("status") === "confirmed" ? "success" : row.getValue("status") === "closed" ? "warning" : ""}
-      >
-        {row.getValue("status")}
-      </Badge>
+      <span className="whitespace-nowrap text-sm">
+        {formatDate(row.getValue("vencimiento"))}
+      </span>
     ),
   },
   {
-    accessorKey: "paymentStatus",
-    header: "Payment Status",
-    cell: ({ row }) => (
-      <Badge
-        className="capitalize whitespace-nowrap"
-        variant="soft"
-        color={row.getValue("paymentStatus") === "paid" ? "success" : row.getValue("paymentStatus") === "pending" ? "warning" : ""}
-      >
-        {row.getValue("paymentStatus")}
-      </Badge>
-    ),
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      return (
+        <div className="flex gap-2 items-center justify-end">
+          <Button
+            size="icon"
+            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground hover:bg-primary hover:text-white"
+            title="Ver detalle"
+          >
+            <Icon icon="heroicons:eye" className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
+            title="Editar"
+          >
+            <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
+            title="Eliminar"
+          >
+            <Icon icon="heroicons:trash" className="w-4 h-4" />
+          </Button>
+        </div>
+      );
+    },
   },
-  {
-    accessorKey: "",
-    header: "Actions",
-    cell: ({ row }) => (
-      <div className="flex gap-3 items-center justify-end">
-        <Button
-          asChild
-          size="icon"
-          className="h-9 w-9 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
-        >
-          <Link href="/invoice-details">
-            <Icon icon="heroicons:eye" className="w-5 h-5" />
-          </Link>
-        </Button>
-        <Button
-          size="icon"
-          className="h-9 w-9 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
-        >
-          <Icon icon="heroicons:pencil-square" className="w-5 h-5" />
-        </Button>
-        <Button
-          size="icon"
-          className="h-9 w-9 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
-        >
-          <Icon icon="heroicons:trash" className="w-5 h-5" />
-        </Button>
-      </div>
-    ),
-  },
-
-
 ];

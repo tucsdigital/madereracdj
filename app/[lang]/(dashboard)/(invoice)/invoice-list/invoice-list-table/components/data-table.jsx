@@ -23,12 +23,15 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
+import { useRouter } from "next/navigation";
+import { Icon } from "@iconify/react";
 
 export function DataTable({ columns, data }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState([]);
   const [sorting, setSorting] = React.useState([]);
+  const router = useRouter();
 
   console.log("DataTable data:", data);
 
@@ -53,6 +56,18 @@ export function DataTable({ columns, data }) {
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
+
+  // Función para manejar el click en la fila
+  const handleRowClick = (row) => {
+    const tipo = row.original?.tipo || 'documento';
+    const id = row.original?.id;
+    
+    if (tipo === 'presupuesto') {
+      router.push(`/presupuestos/${id}`);
+    } else if (tipo === 'venta') {
+      router.push(`/ventas/${id}`);
+    }
+  };
 
   return (
     <div>
@@ -90,11 +105,20 @@ export function DataTable({ columns, data }) {
                 <TableRow
                   key={row.original.id ? String(row.original.id) : String(idx)}
                   data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer hover:bg-gray-50 transition-colors group relative"
+                  onClick={() => handleRowClick(row)}
+                  title="Click para ver detalles"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="text-sm text-default-600  last:text-end"
+                      className="text-sm text-default-600 last:text-end"
+                      onClick={(e) => {
+                        // Prevenir la navegación si se hace click en botones de acción
+                        if (cell.column.id === 'actions' || cell.column.id === 'select') {
+                          e.stopPropagation();
+                        }
+                      }}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -102,6 +126,10 @@ export function DataTable({ columns, data }) {
                       )}
                     </TableCell>
                   ))}
+                  {/* Indicador visual de que la fila es clickeable */}
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Icon icon="heroicons:arrow-right" className="w-4 h-4 text-gray-400" />
+                  </div>
                 </TableRow>
               ))
             ) : (
@@ -110,13 +138,28 @@ export function DataTable({ columns, data }) {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  <div className="flex flex-col items-center gap-2">
+                    <Icon icon="heroicons:document-text" className="w-8 h-8 text-gray-400" />
+                    <p className="text-gray-500">No hay documentos para mostrar</p>
+                    <p className="text-sm text-gray-400">Haz click en "Agregar Presupuesto" o "Agregar Venta" para comenzar</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+      
+      {/* Información sobre la funcionalidad */}
+      {table.getRowModel().rows?.length > 0 && (
+        <div className="px-6 py-3 bg-blue-50 border-t border-blue-200">
+          <div className="flex items-center gap-2 text-sm text-blue-700">
+            <Icon icon="heroicons:information-circle" className="w-4 h-4" />
+            <span>💡 <strong>Tip:</strong> Haz click en cualquier fila para ver los detalles del documento</span>
+          </div>
+        </div>
+      )}
+      
       <DataTablePagination table={table} /> 
     </div>
   );
