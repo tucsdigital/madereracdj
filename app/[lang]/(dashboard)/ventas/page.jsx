@@ -474,30 +474,84 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
              
               {tipo === 'venta' && (
-                <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                  <div className="text-base font-semibold text-default-800 pb-1">Condiciones y detalles</div>
-                  <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
-                  <Input {...register("transportista")} placeholder="Transportista" className="w-full" disabled={isSubmitting} />
-                  <Input {...register("remito")} placeholder="N° Remito/Factura" className="w-full" disabled={isSubmitting} />
-                  <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                    <option value="">Condiciones de pago...</option>
-                    <option value="contado">Contado</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="cheque">Cheque</option>
-                  </select>
-                  <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                    <option value="">Estado de pago...</option>
-                    <option value="pagado">Pagado</option>
-                    <option value="pendiente">Pendiente</option>
-                  </select>
-                  <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                    <option value="">Método de pago...</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="tarjeta">Tarjeta</option>
-                  </select>
-                  <Textarea {...register("observaciones")} placeholder="Observaciones" className="w-full" disabled={isSubmitting} />
-                </div>
+                <>
+                  {/* Condiciones de pago y entrega */}
+                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
+                    <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
+                    <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Condiciones de pago...</option>
+                      <option value="contado">Contado</option>
+                      <option value="30_dias">30 días</option>
+                      <option value="60_dias">60 días</option>
+                      <option value="90_dias">90 días</option>
+                      <option value="transferencia_inmediata">Transferencia inmediata</option>
+                    </select>
+                    <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Método de pago...</option>
+                      <option value="efectivo">Efectivo</option>
+                      <option value="transferencia">Transferencia bancaria</option>
+                      <option value="tarjeta_debito">Tarjeta de débito</option>
+                      <option value="tarjeta_credito">Tarjeta de crédito</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="mercadopago">MercadoPago</option>
+                    </select>
+                    <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Estado de pago...</option>
+                      <option value="pagado">Pagado</option>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="parcial">Pago parcial</option>
+                    </select>
+                  </div>
+
+                  {/* Información de envío */}
+                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
+                    <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
+                    <select {...register("tipoEnvio")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Tipo de envío...</option>
+                      <option value="retiro_local">Retiro en local</option>
+                      <option value="envio_domicilio">Envío a domicilio</option>
+                      <option value="envio_obra">Envío a obra</option>
+                      <option value="transporte_propio">Transporte propio del cliente</option>
+                    </select>
+                    <Input {...register("transportista")} placeholder="Transportista/Empresa" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
+                  </div>
+
+                  {/* Documentación y facturación */}
+                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 pb-1">Documentación</div>
+                    <Input {...register("numeroFactura")} placeholder="N° Factura" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("numeroRemito")} placeholder="N° Remito" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("numeroPedido")} placeholder="N° Pedido interno" className="w-full" disabled={isSubmitting} />
+                    <select {...register("tipoFactura")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Tipo de factura...</option>
+                      <option value="A">Factura A</option>
+                      <option value="B">Factura B</option>
+                      <option value="C">Factura C</option>
+                      <option value="ticket">Ticket</option>
+                    </select>
+                    <Input {...register("condicionIva")} placeholder="Condición IVA" className="w-full" disabled={isSubmitting} />
+                  </div>
+
+                  {/* Información adicional */}
+                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
+                    <Input {...register("vendedor")} placeholder="Vendedor responsable" className="w-full" disabled={isSubmitting} />
+                    <Input {...register("prioridad")} placeholder="Prioridad (Alta/Media/Baja)" className="w-full" disabled={isSubmitting} />
+                    <select {...register("estadoVenta")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Estado de la venta...</option>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="en_proceso">En proceso</option>
+                      <option value="completada">Completada</option>
+                      <option value="cancelada">Cancelada</option>
+                    </select>
+                    <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
+                  </div>
+                </>
               )}
             </section>
           </div>
