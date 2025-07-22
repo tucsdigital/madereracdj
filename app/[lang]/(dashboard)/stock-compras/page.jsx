@@ -27,6 +27,7 @@ function StockComprasPage() {
   const [repoObs, setRepoObs] = useState("");
   const [repoStatus, setRepoStatus] = useState(null); // 'success' | 'error' | null
   const [repoMsg, setRepoMsg] = useState("");
+  const [repoLoading, setRepoLoading] = useState(false);
   // Formulario movimiento
   const [movProductoId, setMovProductoId] = useState("");
   const [movTipo, setMovTipo] = useState("entrada");
@@ -34,6 +35,7 @@ function StockComprasPage() {
   const [movObs, setMovObs] = useState("");
   const [movStatus, setMovStatus] = useState(null);
   const [movMsg, setMovMsg] = useState("");
+  const [movLoading, setMovLoading] = useState(false);
 
   // Cargar productos en tiempo real
   useEffect(() => {
@@ -110,6 +112,7 @@ function StockComprasPage() {
     if (!repoProductoId || repoCantidad <= 0) {
       setRepoStatus("error"); setRepoMsg("Completa todos los campos correctamente."); return;
     }
+    setRepoLoading(true);
     try {
       await registrarMovimiento({
         productoId: repoProductoId,
@@ -119,9 +122,9 @@ function StockComprasPage() {
         observaciones: repoObs
       });
       setRepoStatus("success"); setRepoMsg("Reposición registrada y stock actualizado.");
-      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoStatus(null); }, 1200);
+      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoStatus(null); setRepoLoading(false); }, 1200);
     } catch (e) {
-      setRepoStatus("error"); setRepoMsg("Error: " + e.message);
+      setRepoStatus("error"); setRepoMsg("Error: " + e.message); setRepoLoading(false);
     }
   };
   const handleMovGuardar = async () => {
@@ -129,6 +132,7 @@ function StockComprasPage() {
     if (!movProductoId || movCantidad <= 0) {
       setMovStatus("error"); setMovMsg("Completa todos los campos correctamente."); return;
     }
+    setMovLoading(true);
     try {
       await registrarMovimiento({
         productoId: movProductoId,
@@ -138,9 +142,9 @@ function StockComprasPage() {
         observaciones: movObs
       });
       setMovStatus("success"); setMovMsg("Movimiento registrado y stock actualizado.");
-      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovStatus(null); }, 1200);
+      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovStatus(null); setMovLoading(false); }, 1200);
     } catch (e) {
-      setMovStatus("error"); setMovMsg("Error: " + e.message);
+      setMovStatus("error"); setMovMsg("Error: " + e.message); setMovLoading(false);
     }
   };
 
@@ -276,7 +280,7 @@ function StockComprasPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenRepo(false)}>Cancelar</Button>
-            <Button variant="default" onClick={handleRepoGuardar} disabled={loadingProd || isSubmitting}>Guardar</Button>
+            <Button variant="default" onClick={handleRepoGuardar} disabled={loadingProd || repoLoading}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -311,7 +315,7 @@ function StockComprasPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenMov(false)}>Cancelar</Button>
-            <Button variant="default" onClick={handleMovGuardar} disabled={loadingProd || isSubmitting}>Guardar</Button>
+            <Button variant="default" onClick={handleMovGuardar} disabled={loadingProd || movLoading}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
