@@ -340,38 +340,38 @@ const ProductosPage = () => {
           ) : productosFiltrados.length === 0 ? (
             <div className="text-gray-500 py-4 text-center">No hay productos para mostrar.</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <Table>
+            <TableHeader>
+              <TableRow>
                   <TableHead>Código</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead>Precio</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Unidad</TableHead>
+                <TableHead>Precio</TableHead>
                   <TableHead>Costo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
                 {productosFiltrados.map(p => (
-                  <TableRow key={p.id}>
+                <TableRow key={p.id}>
                     <TableCell>{p.id}</TableCell>
-                    <TableCell>{p.nombre}</TableCell>
-                    <TableCell>{p.categoria}</TableCell>
+                  <TableCell>{p.nombre}</TableCell>
+                  <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.stock || p.stockFijacion || p.stockHerraje || p.stockQuimico || p.stockHerramienta}</TableCell>
                     <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
                     <TableCell>${p.precioUnidad || p.precioUnidadVenta || p.precioUnidadHerraje || p.precioUnidadQuimico || p.precioUnidadHerramienta}</TableCell>
                     <TableCell>${p.costo}</TableCell>
-                    <TableCell>{p.estado}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline">Ver</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                  <TableCell>{p.estado}</TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="outline">Ver</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           )}
         </CardContent>
       </Card>

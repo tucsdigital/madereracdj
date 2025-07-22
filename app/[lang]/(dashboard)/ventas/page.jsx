@@ -522,8 +522,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
                           </Button>
                         </div>
-                      </div>
-                    ))}
+                  </div>
+                ))}
                   </div>
               </div>
             )}

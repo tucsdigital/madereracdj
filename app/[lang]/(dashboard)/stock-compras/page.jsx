@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
 
 function StockComprasPage() {
   const [tab, setTab] = useState("inventario");
@@ -68,7 +68,31 @@ function StockComprasPage() {
   // Función profesional para registrar movimiento y actualizar stock
   async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones }) {
     try {
-      // 1. Registrar el movimiento
+      // 1. Obtener el producto para saber la categoría y el campo de stock
+      const productoRef = doc(db, "productos", productoId);
+      const productoSnap = await getDoc(productoRef);
+      if (!productoSnap.exists()) throw new Error("Producto no encontrado");
+      const producto = productoSnap.data();
+
+      // 2. Determinar el campo de stock según la categoría
+      let campoStock = "stock";
+      switch (producto.categoria) {
+        case "Fijaciones":
+          campoStock = "stockFijacion";
+          break;
+        case "Herrajes":
+          campoStock = "stockHerraje";
+          break;
+        case "Adhesivos":
+          campoStock = "stockQuimico";
+          break;
+        case "Herramientas":
+          campoStock = "stockHerramienta";
+          break;
+        // Maderas y cualquier otro usan "stock"
+      }
+
+      // 3. Registrar el movimiento
       await addDoc(collection(db, "movimientos"), {
         productoId,
         tipo,
@@ -76,16 +100,20 @@ function StockComprasPage() {
         usuario,
         observaciones,
         fecha: serverTimestamp(),
+        categoria: producto.categoria,
+        nombreProducto: producto.nombre,
       });
-      // 2. Actualizar el stock del producto
-      const productoRef = doc(db, "productos", productoId);
+
+      // 4. Actualizar el stock del producto en el campo correcto
       let cantidadFinal = cantidad;
       if (tipo === "salida") cantidadFinal = -Math.abs(cantidad);
-      if (tipo === "ajuste") cantidadFinal = cantidad; // Para ajuste, puede ser positivo o negativo
+      if (tipo === "ajuste") cantidadFinal = cantidad; // Puede ser positivo o negativo
+
       await updateDoc(productoRef, {
-        stock: increment(cantidadFinal),
+        [campoStock]: increment(cantidadFinal),
         fechaActualizacion: serverTimestamp(),
       });
+
       return true;
     } catch (e) {
       throw e;
