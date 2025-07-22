@@ -68,10 +68,10 @@ const enviosColumns = [
     },
   },
   {
-    accessorKey: "cliente.nombre",
+    accessorKey: "cliente",
     header: "Cliente",
     cell: ({ row }) => {
-      const cliente = row.getValue("cliente");
+      const cliente = row.original.cliente;
       return (
         <div>
           <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
