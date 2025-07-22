@@ -855,13 +855,12 @@ const VentasPage = () => {
           const envioData = {
             ventaId: docRef.id,
             clienteId: formData.clienteId,
-            cliente: formData.cliente,
+            cliente: formData.cliente, // debe ser un objeto con nombre, cuit, etc.
             fechaCreacion: new Date().toISOString(),
             fechaEntrega: formData.fechaEntrega,
             estado: "pendiente",
             prioridad: formData.prioridad || "media",
             vendedor: formData.vendedor,
-            
             // Datos de envío
             direccionEnvio: formData.direccionEnvio,
             localidadEnvio: formData.localidadEnvio,
@@ -869,17 +868,14 @@ const VentasPage = () => {
             tipoEnvio: formData.tipoEnvio,
             transportista: formData.transportista,
             costoEnvio: parseFloat(formData.costoEnvio) || 0,
-            
             // Datos de la venta
             numeroFactura: formData.numeroFactura,
             numeroRemito: formData.numeroRemito,
-            numeroPedido: formData.numeroPedido,
+            numeroPedido: formData.numeroPedido || numeroPedido, // SIEMPRE incluir el número de pedido
             totalVenta: formData.total,
-            
             // Productos
             productos: formData.productos,
             cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
-            
             // Seguimiento
             historialEstados: [
               {
