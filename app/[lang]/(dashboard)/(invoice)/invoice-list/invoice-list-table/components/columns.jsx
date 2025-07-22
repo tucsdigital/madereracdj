@@ -76,14 +76,14 @@ export const columns = [
     accessorKey: "nombre",
     header: "Nombre",
     cell: ({ row }) => (
-      <div className="flex flex-col">
+        <div className="flex flex-col">
         <span className="text-sm font-medium text-default-600 whitespace-nowrap">
           {row.getValue("nombre") || `Documento ${row.getValue("id")?.slice(-8)}`}
         </span>
         <span className="text-xs text-default-500 whitespace-nowrap">
           {row.original?.tipo || "Documento"}
         </span>
-      </div>
+        </div>
     ),
   },
   {
@@ -124,13 +124,13 @@ export const columns = [
     cell: ({ row }) => {
       const status = row.getValue("estadoPago") || row.getValue("status");
       return (
-        <Badge
-          className="rounded capitalize whitespace-nowrap"
-          variant="soft"
+      <Badge
+        className="rounded capitalize whitespace-nowrap"
+        variant="soft"
           color={getStatusColor(status)}
-        >
+      >
           {status || "No especificado"}
-        </Badge>
+      </Badge>
       );
     },
   },
@@ -149,28 +149,28 @@ export const columns = [
     cell: ({ row }) => {
       return (
         <div className="flex gap-2 items-center justify-end">
-          <Button
-            size="icon"
+        <Button
+          size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground hover:bg-primary hover:text-white"
             title="Ver detalle"
-          >
+        >
             <Icon icon="heroicons:eye" className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
+        </Button>
+        <Button
+          size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
             title="Editar"
-          >
+        >
             <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
+        </Button>
+        <Button
+          size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
             title="Eliminar"
-          >
+        >
             <Icon icon="heroicons:trash" className="w-4 h-4" />
-          </Button>
-        </div>
+        </Button>
+      </div>
       );
     },
   },

@@ -406,9 +406,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </section>
 
-            {/* Selección de cliente */}
-            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-              <label className="font-semibold">Cliente</label>
+        {/* Selección de cliente */}
+        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+          <label className="font-semibold">Cliente</label>
               <div className="flex gap-2 items-center">
                 <select
                   value={clienteId}
@@ -418,11 +418,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   ref={register ? register("clienteId").ref : undefined}
                   disabled={clientesLoading || isSubmitting}
                 >
-                  <option value="">Seleccionar cliente...</option>
+            <option value="">Seleccionar cliente...</option>
                   {clientesState.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
-                  ))}
-                </select>
+              <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
+            ))}
+          </select>
                 <Button 
                   type="button" 
                   variant="default" 
@@ -457,15 +457,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
                   </div>
                 </div>
-              </div>
-            </section>
+            </div>
+        </section>
 
-            {/* Selección de productos */}
-            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-              <label className="font-semibold">Productos</label>
+        {/* Selección de productos */}
+        <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+          <label className="font-semibold">Productos</label>
               {/* Categorías como items con iconos */}
               <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
-                {categorias.map(cat => (
+              {categorias.map(cat => (
                   <Button
                     key={cat.id}
                     variant={categoriaId === cat.id.toString() ? "default" : "soft"}
@@ -477,7 +477,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   >
                     {cat.icon}
                     {cat.nombre}
-                  </Button>
+                    </Button>
                 ))}
               </div>
               {/* Lista de productos de la categoría seleccionada */}
@@ -525,52 +525,52 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-              {/* Lista de productos seleccionados */}
-              {productosSeleccionados.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm mt-2 min-w-[600px]">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="p-2">Producto</th>
-                        <th>Cant.</th>
-                        <th>Precio</th>
-                        <th>Desc.</th>
-                        <th>Subtotal</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {productosSeleccionados.map(p => (
-                        <tr key={p.id}>
-                          <td className="p-2">{p.nombre}</td>
+              </div>
+            )}
+          {/* Lista de productos seleccionados */}
+          {productosSeleccionados.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm mt-2 min-w-[600px]">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-2">Producto</th>
+                    <th>Cant.</th>
+                    <th>Precio</th>
+                    <th>Desc.</th>
+                    <th>Subtotal</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosSeleccionados.map(p => (
+                    <tr key={p.id}>
+                      <td className="p-2">{p.nombre}</td>
                           <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                          <td>${p.precio}</td>
+                      <td>${p.precio}</td>
                           <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                          <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
+                      <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
                           <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
               {errors.items && <span className="text-red-500 text-xs">{errors.items.message}</span>}
-            </section>
+        </section>
 
-            {/* Datos adicionales según tipo */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Datos adicionales según tipo */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
              
               {tipo === 'venta' && (
                 <>
                   {/* Condiciones de pago y entrega */}
-                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
                     <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
                     <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Condiciones de pago...</option>
-                      <option value="contado">Contado</option>
+              <option value="">Condiciones de pago...</option>
+              <option value="contado">Contado</option>
                       <option value="30_dias">30 días</option>
                       <option value="60_dias">60 días</option>
                       <option value="90_dias">90 días</option>
@@ -582,13 +582,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <option value="transferencia">Transferencia bancaria</option>
                       <option value="tarjeta_debito">Tarjeta de débito</option>
                       <option value="tarjeta_credito">Tarjeta de crédito</option>
-                      <option value="cheque">Cheque</option>
+              <option value="cheque">Cheque</option>
                       <option value="mercadopago">MercadoPago</option>
-                    </select>
+            </select>
                     <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Estado de pago...</option>
-                      <option value="pagado">Pagado</option>
-                      <option value="pendiente">Pendiente</option>
+                <option value="">Estado de pago...</option>
+                <option value="pagado">Pagado</option>
+                <option value="pendiente">Pendiente</option>
                       <option value="parcial">Pago parcial</option>
                     </select>
                   </div>
@@ -622,7 +622,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <option value="B">Factura B</option>
                       <option value="C">Factura C</option>
                       <option value="ticket">Ticket</option>
-                    </select>
+              </select>
                     <Input {...register("condicionIva")} placeholder="Condición IVA" className="w-full" disabled={isSubmitting} />
                   </div>
 
@@ -637,7 +637,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <option value="en_proceso">En proceso</option>
                       <option value="completada">Completada</option>
                       <option value="cancelada">Cancelada</option>
-                    </select>
+              </select>
                     <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
                   </div>
                 </>
@@ -648,14 +648,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
         {/* Sección fija de totales y footer */}
         <div className="bg-white p-4 space-y-4 flex-shrink-0">
-          {/* Resumen de totales */}
+        {/* Resumen de totales */}
           <div className="flex flex-col items-end gap-2">
-            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
-              <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
-              <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
-              <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
-              <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
-            </div>
+          <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
+            <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
+            <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
+            <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
+            <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
+          </div>
           </div>
 
           {/* Footer */}
@@ -684,7 +684,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 `Guardar ${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'}`
               )}
             </Button>
-          </DialogFooter>
+        </DialogFooter>
         </div>
       </form>
 
@@ -812,7 +812,7 @@ const VentasPage = () => {
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
         docRef = await addDoc(collection(db, "presupuestos"), formData);
-        setOpen(null);
+    setOpen(null);
         router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
     } catch (error) {
