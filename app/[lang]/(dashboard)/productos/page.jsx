@@ -127,6 +127,7 @@ function FormularioProducto({ onClose, onSuccess }) {
       setSubmitStatus("success");
       setSubmitMessage("Producto guardado exitosamente");
       reset();
+      setCategoria("");
       setTimeout(() => {
         onSuccess && onSuccess();
         onClose();
@@ -150,103 +151,107 @@ function FormularioProducto({ onClose, onSuccess }) {
           {submitMessage}
         </div>
       )}
-      <Input {...register("id")} placeholder="Código de producto" disabled={isSubmitting} />
-      {errors.id && <span className="text-red-500 text-xs">{errors.id.message}</span>}
-      <Input {...register("nombre")} placeholder="Nombre" disabled={isSubmitting} />
-      {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
-      <Input {...register("descripcion")} placeholder="Descripción" disabled={isSubmitting} />
-      {errors.descripcion && <span className="text-red-500 text-xs">{errors.descripcion.message}</span>}
+      {/* Selector de categoría SIEMPRE visible */}
       <select {...register("categoria")} value={categoria} onChange={e => { setCategoria(e.target.value); setValue('categoria', e.target.value); }} className="border rounded px-2 py-2" disabled={isSubmitting}>
         <option value="">Seleccionar categoría</option>
         {categorias.map(c => <option key={c}>{c}</option>)}
       </select>
       {errors.categoria && <span className="text-red-500 text-xs">{errors.categoria.message}</span>}
-      <Input {...register("subcategoria")} placeholder="Subcategoría" disabled={isSubmitting} />
-      {errors.subcategoria && <span className="text-red-500 text-xs">{errors.subcategoria.message}</span>}
-      <select {...register("estado")} className="border rounded px-2 py-2" disabled={isSubmitting}>
-        <option value="Activo">Activo</option>
-        <option value="Inactivo">Inactivo</option>
-        <option value="Descontinuado">Descontinuado</option>
-      </select>
-      {errors.estado && <span className="text-red-500 text-xs">{errors.estado.message}</span>}
-      {/* Campos dinámicos por categoría */}
-      {categoria === "Maderas" && (
-        <>
-          <Input {...register("tipoMadera")} placeholder="Tipo de madera" disabled={isSubmitting} />
-          <Input {...register("tratamiento")} placeholder="Tratamiento/Acabado" disabled={isSubmitting} />
-          <Input {...register("largo")} type="number" step="0.01" placeholder="Largo (m)" disabled={isSubmitting} />
-          <Input {...register("ancho")} type="number" step="0.01" placeholder="Ancho (cm)" disabled={isSubmitting} />
-          <Input {...register("espesor")} type="number" step="0.01" placeholder="Espesor (cm)" disabled={isSubmitting} />
-          <Input {...register("unidadMedida")} placeholder="Unidad de medida de venta" disabled={isSubmitting} />
-          <Input {...register("precioUnidad")} type="number" step="0.01" placeholder="Precio por unidad de medida" disabled={isSubmitting} />
-          <Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
-          <Input {...register("ubicacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
-          <label className="flex items-center gap-2 text-xs"><input type="checkbox" {...register("dimensionesEspeciales")} disabled={isSubmitting} />Dimensiones especiales</label>
-        </>
-      )}
-      {categoria === "Fijaciones" && (
-        <>
-          <Input {...register("tipoFijacion")} placeholder="Tipo de fijación" disabled={isSubmitting} />
-          <Input {...register("material")} placeholder="Material" disabled={isSubmitting} />
-          <Input {...register("largoFijacion")} type="number" step="0.01" placeholder="Largo (mm o pulgadas)" disabled={isSubmitting} />
-          <Input {...register("diametro")} type="number" step="0.01" placeholder="Diámetro/Calibre (mm)" disabled={isSubmitting} />
-          <Input {...register("tipoCabeza")} placeholder="Tipo de cabeza" disabled={isSubmitting} />
-          <Input {...register("tipoRosca")} placeholder="Tipo de rosca" disabled={isSubmitting} />
-          <Input {...register("acabado")} placeholder="Acabado" disabled={isSubmitting} />
-          <Input {...register("unidadVenta")} placeholder="Unidad de venta" disabled={isSubmitting} />
-          <Input {...register("contenidoUnidad")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("precioUnidadVenta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("stockFijacion")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
-          <Input {...register("ubicacionFijacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
-        </>
-      )}
-      {categoria === "Herrajes" && (
-        <>
-          <Input {...register("tipoHerraje")} placeholder="Tipo de herraje" disabled={isSubmitting} />
-          <Input {...register("materialHerraje")} placeholder="Material" disabled={isSubmitting} />
-          <Input {...register("funcion")} placeholder="Función/Uso específico" disabled={isSubmitting} />
-          <Input {...register("medidaClave")} placeholder="Medida/Dimensión clave" disabled={isSubmitting} />
-          <Input {...register("acabadoHerraje")} placeholder="Acabado/Color" disabled={isSubmitting} />
-          <Input {...register("capacidad")} placeholder="Capacidad/Resistencia (opcional)" disabled={isSubmitting} />
-          <Input {...register("unidadVentaHerraje")} placeholder="Unidad de venta" disabled={isSubmitting} />
-          <Input {...register("contenidoUnidadHerraje")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("precioUnidadHerraje")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("stockHerraje")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
-          <Input {...register("ubicacionHerraje")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
-        </>
-      )}
-      {categoria === "Adhesivos" && (
-        <>
-          <Input {...register("tipoQuimico")} placeholder="Tipo de producto" disabled={isSubmitting} />
-          <Input {...register("funcionQuimico")} placeholder="Función/Uso" disabled={isSubmitting} />
-          <Input {...register("marca")} placeholder="Marca" disabled={isSubmitting} />
-          <Input {...register("contenidoNeto")} placeholder="Contenido neto/volumen" disabled={isSubmitting} />
-          <Input {...register("unidadVentaQuimico")} placeholder="Unidad de venta" disabled={isSubmitting} />
-          <Input {...register("precioUnidadQuimico")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("stockQuimico")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
-          <Input {...register("ubicacionQuimico")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
-        </>
-      )}
-      {categoria === "Herramientas" && (
-        <>
-          <Input {...register("tipoHerramienta")} placeholder="Tipo de herramienta/accesorio" disabled={isSubmitting} />
-          <Input {...register("uso")} placeholder="Uso específico" disabled={isSubmitting} />
-          <Input {...register("materialHerramienta")} placeholder="Material (opcional)" disabled={isSubmitting} />
-          <Input {...register("marcaHerramienta")} placeholder="Marca (opcional)" disabled={isSubmitting} />
-          <Input {...register("medidaHerramienta")} placeholder="Medida/Dimensión (opcional)" disabled={isSubmitting} />
-          <Input {...register("unidadVentaHerramienta")} placeholder="Unidad de venta" disabled={isSubmitting} />
-          <Input {...register("contenidoUnidadHerramienta")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
-          <Input {...register("stockHerramienta")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
-          <Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
-        </>
-      )}
-      <DialogFooter>
-        <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-        <Button variant="default" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</>) : "Guardar"}
-        </Button>
-      </DialogFooter>
+      {/* Solo mostrar el resto del formulario si hay categoría seleccionada */}
+      {categoria && <>
+        <Input {...register("id")} placeholder="Código de producto" disabled={isSubmitting} />
+        {errors.id && <span className="text-red-500 text-xs">{errors.id.message}</span>}
+        <Input {...register("nombre")} placeholder="Nombre" disabled={isSubmitting} />
+        {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
+        <Input {...register("descripcion")} placeholder="Descripción" disabled={isSubmitting} />
+        {errors.descripcion && <span className="text-red-500 text-xs">{errors.descripcion.message}</span>}
+        <Input {...register("subcategoria")} placeholder="Subcategoría" disabled={isSubmitting} />
+        {errors.subcategoria && <span className="text-red-500 text-xs">{errors.subcategoria.message}</span>}
+        <select {...register("estado")} className="border rounded px-2 py-2" disabled={isSubmitting}>
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+          <option value="Descontinuado">Descontinuado</option>
+        </select>
+        {errors.estado && <span className="text-red-500 text-xs">{errors.estado.message}</span>}
+        {/* Campos dinámicos por categoría */}
+        {categoria === "Maderas" && (
+          <>
+            <Input {...register("tipoMadera")} placeholder="Tipo de madera" disabled={isSubmitting} />
+            <Input {...register("tratamiento")} placeholder="Tratamiento/Acabado" disabled={isSubmitting} />
+            <Input {...register("largo")} type="number" step="0.01" placeholder="Largo (m)" disabled={isSubmitting} />
+            <Input {...register("ancho")} type="number" step="0.01" placeholder="Ancho (cm)" disabled={isSubmitting} />
+            <Input {...register("espesor")} type="number" step="0.01" placeholder="Espesor (cm)" disabled={isSubmitting} />
+            <Input {...register("unidadMedida")} placeholder="Unidad de medida de venta" disabled={isSubmitting} />
+            <Input {...register("precioUnidad")} type="number" step="0.01" placeholder="Precio por unidad de medida" disabled={isSubmitting} />
+            <Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
+            <Input {...register("ubicacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" {...register("dimensionesEspeciales")} disabled={isSubmitting} />Dimensiones especiales</label>
+          </>
+        )}
+        {categoria === "Fijaciones" && (
+          <>
+            <Input {...register("tipoFijacion")} placeholder="Tipo de fijación" disabled={isSubmitting} />
+            <Input {...register("material")} placeholder="Material" disabled={isSubmitting} />
+            <Input {...register("largoFijacion")} type="number" step="0.01" placeholder="Largo (mm o pulgadas)" disabled={isSubmitting} />
+            <Input {...register("diametro")} type="number" step="0.01" placeholder="Diámetro/Calibre (mm)" disabled={isSubmitting} />
+            <Input {...register("tipoCabeza")} placeholder="Tipo de cabeza" disabled={isSubmitting} />
+            <Input {...register("tipoRosca")} placeholder="Tipo de rosca" disabled={isSubmitting} />
+            <Input {...register("acabado")} placeholder="Acabado" disabled={isSubmitting} />
+            <Input {...register("unidadVenta")} placeholder="Unidad de venta" disabled={isSubmitting} />
+            <Input {...register("contenidoUnidad")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("precioUnidadVenta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("stockFijacion")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
+            <Input {...register("ubicacionFijacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
+          </>
+        )}
+        {categoria === "Herrajes" && (
+          <>
+            <Input {...register("tipoHerraje")} placeholder="Tipo de herraje" disabled={isSubmitting} />
+            <Input {...register("materialHerraje")} placeholder="Material" disabled={isSubmitting} />
+            <Input {...register("funcion")} placeholder="Función/Uso específico" disabled={isSubmitting} />
+            <Input {...register("medidaClave")} placeholder="Medida/Dimensión clave" disabled={isSubmitting} />
+            <Input {...register("acabadoHerraje")} placeholder="Acabado/Color" disabled={isSubmitting} />
+            <Input {...register("capacidad")} placeholder="Capacidad/Resistencia (opcional)" disabled={isSubmitting} />
+            <Input {...register("unidadVentaHerraje")} placeholder="Unidad de venta" disabled={isSubmitting} />
+            <Input {...register("contenidoUnidadHerraje")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("precioUnidadHerraje")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("stockHerraje")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
+            <Input {...register("ubicacionHerraje")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
+          </>
+        )}
+        {categoria === "Adhesivos" && (
+          <>
+            <Input {...register("tipoQuimico")} placeholder="Tipo de producto" disabled={isSubmitting} />
+            <Input {...register("funcionQuimico")} placeholder="Función/Uso" disabled={isSubmitting} />
+            <Input {...register("marca")} placeholder="Marca" disabled={isSubmitting} />
+            <Input {...register("contenidoNeto")} placeholder="Contenido neto/volumen" disabled={isSubmitting} />
+            <Input {...register("unidadVentaQuimico")} placeholder="Unidad de venta" disabled={isSubmitting} />
+            <Input {...register("precioUnidadQuimico")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("stockQuimico")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
+            <Input {...register("ubicacionQuimico")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
+          </>
+        )}
+        {categoria === "Herramientas" && (
+          <>
+            <Input {...register("tipoHerramienta")} placeholder="Tipo de herramienta/accesorio" disabled={isSubmitting} />
+            <Input {...register("uso")} placeholder="Uso específico" disabled={isSubmitting} />
+            <Input {...register("materialHerramienta")} placeholder="Material (opcional)" disabled={isSubmitting} />
+            <Input {...register("marcaHerramienta")} placeholder="Marca (opcional)" disabled={isSubmitting} />
+            <Input {...register("medidaHerramienta")} placeholder="Medida/Dimensión (opcional)" disabled={isSubmitting} />
+            <Input {...register("unidadVentaHerramienta")} placeholder="Unidad de venta" disabled={isSubmitting} />
+            <Input {...register("contenidoUnidadHerramienta")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} />
+            <Input {...register("stockHerramienta")} type="number" placeholder="Stock actual" disabled={isSubmitting} />
+            <Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} />
+          </>
+        )}
+        <DialogFooter>
+          <Button variant="outline" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+          <Button variant="default" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</>) : "Guardar"}
+          </Button>
+        </DialogFooter>
+      </>}
     </form>
   );
 }
