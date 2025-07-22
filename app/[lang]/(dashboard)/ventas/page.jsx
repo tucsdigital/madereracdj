@@ -306,8 +306,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     fetchClientes();
   }, []);
 
+  // Agrega un estado para controlar si el usuario intentó enviar el formulario
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
   // Función de envío del formulario con validación profesional
   const handleFormSubmit = async (data) => {
+    setHasSubmitted(true);
     console.log("[DEBUG] handleFormSubmit - data recibida:", data);
     // Resetear estados previos
     setSubmitStatus(null);
@@ -591,7 +595,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </table>
             </div>
           )}
-              {errors.items && <span className="text-red-500 text-xs">{errors.items.message}</span>}
+              {hasSubmitted && errors.items && (
+                <span className="text-red-500 text-xs">{errors.items.message}</span>
+              )}
         </section>
 
         {/* Datos adicionales según tipo */}
