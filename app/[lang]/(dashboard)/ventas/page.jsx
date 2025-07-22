@@ -391,6 +391,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     }
   };
 
+  // 1. Estado para N° Pedido automático
+  const [numeroPedido, setNumeroPedido] = useState(() => `PED-${Date.now()}`);
+  // 2. Estado para tipo de envío y si es con factura
+  const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
+  const [esConFactura, setEsConFactura] = useState(false);
+  // 3. Arrays para selects
+  const transportistas = ["camion", "camioneta 1", "camioneta 2"];
+  const vendedores = ["coco", "damian", "lauti", "jose"];
+  const prioridades = ["alta", "media", "baja"];
+
   return (
     <>
       <DialogHeader className="mb-2">
@@ -416,11 +426,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
       )}
 
-      {Object.keys(errors).length > 0 && (
+      {/* {Object.keys(errors).length > 0 && (
         <div className="mb-2 p-2 rounded bg-red-100 text-red-800 text-sm">
           Hay errores en el formulario. Revisa los campos obligatorios.
         </div>
-      )}
+      )} */}
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
         {/* Contenido scrolleable */}
@@ -637,48 +647,62 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   {/* Información de envío */}
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
-                    <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
-                    <select {...register("tipoEnvio")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <select {...register("tipoEnvio")} value={tipoEnvioSeleccionado} onChange={e => { setTipoEnvioSeleccionado(e.target.value); setValue('tipoEnvio', e.target.value); }} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                       <option value="">Tipo de envío...</option>
                       <option value="retiro_local">Retiro en local</option>
                       <option value="envio_domicilio">Envío a domicilio</option>
                       <option value="envio_obra">Envío a obra</option>
                       <option value="transporte_propio">Transporte propio del cliente</option>
                     </select>
-                    <Input {...register("transportista")} placeholder="Transportista/Empresa" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
+                    {tipoEnvioSeleccionado !== "retiro_local" && (
+                      <>
+                        <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
+                        <select {...register("transportista")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                          <option value="">Transportista...</option>
+                          {transportistas.map(t => <option key={t}>{t}</option>)}
+                        </select>
+                        <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
+                      </>
+                    )}
                   </div>
 
                   {/* Documentación y facturación */}
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Documentación</div>
-                    <Input {...register("numeroFactura")} placeholder="N° Factura" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("numeroRemito")} placeholder="N° Remito" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("numeroPedido")} placeholder="N° Pedido interno" className="w-full" disabled={isSubmitting} />
-                    <select {...register("tipoFactura")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Tipo de factura...</option>
-                      <option value="A">Factura A</option>
-                      <option value="B">Factura B</option>
-                      <option value="C">Factura C</option>
-                      <option value="ticket">Ticket</option>
-              </select>
-                    <Input {...register("condicionIva")} placeholder="Condición IVA" className="w-full" disabled={isSubmitting} />
+                    <div className="flex items-center gap-2 mb-2">
+                      <input type="checkbox" checked={esConFactura} onChange={e => setEsConFactura(e.target.checked)} id="esConFactura" />
+                      <label htmlFor="esConFactura" className="text-sm">¿Es con factura?</label>
+                    </div>
+                    {esConFactura && (
+                      <>
+                        <Input {...register("numeroFactura")} placeholder="N° Factura" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("numeroRemito")} placeholder="N° Remito" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("numeroPedido")} value={numeroPedido} readOnly className="w-full" />
+                        <select {...register("tipoFactura")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                          <option value="">Tipo de factura...</option>
+                          <option value="A">Factura A</option>
+                          <option value="B">Factura B</option>
+                          <option value="C">Factura C</option>
+                          <option value="ticket">Ticket</option>
+                        </select>
+                        <Input {...register("condicionIva")} placeholder="Condición IVA" className="w-full" disabled={isSubmitting} />
+                      </>
+                    )}
                   </div>
 
                   {/* Información adicional */}
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
-                    <Input {...register("vendedor")} placeholder="Vendedor responsable" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("prioridad")} placeholder="Prioridad (Alta/Media/Baja)" className="w-full" disabled={isSubmitting} />
-                    <select {...register("estadoVenta")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Estado de la venta...</option>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="en_proceso">En proceso</option>
-                      <option value="completada">Completada</option>
-                      <option value="cancelada">Cancelada</option>
-              </select>
+                    <select {...register("vendedor")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Vendedor responsable...</option>
+                      {vendedores.map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <select {...register("prioridad")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Prioridad...</option>
+                      {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                    </select>
                     <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
                   </div>
                 </>
