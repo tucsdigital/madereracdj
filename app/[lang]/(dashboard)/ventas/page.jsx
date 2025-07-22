@@ -568,23 +568,8 @@ const handleAgregarProducto = (producto) => {
                   disabled={isSubmitting || productosLoading}
                 />
               </div>
-              <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
-                <div className="col-span-5">Producto</div>
-                <div className="col-span-2">Medida</div>
-                <div className="col-span-2">Precio</div>
-                <div className="col-span-2">Stock</div>
-                <div className="col-span-1"></div>
-              </div>
               {categoriaId === 'Maderas' && (
                 <div className="w-full mb-2 animate-fade-in">
-                  {/* Inputs para corte de madera */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
-                    <Input type="number" min={1} placeholder="Alto (cm)" value={maderaInputs.alto} onChange={e => setMaderaInputs(i => ({ ...i, alto: e.target.value }))} />
-                    <Input type="number" min={1} placeholder="Ancho (cm)" value={maderaInputs.ancho} onChange={e => setMaderaInputs(i => ({ ...i, ancho: e.target.value }))} />
-                    <Input type="number" min={1} placeholder="Largo (cm)" value={maderaInputs.largo} onChange={e => setMaderaInputs(i => ({ ...i, largo: e.target.value }))} />
-                    <Input type="number" min={1} placeholder="Precio por pie tabla" value={maderaInputs.precioPorPie} onChange={e => setMaderaInputs(i => ({ ...i, precioPorPie: e.target.value }))} />
-                  </div>
-                  <div className="mb-2 text-primary font-semibold">Precio calculado: ${precioCorteMadera}</div>
                   {/* Lista de productos de maderas */}
                   <div className="divide-y divide-gray-200 bg-white rounded-b">
                     {productosPorCategoria[categoriaId]?.filter(prod =>
@@ -594,7 +579,7 @@ const handleAgregarProducto = (producto) => {
                       <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
                         <div className="col-span-5 font-medium">{prod.nombre}</div>
                         <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida}</div>
-                        <div className="col-span-2 font-bold text-primary">${precioCorteMadera}</div>
+                        <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioPorPie || 0}</div>
                         <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
                         <div className="col-span-1 flex justify-end">
                           <Button
@@ -604,21 +589,13 @@ const handleAgregarProducto = (producto) => {
                             color="primary"
                             className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
                             onClick={() => {
-                              // Inicializa los inputs automáticamente con los valores del producto
-                              setMaderaInputs({
-                                alto: prod.espesor || '',
-                                ancho: prod.ancho || '',
-                                largo: prod.largo || '',
-                                precioPorPie: prod.precioUnidad || prod.precioPorPie || ''
-                              });
-                              // Si ya está agregado, no hacer nada
                               if (productosSeleccionados.some(p => p.id === prod.id)) return;
                               if (prod.stock <= 0) return;
-                              // Tomar snapshot de los valores actuales de los inputs
-                              const alto = Number(maderaInputs.alto) || Number(prod.espesor) || 0;
-                              const ancho = Number(maderaInputs.ancho) || Number(prod.ancho) || 0;
-                              const largo = Number(maderaInputs.largo) || Number(prod.largo) || 0;
-                              const precioPorPie = Number(maderaInputs.precioPorPie) || Number(prod.precioUnidad) || 0;
+                              // Tomar valores por defecto de Firebase
+                              const alto = Number(prod.espesor) || 0;
+                              const ancho = Number(prod.ancho) || 0;
+                              const largo = Number(prod.largo) || 0;
+                              const precioPorPie = Number(prod.precioUnidad) || 0;
                               const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                               handleAgregarProducto({
                                 id: prod.id,
@@ -632,7 +609,7 @@ const handleAgregarProducto = (producto) => {
                                 precioPorPie
                               });
                             }}
-                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0 || precioCorteMadera <= 0}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0}
                           >
                             {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (prod.stock <= 0 ? "Sin stock" : "Agregar")}
                           </Button>
