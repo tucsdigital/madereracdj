@@ -402,6 +402,35 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
 
+  // Función reutilizable para calcular el precio de un corte de madera
+  function calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie, factor = 0.2734 }) {
+    // Validación básica
+    if ([alto, ancho, largo, precioPorPie].some(v => typeof v !== 'number' || v <= 0)) {
+      return 0;
+    }
+    const precio = factor * alto * ancho * largo * precioPorPie;
+    return Math.round(precio * 100) / 100;
+  }
+
+  // Estado para inputs de corte de madera
+  const [maderaInputs, setMaderaInputs] = useState({ alto: '', ancho: '', largo: '', precioPorPie: '' });
+  const [precioCorteMadera, setPrecioCorteMadera] = useState(0);
+
+  // Actualiza el precio en tiempo real cuando cambian los inputs
+  useEffect(() => {
+    if (categoriaId === 'Maderas' && maderaInputs.alto && maderaInputs.ancho && maderaInputs.largo && maderaInputs.precioPorPie) {
+      const precio = calcularPrecioCorteMadera({
+        alto: Number(maderaInputs.alto),
+        ancho: Number(maderaInputs.ancho),
+        largo: Number(maderaInputs.largo),
+        precioPorPie: Number(maderaInputs.precioPorPie)
+      });
+      setPrecioCorteMadera(precio);
+    } else {
+      setPrecioCorteMadera(0);
+    }
+  }, [maderaInputs, categoriaId]);
+
   return (
     <>
       <DialogHeader className="mb-2">
@@ -537,44 +566,93 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <div className="col-span-2">Stock</div>
                 <div className="col-span-1"></div>
               </div>
-              <div className="divide-y divide-gray-200 bg-white rounded-b">
-                {productosPorCategoria[categoriaId]?.length === 0 && (
-                  <div className="px-4 py-4 text-gray-400 col-span-12">No hay productos en esta categoría</div>
-                )}
-                {productosPorCategoria[categoriaId]?.filter(prod =>
-                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                  (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
-                ).map(prod => (
-                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
-                    <div className="col-span-5 font-medium">{prod.nombre}</div>
-                    <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
-                    <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
-                    <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
-                        color="primary"
-                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
-                        onClick={() => {
-                          if (tipo === 'venta' && prod.stock <= 0) return;
-                          handleAgregarProducto({
-                            id: prod.id,
-                            nombre: prod.nombre,
-                            precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
-                            unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
-                            stock: prod.stock
-                          });
-                        }}
-                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || (tipo === 'venta' && prod.stock <= 0)}
-                      >
-                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (tipo === 'venta' && prod.stock <= 0 ? "Sin stock" : "Agregar")}
-                      </Button>
-                    </div>
+              {categoriaId === 'Maderas' && (
+                <div className="w-full mb-2 animate-fade-in">
+                  {/* Inputs para corte de madera */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+                    <Input type="number" min={1} placeholder="Alto (cm)" value={maderaInputs.alto} onChange={e => setMaderaInputs(i => ({ ...i, alto: e.target.value }))} />
+                    <Input type="number" min={1} placeholder="Ancho (cm)" value={maderaInputs.ancho} onChange={e => setMaderaInputs(i => ({ ...i, ancho: e.target.value }))} />
+                    <Input type="number" min={1} placeholder="Largo (cm)" value={maderaInputs.largo} onChange={e => setMaderaInputs(i => ({ ...i, largo: e.target.value }))} />
+                    <Input type="number" min={1} placeholder="Precio por pie tabla" value={maderaInputs.precioPorPie} onChange={e => setMaderaInputs(i => ({ ...i, precioPorPie: e.target.value }))} />
                   </div>
-                ))}
-              </div>
+                  <div className="mb-2 text-primary font-semibold">Precio calculado: ${precioCorteMadera}</div>
+                  {/* Lista de productos de maderas */}
+                  <div className="divide-y divide-gray-200 bg-white rounded-b">
+                    {productosPorCategoria[categoriaId]?.filter(prod =>
+                      prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                      (prod.unidadMedida || '').toLowerCase().includes(busquedaProducto.toLowerCase())
+                    ).map(prod => (
+                      <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                        <div className="col-span-5 font-medium">{prod.nombre}</div>
+                        <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida}</div>
+                        <div className="col-span-2 font-bold text-primary">${precioCorteMadera}</div>
+                        <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                            color="primary"
+                            className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                            onClick={() => {
+                              if (prod.stock <= 0) return;
+                              handleAgregarProducto({
+                                id: prod.id,
+                                nombre: prod.nombre,
+                                precio: precioCorteMadera,
+                                unidad: prod.unidadMedida,
+                                stock: prod.stock
+                              });
+                            }}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0 || precioCorteMadera <= 0}
+                          >
+                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {categoriaId !== 'Maderas' && (
+                <div className="bg-gray-100 rounded-b">
+                  <div className="divide-y divide-gray-200">
+                    {productosPorCategoria[categoriaId]?.filter(prod =>
+                      prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                      (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
+                    ).map(prod => (
+                      <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                        <div className="col-span-5 font-medium">{prod.nombre}</div>
+                        <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
+                        <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
+                        <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                        <div className="col-span-1 flex justify-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                            color="primary"
+                            className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                            onClick={() => {
+                              if (tipo === 'venta' && prod.stock <= 0) return;
+                              handleAgregarProducto({
+                                id: prod.id,
+                                nombre: prod.nombre,
+                                precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                                unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                                stock: prod.stock
+                              });
+                            }}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || (tipo === 'venta' && prod.stock <= 0)}
+                          >
+                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (tipo === 'venta' && prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {/* Lista de productos seleccionados */}
@@ -592,14 +670,62 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {productosSeleccionados.map(p => (
+                  {productosSeleccionados.map((p, idx) => (
                     <tr key={p.id}>
-                      <td className="p-2">{p.nombre}</td>
-                          <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
+                      <td className="p-2">
+                        {p.nombre}
+                        {/* Si es Maderas, permite editar dimensiones y recalcular */}
+                        {categoriasState.includes('Maderas') && categoriaId === 'Maderas' && productosPorCategoria['Maderas']?.some(prod => prod.id === p.id) && (
+                          <div className="flex flex-wrap gap-1 mt-1 text-xs">
+                            <Input type="number" min={1} placeholder="Alto (cm)" value={p.alto || ''} onChange={e => {
+                              const alto = Number(e.target.value);
+                              const nuevoPrecio = calcularPrecioCorteMadera({
+                                alto,
+                                ancho: Number(p.ancho || 0),
+                                largo: Number(p.largo || 0),
+                                precioPorPie: Number(p.precioPorPie || 0)
+                              });
+                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, alto, precio: nuevoPrecio } : item));
+                            }} className="w-16" />
+                            <Input type="number" min={1} placeholder="Ancho (cm)" value={p.ancho || ''} onChange={e => {
+                              const ancho = Number(e.target.value);
+                              const nuevoPrecio = calcularPrecioCorteMadera({
+                                alto: Number(p.alto || 0),
+                                ancho,
+                                largo: Number(p.largo || 0),
+                                precioPorPie: Number(p.precioPorPie || 0)
+                              });
+                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, ancho, precio: nuevoPrecio } : item));
+                            }} className="w-16" />
+                            <Input type="number" min={1} placeholder="Largo (cm)" value={p.largo || ''} onChange={e => {
+                              const largo = Number(e.target.value);
+                              const nuevoPrecio = calcularPrecioCorteMadera({
+                                alto: Number(p.alto || 0),
+                                ancho: Number(p.ancho || 0),
+                                largo,
+                                precioPorPie: Number(p.precioPorPie || 0)
+                              });
+                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, largo, precio: nuevoPrecio } : item));
+                            }} className="w-16" />
+                            <Input type="number" min={1} placeholder="Precio por pie" value={p.precioPorPie || ''} onChange={e => {
+                              const precioPorPie = Number(e.target.value);
+                              const nuevoPrecio = calcularPrecioCorteMadera({
+                                alto: Number(p.alto || 0),
+                                ancho: Number(p.ancho || 0),
+                                largo: Number(p.largo || 0),
+                                precioPorPie
+                              });
+                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, precioPorPie, precio: nuevoPrecio } : item));
+                            }} className="w-20" />
+                            <span className="ml-2 text-primary font-semibold">${p.precio}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
                       <td>${p.precio}</td>
-                          <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
+                      <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
                       <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
-                          <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
+                      <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
                     </tr>
                   ))}
                 </tbody>
