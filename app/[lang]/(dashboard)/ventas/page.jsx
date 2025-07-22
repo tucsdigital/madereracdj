@@ -394,43 +394,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         {/* Contenido scrolleable */}
         <div className="flex-1 overflow-y-auto px-1 pb-4 max-h-[calc(85vh-200px)]">
           <div className="flex flex-col gap-6">
-            {/* Información básica */}
-            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-              <label className="font-semibold">Información básica</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Input 
-                    {...register("nombre")} 
-                    placeholder="Nombre del documento" 
-                    className="w-full" 
-                    disabled={isSubmitting}
-                  />
-                  {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
-                </div>
-                <div>
-                  <Input 
-                    {...register("fecha")} 
-                    placeholder="Fecha de emisión" 
-                    type="date" 
-                    className="w-full" 
-                    disabled={isSubmitting}
-                  />
-                  {errors.fecha && <span className="text-red-500 text-xs">{errors.fecha.message}</span>}
-                </div>
-                {tipo === 'presupuesto' && (
-                  <div>
-                    <Input 
-                      {...register("vencimiento")} 
-                      placeholder="Fecha de vencimiento" 
-                      type="date" 
-                      className="w-full" 
-                      disabled={isSubmitting}
-                    />
-                    {errors.vencimiento && <span className="text-red-500 text-xs">{errors.vencimiento.message}</span>}
-                  </div>
-                )}
-              </div>
-            </section>
+            {/* Campo fecha automático, oculto o deshabilitado */}
+            <input type="hidden" {...register("fecha")} value={new Date().toISOString().split('T')[0]} readOnly />
 
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
@@ -489,80 +454,86 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         {/* Selección de productos */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Productos</label>
-              {/* Categorías como items con iconos */}
-              <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
-              {categoriasState.map(cat => (
-                  <Button
-                    key={cat}
-                    variant={categoriaId === cat ? "default" : "soft"}
-                    size="sm"
-                    color={categoriaId === cat ? "primary" : "secondary"}
-                    className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
-                    onClick={() => setCategoriaId(cat)}
-                    disabled={isSubmitting}
-                  >
-                    {cat}
-                  </Button>
-                ))}
-              </div>
-              {/* Lista de productos de la categoría seleccionada */}
-              {categoriaId && (
-                <div className="w-full mb-2 animate-fade-in">
-                  {/* Buscador global de productos */}
-                  <div className="mb-2 flex justify-end">
-                    <Input
-                      type="text"
-                      placeholder="Buscar producto..."
-                      value={busquedaProducto}
-                      onChange={e => setBusquedaProducto(e.target.value)}
-                      className="w-full md:w-80"
-                      disabled={isSubmitting || productosLoading}
-                    />
-                  </div>
-                  <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
-                    <div className="col-span-5">Producto</div>
-                    <div className="col-span-2">Medida</div>
-                    <div className="col-span-2">Precio</div>
-                    <div className="col-span-2">Stock</div>
-                    <div className="col-span-1"></div>
-                  </div>
-                  <div className="divide-y divide-gray-200 bg-white rounded-b">
-                    {productosPorCategoria[categoriaId]?.filter(prod =>
-                      prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                      (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
-                    ).map(prod => (
-                      <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
-                        <div className="col-span-5 font-medium">{prod.nombre}</div>
-                        <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
-                        <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
-                        <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
-                        <div className="col-span-1 flex justify-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
-                            color="primary"
-                            className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
-                            onClick={() => {
-                              if (tipo === 'venta' && prod.stock <= 0) return;
-                              handleAgregarProducto({
-                                id: prod.id,
-                                nombre: prod.nombre,
-                                precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
-                                unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
-                                stock: prod.stock
-                              });
-                            }}
-                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || (tipo === 'venta' && prod.stock <= 0)}
-                          >
-                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (tipo === 'venta' && prod.stock <= 0 ? "Sin stock" : "Agregar")}
-                          </Button>
-                        </div>
-                  </div>
-                ))}
-                  </div>
-              </div>
+          {/* Chips de categorías dinámicos */}
+          <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
+            {categoriasState.length === 0 && (
+              <span className="text-gray-400">No hay categorías con productos</span>
             )}
+            {categoriasState.map(cat => (
+              <Button
+                key={cat}
+                variant={categoriaId === cat ? "default" : "soft"}
+                size="sm"
+                color={categoriaId === cat ? "primary" : "secondary"}
+                className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                onClick={() => setCategoriaId(cat)}
+                disabled={isSubmitting}
+              >
+                {cat}
+              </Button>
+            ))}
+          </div>
+          {/* Lista de productos de la categoría seleccionada */}
+          {categoriaId && (
+            <div className="w-full mb-2 animate-fade-in">
+              {/* Buscador global de productos */}
+              <div className="mb-2 flex justify-end">
+                <Input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  value={busquedaProducto}
+                  onChange={e => setBusquedaProducto(e.target.value)}
+                  className="w-full md:w-80"
+                  disabled={isSubmitting || productosLoading}
+                />
+              </div>
+              <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
+                <div className="col-span-5">Producto</div>
+                <div className="col-span-2">Medida</div>
+                <div className="col-span-2">Precio</div>
+                <div className="col-span-2">Stock</div>
+                <div className="col-span-1"></div>
+              </div>
+              <div className="divide-y divide-gray-200 bg-white rounded-b">
+                {productosPorCategoria[categoriaId]?.length === 0 && (
+                  <div className="px-4 py-4 text-gray-400 col-span-12">No hay productos en esta categoría</div>
+                )}
+                {productosPorCategoria[categoriaId]?.filter(prod =>
+                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                  (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
+                ).map(prod => (
+                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                    <div className="col-span-5 font-medium">{prod.nombre}</div>
+                    <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
+                    <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
+                    <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                        color="primary"
+                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                        onClick={() => {
+                          if (tipo === 'venta' && prod.stock <= 0) return;
+                          handleAgregarProducto({
+                            id: prod.id,
+                            nombre: prod.nombre,
+                            precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                            unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                            stock: prod.stock
+                          });
+                        }}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || (tipo === 'venta' && prod.stock <= 0)}
+                      >
+                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (tipo === 'venta' && prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Lista de productos seleccionados */}
           {productosSeleccionados.length > 0 && (
             <div className="overflow-x-auto">
