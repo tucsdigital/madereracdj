@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Boxes, Plus, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -251,13 +251,38 @@ function FormularioProducto({ onClose, onSuccess }) {
   );
 }
 
-const productos = [];
-
 const ProductosPage = () => {
   const [open, setOpen] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
   const [reload, setReload] = useState(false);
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    const q = query(collection(db, "productos"), orderBy("nombre"));
+    const unsub = onSnapshot(q,
+      (snapshot) => {
+        setProductos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (err) => {
+        setError("Error al cargar productos: " + err.message);
+        setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, [reload]);
+
+  // Filtro profesional
+  const productosFiltrados = productos.filter(p =>
+    (cat ? p.categoria === cat : true) &&
+    (filtro ? (p.nombre?.toLowerCase().includes(filtro.toLowerCase()) || p.id?.toLowerCase().includes(filtro.toLowerCase())) : true)
+  );
+
   return (
     <div className="py-8 px-2 max-w-5xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
@@ -280,34 +305,44 @@ const ProductosPage = () => {
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {productos.filter(p => (cat ? p.categoria === cat : true) && p.nombre.toLowerCase().includes(filtro.toLowerCase())).map(p => (
-                <TableRow key={p.id}>
-                  <TableCell>{p.nombre}</TableCell>
-                  <TableCell>{p.categoria}</TableCell>
-                  <TableCell>{p.stock || p.stockFijacion || p.stockHerraje || p.stockQuimico || p.stockHerramienta}</TableCell>
-                  <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
-                  <TableCell>${p.precioUnidad || p.precioUnidadVenta || p.precioUnidadHerraje || p.precioUnidadQuimico || p.precioUnidadHerramienta}</TableCell>
-                  <TableCell>{p.estado}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline">Ver</Button>
-                  </TableCell>
+          {loading ? (
+            <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+          ) : error ? (
+            <div className="text-red-600 py-4 text-center">{error}</div>
+          ) : productosFiltrados.length === 0 ? (
+            <div className="text-gray-500 py-4 text-center">No hay productos para mostrar.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Precio</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {productosFiltrados.map(p => (
+                  <TableRow key={p.id}>
+                    <TableCell>{p.id}</TableCell>
+                    <TableCell>{p.nombre}</TableCell>
+                    <TableCell>{p.categoria}</TableCell>
+                    <TableCell>{p.stock || p.stockFijacion || p.stockHerraje || p.stockQuimico || p.stockHerramienta}</TableCell>
+                    <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
+                    <TableCell>${p.precioUnidad || p.precioUnidadVenta || p.precioUnidadHerraje || p.precioUnidadQuimico || p.precioUnidadHerramienta}</TableCell>
+                    <TableCell>{p.estado}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline">Ver</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
