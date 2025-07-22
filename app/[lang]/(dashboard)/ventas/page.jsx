@@ -132,10 +132,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
   const [submitMessage, setSubmitMessage] = useState("");
 
+  // 1. Esquema de validación sin 'nombre' ni 'vencimiento'
   const schema = yup.object().shape({
-    nombre: yup.string().required("El nombre es obligatorio"),
     fecha: yup.string().required("La fecha es obligatoria"),
-    vencimiento: tipo === 'presupuesto' ? yup.string().required("La fecha de vencimiento es obligatoria") : yup.string().notRequired(),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").required("Obligatorio"),
@@ -157,9 +156,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const { register, handleSubmit, setValue, formState: { errors }, watch, reset, trigger } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      nombre: "",
-      fecha: new Date().toISOString().split('T')[0], // Fecha actual por defecto
-      vencimiento: "",
+      fecha: new Date().toISOString().split('T')[0],
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
     }
@@ -292,8 +289,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función de envío del formulario con validación profesional
   const handleFormSubmit = async (data) => {
-    console.log("Formulario enviado con datos:", data); // Debug
-    
+    console.log("[DEBUG] handleFormSubmit - data recibida:", data);
     // Resetear estados previos
     setSubmitStatus(null);
     setSubmitMessage("");
@@ -387,6 +383,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <AlertCircle className="w-5 h-5 text-red-600" />
           )}
           <span className="font-medium">{submitMessage}</span>
+        </div>
+      )}
+
+      {Object.keys(errors).length > 0 && (
+        <div className="mb-2 p-2 rounded bg-red-100 text-red-800 text-sm">
+          Hay errores en el formulario. Revisa los campos obligatorios.
         </div>
       )}
 
