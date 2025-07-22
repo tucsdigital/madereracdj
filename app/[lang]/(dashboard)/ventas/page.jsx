@@ -685,79 +685,109 @@ const handleAgregarProducto = (producto) => {
           )}
           {/* Lista de productos seleccionados */}
           {productosSeleccionados.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm mt-2 min-w-[600px]">
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="p-2">Producto</th>
-                    <th>Cant.</th>
-                    <th>Precio</th>
-                    <th>Desc.</th>
-                    <th>Subtotal</th>
-                    <th></th>
+                  <tr className="bg-primary/10 text-primary font-semibold">
+                    <th className="p-2 text-left">Categoría</th>
+                    <th className="p-2 text-left">Producto</th>
+                    <th className="p-2 text-center">Cant.</th>
+                    <th className="p-2 text-center">Precio unit.</th>
+                    <th className="p-2 text-center">Desc.</th>
+                    <th className="p-2 text-center">Subtotal</th>
+                    <th className="p-2 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productosSeleccionados.map((p, idx) => (
-                    <tr key={p.id}>
+                    <tr key={p.id} className="border-b hover:bg-primary/5 transition-all">
+                      <td className="p-2 text-xs font-medium text-gray-600">{p.categoria}</td>
                       <td className="p-2">
-                        {p.nombre}
-                        {/* Si es Maderas, permite editar dimensiones y recalcular */}
+                        <div className="font-semibold text-default-900">{p.nombre}</div>
                         {p.categoria === 'Maderas' && (
-                          <div className="flex flex-wrap gap-1 mt-1 text-xs">
-                            <Input type="number" min={1} placeholder="Alto (cm)" value={p.alto || ''} onChange={e => {
-                              const alto = Number(e.target.value);
-                              const nuevoPrecio = calcularPrecioCorteMadera({
-                                alto,
-                                ancho: Number(p.ancho || 0),
-                                largo: Number(p.largo || 0),
-                                precioPorPie: Number(p.precioPorPie || 0)
-                              });
-                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, alto, precio: nuevoPrecio } : item));
-                            }} className="w-16" />
-                            <Input type="number" min={1} placeholder="Ancho (cm)" value={p.ancho || ''} onChange={e => {
-                              const ancho = Number(e.target.value);
-                              const nuevoPrecio = calcularPrecioCorteMadera({
-                                alto: Number(p.alto || 0),
-                                ancho,
-                                largo: Number(p.largo || 0),
-                                precioPorPie: Number(p.precioPorPie || 0)
-                              });
-                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, ancho, precio: nuevoPrecio } : item));
-                            }} className="w-16" />
-                            <Input type="number" min={1} placeholder="Largo (cm)" value={p.largo || ''} onChange={e => {
-                              const largo = Number(e.target.value);
-                              const nuevoPrecio = calcularPrecioCorteMadera({
-                                alto: Number(p.alto || 0),
-                                ancho: Number(p.ancho || 0),
-                                largo,
-                                precioPorPie: Number(p.precioPorPie || 0)
-                              });
-                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, largo, precio: nuevoPrecio } : item));
-                            }} className="w-16" />
-                            <Input type="number" min={1} placeholder="Precio por pie" value={p.precioPorPie || ''} onChange={e => {
-                              const precioPorPie = Number(e.target.value);
-                              const nuevoPrecio = calcularPrecioCorteMadera({
-                                alto: Number(p.alto || 0),
-                                ancho: Number(p.ancho || 0),
-                                largo: Number(p.largo || 0),
-                                precioPorPie
-                              });
-                              setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, precioPorPie, precio: nuevoPrecio } : item));
-                            }} className="w-20" />
+                          <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                            <span className="font-medium text-gray-500">Dimensiones:</span>
+                            <div className="flex gap-1 items-center">
+                              <span>Alto</span>
+                              <Input type="number" min={1} placeholder="Alto (cm)" value={p.alto || ''} onChange={e => {
+                                const alto = Number(e.target.value);
+                                const nuevoPrecio = calcularPrecioCorteMadera({
+                                  alto,
+                                  ancho: Number(p.ancho || 0),
+                                  largo: Number(p.largo || 0),
+                                  precioPorPie: Number(p.precioPorPie || 0)
+                                });
+                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, alto, precio: nuevoPrecio } : item));
+                              }} className="w-14 px-1 py-0.5 text-xs" title="Alto en cm" />
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span>Ancho</span>
+                              <Input type="number" min={1} placeholder="Ancho (cm)" value={p.ancho || ''} onChange={e => {
+                                const ancho = Number(e.target.value);
+                                const nuevoPrecio = calcularPrecioCorteMadera({
+                                  alto: Number(p.alto || 0),
+                                  ancho,
+                                  largo: Number(p.largo || 0),
+                                  precioPorPie: Number(p.precioPorPie || 0)
+                                });
+                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, ancho, precio: nuevoPrecio } : item));
+                              }} className="w-14 px-1 py-0.5 text-xs" title="Ancho en cm" />
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span>Largo</span>
+                              <Input type="number" min={1} placeholder="Largo (cm)" value={p.largo || ''} onChange={e => {
+                                const largo = Number(e.target.value);
+                                const nuevoPrecio = calcularPrecioCorteMadera({
+                                  alto: Number(p.alto || 0),
+                                  ancho: Number(p.ancho || 0),
+                                  largo,
+                                  precioPorPie: Number(p.precioPorPie || 0)
+                                });
+                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, largo, precio: nuevoPrecio } : item));
+                              }} className="w-14 px-1 py-0.5 text-xs" title="Largo en cm" />
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span>$/pie</span>
+                              <Input type="number" min={1} placeholder="Precio por pie" value={p.precioPorPie || ''} onChange={e => {
+                                const precioPorPie = Number(e.target.value);
+                                const nuevoPrecio = calcularPrecioCorteMadera({
+                                  alto: Number(p.alto || 0),
+                                  ancho: Number(p.ancho || 0),
+                                  largo: Number(p.largo || 0),
+                                  precioPorPie
+                                });
+                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, precioPorPie, precio: nuevoPrecio } : item));
+                              }} className="w-16 px-1 py-0.5 text-xs" title="Precio por pie tabla" />
+                            </div>
                             <span className="ml-2 text-primary font-semibold">${p.precio}</span>
                           </div>
                         )}
                       </td>
-                      <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                      <td>${p.precio}</td>
-                      <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                      <td>${(Number(p.precio) * Number(p.cantidad) - Number(p.descuento) * Number(p.cantidad)).toFixed(2)}</td>
-                      <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
+                      <td className="text-center">
+                        <Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-14 mx-auto text-center" disabled={isSubmitting} />
+                      </td>
+                      <td className="text-center">${p.precio}</td>
+                      <td className="text-center">
+                        <Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-14 mx-auto text-center" disabled={isSubmitting} />
+                      </td>
+                      <td className="text-center font-semibold text-primary">${(Number(p.precio) * Number(p.cantidad) - Number(p.descuento) * Number(p.cantidad)).toFixed(2)}</td>
+                      <td className="text-center">
+                        <Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting} title="Quitar producto">
+                          <span className="text-lg font-bold text-red-500">×</span>
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <div className="flex flex-col md:flex-row justify-end gap-4 mt-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
+                  <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
+                  <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
+                  <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
+                  <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
+                </div>
+              </div>
             </div>
           )}
               {hasSubmitted && errors.items && (
