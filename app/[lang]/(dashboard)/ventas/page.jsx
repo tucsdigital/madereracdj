@@ -209,15 +209,26 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Manejo de selección de productos
   // 1. Solo permitir agregar productos que existen en Firestore
   const handleAgregarProducto = (producto) => {
-    // Solo permitir productos que existen en productosState
-    const existe = productosState.find(p => p.id === producto.id);
-    if (!existe) {
+    // Busca el producto real en productosState por doc.id
+    const real = productosState.find(p => p.id === producto.id);
+    if (!real) {
       setSubmitStatus("error");
       setSubmitMessage("Solo puedes agregar productos existentes del catálogo.");
       return;
     }
-    if (!productosSeleccionados.some(p => p.id === producto.id)) {
-      setProductosSeleccionados([...productosSeleccionados, { ...producto, cantidad: 1, descuento: 0 }]);
+    if (!productosSeleccionados.some(p => p.id === real.id)) {
+      setProductosSeleccionados([
+        ...productosSeleccionados,
+        {
+          id: real.id, // ID real de Firestore
+          nombre: real.nombre,
+          precio: real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta,
+          unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
+          stock: real.stock,
+          cantidad: 1,
+          descuento: 0
+        }
+      ]);
     }
   };
   const handleQuitarProducto = (id) => {
@@ -330,7 +341,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       const formData = {
         ...data,
         clienteId: clienteId,
-        productos: productosSeleccionados,
+        productos: productosSeleccionados.map(p => ({
+          id: p.id, // Usar el ID real de Firestore
+          nombre: p.nombre,
+          cantidad: p.cantidad,
+          precio: p.precio,
+          unidad: p.unidad,
+          descuento: p.descuento || 0,
+        })),
         subtotal: subtotal,
         descuentoTotal: descuentoTotal,
         iva: iva,
