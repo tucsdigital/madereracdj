@@ -383,7 +383,7 @@ const ProductosPage = () => {
           <div className="px-6 pb-2 pt-0" style={{maxHeight:'65vh',overflowY:'auto'}}>
             <FormularioProducto onClose={() => setOpen(false)} onSuccess={() => setReload(r => !r)} />
           </div>
-          <DialogFooter className="bg-white px-6 py-4 border-t sticky bottom-0 z-20 shadow-lg flex justify-end gap-2">
+          <DialogFooter className="bg-white px-6 py-4 border-t bottom-0 z-20 shadow-lg flex justify-end gap-2">
             {/* Los botones del footer se renderizan dentro del propio FormularioProducto, así que aquí solo se deja el espacio visual */}
           </DialogFooter>
         </DialogContent>
