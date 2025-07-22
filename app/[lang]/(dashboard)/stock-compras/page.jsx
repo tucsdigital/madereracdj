@@ -68,31 +68,13 @@ function StockComprasPage() {
   // Función profesional para registrar movimiento y actualizar stock
   async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones }) {
     try {
-      // 1. Obtener el producto para saber la categoría y el campo de stock
+      // 1. Obtener el producto para validar existencia
       const productoRef = doc(db, "productos", productoId);
       const productoSnap = await getDoc(productoRef);
       if (!productoSnap.exists()) throw new Error("Producto no encontrado");
       const producto = productoSnap.data();
 
-      // 2. Determinar el campo de stock según la categoría
-      let campoStock = "stock";
-      switch (producto.categoria) {
-        case "Fijaciones":
-          campoStock = "stockFijacion";
-          break;
-        case "Herrajes":
-          campoStock = "stockHerraje";
-          break;
-        case "Adhesivos":
-          campoStock = "stockQuimico";
-          break;
-        case "Herramientas":
-          campoStock = "stockHerramienta";
-          break;
-        // Maderas y cualquier otro usan "stock"
-      }
-
-      // 3. Registrar el movimiento
+      // 2. Registrar el movimiento
       await addDoc(collection(db, "movimientos"), {
         productoId,
         tipo,
@@ -104,13 +86,13 @@ function StockComprasPage() {
         nombreProducto: producto.nombre,
       });
 
-      // 4. Actualizar el stock del producto en el campo correcto
+      // 3. Actualizar el stock (siempre el campo 'stock')
       let cantidadFinal = cantidad;
       if (tipo === "salida") cantidadFinal = -Math.abs(cantidad);
       if (tipo === "ajuste") cantidadFinal = cantidad; // Puede ser positivo o negativo
 
       await updateDoc(productoRef, {
-        [campoStock]: increment(cantidadFinal),
+        stock: increment(cantidadFinal),
         fechaActualizacion: serverTimestamp(),
       });
 

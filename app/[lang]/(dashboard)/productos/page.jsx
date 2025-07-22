@@ -55,7 +55,7 @@ const fijacionesSchema = yup.object().shape({
   unidadVenta: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadVenta: yup.number().positive().required("Precio obligatorio"),
-  stockFijacion: yup.number().integer().min(0).required("Stock obligatorio"),
+  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionFijacion: yup.string().required("Ubicación obligatoria"),
 });
 const herrajesSchema = yup.object().shape({
@@ -69,7 +69,7 @@ const herrajesSchema = yup.object().shape({
   unidadVentaHerraje: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidadHerraje: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadHerraje: yup.number().positive().required("Precio obligatorio"),
-  stockHerraje: yup.number().integer().min(0).required("Stock obligatorio"),
+  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionHerraje: yup.string().required("Ubicación obligatoria"),
 });
 const adhesivosSchema = yup.object().shape({
@@ -80,7 +80,7 @@ const adhesivosSchema = yup.object().shape({
   contenidoNeto: yup.string().required("Contenido neto obligatorio"),
   unidadVentaQuimico: yup.string().required("Unidad de venta obligatoria"),
   precioUnidadQuimico: yup.number().positive().required("Precio obligatorio"),
-  stockQuimico: yup.number().integer().min(0).required("Stock obligatorio"),
+  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionQuimico: yup.string().required("Ubicación obligatoria"),
 });
 const herramientasSchema = yup.object().shape({
@@ -93,7 +93,7 @@ const herramientasSchema = yup.object().shape({
   unidadVentaHerramienta: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidadHerramienta: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadHerramienta: yup.number().positive().required("Precio obligatorio"),
-  stockHerramienta: yup.number().integer().min(0).required("Stock obligatorio"),
+  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionHerramienta: yup.string().required("Ubicación obligatoria"),
 });
 const esquemasPorCategoria = {
@@ -226,7 +226,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVenta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidad")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadVenta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stockFijacion")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
+                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionFijacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Herrajes" && (<>
@@ -239,7 +239,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVentaHerraje")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidadHerraje")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadHerraje")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stockHerraje")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
+                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionHerraje")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Adhesivos" && (<>
@@ -249,7 +249,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("contenidoNeto")} placeholder="Contenido neto/volumen" disabled={isSubmitting} /></div>
                 <div><Input {...register("unidadVentaQuimico")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadQuimico")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stockQuimico")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
+                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionQuimico")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Herramientas" && (<>
@@ -261,7 +261,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVentaHerramienta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidadHerramienta")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stockHerramienta")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
+                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
             </div>
@@ -360,7 +360,7 @@ const ProductosPage = () => {
                     <TableCell>{p.id}</TableCell>
                   <TableCell>{p.nombre}</TableCell>
                   <TableCell>{p.categoria}</TableCell>
-                    <TableCell>{p.stock || p.stockFijacion || p.stockHerraje || p.stockQuimico || p.stockHerramienta}</TableCell>
+                    <TableCell>{p.stock}</TableCell>
                     <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
                     <TableCell>${p.precioUnidad || p.precioUnidadVenta || p.precioUnidadHerraje || p.precioUnidadQuimico || p.precioUnidadHerramienta}</TableCell>
                     <TableCell>${p.costo}</TableCell>
@@ -376,11 +376,16 @@ const ProductosPage = () => {
         </CardContent>
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[520px]">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-[520px] p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle>Agregar Producto</DialogTitle>
           </DialogHeader>
-          <FormularioProducto onClose={() => setOpen(false)} onSuccess={() => setReload(r => !r)} />
+          <div className="px-6 pb-2 pt-0" style={{maxHeight:'65vh',overflowY:'auto'}}>
+            <FormularioProducto onClose={() => setOpen(false)} onSuccess={() => setReload(r => !r)} />
+          </div>
+          <DialogFooter className="bg-white px-6 py-4 border-t sticky bottom-0 z-20 shadow-lg flex justify-end gap-2">
+            {/* Los botones del footer se renderizan dentro del propio FormularioProducto, así que aquí solo se deja el espacio visual */}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
