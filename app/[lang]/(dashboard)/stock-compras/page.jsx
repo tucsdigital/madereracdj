@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -260,6 +260,7 @@ function StockComprasPage() {
         <DialogContent className="w-[95vw] max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Agregar Reposición</DialogTitle>
+            <DialogDescription>Completa los datos para registrar una reposición de stock.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
             {repoStatus && (
@@ -289,6 +290,7 @@ function StockComprasPage() {
         <DialogContent className="w-[95vw] max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Registrar Movimiento</DialogTitle>
+            <DialogDescription>Completa los datos para registrar un movimiento de stock.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
             {movStatus && (
