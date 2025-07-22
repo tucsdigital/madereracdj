@@ -1,33 +1,148 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
+import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy } from "firebase/firestore";
 
-// Mock de productos
-const productos = [
-  { id: 1, nombre: "Pino 2x4", categoria: "Maderas", stock: 120, min: 30, unidad: "m", estado: "ok" },
-  { id: 2, nombre: "MDF 18mm", categoria: "Tableros", stock: 10, min: 20, unidad: "pliego", estado: "bajo" },
-  { id: 3, nombre: "Tornillos x100", categoria: "Accesorios", stock: 50, min: 10, unidad: "caja", estado: "ok" },
-];
-
-// Mock de movimientos
-const movimientos = [
-  { id: 1, fecha: "2024-06-10", producto: "Pino 2x4", tipo: "entrada", cantidad: 50, usuario: "Admin", obs: "Compra proveedor" },
-  { id: 2, fecha: "2024-06-09", producto: "MDF 18mm", tipo: "salida", cantidad: 5, usuario: "Juan", obs: "Venta" },
-  { id: 3, fecha: "2024-06-08", producto: "Tornillos x100", tipo: "ajuste", cantidad: 2, usuario: "Admin", obs: "Ajuste inventario" },
-];
-
-const StockComprasPage = () => {
+function StockComprasPage() {
   const [tab, setTab] = useState("inventario");
   const [openRepo, setOpenRepo] = useState(false);
   const [openMov, setOpenMov] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [filtroMov, setFiltroMov] = useState("");
+  const [productos, setProductos] = useState([]);
+  const [movimientos, setMovimientos] = useState([]);
+  const [loadingProd, setLoadingProd] = useState(true);
+  const [loadingMov, setLoadingMov] = useState(true);
+  const [error, setError] = useState(null);
+  // Formulario reposición
+  const [repoProductoId, setRepoProductoId] = useState("");
+  const [repoCantidad, setRepoCantidad] = useState(1);
+  const [repoObs, setRepoObs] = useState("");
+  const [repoStatus, setRepoStatus] = useState(null); // 'success' | 'error' | null
+  const [repoMsg, setRepoMsg] = useState("");
+  // Formulario movimiento
+  const [movProductoId, setMovProductoId] = useState("");
+  const [movTipo, setMovTipo] = useState("entrada");
+  const [movCantidad, setMovCantidad] = useState(1);
+  const [movObs, setMovObs] = useState("");
+  const [movStatus, setMovStatus] = useState(null);
+  const [movMsg, setMovMsg] = useState("");
+
+  // Cargar productos en tiempo real
+  useEffect(() => {
+    setLoadingProd(true);
+    const q = query(collection(db, "productos"), orderBy("nombre"));
+    const unsub = onSnapshot(q, (snap) => {
+      setProductos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingProd(false);
+    }, (err) => {
+      setError("Error al cargar productos: " + err.message);
+      setLoadingProd(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Cargar movimientos en tiempo real
+  useEffect(() => {
+    setLoadingMov(true);
+    const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setMovimientos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingMov(false);
+    }, (err) => {
+      setError("Error al cargar movimientos: " + err.message);
+      setLoadingMov(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Función profesional para registrar movimiento y actualizar stock
+  async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones }) {
+    try {
+      // 1. Registrar el movimiento
+      await addDoc(collection(db, "movimientos"), {
+        productoId,
+        tipo,
+        cantidad,
+        usuario,
+        observaciones,
+        fecha: serverTimestamp(),
+      });
+      // 2. Actualizar el stock del producto
+      const productoRef = doc(db, "productos", productoId);
+      let cantidadFinal = cantidad;
+      if (tipo === "salida") cantidadFinal = -Math.abs(cantidad);
+      if (tipo === "ajuste") cantidadFinal = cantidad; // Para ajuste, puede ser positivo o negativo
+      await updateDoc(productoRef, {
+        stock: increment(cantidadFinal),
+        fechaActualizacion: serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // Inventario filtrado
+  const productosFiltrados = productos.filter(p => p.nombre?.toLowerCase().includes(filtro.toLowerCase()));
+
+  // Movimientos con join de nombre de producto
+  const movimientosFiltrados = movimientos
+    .map(m => ({
+      ...m,
+      productoNombre: productos.find(p => p.id === m.productoId)?.nombre || "(eliminado)"
+    }))
+    .filter(m =>
+      m.productoNombre.toLowerCase().includes(filtroMov.toLowerCase()) ||
+      (m.usuario || "").toLowerCase().includes(filtroMov.toLowerCase())
+    );
+
+  // Handlers para formularios
+  const handleRepoGuardar = async () => {
+    setRepoStatus(null); setRepoMsg("");
+    if (!repoProductoId || repoCantidad <= 0) {
+      setRepoStatus("error"); setRepoMsg("Completa todos los campos correctamente."); return;
+    }
+    try {
+      await registrarMovimiento({
+        productoId: repoProductoId,
+        tipo: "entrada",
+        cantidad: Number(repoCantidad),
+        usuario: "Admin", // TODO: usuario real
+        observaciones: repoObs
+      });
+      setRepoStatus("success"); setRepoMsg("Reposición registrada y stock actualizado.");
+      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoStatus(null); }, 1200);
+    } catch (e) {
+      setRepoStatus("error"); setRepoMsg("Error: " + e.message);
+    }
+  };
+  const handleMovGuardar = async () => {
+    setMovStatus(null); setMovMsg("");
+    if (!movProductoId || movCantidad <= 0) {
+      setMovStatus("error"); setMovMsg("Completa todos los campos correctamente."); return;
+    }
+    try {
+      await registrarMovimiento({
+        productoId: movProductoId,
+        tipo: movTipo,
+        cantidad: Number(movCantidad),
+        usuario: "Admin", // TODO: usuario real
+        observaciones: movObs
+      });
+      setMovStatus("success"); setMovMsg("Movimiento registrado y stock actualizado.");
+      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovStatus(null); }, 1200);
+    } catch (e) {
+      setMovStatus("error"); setMovMsg("Error: " + e.message);
+    }
+  };
 
   return (
     <div className="py-8 px-2 max-w-5xl mx-auto">
@@ -50,37 +165,41 @@ const StockComprasPage = () => {
               </div>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Mínimo</TableHead>
-                    <TableHead>Unidad</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productos.filter(p => p.nombre.toLowerCase().includes(filtro.toLowerCase())).map(p => (
-                    <TableRow key={p.id} className={p.estado === "bajo" ? "bg-yellow-50" : ""}>
-                      <TableCell>{p.nombre}</TableCell>
-                      <TableCell>{p.categoria}</TableCell>
-                      <TableCell>{p.stock}</TableCell>
-                      <TableCell>{p.min}</TableCell>
-                      <TableCell>{p.unidad}</TableCell>
-                      <TableCell>
-                        {p.estado === "ok" ? <span className="text-green-600 font-semibold">OK</span> : <span className="text-yellow-700 font-semibold">Bajo</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" variant="outline" onClick={() => setOpenRepo(true)}><ArrowDown className="w-4 h-4 mr-1" />Reposición</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setOpenMov(true)}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
-                      </TableCell>
+              {loadingProd ? (
+                <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : error ? (
+                <div className="text-red-600 py-4 text-center">{error}</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {productosFiltrados.map(p => (
+                      <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-yellow-50" : ""}>
+                        <TableCell>{p.nombre}</TableCell>
+                        <TableCell>{p.categoria}</TableCell>
+                        <TableCell>{p.stock}</TableCell>
+                        <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
+                        <TableCell>
+                          {p.stock <= (p.min || 0) ? <span className="text-yellow-700 font-semibold">Bajo</span> : <span className="text-green-600 font-semibold">OK</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={() => { setOpenRepo(true); setRepoProductoId(p.id); }}><ArrowDown className="w-4 h-4 mr-1" />Reposición</Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); setMovProductoId(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -94,34 +213,40 @@ const StockComprasPage = () => {
               </div>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Observaciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movimientos.filter(m => m.producto.toLowerCase().includes(filtroMov.toLowerCase()) || m.usuario.toLowerCase().includes(filtroMov.toLowerCase())).map(m => (
-                    <TableRow key={m.id}>
-                      <TableCell>{m.fecha}</TableCell>
-                      <TableCell>{m.producto}</TableCell>
-                      <TableCell>
-                        {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
-                        {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
-                        {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
-                      </TableCell>
-                      <TableCell>{m.cantidad}</TableCell>
-                      <TableCell>{m.usuario}</TableCell>
-                      <TableCell>{m.obs}</TableCell>
+              {loadingMov ? (
+                <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : error ? (
+                <div className="text-red-600 py-4 text-center">{error}</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Observaciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {movimientosFiltrados.map(m => (
+                      <TableRow key={m.id}>
+                        <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{m.productoNombre}</TableCell>
+                        <TableCell>
+                          {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
+                          {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
+                          {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
+                        </TableCell>
+                        <TableCell>{m.cantidad}</TableCell>
+                        <TableCell>{m.usuario}</TableCell>
+                        <TableCell>{m.observaciones}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -133,18 +258,25 @@ const StockComprasPage = () => {
             <DialogTitle>Agregar Reposición</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
+            {repoStatus && (
+              <div className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${repoStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                {repoStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                {repoMsg}
+              </div>
+            )}
             <label className="font-semibold">Producto</label>
-            <select className="border rounded px-2 py-2">
-              {productos.map(p => <option key={p.id}>{p.nombre}</option>)}
+            <select className="border rounded px-2 py-2" value={repoProductoId} onChange={e => setRepoProductoId(e.target.value)}>
+              <option value="">Seleccionar producto</option>
+              {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
             <label className="font-semibold">Cantidad</label>
-            <Input type="number" min={1} className="w-full" />
+            <Input type="number" min={1} className="w-full" value={repoCantidad} onChange={e => setRepoCantidad(e.target.value)} />
             <label className="font-semibold">Motivo/Observaciones</label>
-            <Input type="text" className="w-full" />
+            <Input type="text" className="w-full" value={repoObs} onChange={e => setRepoObs(e.target.value)} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenRepo(false)}>Cancelar</Button>
-            <Button variant="default">Guardar</Button>
+            <Button variant="default" onClick={handleRepoGuardar} disabled={loadingProd || isSubmitting}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -155,29 +287,36 @@ const StockComprasPage = () => {
             <DialogTitle>Registrar Movimiento</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
+            {movStatus && (
+              <div className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${movStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                {movStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                {movMsg}
+              </div>
+            )}
             <label className="font-semibold">Producto</label>
-            <select className="border rounded px-2 py-2">
-              {productos.map(p => <option key={p.id}>{p.nombre}</option>)}
+            <select className="border rounded px-2 py-2" value={movProductoId} onChange={e => setMovProductoId(e.target.value)}>
+              <option value="">Seleccionar producto</option>
+              {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
             <label className="font-semibold">Tipo de movimiento</label>
-            <select className="border rounded px-2 py-2">
+            <select className="border rounded px-2 py-2" value={movTipo} onChange={e => setMovTipo(e.target.value)}>
               <option value="entrada">Entrada</option>
               <option value="salida">Salida</option>
               <option value="ajuste">Ajuste</option>
             </select>
             <label className="font-semibold">Cantidad</label>
-            <Input type="number" min={1} className="w-full" />
+            <Input type="number" min={1} className="w-full" value={movCantidad} onChange={e => setMovCantidad(e.target.value)} />
             <label className="font-semibold">Motivo/Observaciones</label>
-            <Input type="text" className="w-full" />
+            <Input type="text" className="w-full" value={movObs} onChange={e => setMovObs(e.target.value)} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenMov(false)}>Cancelar</Button>
-            <Button variant="default">Guardar</Button>
+            <Button variant="default" onClick={handleMovGuardar} disabled={loadingProd || isSubmitting}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
+}
 
 export default StockComprasPage; 
