@@ -242,8 +242,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
 
   // Calcular totales
-  const subtotal = productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad), 0);
-  const descuentoTotal = productosSeleccionados.reduce((acc, p) => acc + (p.descuento * p.cantidad), 0);
+  const subtotal = productosSeleccionados.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0);
+  const descuentoTotal = productosSeleccionados.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0);
   const iva = (subtotal - descuentoTotal) * 0.21;
   const total = subtotal - descuentoTotal + iva;
 
@@ -595,13 +595,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             color="primary"
                             className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
                             onClick={() => {
+                              // Inicializa los inputs automáticamente con los valores del producto
+                              setMaderaInputs({
+                                alto: prod.espesor || '',
+                                ancho: prod.ancho || '',
+                                largo: prod.largo || '',
+                                precioPorPie: prod.precioUnidad || prod.precioPorPie || ''
+                              });
+                              // El cálculo se hará automáticamente por el useEffect
                               if (prod.stock <= 0) return;
                               handleAgregarProducto({
                                 id: prod.id,
                                 nombre: prod.nombre,
                                 precio: precioCorteMadera,
                                 unidad: prod.unidadMedida,
-                                stock: prod.stock
+                                stock: prod.stock,
+                                alto: maderaInputs.alto,
+                                ancho: maderaInputs.ancho,
+                                largo: maderaInputs.largo,
+                                precioPorPie: maderaInputs.precioPorPie
                               });
                             }}
                             disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0 || precioCorteMadera <= 0}
@@ -724,7 +736,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <td><Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
                       <td>${p.precio}</td>
                       <td><Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-16" disabled={isSubmitting} /></td>
-                      <td>${(p.precio * p.cantidad - p.descuento * p.cantidad).toFixed(2)}</td>
+                      <td>${(Number(p.precio) * Number(p.cantidad) - Number(p.descuento) * Number(p.cantidad)).toFixed(2)}</td>
                       <td><Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting}>-</Button></td>
                     </tr>
                   ))}
