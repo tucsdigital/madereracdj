@@ -543,6 +543,7 @@ const handleAgregarProducto = (producto) => {
             {categoriasState.map(cat => (
               <Button
                 key={cat}
+                type="button"
                 variant={categoriaId === cat ? "default" : "soft"}
                 size="sm"
                 color={categoriaId === cat ? "primary" : "secondary"}
@@ -757,14 +758,6 @@ const handleAgregarProducto = (producto) => {
                   ))}
                 </tbody>
               </table>
-              <div className="flex flex-col md:flex-row justify-end gap-4 mt-4">
-                <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
-                  <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
-                  <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
-                  <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
-                  <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
-                </div>
-              </div>
             </div>
           )}
               {hasSubmitted && errors.items && (
