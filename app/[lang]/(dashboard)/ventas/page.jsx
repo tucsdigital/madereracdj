@@ -202,35 +202,44 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Estado para selección de categoría y productos
   const [categoriaId, setCategoriaId] = useState("");
-  const [productosSeleccionados, setProductosSeleccionados] = useState([]); // [{id, nombre, precio, cantidad, unidad, descuento}]
-  // Estado para búsqueda global de productos
-  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [productosSeleccionados, setProductosSeleccionados] = useState([]); // [{id, nombre, precio, cantidad, unidad, descuento, ...}
+// Estado para búsqueda global de productos
+const [busquedaProducto, setBusquedaProducto] = useState("");
 
-  // Manejo de selección de productos
-  // 1. Solo permitir agregar productos que existen en Firestore
-  const handleAgregarProducto = (producto) => {
-    // Busca el producto real en productosState por doc.id
-    const real = productosState.find(p => p.id === producto.id);
-    if (!real) {
-      setSubmitStatus("error");
-      setSubmitMessage("Solo puedes agregar productos existentes del catálogo.");
-      return;
-    }
-    if (!productosSeleccionados.some(p => p.id === real.id)) {
-      setProductosSeleccionados([
-        ...productosSeleccionados,
-        {
-          id: real.id, // ID real de Firestore
-          nombre: real.nombre,
-          precio: real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta,
-          unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
-          stock: real.stock,
-          cantidad: 1,
-          descuento: 0
-        }
-      ]);
-    }
-  };
+// Permitir selección múltiple de productos de distintas categorías
+// Al cambiar de categoría, solo cambia la lista de productos mostrados, pero los seleccionados permanecen
+// La lista de productos seleccionados se muestra siempre, debajo de la selección de productos
+
+// Manejo de selección de productos
+const handleAgregarProducto = (producto) => {
+  // Busca el producto real en productosState por doc.id
+  const real = productosState.find(p => p.id === producto.id);
+  if (!real) {
+    setSubmitStatus("error");
+    setSubmitMessage("Solo puedes agregar productos existentes del catálogo.");
+    return;
+  }
+  if (!productosSeleccionados.some(p => p.id === real.id)) {
+    setProductosSeleccionados([
+      ...productosSeleccionados,
+      {
+        id: real.id, // ID real de Firestore
+        nombre: real.nombre,
+        precio: real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta,
+        unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
+        stock: real.stock,
+        cantidad: 1,
+        descuento: 0,
+        categoria: real.categoria,
+        // Si es madera, guardar dimensiones si existen
+        alto: producto.alto || '',
+        ancho: producto.ancho || '',
+        largo: producto.largo || '',
+        precioPorPie: producto.precioPorPie || ''
+      }
+    ]);
+  }
+};
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(productosSeleccionados.filter(p => p.id !== id));
   };
@@ -602,18 +611,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 largo: prod.largo || '',
                                 precioPorPie: prod.precioUnidad || prod.precioPorPie || ''
                               });
-                              // El cálculo se hará automáticamente por el useEffect
+                              // Si ya está agregado, no hacer nada
+                              if (productosSeleccionados.some(p => p.id === prod.id)) return;
                               if (prod.stock <= 0) return;
+                              // Tomar snapshot de los valores actuales de los inputs
+                              const alto = Number(maderaInputs.alto) || Number(prod.espesor) || 0;
+                              const ancho = Number(maderaInputs.ancho) || Number(prod.ancho) || 0;
+                              const largo = Number(maderaInputs.largo) || Number(prod.largo) || 0;
+                              const precioPorPie = Number(maderaInputs.precioPorPie) || Number(prod.precioUnidad) || 0;
+                              const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                               handleAgregarProducto({
                                 id: prod.id,
                                 nombre: prod.nombre,
-                                precio: precioCorteMadera,
+                                precio,
                                 unidad: prod.unidadMedida,
                                 stock: prod.stock,
-                                alto: maderaInputs.alto,
-                                ancho: maderaInputs.ancho,
-                                largo: maderaInputs.largo,
-                                precioPorPie: maderaInputs.precioPorPie
+                                alto,
+                                ancho,
+                                largo,
+                                precioPorPie
                               });
                             }}
                             disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0 || precioCorteMadera <= 0}
@@ -687,7 +703,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <td className="p-2">
                         {p.nombre}
                         {/* Si es Maderas, permite editar dimensiones y recalcular */}
-                        {categoriasState.includes('Maderas') && categoriaId === 'Maderas' && productosPorCategoria['Maderas']?.some(prod => prod.id === p.id) && (
+                        {p.categoria === 'Maderas' && (
                           <div className="flex flex-wrap gap-1 mt-1 text-xs">
                             <Input type="number" min={1} placeholder="Alto (cm)" value={p.alto || ''} onChange={e => {
                               const alto = Number(e.target.value);
