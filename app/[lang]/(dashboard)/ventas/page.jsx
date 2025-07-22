@@ -12,7 +12,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Box, Layers, Settings, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 
 // Columnas para la tabla de envíos
@@ -176,6 +176,32 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Estado para modal de nuevo cliente
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+
+  // Estado para productos desde Firestore
+  const [productosState, setProductosState] = useState([]);
+  const [productosPorCategoria, setProductosPorCategoria] = useState({});
+  const [categoriasState, setCategoriasState] = useState([]);
+  const [productosLoading, setProductosLoading] = useState(true);
+
+  // Cargar productos y agrupar por categoría
+  useEffect(() => {
+    setProductosLoading(true);
+    const fetchProductos = async () => {
+      const snap = await getDocs(collection(db, "productos"));
+      const productos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProductosState(productos);
+      // Agrupar por categoría
+      const agrupados = {};
+      productos.forEach(p => {
+        if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
+        agrupados[p.categoria].push(p);
+      });
+      setProductosPorCategoria(agrupados);
+      setCategoriasState(Object.keys(agrupados));
+      setProductosLoading(false);
+    };
+    fetchProductos();
+  }, []);
 
   // Estado para selección de categoría y productos
   const [categoriaId, setCategoriaId] = useState("");
@@ -465,19 +491,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           <label className="font-semibold">Productos</label>
               {/* Categorías como items con iconos */}
               <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
-              {categorias.map(cat => (
+              {categoriasState.map(cat => (
                   <Button
-                    key={cat.id}
-                    variant={categoriaId === cat.id.toString() ? "default" : "soft"}
+                    key={cat}
+                    variant={categoriaId === cat ? "default" : "soft"}
                     size="sm"
-                    color={categoriaId === cat.id.toString() ? "primary" : "secondary"}
+                    color={categoriaId === cat ? "primary" : "secondary"}
                     className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
-                    onClick={() => setCategoriaId(cat.id.toString())}
+                    onClick={() => setCategoriaId(cat)}
                     disabled={isSubmitting}
                   >
-                    {cat.icon}
-                    {cat.nombre}
-                    </Button>
+                    {cat}
+                  </Button>
                 ))}
               </div>
               {/* Lista de productos de la categoría seleccionada */}
@@ -491,35 +516,46 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={busquedaProducto}
                       onChange={e => setBusquedaProducto(e.target.value)}
                       className="w-full md:w-80"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || productosLoading}
                     />
                   </div>
                   <div className="bg-gray-100 rounded-t px-4 py-2 font-semibold text-sm grid grid-cols-12 gap-2">
                     <div className="col-span-5">Producto</div>
                     <div className="col-span-2">Medida</div>
                     <div className="col-span-2">Precio</div>
-                    <div className="col-span-3"></div>
+                    <div className="col-span-2">Stock</div>
+                    <div className="col-span-1"></div>
                   </div>
                   <div className="divide-y divide-gray-200 bg-white rounded-b">
                     {productosPorCategoria[categoriaId]?.filter(prod =>
                       prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                      prod.unidad.toLowerCase().includes(busquedaProducto.toLowerCase())
+                      (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
                     ).map(prod => (
                       <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
                         <div className="col-span-5 font-medium">{prod.nombre}</div>
-                        <div className="col-span-2 text-xs text-default-500">{prod.unidad}</div>
-                        <div className="col-span-2 font-bold text-primary">${prod.precio}</div>
-                        <div className="col-span-3 flex justify-end">
+                        <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
+                        <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
+                        <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                        <div className="col-span-1 flex justify-end">
                           <Button
                             type="button"
                             size="sm"
                             variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
                             color="primary"
                             className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
-                            onClick={() => handleAgregarProducto(prod)}
-                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
+                            onClick={() => {
+                              if (tipo === 'venta' && prod.stock <= 0) return;
+                              handleAgregarProducto({
+                                id: prod.id,
+                                nombre: prod.nombre,
+                                precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                                unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                                stock: prod.stock
+                              });
+                            }}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || (tipo === 'venta' && prod.stock <= 0)}
                           >
-                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
+                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (tipo === 'venta' && prod.stock <= 0 ? "Sin stock" : "Agregar")}
                           </Button>
                         </div>
                   </div>
@@ -755,6 +791,25 @@ const VentasPage = () => {
       if (open === "venta") {
         // Crear la venta
         docRef = await addDoc(collection(db, "ventas"), formData);
+        // Descontar stock y registrar movimiento de cada producto vendido
+        for (const prod of formData.productos) {
+          const productoRef = doc(db, "productos", prod.id);
+          await updateDoc(productoRef, {
+            stock: increment(-Math.abs(prod.cantidad))
+          });
+          // Registrar movimiento de stock
+          await addDoc(collection(db, "movimientos"), {
+            productoId: prod.id,
+            tipo: "salida",
+            cantidad: prod.cantidad,
+            usuario: "Sistema",
+            fecha: serverTimestamp(),
+            referencia: "venta",
+            referenciaId: docRef.id,
+            observaciones: `Salida por venta (${formData.nombre || ''})`,
+            productoNombre: prod.nombre,
+          });
+        }
         
         // Si la venta tiene envío, crear automáticamente el registro de envío
         if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
