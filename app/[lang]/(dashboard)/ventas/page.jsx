@@ -359,6 +359,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         total: total,
         fechaCreacion: new Date().toISOString(),
         tipo: tipo,
+        numeroPedido: `PED-${Date.now()}`, // <-- SIEMPRE incluir el número de pedido generado
       };
 
       console.log("Datos preparados para envío:", formData); // Debug
@@ -871,7 +872,7 @@ const VentasPage = () => {
             // Datos de la venta
             numeroFactura: formData.numeroFactura,
             numeroRemito: formData.numeroRemito,
-            numeroPedido: formData.numeroPedido || numeroPedido, // SIEMPRE incluir el número de pedido
+            numeroPedido: formData.numeroPedido, // SIEMPRE incluir el número de pedido
             totalVenta: formData.total,
             // Productos
             productos: formData.productos,
