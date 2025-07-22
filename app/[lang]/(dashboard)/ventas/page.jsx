@@ -898,7 +898,10 @@ const VentasPage = () => {
             creadoPor: "sistema", // En una app real sería el usuario actual
           };
           
-          await addDoc(collection(db, "envios"), envioData);
+          const cleanEnvioData = Object.fromEntries(
+            Object.entries(envioData).filter(([_, v]) => v !== undefined)
+          );
+          await addDoc(collection(db, "envios"), cleanEnvioData);
           console.log("Envío creado automáticamente para la venta:", docRef.id);
         }
         
