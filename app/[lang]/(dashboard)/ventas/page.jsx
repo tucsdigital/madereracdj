@@ -207,7 +207,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [busquedaProducto, setBusquedaProducto] = useState("");
 
   // Manejo de selección de productos
+  // 1. Solo permitir agregar productos que existen en Firestore
   const handleAgregarProducto = (producto) => {
+    // Solo permitir productos que existen en productosState
+    const existe = productosState.find(p => p.id === producto.id);
+    if (!existe) {
+      setSubmitStatus("error");
+      setSubmitMessage("Solo puedes agregar productos existentes del catálogo.");
+      return;
+    }
     if (!productosSeleccionados.some(p => p.id === producto.id)) {
       setProductosSeleccionados([...productosSeleccionados, { ...producto, cantidad: 1, descuento: 0 }]);
     }
@@ -756,6 +764,7 @@ const VentasPage = () => {
 
   const handleClose = () => setOpen(null);
   
+  // 2. En el submit de venta, validar existencia antes de descontar stock
   const handleSubmit = async (formData) => {
     console.log("Recibiendo datos en VentasPage:", formData); // Debug
     setLoading(true);
@@ -766,7 +775,16 @@ const VentasPage = () => {
         docRef = await addDoc(collection(db, "ventas"), formData);
         // Descontar stock y registrar movimiento de cada producto vendido
         for (const prod of formData.productos) {
+          console.log("[DEBUG] Intentando descontar stock para producto:", prod.id);
           const productoRef = doc(db, "productos", prod.id);
+          // Verificar existencia
+          const productoSnap = await getDocs(collection(db, "productos"));
+          const existe = productoSnap.docs.find(d => d.id === prod.id);
+          if (!existe) {
+            setLoading(false);
+            alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+            return;
+          }
           await updateDoc(productoRef, {
             stock: increment(-Math.abs(prod.cantidad))
           });
@@ -845,6 +863,7 @@ const VentasPage = () => {
       }
     } catch (error) {
       console.error("Error al guardar:", error);
+      alert("Error al guardar: " + error.message);
       throw error; // Re-lanzar el error para que el componente hijo lo maneje
     } finally {
       setLoading(false);
