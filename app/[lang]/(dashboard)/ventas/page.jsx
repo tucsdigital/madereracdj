@@ -310,6 +310,17 @@ const handleAgregarProducto = (producto) => {
       setOpenNuevoCliente(true);
     } else {
       setClienteId(val);
+      setValue("clienteId", val); // Sincroniza con React Hook Form
+      const clienteObj = clientesState.find(c => c.id === val);
+      if (clienteObj) {
+        setValue("cliente", {
+          nombre: clienteObj.nombre || "",
+          email: clienteObj.email || "",
+          telefono: clienteObj.telefono || "",
+          direccion: clienteObj.direccion || "",
+          cuit: clienteObj.cuit || "",
+        });
+      }
     }
   };
 
@@ -588,7 +599,7 @@ const handleAgregarProducto = (producto) => {
                       <div className="p-2 text-gray-400">No hay clientes</div>
                     )}
                     {clientesFiltrados.map(c => (
-                      <div key={c.id} className="p-2 hover:bg-primary/10 cursor-pointer rounded" onClick={() => { setClienteId(c.id); setDropdownClientesOpen(false); }}>
+                      <div key={c.id} className="p-2 hover:bg-primary/10 cursor-pointer rounded" onClick={() => { handleClienteChange(c.id); setDropdownClientesOpen(false); }}>
                         {c.nombre} - {c.cuit} - {c.localidad}
                       </div>
                     ))}
