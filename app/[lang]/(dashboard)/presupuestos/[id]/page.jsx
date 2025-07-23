@@ -672,9 +672,15 @@ const PresupuestoDetalle = () => {
                     fechaCreacion: new Date().toISOString(),
                     numeroPedido: `PED-${Date.now()}`,
                   };
+                  // Limpiar datos antes de guardar
+                  const cleanVentaData = JSON.parse(JSON.stringify(ventaData, (key, value) => {
+                    if (value === undefined) return undefined;
+                    return value;
+                  }));
+                  console.log("[DEBUG] Datos limpios para guardar venta desde presupuesto:", cleanVentaData);
                   const docRef = await addDoc(
                     collection(db, "ventas"),
-                    ventaData
+                    cleanVentaData
                   );
                   for (const prod of presupuesto.productos ||
                     presupuesto.items) {
@@ -702,9 +708,7 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${
-                        presupuesto.cliente?.nombre || ""
-                      })`,
+                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ""})`,
                       productoNombre: prod.nombre,
                     });
                   }
@@ -756,6 +760,7 @@ const PresupuestoDetalle = () => {
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
+                  console.error("Error al guardar venta desde presupuesto:", error);
                   alert("Error al guardar venta: " + error.message);
                 }
               }}

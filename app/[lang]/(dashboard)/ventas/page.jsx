@@ -1255,10 +1255,16 @@ const VentasPage = () => {
     try {
       let docRef;
       if (open === "venta") {
+        // Limpiar datos: eliminar undefined y campos vacíos
+        const cleanFormData = JSON.parse(JSON.stringify(formData, (key, value) => {
+          if (value === undefined) return undefined;
+          return value;
+        }));
+        console.log("[DEBUG] Datos limpios para guardar venta:", cleanFormData);
         // Crear la venta
-        docRef = await addDoc(collection(db, "ventas"), formData);
+        docRef = await addDoc(collection(db, "ventas"), cleanFormData);
         // Descontar stock y registrar movimiento de cada producto vendido
-        for (const prod of formData.productos) {
+        for (const prod of cleanFormData.productos) {
           console.log("[DEBUG] Intentando descontar stock para producto:", prod.id);
           const productoRef = doc(db, "productos", prod.id);
           // Verificar existencia
@@ -1281,38 +1287,33 @@ const VentasPage = () => {
             fecha: serverTimestamp(),
             referencia: "venta",
             referenciaId: docRef.id,
-            observaciones: `Salida por venta (${formData.nombre || ''})`,
+            observaciones: `Salida por venta (${cleanFormData.nombre || ''})`,
             productoNombre: prod.nombre,
           });
         }
-        
         // Si la venta tiene envío, crear automáticamente el registro de envío
-        if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+        if (cleanFormData.tipoEnvio && cleanFormData.tipoEnvio !== "retiro_local") {
           const envioData = {
             ventaId: docRef.id,
-            clienteId: formData.clienteId,
-            cliente: formData.cliente, // debe ser un objeto con nombre, cuit, etc.
+            clienteId: cleanFormData.clienteId,
+            cliente: cleanFormData.cliente,
             fechaCreacion: new Date().toISOString(),
-            fechaEntrega: formData.fechaEntrega,
+            fechaEntrega: cleanFormData.fechaEntrega,
             estado: "pendiente",
-            prioridad: formData.prioridad || "media",
-            vendedor: formData.vendedor,
-            // Datos de envío
-            direccionEnvio: formData.direccionEnvio,
-            localidadEnvio: formData.localidadEnvio,
-            codigoPostal: formData.codigoPostal,
-            tipoEnvio: formData.tipoEnvio,
-            transportista: formData.transportista,
-            costoEnvio: parseFloat(formData.costoEnvio) || 0,
-            // Datos de la venta
-            numeroFactura: formData.numeroFactura,
-            numeroRemito: formData.numeroRemito,
-            numeroPedido: formData.numeroPedido, // SIEMPRE incluir el número de pedido
-            totalVenta: formData.total,
-            // Productos
-            productos: formData.productos,
-            cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
-            // Seguimiento
+            prioridad: cleanFormData.prioridad || "media",
+            vendedor: cleanFormData.vendedor,
+            direccionEnvio: cleanFormData.direccionEnvio,
+            localidadEnvio: cleanFormData.localidadEnvio,
+            codigoPostal: cleanFormData.codigoPostal,
+            tipoEnvio: cleanFormData.tipoEnvio,
+            transportista: cleanFormData.transportista,
+            costoEnvio: parseFloat(cleanFormData.costoEnvio) || 0,
+            numeroFactura: cleanFormData.numeroFactura,
+            numeroRemito: cleanFormData.numeroRemito,
+            numeroPedido: cleanFormData.numeroPedido,
+            totalVenta: cleanFormData.total,
+            productos: cleanFormData.productos,
+            cantidadTotal: cleanFormData.productos.reduce((acc, p) => acc + p.cantidad, 0),
             historialEstados: [
               {
                 estado: "pendiente",
@@ -1320,28 +1321,27 @@ const VentasPage = () => {
                 comentario: "Envío creado automáticamente desde la venta"
               }
             ],
-            
-            // Observaciones
-            observaciones: formData.observaciones,
+            observaciones: cleanFormData.observaciones,
             instruccionesEspeciales: "",
-            
-            // Timestamps
             fechaActualizacion: new Date().toISOString(),
-            creadoPor: "sistema", // En una app real sería el usuario actual
+            creadoPor: "sistema",
           };
-          
           const cleanEnvioData = Object.fromEntries(
             Object.entries(envioData).filter(([_, v]) => v !== undefined)
           );
           await addDoc(collection(db, "envios"), cleanEnvioData);
           console.log("Envío creado automáticamente para la venta:", docRef.id);
         }
-        
         setOpen(null);
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
-        docRef = await addDoc(collection(db, "presupuestos"), formData);
-    setOpen(null);
+        // Limpiar datos para presupuesto también
+        const cleanFormData = JSON.parse(JSON.stringify(formData, (key, value) => {
+          if (value === undefined) return undefined;
+          return value;
+        }));
+        docRef = await addDoc(collection(db, "presupuestos"), cleanFormData);
+        setOpen(null);
         router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
     } catch (error) {
