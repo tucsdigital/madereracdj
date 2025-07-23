@@ -149,8 +149,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         precio: yup.number().min(0, "No puede ser negativo").required("Obligatorio"),
         unidad: yup.string().required("Obligatorio"),
         moneda: yup.string().required("Obligatorio"),
+        descuento: yup.number().min(0).max(100),
       })
     ).min(1, "Agrega al menos un ítem"),
+    formaPago: yup.string().required("Selecciona la forma de pago"),
+    pagoParcial: yup.boolean(),
+    montoAbonado: yup.number()
+      .when("pagoParcial", {
+        is: true,
+        then: s => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
+        otherwise: s => s.notRequired()
+      }),
+    prioridad: yup.string().required("Selecciona la prioridad"),
+    tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
+    fechaEntrega: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("La fecha de entrega es obligatoria"),
+      otherwise: s => s.notRequired()
+    }),
+    rangoHorario: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("El rango horario es obligatorio"),
+      otherwise: s => s.notRequired()
+    }),
+    transportista: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("Selecciona el transportista"),
+      otherwise: s => s.notRequired()
+    }),
+    costoEnvio: yup.number().notRequired(),
+    observaciones: yup.string().notRequired(),
   });
 
   const { register, handleSubmit, setValue, formState: { errors }, watch, reset, trigger } = useForm({
