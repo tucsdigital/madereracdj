@@ -510,63 +510,64 @@ const handleAgregarProducto = (producto) => {
         {/* Selección de cliente */}
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="text"
-                  placeholder="Buscar cliente..."
-                  value={busquedaCliente}
-                  onChange={e => setBusquedaCliente(e.target.value)}
-                  className="w-full md:w-60"
-                  disabled={clientesLoading || isSubmitting}
-                />
-                <select
-                  value={clienteId}
-                  onChange={e => setClienteId(e.target.value)}
-                  className="border rounded px-2 py-2 w-full"
-                  name="clienteId"
-                  ref={register ? register("clienteId").ref : undefined}
-                  disabled={clientesLoading || isSubmitting}
-                >
-            <option value="">Seleccionar cliente...</option>
-                  {clientesFiltrados.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre} - {c.cuit} - {c.localidad}</option>
-            ))}
-          </select>
-                <Button 
-                  type="button" 
-                  variant="default" 
-                  onClick={() => setOpenNuevoCliente(true)}
-                  disabled={isSubmitting}
-                >
-                  + Nuevo
-                </Button>
-              </div>
-              {errors.clienteId && <span className="text-red-500 text-xs">{errors.clienteId.message}</span>}
-              <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
-                    {errors.cliente?.nombre && <span className="text-red-500 text-xs">{errors.cliente?.nombre.message}</span>}
-                  </div>
-                  <div>
-                    <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
-                    {errors.cliente?.cuit && <span className="text-red-500 text-xs">{errors.cliente?.cuit.message}</span>}
-                  </div>
-                  <div>
-                    <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
-                    {errors.cliente?.direccion && <span className="text-red-500 text-xs">{errors.cliente?.direccion.message}</span>}
-                  </div>
-                  <div>
-                    <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
-                    {errors.cliente?.telefono && <span className="text-red-500 text-xs">{errors.cliente?.telefono.message}</span>}
-                  </div>
-                  <div>
-                    <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
-                    {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
+          <div className="relative w-full">
+            <div className="border rounded px-2 py-2 w-full flex items-center cursor-pointer bg-white" onClick={() => setOpenNuevoCliente(true)}>
+              <span className="flex-1 text-gray-700">{clienteSeleccionado ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}` : "Seleccionar cliente..."}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setOpenNuevoCliente(true)} disabled={isSubmitting}>+ Nuevo</Button>
+            </div>
+            {/* Dropdown de clientes con input de búsqueda */}
+            {openNuevoCliente && (
+              <div className="absolute z-50 bg-white border rounded shadow-lg w-full mt-1 max-h-72 overflow-y-auto">
+                <div className="p-2">
+                  <Input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={busquedaCliente}
+                    onChange={e => setBusquedaCliente(e.target.value)}
+                    className="w-full mb-2"
+                    autoFocus
+                    disabled={clientesLoading || isSubmitting}
+                  />
+                  <div className="divide-y divide-gray-100">
+                    {clientesFiltrados.length === 0 && (
+                      <div className="p-2 text-gray-400">No hay clientes</div>
+                    )}
+                    {clientesFiltrados.map(c => (
+                      <div key={c.id} className="p-2 hover:bg-primary/10 cursor-pointer rounded" onClick={() => { setClienteId(c.id); setOpenNuevoCliente(false); }}>
+                        {c.nombre} - {c.cuit} - {c.localidad}
+                      </div>
+                    ))}
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+          {errors.clienteId && <span className="text-red-500 text-xs">{errors.clienteId.message}</span>}
+          <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+            <div className="text-base font-semibold text-default-800 pb-1">Datos del cliente</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Input value={clienteSeleccionado?.nombre || ""} placeholder="Nombre del cliente" readOnly className="w-full" />
+                {errors.cliente?.nombre && <span className="text-red-500 text-xs">{errors.cliente?.nombre.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.cuit || ""} placeholder="CUIT" readOnly className="w-full" />
+                {errors.cliente?.cuit && <span className="text-red-500 text-xs">{errors.cliente?.cuit.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.direccion || ""} placeholder="Dirección" readOnly className="w-full" />
+                {errors.cliente?.direccion && <span className="text-red-500 text-xs">{errors.cliente?.direccion.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.telefono || ""} placeholder="Teléfono" readOnly className="w-full" />
+                {errors.cliente?.telefono && <span className="text-red-500 text-xs">{errors.cliente?.telefono.message}</span>}
+              </div>
+              <div>
+                <Input value={clienteSeleccionado?.email || ""} placeholder="Email" readOnly className="w-full" />
+                {errors.cliente?.email && <span className="text-red-500 text-xs">{errors.cliente?.email.message}</span>}
+              </div>
             </div>
+          </div>
         </section>
 
         {/* Selección de productos */}
@@ -725,59 +726,11 @@ const handleAgregarProducto = (producto) => {
                         {p.categoria === 'Maderas' && (
                           <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
                             <span className="font-medium text-gray-500">Dimensiones:</span>
-                            <div className="flex gap-1 items-center">
-                              <span>Alto</span>
-                              <Input type="number" min={1} placeholder="Alto (cm)" value={p.alto || ''} onChange={e => {
-                                const alto = Number(e.target.value);
-                                const nuevoPrecio = calcularPrecioCorteMadera({
-                                  alto,
-                                  ancho: Number(p.ancho || 0),
-                                  largo: Number(p.largo || 0),
-                                  precioPorPie: Number(p.precioPorPie || 0)
-                                });
-                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, alto, precio: nuevoPrecio } : item));
-                              }} className="w-14 px-1 py-0.5 text-xs" title="Alto en cm" />
-                            </div>
-                            <div className="flex gap-1 items-center">
-                              <span>Ancho</span>
-                              <Input type="number" min={1} placeholder="Ancho (cm)" value={p.ancho || ''} onChange={e => {
-                                const ancho = Number(e.target.value);
-                                const nuevoPrecio = calcularPrecioCorteMadera({
-                                  alto: Number(p.alto || 0),
-                                  ancho,
-                                  largo: Number(p.largo || 0),
-                                  precioPorPie: Number(p.precioPorPie || 0)
-                                });
-                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, ancho, precio: nuevoPrecio } : item));
-                              }} className="w-14 px-1 py-0.5 text-xs" title="Ancho en cm" />
-                            </div>
-                            <div className="flex gap-1 items-center">
-                              <span>Largo</span>
-                              <Input type="number" min={1} placeholder="Largo (cm)" value={p.largo || ''} onChange={e => {
-                                const largo = Number(e.target.value);
-                                const nuevoPrecio = calcularPrecioCorteMadera({
-                                  alto: Number(p.alto || 0),
-                                  ancho: Number(p.ancho || 0),
-                                  largo,
-                                  precioPorPie: Number(p.precioPorPie || 0)
-                                });
-                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, largo, precio: nuevoPrecio } : item));
-                              }} className="w-14 px-1 py-0.5 text-xs" title="Largo en cm" />
-                            </div>
-                            <div className="flex gap-1 items-center">
-                              <span>$/pie</span>
-                              <Input type="number" min={1} placeholder="Precio por pie" value={p.precioPorPie || ''} onChange={e => {
-                                const precioPorPie = Number(e.target.value);
-                                const nuevoPrecio = calcularPrecioCorteMadera({
-                                  alto: Number(p.alto || 0),
-                                  ancho: Number(p.ancho || 0),
-                                  largo: Number(p.largo || 0),
-                                  precioPorPie
-                                });
-                                setProductosSeleccionados(arr => arr.map((item, i) => i === idx ? { ...item, precioPorPie, precio: nuevoPrecio } : item));
-                              }} className="w-16 px-1 py-0.5 text-xs" title="Precio por pie tabla" />
-                            </div>
-                            <span className="ml-2 text-primary font-semibold">${p.precio}</span>
+                            <span>Alto: <span className="font-bold">{p.alto}</span> cm</span>
+                            <span>Ancho: <span className="font-bold">{p.ancho}</span> cm</span>
+                            <span>Largo: <span className="font-bold">{p.largo}</span> cm</span>
+                            <span>$/pie: <span className="font-bold">{p.precioPorPie}</span></span>
+                            <span className="ml-2 text-primary font-semibold">Precio calculado: ${p.precio}</span>
                           </div>
                         )}
                       </td>
@@ -815,8 +768,24 @@ const handleAgregarProducto = (producto) => {
                   {/* Condiciones de pago y entrega */}
           <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
-                    <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
-                    <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
+                    <select {...register("formaPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Forma de pago...</option>
+                      <option value="efectivo">Efectivo</option>
+                      <option value="transferencia">Transferencia</option>
+                      <option value="tarjeta">Tarjeta</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" id="pagoParcial" {...register("pagoParcial")} />
+                      <label htmlFor="pagoParcial" className="text-sm">¿Pago parcial?</label>
+                    </div>
+                    {watch("pagoParcial") && (
+                      <>
+                        <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")} className="w-full" disabled={isSubmitting} />
+                        <div className="text-sm text-gray-600">Resta: ${(total - (watch('montoAbonado') || 0)).toFixed(2)}</div>
+                      </>
+                    )}
                     <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
                     <select {...register("prioridad")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                       <option value="">Prioridad...</option>
@@ -859,6 +828,8 @@ const handleAgregarProducto = (producto) => {
                           {transportistas.map(t => <option key={t}>{t}</option>)}
                         </select>
                         <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
+                        <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
                       </>
                     )}
                   </div>
