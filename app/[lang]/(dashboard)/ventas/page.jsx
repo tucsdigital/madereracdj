@@ -965,6 +965,256 @@ const handleAgregarProducto = (producto) => {
   );
 }
 
+// Nuevo componente para selección y edición de productos
+export function SelectorProductosPresupuesto({ productosSeleccionados, setProductosSeleccionados, productosState, categoriasState, productosPorCategoria, isSubmitting, modoSoloProductos }) {
+  // Estado para selección de categoría y búsqueda
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+
+  // Función para agregar producto (idéntica a la lógica original)
+  const handleAgregarProducto = (producto) => {
+    const real = productosState.find(p => p.id === producto.id);
+    if (!real) return;
+    if (!productosSeleccionados.some(p => p.id === real.id)) {
+      let precio = real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta;
+      let alto = Number(real.espesor) || 0;
+      let ancho = Number(real.ancho) || 0;
+      let largo = Number(real.largo) || 0;
+      let precioPorPie = Number(real.precioUnidad) || 0;
+      if (real.categoria === 'Maderas') {
+        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+          precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+        } else {
+          return;
+        }
+      }
+      setProductosSeleccionados([
+        ...productosSeleccionados,
+        {
+          id: real.id,
+          nombre: real.nombre,
+          precio,
+          unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
+          stock: real.stock,
+          cantidad: 1,
+          descuento: 0,
+          categoria: real.categoria,
+          alto,
+          ancho,
+          largo,
+          precioPorPie
+        }
+      ]);
+    }
+  };
+  const handleQuitarProducto = (id) => {
+    setProductosSeleccionados(productosSeleccionados.filter(p => p.id !== id));
+  };
+  const handleCantidadChange = (id, cantidad) => {
+    setProductosSeleccionados(productosSeleccionados.map(p => p.id === id ? { ...p, cantidad: Number(cantidad) } : p));
+  };
+  const handleDescuentoChange = (id, descuento) => {
+    setProductosSeleccionados(productosSeleccionados.map(p => p.id === id ? { ...p, descuento: Number(descuento) } : p));
+  };
+
+  // Función de cálculo de precio para maderas (idéntica a la original)
+  function calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie, factor = 0.2734 }) {
+    if ([alto, ancho, largo, precioPorPie].some(v => typeof v !== 'number' || v <= 0)) {
+      return 0;
+    }
+    const precio = factor * alto * ancho * largo * precioPorPie;
+    return Math.round(precio * 100) / 100;
+  }
+
+  return (
+    <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+      <label className="font-semibold">Productos</label>
+      {/* Chips de categorías dinámicos */}
+      <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
+        {categoriasState.length === 0 && (
+          <span className="text-gray-400">No hay categorías con productos</span>
+        )}
+        {categoriasState.map(cat => (
+          <Button
+            key={cat}
+            type="button"
+            variant={categoriaId === cat ? "default" : "soft"}
+            size="sm"
+            color={categoriaId === cat ? "primary" : "secondary"}
+            className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+            onClick={() => setCategoriaId(cat)}
+            disabled={isSubmitting}
+          >
+            {cat}
+          </Button>
+        ))}
+      </div>
+      {/* Lista de productos de la categoría seleccionada */}
+      {categoriaId && (
+        <div className="w-full mb-2 animate-fade-in">
+          {/* Buscador global de productos */}
+          <div className="mb-2 flex justify-end">
+            <Input
+              type="text"
+              placeholder="Buscar producto..."
+              value={busquedaProducto}
+              onChange={e => setBusquedaProducto(e.target.value)}
+              className="w-full md:w-80"
+              disabled={isSubmitting}
+            />
+          </div>
+          {categoriaId === 'Maderas' && (
+            <div className="w-full mb-2 animate-fade-in">
+              <div className="divide-y divide-gray-200 bg-white rounded-b">
+                {productosPorCategoria[categoriaId]?.filter(prod =>
+                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                  (prod.unidadMedida || '').toLowerCase().includes(busquedaProducto.toLowerCase())
+                ).map(prod => (
+                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                    <div className="col-span-5 font-medium">{prod.nombre}</div>
+                    <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida}</div>
+                    <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioPorPie || 0}</div>
+                    <div className="col-span-2 font-mono text-xs">
+                      Stock: {prod.stock}
+                      {prod.stock <= 0 && <span className="text-red-600 font-semibold ml-2">Sin stock</span>}
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                        color="primary"
+                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                        onClick={() => {
+                          if (productosSeleccionados.some(p => p.id === prod.id)) return;
+                          if (prod.stock <= 0) return;
+                          // Tomar dimensiones y precioPorPie de Firebase
+                          const alto = Number(prod.espesor) || 0;
+                          const ancho = Number(prod.ancho) || 0;
+                          const largo = Number(prod.largo) || 0;
+                          const precioPorPie = Number(prod.precioUnidad) || 0;
+                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                            const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                            handleAgregarProducto({
+                              id: prod.id,
+                              nombre: prod.nombre,
+                              precio,
+                              unidad: prod.unidadMedida,
+                              stock: prod.stock,
+                              alto,
+                              ancho,
+                              largo,
+                              precioPorPie
+                            });
+                          }
+                        }}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0}
+                      >
+                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {categoriaId !== 'Maderas' && (
+            <div className="bg-gray-100 rounded-b">
+              <div className="divide-y divide-gray-200">
+                {productosPorCategoria[categoriaId]?.filter(prod =>
+                  prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                  (prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta || "").toLowerCase().includes(busquedaProducto.toLowerCase())
+                ).map(prod => (
+                  <div key={prod.id} className="grid grid-cols-12 gap-2 items-center px-4 py-2">
+                    <div className="col-span-5 font-medium">{prod.nombre}</div>
+                    <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</div>
+                    <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta}</div>
+                    <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                    <div className="col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={productosSeleccionados.some(p => p.id === prod.id) ? "soft" : "default"}
+                        color="primary"
+                        className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
+                        onClick={() => {
+                          handleAgregarProducto({
+                            id: prod.id,
+                            nombre: prod.nombre,
+                            precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                            unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                            stock: prod.stock
+                          });
+                        }}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
+                      >
+                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Lista de productos seleccionados */}
+      {productosSeleccionados.length > 0 && (
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
+            <thead>
+              <tr className="bg-primary/10 text-primary font-semibold">
+                <th className="p-2 text-left">Categoría</th>
+                <th className="p-2 text-left">Producto</th>
+                <th className="p-2 text-center">Cant.</th>
+                <th className="p-2 text-center">Precio unit.</th>
+                <th className="p-2 text-center">Desc.</th>
+                <th className="p-2 text-center">Subtotal</th>
+                <th className="p-2 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productosSeleccionados.map((p, idx) => (
+                <tr key={p.id} className="border-b hover:bg-primary/5 transition-all">
+                  <td className="p-2 text-xs font-medium text-gray-600">{p.categoria}</td>
+                  <td className="p-2">
+                    <div className="font-semibold text-default-900">{p.nombre}</div>
+                    {p.categoria === 'Maderas' && (
+                      <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                        <span className="font-medium text-gray-500">Dimensiones:</span>
+                        <span>Alto: <span className="font-bold">{p.alto}</span> cm</span>
+                        <span>Ancho: <span className="font-bold">{p.ancho}</span> cm</span>
+                        <span>Largo: <span className="font-bold">{p.largo}</span> cm</span>
+                        <span>$/pie: <span className="font-bold">{p.precioPorPie}</span></span>
+                        <span className="ml-2 text-primary font-semibold">Precio calculado: ${p.precio}</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-center">
+                    <Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-28 mx-auto text-center text-lg font-bold" disabled={isSubmitting} />
+                  </td>
+                  <td className="text-center">${p.precio}</td>
+                  <td className="text-center">
+                    <Input type="number" min={0} max={100} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-20 mx-auto text-center" disabled={isSubmitting} suffix="%" />
+                  </td>
+                  <td className="text-center font-semibold text-primary">
+                    ${((Number(p.precio) * Number(p.cantidad)) * (1 - (Number(p.descuento) / 100))).toFixed(2)}
+                  </td>
+                  <td className="text-center">
+                    <Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting} title="Quitar producto">
+                      <span className="text-lg font-bold text-red-500">×</span>
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 const VentasPage = () => {
   const [open, setOpen] = useState(null); // null | 'presupuesto' | 'venta'
   const [ventasData, setVentasData] = useState([]);

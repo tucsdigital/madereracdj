@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import FormularioVentaPresupuesto from "../../ventas/page";
+import FormularioVentaPresupuesto, { SelectorProductosPresupuesto } from "../../ventas/page";
 
 const PresupuestoDetalle = () => {
   const params = useParams();
@@ -304,19 +304,26 @@ const PresupuestoDetalle = () => {
         {/* Productos */}
         {editando && presupuestoEdit ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <FormularioVentaPresupuesto
-              tipo="presupuesto"
-              onClose={() => setEditando(false)}
-              onSubmit={async (formData) => {
-                // Guardar cambios en Firestore
-                const productosArr = formData.productos || formData.items;
+            <SelectorProductosPresupuesto
+              productosSeleccionados={presupuestoEdit.productos || []}
+              setProductosSeleccionados={nuevos => setPresupuestoEdit(prev => ({ ...prev, productos: nuevos, items: nuevos }))}
+              productosState={productos}
+              categoriasState={[...new Set(productos.map(p => p.categoria))]}
+              productosPorCategoria={productos.reduce((acc, p) => { acc[p.categoria] = acc[p.categoria] || []; acc[p.categoria].push(p); return acc; }, {})}
+              isSubmitting={loadingPrecios}
+              modoSoloProductos={true}
+            />
+            <div className="flex gap-2 mt-6">
+              <Button variant="default" onClick={async () => {
+                // Guardar solo productos y totales
+                const productosArr = presupuestoEdit.productos || [];
                 const subtotal = productosArr.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0);
                 const descuentoTotal = productosArr.reduce((acc, p) => acc + ((Number(p.precio) * Number(p.cantidad)) * (Number(p.descuento || 0) / 100)), 0);
                 const iva = (subtotal - descuentoTotal) * 0.21;
                 const total = subtotal - descuentoTotal + iva;
                 const docRef = doc(db, "presupuestos", presupuestoEdit.id);
                 await updateDoc(docRef, {
-                  ...formData,
+                  ...presupuestoEdit,
                   subtotal,
                   descuentoTotal,
                   iva,
@@ -324,12 +331,11 @@ const PresupuestoDetalle = () => {
                   productos: productosArr,
                   items: productosArr
                 });
-                setPresupuesto({ ...formData, subtotal, descuentoTotal, iva, total, productos: productosArr, items: productosArr });
+                setPresupuesto({ ...presupuestoEdit, subtotal, descuentoTotal, iva, total, productos: productosArr, items: productosArr });
                 setEditando(false);
-              }}
-              initialValues={presupuestoEdit}
-              editable={true}
-            />
+              }} disabled={loadingPrecios}>Guardar productos</Button>
+              <Button variant="outline" onClick={() => setEditando(false)} disabled={loadingPrecios}>Cancelar</Button>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
