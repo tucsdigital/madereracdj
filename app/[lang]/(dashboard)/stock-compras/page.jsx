@@ -46,6 +46,13 @@ function StockComprasPage() {
   const [movCosto, setMovCosto] = useState("");
   const [movProveedor, setMovProveedor] = useState("");
 
+  // Proveedores ficticios internos
+  const proveedoresFicticios = [
+    { id: "1", nombre: "Proveedor A" },
+    { id: "2", nombre: "Proveedor B" },
+    { id: "3", nombre: "Proveedor C" },
+  ];
+
   // Cargar productos en tiempo real
   useEffect(() => {
     setLoadingProd(true);
@@ -180,7 +187,7 @@ function StockComprasPage() {
         productoId: repoProductoId,
         productoNombre: prod?.nombre || "",
         proveedorId: repoProveedor,
-        proveedorNombre: proveedores.find(p => p.id === repoProveedor)?.nombre || "",
+        proveedorNombre: proveedoresFicticios.find(p => p.id === repoProveedor)?.nombre || "",
         cantidad: Number(repoCantidad),
         costoUnitario: Number(repoCosto),
         total: Number(repoCosto) * Number(repoCantidad),
@@ -219,7 +226,7 @@ function StockComprasPage() {
           productoId: movProductoId,
           productoNombre: prod?.nombre || "",
           proveedorId: movProveedor,
-          proveedorNombre: proveedores.find(p => p.id === movProveedor)?.nombre || "",
+          proveedorNombre: proveedoresFicticios.find(p => p.id === movProveedor)?.nombre || "",
           cantidad: Number(movCantidad),
           costoUnitario: Number(movCosto),
           total: Number(movCosto) * Number(movCantidad),
@@ -355,23 +362,22 @@ function StockComprasPage() {
                 {repoMsg}
               </div>
             )}
-            {/* Buscador dinámico */}
-            <label className="font-semibold">Buscar producto</label>
-            <Input type="text" className="w-full" value={buscadorRepo} onChange={e => setBuscadorRepo(e.target.value)} placeholder="Nombre o código..." />
+            {/* Nombre del producto */}
             <label className="font-semibold">Producto</label>
-            <select className="border rounded px-2 py-2" value={repoProductoId} onChange={e => setRepoProductoId(e.target.value)}>
-              <option value="">Seleccionar producto</option>
-              {productosRepoFiltrados.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+            <div className="p-2 bg-gray-50 rounded font-bold text-primary">{productos.find(p => p.id === repoProductoId)?.nombre || ""}</div>
+            {/* Costo unitario */}
             <label className="font-semibold">Costo unitario</label>
             <Input type="number" min={0} className="w-full" value={repoCosto} onChange={e => setRepoCosto(e.target.value)} />
+            {/* Proveedor */}
             <label className="font-semibold">Proveedor</label>
             <select className="border rounded px-2 py-2" value={repoProveedor} onChange={e => setRepoProveedor(e.target.value)}>
               <option value="">Seleccionar proveedor</option>
-              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {proveedoresFicticios.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
+            {/* Cantidad */}
             <label className="font-semibold">Cantidad</label>
             <Input type="number" min={1} className="w-full" value={repoCantidad} onChange={e => setRepoCantidad(e.target.value)} />
+            {/* Motivo/Observaciones */}
             <label className="font-semibold">Motivo/Observaciones</label>
             <Input type="text" className="w-full" value={repoObs} onChange={e => setRepoObs(e.target.value)} />
           </div>
@@ -395,29 +401,29 @@ function StockComprasPage() {
                 {movMsg}
               </div>
             )}
-            {/* Buscador dinámico */}
-            <label className="font-semibold">Buscar producto</label>
-            <Input type="text" className="w-full" value={buscadorMov} onChange={e => setBuscadorMov(e.target.value)} placeholder="Nombre o código..." />
+            {/* Nombre del producto */}
             <label className="font-semibold">Producto</label>
-            <select className="border rounded px-2 py-2" value={movProductoId} onChange={e => setMovProductoId(e.target.value)}>
-              <option value="">Seleccionar producto</option>
-              {productosMovFiltrados.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+            <div className="p-2 bg-gray-50 rounded font-bold text-primary">{productos.find(p => p.id === movProductoId)?.nombre || ""}</div>
+            {/* Costo unitario */}
             <label className="font-semibold">Costo unitario</label>
             <Input type="number" min={0} className="w-full" value={movCosto} onChange={e => setMovCosto(e.target.value)} />
+            {/* Proveedor */}
             <label className="font-semibold">Proveedor</label>
             <select className="border rounded px-2 py-2" value={movProveedor} onChange={e => setMovProveedor(e.target.value)}>
               <option value="">Seleccionar proveedor</option>
-              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {proveedoresFicticios.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
+            {/* Tipo de movimiento */}
             <label className="font-semibold">Tipo de movimiento</label>
             <select className="border rounded px-2 py-2" value={movTipo} onChange={e => setMovTipo(e.target.value)}>
               <option value="entrada">Entrada</option>
               <option value="salida">Salida</option>
               <option value="ajuste">Ajuste</option>
             </select>
+            {/* Cantidad */}
             <label className="font-semibold">Cantidad</label>
             <Input type="number" min={1} className="w-full" value={movCantidad} onChange={e => setMovCantidad(e.target.value)} />
+            {/* Motivo/Observaciones */}
             <label className="font-semibold">Motivo/Observaciones</label>
             <Input type="text" className="w-full" value={movObs} onChange={e => setMovObs(e.target.value)} />
           </div>
