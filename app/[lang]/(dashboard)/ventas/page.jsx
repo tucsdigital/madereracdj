@@ -1277,7 +1277,7 @@ const VentasPage = () => {
   
   // 2. En el submit de venta, validar existencia antes de descontar stock
   const handleSubmit = async (formData) => {
-    console.log("Recibiendo datos en VentasPage:", formData); // Debug
+    console.log("[SUBMIT] Recibiendo datos en VentasPage:", formData); // Debug
     setLoading(true);
     try {
       let docRef;
@@ -1362,40 +1362,49 @@ const VentasPage = () => {
         setOpen(null);
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
-        // Limpiar datos para presupuesto y mapear productos
-        // 1. Sincronizar cliente
-        const clienteObj = formData.cliente || {};
-        // 2. Mapear productos seleccionados a items y productos
-        const productosLimpios = (formData.items || []).map(p => ({
-          ...p,
-          // Si hay campos extra de productos, los puedes agregar aquí
-        }));
-        // 3. Preparar el objeto a guardar
-        const cleanFormData = {
-          ...formData,
-          cliente: clienteObj,
-          items: productosLimpios,
-          productos: productosLimpios,
-          subtotal: productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0),
-          descuentoTotal: productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0),
-          iva: ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
-          total: (productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) + ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
-          fechaCreacion: new Date().toISOString(),
-          tipo: "presupuesto",
-          numeroPedido: `PRESU-${Date.now()}`,
-        };
-        // Limpiar undefined y vacíos
-        const finalFormData = JSON.parse(JSON.stringify(cleanFormData, (key, value) => {
-          if (value === undefined) return undefined;
-          return value;
-        }));
-        console.log("[DEBUG] Datos limpios para guardar presupuesto:", finalFormData);
-        docRef = await addDoc(collection(db, "presupuestos"), finalFormData);
-        setOpen(null);
-        router.push(`/${lang}/presupuestos/${docRef.id}`);
+        try {
+          // Limpiar datos para presupuesto y mapear productos
+          // 1. Sincronizar cliente
+          const clienteObj = formData.cliente || {};
+          console.log("[DEBUG] Cliente recibido:", clienteObj);
+          // 2. Mapear productos seleccionados a items y productos
+          const productosLimpios = (formData.items || []).map(p => ({
+            ...p,
+          }));
+          console.log("[DEBUG] Productos limpios:", productosLimpios);
+          // 3. Preparar el objeto a guardar
+          const cleanFormData = {
+            ...formData,
+            cliente: clienteObj,
+            items: productosLimpios,
+            productos: productosLimpios,
+            subtotal: productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0),
+            descuentoTotal: productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0),
+            iva: ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
+            total: (productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) + ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
+            fechaCreacion: new Date().toISOString(),
+            tipo: "presupuesto",
+            numeroPedido: `PRESU-${Date.now()}`,
+          };
+          console.log("[DEBUG] Objeto preparado para guardar:", cleanFormData);
+          // Limpiar undefined y vacíos
+          const finalFormData = JSON.parse(JSON.stringify(cleanFormData, (key, value) => {
+            if (value === undefined) return undefined;
+            return value;
+          }));
+          console.log("[DEBUG] Datos limpios para guardar presupuesto:", finalFormData);
+          docRef = await addDoc(collection(db, "presupuestos"), finalFormData);
+          console.log("[SUCCESS] Presupuesto guardado en Firebase con ID:", docRef.id);
+          setOpen(null);
+          router.push(`/${lang}/presupuestos/${docRef.id}`);
+        } catch (err) {
+          console.error("[ERROR] Error en el proceso de guardado de presupuesto:", err);
+          alert("Error al guardar presupuesto: " + err.message);
+          throw err;
+        }
       }
     } catch (error) {
-      console.error("Error al guardar:", error);
+      console.error("[ERROR] Error general al guardar:", error);
       alert("Error al guardar: " + error.message);
       throw error; // Re-lanzar el error para que el componente hijo lo maneje
     } finally {
