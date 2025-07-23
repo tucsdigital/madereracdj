@@ -251,8 +251,8 @@ const PresupuestoDetalle = () => {
             <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
           </div>
           <div className="ml-auto text-right">
-            <div className="text-xs text-gray-500">Fecha: {formatDate(presupuesto.fecha)}</div>
-            <div className="text-xs text-gray-500">N°: {presupuesto.id.slice(-8)}</div>
+            <div className="text-xs text-gray-500">Fecha: {formatDate(presupuesto?.fecha)}</div>
+            <div className="text-xs text-gray-500">N°: {presupuesto?.id?.slice(-8)}</div>
           </div>
         </div>
         {/* Header */}
@@ -434,15 +434,25 @@ const PresupuestoDetalle = () => {
         {/* Modal de venta */}
         {convirtiendoVenta ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <FormularioVentaPresupuesto
-              tipo="venta"
-              onClose={() => setConvirtiendoVenta(false)}
-              onSubmit={async (formData) => {
+            <FormularioConvertirVenta
+              presupuesto={presupuesto}
+              onCancel={() => setConvirtiendoVenta(false)}
+              onSubmit={async (ventaCampos) => {
                 try {
-                  // Guardar la venta en Firestore
-                  const docRef = await addDoc(collection(db, "ventas"), formData);
-                  // Descontar stock y registrar movimiento de cada producto vendido
-                  for (const prod of formData.productos) {
+                  // Combinar datos del presupuesto con los campos de venta
+                  const ventaData = {
+                    ...presupuesto,
+                    ...ventaCampos,
+                    tipo: "venta",
+                    subtotal: undefined,
+                    descuentoTotal: undefined,
+                    iva: undefined,
+                    total: undefined,
+                    fechaCreacion: new Date().toISOString(),
+                    numeroPedido: `PED-${Date.now()}`,
+                  };
+                  const docRef = await addDoc(collection(db, "ventas"), ventaData);
+                  for (const prod of presupuesto.productos || presupuesto.items) {
                     const productoRef = doc(db, "productos", prod.id);
                     const productoSnap = await getDocs(collection(db, "productos"));
                     const existe = productoSnap.docs.find(d => d.id === prod.id);
@@ -461,31 +471,30 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${formData.nombre || ''})`,
+                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ''})`,
                       productoNombre: prod.nombre,
                     });
                   }
-                  // Si la venta tiene envío, crear automáticamente el registro de envío
-                  if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+                  if (ventaCampos.tipoEnvio && ventaCampos.tipoEnvio !== "retiro_local") {
                     const envioData = {
                       ventaId: docRef.id,
-                      clienteId: formData.clienteId,
-                      cliente: formData.cliente,
+                      clienteId: presupuesto.clienteId,
+                      cliente: presupuesto.cliente,
                       fechaCreacion: new Date().toISOString(),
-                      fechaEntrega: formData.fechaEntrega,
+                      fechaEntrega: ventaCampos.fechaEntrega,
                       estado: "pendiente",
-                      prioridad: formData.prioridad || "media",
-                      vendedor: formData.vendedor,
-                      direccionEnvio: formData.direccionEnvio,
-                      localidadEnvio: formData.localidadEnvio,
-                      codigoPostal: formData.codigoPostal,
-                      tipoEnvio: formData.tipoEnvio,
-                      transportista: formData.transportista,
-                      costoEnvio: parseFloat(formData.costoEnvio) || 0,
-                      numeroPedido: formData.numeroPedido,
-                      totalVenta: formData.total,
-                      productos: formData.productos,
-                      cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+                      prioridad: ventaCampos.prioridad || "media",
+                      vendedor: ventaCampos.vendedor,
+                      direccionEnvio: ventaCampos.direccionEnvio,
+                      localidadEnvio: ventaCampos.localidadEnvio,
+                      codigoPostal: ventaCampos.codigoPostal,
+                      tipoEnvio: ventaCampos.tipoEnvio,
+                      transportista: ventaCampos.transportista,
+                      costoEnvio: parseFloat(ventaCampos.costoEnvio) || 0,
+                      numeroPedido: ventaData.numeroPedido,
+                      totalVenta: ventaData.total,
+                      productos: presupuesto.productos || presupuesto.items,
+                      cantidadTotal: (presupuesto.productos || presupuesto.items).reduce((acc, p) => acc + p.cantidad, 0),
                       historialEstados: [
                         {
                           estado: "pendiente",
@@ -493,7 +502,7 @@ const PresupuestoDetalle = () => {
                           comentario: "Envío creado automáticamente desde la venta"
                         }
                       ],
-                      observaciones: formData.observaciones,
+                      observaciones: ventaCampos.observaciones,
                       instruccionesEspeciales: "",
                       fechaActualizacion: new Date().toISOString(),
                       creadoPor: "sistema",
@@ -508,18 +517,6 @@ const PresupuestoDetalle = () => {
                 } catch (error) {
                   alert("Error al guardar venta: " + error.message);
                 }
-              }}
-              initialValues={{
-                ...presupuestoEdit,
-                tipo: "venta",
-                productos: presupuestoEdit?.productos || presupuestoEdit?.items || [],
-                items: undefined, // para evitar duplicidad
-                subtotal: undefined,
-                descuentoTotal: undefined,
-                iva: undefined,
-                total: undefined,
-                fechaCreacion: undefined,
-                numeroPedido: `PED-${Date.now()}`,
               }}
             />
           </div>
@@ -621,5 +618,155 @@ const PresupuestoDetalle = () => {
     </div>
   );
 };
+
+// Nuevo formulario minimalista para conversión a venta
+function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
+  const schema = yup.object().shape({
+    formaPago: yup.string().required("Selecciona la forma de pago"),
+    pagoParcial: yup.boolean(),
+    montoAbonado: yup.number()
+      .when("pagoParcial", {
+        is: true,
+        then: s => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
+        otherwise: s => s.notRequired()
+      }),
+    observaciones: yup.string().notRequired(),
+    tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
+    transportista: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("Selecciona el transportista"),
+      otherwise: s => s.notRequired()
+    }),
+    costoEnvio: yup.number().notRequired(),
+    fechaEntrega: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("La fecha de entrega es obligatoria"),
+      otherwise: s => s.notRequired()
+    }),
+    rangoHorario: yup.string().when("tipoEnvio", {
+      is: val => val && val !== "retiro_local",
+      then: s => s.required("El rango horario es obligatorio"),
+      otherwise: s => s.notRequired()
+    }),
+    usarDireccionCliente: yup.boolean(),
+    direccionEnvio: yup.string().notRequired(),
+    localidadEnvio: yup.string().notRequired(),
+    codigoPostal: yup.string().notRequired(),
+    vendedor: yup.string().required("Selecciona el vendedor"),
+    prioridad: yup.string().required("Selecciona la prioridad"),
+  });
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      formaPago: "",
+      pagoParcial: false,
+      montoAbonado: "",
+      observaciones: "",
+      tipoEnvio: "",
+      transportista: "",
+      costoEnvio: "",
+      fechaEntrega: "",
+      rangoHorario: "",
+      usarDireccionCliente: true,
+      direccionEnvio: "",
+      localidadEnvio: "",
+      codigoPostal: "",
+      vendedor: "",
+      prioridad: "",
+    }
+  });
+  const transportistas = ["camion", "camioneta 1", "camioneta 2"];
+  const vendedores = ["coco", "damian", "lauti", "jose"];
+  const prioridades = ["alta", "media", "baja"];
+  const tipoEnvioSeleccionado = watch("tipoEnvio");
+  const usarDireccionCliente = watch("usarDireccionCliente");
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Condiciones de pago y entrega */}
+        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+          <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
+          <select {...register("formaPago")} className="border rounded px-2 py-2 w-full">
+            <option value="">Forma de pago...</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="cheque">Cheque</option>
+            <option value="otro">Otro</option>
+          </select>
+          {errors.formaPago && <span className="text-red-500 text-xs">{errors.formaPago.message}</span>}
+          <div className="flex items-center gap-2 mt-2">
+            <input type="checkbox" id="pagoParcial" {...register("pagoParcial")} />
+            <label htmlFor="pagoParcial" className="text-sm">¿Pago parcial?</label>
+          </div>
+          {watch("pagoParcial") && (
+            <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")} className="w-full" />
+          )}
+          <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" />
+        </div>
+        {/* Información de envío */}
+        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+          <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
+          <select {...register("tipoEnvio")} className="border rounded px-2 py-2 w-full">
+            <option value="">Tipo de envío...</option>
+            <option value="retiro_local">Retiro en local</option>
+            <option value="envio_domicilio">Envío a domicilio</option>
+            <option value="envio_obra">Envío a obra</option>
+            <option value="transporte_propio">Transporte propio del cliente</option>
+          </select>
+          {errors.tipoEnvio && <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>}
+          {tipoEnvioSeleccionado !== "retiro_local" && (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <input type="checkbox" checked={usarDireccionCliente} onChange={e => setValue("usarDireccionCliente", e.target.checked)} id="usarDireccionCliente" />
+                <label htmlFor="usarDireccionCliente" className="text-sm">Usar dirección del cliente</label>
+              </div>
+              {!usarDireccionCliente && (
+                <>
+                  <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" />
+                  <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" />
+                  <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" />
+                </>
+              )}
+              {usarDireccionCliente && presupuesto.cliente && (
+                <>
+                  <Input value={presupuesto.cliente.direccion || ""} readOnly className="w-full" />
+                  <Input value={presupuesto.cliente.localidad || ""} readOnly className="w-full" />
+                  <Input value={presupuesto.cliente.codigoPostal || ""} readOnly className="w-full" />
+                </>
+              )}
+              <select {...register("transportista")} className="border rounded px-2 py-2 w-full">
+                <option value="">Transportista...</option>
+                {transportistas.map(t => <option key={t}>{t}</option>)}
+              </select>
+              <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" />
+              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" />
+              <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" />
+            </>
+          )}
+        </div>
+        {/* Información adicional */}
+        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
+          <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
+          <select {...register("vendedor")} className="border rounded px-2 py-2 w-full">
+            <option value="">Vendedor responsable...</option>
+            {vendedores.map(v => <option key={v}>{v}</option>)}
+          </select>
+          {errors.vendedor && <span className="text-red-500 text-xs">{errors.vendedor.message}</span>}
+          <select {...register("prioridad")} className="border rounded px-2 py-2 w-full">
+            <option value="">Prioridad...</option>
+            {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+          </select>
+          {errors.prioridad && <span className="text-red-500 text-xs">{errors.prioridad.message}</span>}
+          <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" />
+        </div>
+      </div>
+      <div className="flex gap-2 mt-6">
+        <Button variant="default" type="submit">Guardar venta</Button>
+        <Button variant="outline" type="button" onClick={onCancel}>Cancelar</Button>
+      </div>
+    </form>
+  );
+}
 
 export default PresupuestoDetalle; 
