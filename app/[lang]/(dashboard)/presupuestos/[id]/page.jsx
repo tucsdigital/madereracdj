@@ -980,6 +980,13 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       setValue("montoAbonado", "");
     }
   }, [watch("pagoParcial")]);
+
+  // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
+  React.useEffect(() => {
+    if (watch("tipoEnvio") === "retiro_local") {
+      setValue("costoEnvio", "");
+    }
+  }, [watch("tipoEnvio")]);
   return (
     <form
       onSubmit={handleSubmit(onFormSubmit, () => setShowForceWarning(true))}
@@ -1096,6 +1103,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   {errors.transportista.message}
                 </span>
               )}
+              {/* Solo mostrar costoEnvio si no es retiro_local */}
               <Input
                 {...register("costoEnvio")}
                 placeholder="Costo de envío"

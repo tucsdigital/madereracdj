@@ -517,6 +517,13 @@ const handleAgregarProducto = (producto) => {
     }
   }, [watch("pagoParcial")]);
 
+  // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
+  React.useEffect(() => {
+    if (watch("tipoEnvio") === "retiro_local") {
+      setValue("costoEnvio", "");
+    }
+  }, [watch("tipoEnvio")]);
+
   return (
     <>
       <DialogHeader className="mb-2">
@@ -876,6 +883,7 @@ const handleAgregarProducto = (producto) => {
                           <option value="">Transportista...</option>
                           {transportistas.map(t => <option key={t}>{t}</option>)}
                         </select>
+                        {/* Solo mostrar costoEnvio si no es retiro_local */}
                         <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
                         <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
                         <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
