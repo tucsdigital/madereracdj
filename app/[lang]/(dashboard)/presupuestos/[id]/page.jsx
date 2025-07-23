@@ -2,16 +2,32 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, getDocs, updateDoc, setDoc, addDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  updateDoc,
+  setDoc,
+  addDoc,
+} from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import FormularioVentaPresupuesto, { SelectorProductosPresupuesto } from "../../ventas/page";
+import FormularioVentaPresupuesto, {
+  SelectorProductosPresupuesto,
+} from "../../ventas/page";
 
 const PresupuestoDetalle = () => {
   const params = useParams();
@@ -42,21 +58,21 @@ const PresupuestoDetalle = () => {
         console.log("ID extraído:", id);
         console.log("Lang extraído:", lang);
         console.log("URL actual:", window.location.href);
-        
+
         if (!id) {
           console.error("No se encontró ID en los parámetros");
           setError("No se proporcionó ID de presupuesto");
           setLoading(false);
           return;
         }
-        
+
         const docRef = doc(db, "presupuestos", id);
         console.log("Referencia del documento:", docRef);
-        
+
         const docSnap = await getDoc(docRef);
         console.log("Documento existe:", docSnap.exists());
         console.log("Datos del documento:", docSnap.data());
-        
+
         if (docSnap.exists()) {
           const presupuestoData = { id: docSnap.id, ...docSnap.data() };
           console.log("Presupuesto cargado exitosamente:", presupuestoData);
@@ -72,7 +88,7 @@ const PresupuestoDetalle = () => {
         setLoading(false);
       }
     };
-    
+
     fetchPresupuesto();
   }, [id, lang, params]);
 
@@ -80,30 +96,51 @@ const PresupuestoDetalle = () => {
   useEffect(() => {
     const fetchClientesYProductos = async () => {
       const snapClientes = await getDocs(collection(db, "clientes"));
-      setClientes(snapClientes.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setClientes(
+        snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
       const snapProductos = await getDocs(collection(db, "productos"));
-      setProductos(snapProductos.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setProductos(
+        snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
     };
     fetchClientesYProductos();
   }, []);
 
   // 4. Al activar edición, clonar presupuesto
   useEffect(() => {
-    if (editando && presupuesto) setPresupuestoEdit(JSON.parse(JSON.stringify(presupuesto)));
+    if (editando && presupuesto)
+      setPresupuestoEdit(JSON.parse(JSON.stringify(presupuesto)));
   }, [editando, presupuesto]);
 
   // 5. Función para actualizar precios
   const handleActualizarPrecios = async () => {
     setLoadingPrecios(true);
     try {
-      const nuevosProductos = (presupuestoEdit.productos || presupuestoEdit.items || []).map(item => {
-        const prod = productos.find(p => p.id === item.id);
+      const nuevosProductos = (
+        presupuestoEdit.productos ||
+        presupuestoEdit.items ||
+        []
+      ).map((item) => {
+        const prod = productos.find((p) => p.id === item.id);
         if (prod) {
-          return { ...item, precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta };
+          return {
+            ...item,
+            precio:
+              prod.precioUnidad ||
+              prod.precioUnidadVenta ||
+              prod.precioUnidadHerraje ||
+              prod.precioUnidadQuimico ||
+              prod.precioUnidadHerramienta,
+          };
         }
         return item;
       });
-      setPresupuestoEdit(prev => ({ ...prev, productos: nuevosProductos, items: nuevosProductos }));
+      setPresupuestoEdit((prev) => ({
+        ...prev,
+        productos: nuevosProductos,
+        items: nuevosProductos,
+      }));
     } finally {
       setLoadingPrecios(false);
     }
@@ -113,16 +150,38 @@ const PresupuestoDetalle = () => {
   const handleGuardarCambios = async () => {
     setErrorForm("");
     // Validaciones básicas
-    if (!presupuestoEdit.clienteId || !presupuestoEdit.cliente?.nombre) { setErrorForm("Selecciona un cliente válido."); return; }
-    if (!presupuestoEdit.productos?.length && !presupuestoEdit.items?.length) { setErrorForm("Agrega al menos un producto."); return; }
-    for (const p of (presupuestoEdit.productos || presupuestoEdit.items)) {
-      if (!p.cantidad || p.cantidad <= 0) { setErrorForm("Todas las cantidades deben ser mayores a 0."); return; }
-      if (p.descuento < 0 || p.descuento > 100) { setErrorForm("El descuento debe ser entre 0 y 100%."); return; }
+    if (!presupuestoEdit.clienteId || !presupuestoEdit.cliente?.nombre) {
+      setErrorForm("Selecciona un cliente válido.");
+      return;
+    }
+    if (!presupuestoEdit.productos?.length && !presupuestoEdit.items?.length) {
+      setErrorForm("Agrega al menos un producto.");
+      return;
+    }
+    for (const p of presupuestoEdit.productos || presupuestoEdit.items) {
+      if (!p.cantidad || p.cantidad <= 0) {
+        setErrorForm("Todas las cantidades deben ser mayores a 0.");
+        return;
+      }
+      if (p.descuento < 0 || p.descuento > 100) {
+        setErrorForm("El descuento debe ser entre 0 y 100%.");
+        return;
+      }
     }
     // Recalcular totales
     const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-    const subtotal = productosArr.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0);
-    const descuentoTotal = productosArr.reduce((acc, p) => acc + ((Number(p.precio) * Number(p.cantidad)) * (Number(p.descuento || 0) / 100)), 0);
+    const subtotal = productosArr.reduce(
+      (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+      0
+    );
+    const descuentoTotal = productosArr.reduce(
+      (acc, p) =>
+        acc +
+        Number(p.precio) *
+          Number(p.cantidad) *
+          (Number(p.descuento || 0) / 100),
+      0
+    );
     const iva = (subtotal - descuentoTotal) * 0.21;
     const total = subtotal - descuentoTotal + iva;
     const docRef = doc(db, "presupuestos", presupuestoEdit.id);
@@ -133,9 +192,17 @@ const PresupuestoDetalle = () => {
       iva,
       total,
       productos: productosArr,
-      items: productosArr
+      items: productosArr,
     });
-    setPresupuesto({ ...presupuestoEdit, subtotal, descuentoTotal, iva, total, productos: productosArr, items: productosArr });
+    setPresupuesto({
+      ...presupuestoEdit,
+      subtotal,
+      descuentoTotal,
+      iva,
+      total,
+      productos: productosArr,
+      items: productosArr,
+    });
     setEditando(false);
   };
 
@@ -168,9 +235,12 @@ const PresupuestoDetalle = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Presupuesto no encontrado</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Presupuesto no encontrado
+          </h2>
           <p className="text-gray-600 mb-4">
-            {error || "El presupuesto que buscas no existe o ha sido eliminado."}
+            {error ||
+              "El presupuesto que buscas no existe o ha sido eliminado."}
           </p>
           <div className="bg-gray-100 rounded-lg p-4 mb-6 text-left">
             <p className="text-sm text-gray-700">
@@ -191,7 +261,10 @@ const PresupuestoDetalle = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Volver
             </Button>
-            <Button variant="outline" onClick={() => router.push(`/${lang}/presupuestos`)}>
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/${lang}/presupuestos`)}
+            >
               Ver todos los presupuestos
             </Button>
           </div>
@@ -204,7 +277,7 @@ const PresupuestoDetalle = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
-      return new Date(dateString).toLocaleDateString('es-AR');
+      return new Date(dateString).toLocaleDateString("es-AR");
     } catch {
       return dateString;
     }
@@ -243,29 +316,54 @@ const PresupuestoDetalle = () => {
       `}</style>
       <div id="presupuesto-print" className="max-w-4xl mx-auto px-4">
         {/* Logo y cabecera profesional para impresión */}
-        <div className="flex items-center gap-4 border-b pb-4 mb-6 print-header" style={{marginBottom: 32}}>
-          <img src="/logo-maderera.png" alt="Logo Maderera" style={{height: 60, width: 'auto'}} />
+        <div
+          className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
+          style={{ marginBottom: 32 }}
+        >
+          <img
+            src="/logo-maderera.png"
+            alt="Logo Maderera"
+            style={{ height: 60, width: "auto" }}
+          />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900" style={{letterSpacing: 1}}>Maderera CJ&D</h1>
-            <div className="text-gray-600 text-sm">Presupuesto / Cotización</div>
+            <h1
+              className="text-2xl font-bold text-gray-900"
+              style={{ letterSpacing: 1 }}
+            >
+              Maderera CJ&D
+            </h1>
+            <div className="text-gray-600 text-sm">
+              Presupuesto / Cotización
+            </div>
             <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
           </div>
           <div className="ml-auto text-right">
-            <div className="text-xs text-gray-500">Fecha: {formatDate(presupuesto?.fecha)}</div>
-            <div className="text-xs text-gray-500">N°: {presupuesto?.id?.slice(-8)}</div>
+            <div className="text-xs text-gray-500">
+              Fecha: {formatDate(presupuesto?.fecha)}
+            </div>
+            <div className="text-xs text-gray-500">
+              N°: {presupuesto?.id?.slice(-8)}
+            </div>
           </div>
         </div>
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Presupuesto #{presupuesto.id.slice(-8)}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Presupuesto #{presupuesto.id.slice(-8)}
+              </h1>
               <p className="text-gray-600 mt-1">
-                {presupuesto.nombre || `Presupuesto ${formatDate(presupuesto.fecha)}`}
+                {presupuesto.nombre ||
+                  `Presupuesto ${formatDate(presupuesto.fecha)}`}
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => router.back()} className="no-print">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="no-print"
+              >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
@@ -279,22 +377,51 @@ const PresupuestoDetalle = () => {
           {/* Información del cliente */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 text-gray-900">Información del Cliente</h3>
+              <h3 className="font-semibold text-lg mb-3 text-gray-900">
+                Información del Cliente
+              </h3>
               <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Nombre:</span> {presupuesto.cliente?.nombre || "-"}</div>
-                <div><span className="font-medium">CUIT:</span> {presupuesto.cliente?.cuit || "-"}</div>
-                <div><span className="font-medium">Dirección:</span> {presupuesto.cliente?.direccion || "-"}</div>
-                <div><span className="font-medium">Teléfono:</span> {presupuesto.cliente?.telefono || "-"}</div>
-                <div><span className="font-medium">Email:</span> {presupuesto.cliente?.email || "-"}</div>
+                <div>
+                  <span className="font-medium">Nombre:</span>{" "}
+                  {presupuesto.cliente?.nombre || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">CUIT:</span>{" "}
+                  {presupuesto.cliente?.cuit || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Dirección:</span>{" "}
+                  {presupuesto.cliente?.direccion || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Teléfono:</span>{" "}
+                  {presupuesto.cliente?.telefono || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Email:</span>{" "}
+                  {presupuesto.cliente?.email || "-"}
+                </div>
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 text-gray-900">Información del Presupuesto</h3>
+              <h3 className="font-semibold text-lg mb-3 text-gray-900">
+                Información del Presupuesto
+              </h3>
               <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Fecha de emisión:</span> {formatDate(presupuesto.fecha)}</div>
-                <div><span className="font-medium">Fecha de vencimiento:</span> {formatDate(presupuesto.vencimiento)}</div>
-                <div><span className="font-medium">Tipo:</span> {presupuesto.tipo || "Presupuesto"}</div>
-                <div><span className="font-medium">Estado:</span> 
+                <div>
+                  <span className="font-medium">Fecha de emisión:</span>{" "}
+                  {formatDate(presupuesto.fecha)}
+                </div>
+                <div>
+                  <span className="font-medium">Fecha de vencimiento:</span>{" "}
+                  {formatDate(presupuesto.vencimiento)}
+                </div>
+                <div>
+                  <span className="font-medium">Tipo:</span>{" "}
+                  {presupuesto.tipo || "Presupuesto"}
+                </div>
+                <div>
+                  <span className="font-medium">Estado:</span>
                   <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                     Activo
                   </span>
@@ -309,41 +436,83 @@ const PresupuestoDetalle = () => {
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <SelectorProductosPresupuesto
               productosSeleccionados={presupuestoEdit.productos || []}
-              setProductosSeleccionados={nuevos => setPresupuestoEdit(prev => ({ ...prev, productos: nuevos, items: nuevos }))}
+              setProductosSeleccionados={(nuevos) =>
+                setPresupuestoEdit((prev) => ({
+                  ...prev,
+                  productos: nuevos,
+                  items: nuevos,
+                }))
+              }
               productosState={productos}
-              categoriasState={[...new Set(productos.map(p => p.categoria))]}
-              productosPorCategoria={productos.reduce((acc, p) => { acc[p.categoria] = acc[p.categoria] || []; acc[p.categoria].push(p); return acc; }, {})}
+              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+              productosPorCategoria={productos.reduce((acc, p) => {
+                acc[p.categoria] = acc[p.categoria] || [];
+                acc[p.categoria].push(p);
+                return acc;
+              }, {})}
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
             <div className="flex gap-2 mt-6">
-              <Button variant="default" onClick={async () => {
-                // Guardar solo productos y totales
-                const productosArr = presupuestoEdit.productos || [];
-                const subtotal = productosArr.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0);
-                const descuentoTotal = productosArr.reduce((acc, p) => acc + ((Number(p.precio) * Number(p.cantidad)) * (Number(p.descuento || 0) / 100)), 0);
-                const iva = (subtotal - descuentoTotal) * 0.21;
-                const total = subtotal - descuentoTotal + iva;
-                const docRef = doc(db, "presupuestos", presupuestoEdit.id);
-                await updateDoc(docRef, {
-                  ...presupuestoEdit,
-                  subtotal,
-                  descuentoTotal,
-                  iva,
-                  total,
-                  productos: productosArr,
-                  items: productosArr
-                });
-                setPresupuesto({ ...presupuestoEdit, subtotal, descuentoTotal, iva, total, productos: productosArr, items: productosArr });
-                setEditando(false);
-              }} disabled={loadingPrecios}>Guardar productos</Button>
-              <Button variant="outline" onClick={() => setEditando(false)} disabled={loadingPrecios}>Cancelar</Button>
+              <Button
+                variant="default"
+                onClick={async () => {
+                  // Guardar solo productos y totales
+                  const productosArr = presupuestoEdit.productos || [];
+                  const subtotal = productosArr.reduce(
+                    (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                    0
+                  );
+                  const descuentoTotal = productosArr.reduce(
+                    (acc, p) =>
+                      acc +
+                      Number(p.precio) *
+                        Number(p.cantidad) *
+                        (Number(p.descuento || 0) / 100),
+                    0
+                  );
+                  const iva = (subtotal - descuentoTotal) * 0.21;
+                  const total = subtotal - descuentoTotal + iva;
+                  const docRef = doc(db, "presupuestos", presupuestoEdit.id);
+                  await updateDoc(docRef, {
+                    ...presupuestoEdit,
+                    subtotal,
+                    descuentoTotal,
+                    iva,
+                    total,
+                    productos: productosArr,
+                    items: productosArr,
+                  });
+                  setPresupuesto({
+                    ...presupuestoEdit,
+                    subtotal,
+                    descuentoTotal,
+                    iva,
+                    total,
+                    productos: productosArr,
+                    items: productosArr,
+                  });
+                  setEditando(false);
+                }}
+                disabled={loadingPrecios}
+              >
+                Guardar productos
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditando(false)}
+                disabled={loadingPrecios}
+              >
+                Cancelar
+              </Button>
             </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">Productos y Servicios</h3>
-            
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+              Productos y Servicios
+            </h3>
+
             {/* Usar productos si existe, sino usar items */}
             {(presupuesto.productos || presupuesto.items) && (
               <div className="overflow-x-auto">
@@ -353,26 +522,46 @@ const PresupuestoDetalle = () => {
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
                       <th className="text-center p-3 font-medium">Unidad</th>
-                      <th className="text-right p-3 font-medium">Precio Unit.</th>
+                      <th className="text-right p-3 font-medium">
+                        Precio Unit.
+                      </th>
                       <th className="text-right p-3 font-medium">Descuento</th>
                       <th className="text-right p-3 font-medium">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(presupuesto.productos || presupuesto.items || []).map((producto, idx) => (
-                      <tr key={idx} className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-medium">
-                          {producto.descripcion || producto.nombre || "Producto sin nombre"}
-                        </td>
-                        <td className="p-3 text-center">{producto.cantidad || 0}</td>
-                        <td className="p-3 text-center">{producto.unidad || "-"}</td>
-                        <td className="p-3 text-right">${(producto.precio || 0).toFixed(2)}</td>
-                        <td className="p-3 text-right">${(producto.descuento || 0).toFixed(2)}</td>
-                        <td className="p-3 text-right font-medium">
-                          ${((producto.precio || 0) * (producto.cantidad || 0) - (producto.descuento || 0) * (producto.cantidad || 0)).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {(presupuesto.productos || presupuesto.items || []).map(
+                      (producto, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="p-3 font-medium">
+                            {producto.descripcion ||
+                              producto.nombre ||
+                              "Producto sin nombre"}
+                          </td>
+                          <td className="p-3 text-center">
+                            {producto.cantidad || 0}
+                          </td>
+                          <td className="p-3 text-center">
+                            {producto.unidad || "-"}
+                          </td>
+                          <td className="p-3 text-right">
+                            ${(producto.precio || 0).toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right">
+                            ${(producto.descuento || 0).toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            $
+                            {(
+                              (producto.precio || 0) *
+                                (producto.cantidad || 0) -
+                              (producto.descuento || 0) *
+                                (producto.cantidad || 0)
+                            ).toFixed(2)}
+                          </td>
+                        </tr>
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -396,7 +585,9 @@ const PresupuestoDetalle = () => {
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
-                    <span className="text-primary">${(presupuesto.total || 0).toFixed(2)}</span>
+                    <span className="text-primary">
+                      ${(presupuesto.total || 0).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -407,28 +598,58 @@ const PresupuestoDetalle = () => {
         {/* Observaciones */}
         {presupuesto.observaciones && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">Observaciones</h3>
-            <p className="text-gray-700 whitespace-pre-wrap">{presupuesto.observaciones}</p>
+            <h3 className="font-semibold text-lg mb-3 text-gray-900">
+              Observaciones
+            </h3>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {presupuesto.observaciones}
+            </p>
           </div>
         )}
 
         {/* Información adicional */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="font-semibold text-lg mb-3 text-gray-900">Información Adicional</h3>
+          <h3 className="font-semibold text-lg mb-3 text-gray-900">
+            Información Adicional
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><span className="font-medium">ID del documento:</span> {presupuesto.id}</div>
-            <div><span className="font-medium">Fecha de creación:</span> {formatDate(presupuesto.fechaCreacion)}</div>
-            <div><span className="font-medium">Cliente ID:</span> {presupuesto.clienteId || "-"}</div>
-            <div><span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}</div>
+            <div>
+              <span className="font-medium">ID del documento:</span>{" "}
+              {presupuesto.id}
+            </div>
+            <div>
+              <span className="font-medium">Fecha de creación:</span>{" "}
+              {formatDate(presupuesto.fechaCreacion)}
+            </div>
+            <div>
+              <span className="font-medium">Cliente ID:</span>{" "}
+              {presupuesto.clienteId || "-"}
+            </div>
+            <div>
+              <span className="font-medium">Cantidad de productos:</span>{" "}
+              {(presupuesto.productos || presupuesto.items || []).length}
+            </div>
           </div>
         </div>
 
         {/* Botones de acción */}
         <div className="flex gap-3 mt-4">
-          {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
-          {editando && <Button onClick={handleGuardarCambios} disabled={loadingPrecios}>Guardar cambios</Button>}
-          {editando && <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>{loadingPrecios ? "Actualizando..." : "Actualizar precios"}</Button>}
-          <Button onClick={() => setConvirtiendoVenta(true)}>Convertir a Venta</Button>
+          {!editando && (
+            <Button onClick={() => setEditando(true)}>Editar</Button>
+          )}
+          {editando && (
+            <Button onClick={handleGuardarCambios} disabled={loadingPrecios}>
+              Guardar cambios
+            </Button>
+          )}
+          {editando && (
+            <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>
+              {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+            </Button>
+          )}
+          <Button onClick={() => setConvirtiendoVenta(true)}>
+            Convertir a Venta
+          </Button>
         </div>
 
         {/* Modal de venta */}
@@ -451,17 +672,27 @@ const PresupuestoDetalle = () => {
                     fechaCreacion: new Date().toISOString(),
                     numeroPedido: `PED-${Date.now()}`,
                   };
-                  const docRef = await addDoc(collection(db, "ventas"), ventaData);
-                  for (const prod of presupuesto.productos || presupuesto.items) {
+                  const docRef = await addDoc(
+                    collection(db, "ventas"),
+                    ventaData
+                  );
+                  for (const prod of presupuesto.productos ||
+                    presupuesto.items) {
                     const productoRef = doc(db, "productos", prod.id);
-                    const productoSnap = await getDocs(collection(db, "productos"));
-                    const existe = productoSnap.docs.find(d => d.id === prod.id);
+                    const productoSnap = await getDocs(
+                      collection(db, "productos")
+                    );
+                    const existe = productoSnap.docs.find(
+                      (d) => d.id === prod.id
+                    );
                     if (!existe) {
-                      alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+                      alert(
+                        `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
+                      );
                       return;
                     }
                     await updateDoc(productoRef, {
-                      stock: increment(-Math.abs(prod.cantidad))
+                      stock: increment(-Math.abs(prod.cantidad)),
                     });
                     await addDoc(collection(db, "movimientos"), {
                       productoId: prod.id,
@@ -471,11 +702,16 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ''})`,
+                      observaciones: `Salida por venta (${
+                        presupuesto.cliente?.nombre || ""
+                      })`,
                       productoNombre: prod.nombre,
                     });
                   }
-                  if (ventaCampos.tipoEnvio && ventaCampos.tipoEnvio !== "retiro_local") {
+                  if (
+                    ventaCampos.tipoEnvio &&
+                    ventaCampos.tipoEnvio !== "retiro_local"
+                  ) {
                     const envioData = {
                       ventaId: docRef.id,
                       clienteId: presupuesto.clienteId,
@@ -494,13 +730,16 @@ const PresupuestoDetalle = () => {
                       numeroPedido: ventaData.numeroPedido,
                       totalVenta: ventaData.total,
                       productos: presupuesto.productos || presupuesto.items,
-                      cantidadTotal: (presupuesto.productos || presupuesto.items).reduce((acc, p) => acc + p.cantidad, 0),
+                      cantidadTotal: (
+                        presupuesto.productos || presupuesto.items
+                      ).reduce((acc, p) => acc + p.cantidad, 0),
                       historialEstados: [
                         {
                           estado: "pendiente",
                           fecha: new Date().toISOString(),
-                          comentario: "Envío creado automáticamente desde la venta"
-                        }
+                          comentario:
+                            "Envío creado automáticamente desde la venta",
+                        },
                       ],
                       observaciones: ventaCampos.observaciones,
                       instruccionesEspeciales: "",
@@ -508,7 +747,9 @@ const PresupuestoDetalle = () => {
                       creadoPor: "sistema",
                     };
                     const cleanEnvioData = Object.fromEntries(
-                      Object.entries(envioData).filter(([_, v]) => v !== undefined)
+                      Object.entries(envioData).filter(
+                        ([_, v]) => v !== undefined
+                      )
                     );
                     await addDoc(collection(db, "envios"), cleanEnvioData);
                   }
@@ -529,18 +770,27 @@ const PresupuestoDetalle = () => {
                 onSubmit={async (formData) => {
                   try {
                     // Guardar la venta en Firestore
-                    const docRef = await addDoc(collection(db, "ventas"), formData);
+                    const docRef = await addDoc(
+                      collection(db, "ventas"),
+                      formData
+                    );
                     // Descontar stock y registrar movimiento de cada producto vendido
                     for (const prod of formData.productos) {
                       const productoRef = doc(db, "productos", prod.id);
-                      const productoSnap = await getDocs(collection(db, "productos"));
-                      const existe = productoSnap.docs.find(d => d.id === prod.id);
+                      const productoSnap = await getDocs(
+                        collection(db, "productos")
+                      );
+                      const existe = productoSnap.docs.find(
+                        (d) => d.id === prod.id
+                      );
                       if (!existe) {
-                        alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+                        alert(
+                          `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
+                        );
                         return;
                       }
                       await updateDoc(productoRef, {
-                        stock: increment(-Math.abs(prod.cantidad))
+                        stock: increment(-Math.abs(prod.cantidad)),
                       });
                       await addDoc(collection(db, "movimientos"), {
                         productoId: prod.id,
@@ -550,12 +800,17 @@ const PresupuestoDetalle = () => {
                         fecha: serverTimestamp(),
                         referencia: "venta",
                         referenciaId: docRef.id,
-                        observaciones: `Salida por venta (${formData.nombre || ''})`,
+                        observaciones: `Salida por venta (${
+                          formData.nombre || ""
+                        })`,
                         productoNombre: prod.nombre,
                       });
                     }
                     // Si la venta tiene envío, crear automáticamente el registro de envío
-                    if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+                    if (
+                      formData.tipoEnvio &&
+                      formData.tipoEnvio !== "retiro_local"
+                    ) {
                       const envioData = {
                         ventaId: docRef.id,
                         clienteId: formData.clienteId,
@@ -574,13 +829,17 @@ const PresupuestoDetalle = () => {
                         numeroPedido: formData.numeroPedido,
                         totalVenta: formData.total,
                         productos: formData.productos,
-                        cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+                        cantidadTotal: formData.productos.reduce(
+                          (acc, p) => acc + p.cantidad,
+                          0
+                        ),
                         historialEstados: [
                           {
                             estado: "pendiente",
                             fecha: new Date().toISOString(),
-                            comentario: "Envío creado automáticamente desde la venta"
-                          }
+                            comentario:
+                              "Envío creado automáticamente desde la venta",
+                          },
                         ],
                         observaciones: formData.observaciones,
                         instruccionesEspeciales: "",
@@ -588,7 +847,9 @@ const PresupuestoDetalle = () => {
                         creadoPor: "sistema",
                       };
                       const cleanEnvioData = Object.fromEntries(
-                        Object.entries(envioData).filter(([_, v]) => v !== undefined)
+                        Object.entries(envioData).filter(
+                          ([_, v]) => v !== undefined
+                        )
                       );
                       await addDoc(collection(db, "envios"), cleanEnvioData);
                     }
@@ -601,7 +862,8 @@ const PresupuestoDetalle = () => {
                 initialValues={{
                   ...presupuestoEdit,
                   tipo: "venta",
-                  productos: presupuestoEdit?.productos || presupuestoEdit?.items || [],
+                  productos:
+                    presupuestoEdit?.productos || presupuestoEdit?.items || [],
                   items: undefined, // para evitar duplicidad
                   subtotal: undefined,
                   descuentoTotal: undefined,
@@ -624,33 +886,38 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const schema = yup.object().shape({
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
-    montoAbonado: yup.number()
-      .when("pagoParcial", {
-        is: true,
-        then: s => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
-        otherwise: s => s.notRequired()
-      }),
+    montoAbonado: yup.number().when("pagoParcial", {
+      is: true,
+      then: (s) => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
+      otherwise: (s) => s.notRequired(),
+    }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     transportista: yup.string().when("tipoEnvio", {
-      is: val => val && val !== "retiro_local",
-      then: s => s.required("Selecciona el transportista"),
-      otherwise: s => s.notRequired()
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("Selecciona el transportista"),
+      otherwise: (s) => s.notRequired(),
     }),
     costoEnvio: yup.number().notRequired(),
     fechaEntrega: yup.string().when("tipoEnvio", {
-      is: val => val && val !== "retiro_local",
-      then: s => s.required("La fecha de entrega es obligatoria"),
-      otherwise: s => s.notRequired()
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("La fecha de entrega es obligatoria"),
+      otherwise: (s) => s.notRequired(),
     }),
     rangoHorario: yup.string().when("tipoEnvio", {
-      is: val => val && val !== "retiro_local",
-      then: s => s.required("El rango horario es obligatorio"),
-      otherwise: s => s.notRequired()
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("El rango horario es obligatorio"),
+      otherwise: (s) => s.notRequired(),
     }),
     vendedor: yup.string().required("Selecciona el vendedor"),
     prioridad: yup.string().required("Selecciona la prioridad"),
   });
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting, isSubmitSuccessful },
+  } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       formaPago: "",
@@ -663,10 +930,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       rangoHorario: "",
       vendedor: "",
       prioridad: "",
-    }
+    },
   });
   const [showGlobalError, setShowGlobalError] = useState(false);
-  useEffect(() => { setShowGlobalError(false); }, [isSubmitSuccessful]);
+  useEffect(() => {
+    setShowGlobalError(false);
+  }, [isSubmitSuccessful]);
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
@@ -680,7 +949,10 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     }
   };
   return (
-    <form onSubmit={handleSubmit(onFormSubmit, () => setShowGlobalError(true))} className="flex flex-col gap-6">
+    <form
+      onSubmit={handleSubmit(onFormSubmit, () => setShowGlobalError(true))}
+      className="flex flex-col gap-6"
+    >
       {showGlobalError && (
         <div className="mb-2 p-3 rounded bg-red-100 text-red-800 font-semibold text-center">
           Corrige los errores marcados para poder guardar la venta.
@@ -689,8 +961,15 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Condiciones de pago y entrega */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
-          <select {...register("formaPago")} className={`border rounded px-2 py-2 w-full ${errors.formaPago ? 'border-red-500' : ''}`}>
+          <div className="text-base font-semibold text-default-800 pb-1">
+            Condiciones de pago y entrega
+          </div>
+          <select
+            {...register("formaPago")}
+            className={`border rounded px-2 py-2 w-full ${
+              errors.formaPago ? "border-red-500" : ""
+            }`}
+          >
             <option value="">Forma de pago...</option>
             <option value="efectivo">Efectivo</option>
             <option value="transferencia">Transferencia</option>
@@ -698,63 +977,170 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             <option value="cheque">Cheque</option>
             <option value="otro">Otro</option>
           </select>
-          {errors.formaPago && <span className="text-red-500 text-xs">{errors.formaPago.message}</span>}
+          {errors.formaPago && (
+            <span className="text-red-500 text-xs">
+              {errors.formaPago.message}
+            </span>
+          )}
           <div className="flex items-center gap-2 mt-2">
-            <input type="checkbox" id="pagoParcial" {...register("pagoParcial")} />
-            <label htmlFor="pagoParcial" className="text-sm">¿Pago parcial?</label>
+            <input
+              type="checkbox"
+              id="pagoParcial"
+              {...register("pagoParcial")}
+            />
+            <label htmlFor="pagoParcial" className="text-sm">
+              ¿Pago parcial?
+            </label>
           </div>
           {watch("pagoParcial") && (
             <div>
-              <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")}
-                className={`w-full ${errors.montoAbonado ? 'border-red-500' : ''}`} />
-              {errors.montoAbonado && <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>}
+              <Input
+                type="number"
+                min={0}
+                placeholder="Monto abonado"
+                {...register("montoAbonado")}
+                className={`w-full ${
+                  errors.montoAbonado ? "border-red-500" : ""
+                }`}
+              />
+              {errors.montoAbonado && (
+                <span className="text-red-500 text-xs">
+                  {errors.montoAbonado.message}
+                </span>
+              )}
             </div>
           )}
         </div>
         {/* Información de envío */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
-          <select {...register("tipoEnvio")} className={`border rounded px-2 py-2 w-full ${errors.tipoEnvio ? 'border-red-500' : ''}`}>
+          <div className="text-base font-semibold text-default-800 pb-1">
+            Información de envío
+          </div>
+          <select
+            {...register("tipoEnvio")}
+            className={`border rounded px-2 py-2 w-full ${
+              errors.tipoEnvio ? "border-red-500" : ""
+            }`}
+          >
             <option value="">Tipo de envío...</option>
             <option value="retiro_local">Retiro en local</option>
             <option value="envio_domicilio">Envío a domicilio</option>
             <option value="envio_obra">Envío a obra</option>
-            <option value="transporte_propio">Transporte propio del cliente</option>
+            <option value="transporte_propio">
+              Transporte propio del cliente
+            </option>
           </select>
-          {errors.tipoEnvio && <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>}
+          {errors.tipoEnvio && (
+            <span className="text-red-500 text-xs">
+              {errors.tipoEnvio.message}
+            </span>
+          )}
           {tipoEnvioSeleccionado !== "retiro_local" && (
             <>
-              <select {...register("transportista")} className={`border rounded px-2 py-2 w-full ${errors.transportista ? 'border-red-500' : ''}`}>
+              <select
+                {...register("transportista")}
+                className={`border rounded px-2 py-2 w-full ${
+                  errors.transportista ? "border-red-500" : ""
+                }`}
+              >
                 <option value="">Transportista...</option>
-                {transportistas.map(t => <option key={t}>{t}</option>)}
+                {transportistas.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
               </select>
-              {errors.transportista && <span className="text-red-500 text-xs">{errors.transportista.message}</span>}
-              <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" />
-              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className={`w-full ${errors.fechaEntrega ? 'border-red-500' : ''}`} />
-              {errors.fechaEntrega && <span className="text-red-500 text-xs">{errors.fechaEntrega.message}</span>}
-              <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className={`w-full ${errors.rangoHorario ? 'border-red-500' : ''}`} />
-              {errors.rangoHorario && <span className="text-red-500 text-xs">{errors.rangoHorario.message}</span>}
+              {errors.transportista && (
+                <span className="text-red-500 text-xs">
+                  {errors.transportista.message}
+                </span>
+              )}
+              <Input
+                {...register("costoEnvio")}
+                placeholder="Costo de envío"
+                type="number"
+                className="w-full"
+              />
+              <Input
+                {...register("fechaEntrega")}
+                placeholder="Fecha de entrega"
+                type="date"
+                className={`w-full ${
+                  errors.fechaEntrega ? "border-red-500" : ""
+                }`}
+              />
+              {errors.fechaEntrega && (
+                <span className="text-red-500 text-xs">
+                  {errors.fechaEntrega.message}
+                </span>
+              )}
+              <Input
+                {...register("rangoHorario")}
+                placeholder="Rango horario (ej: 8-12, 14-18)"
+                className={`w-full ${
+                  errors.rangoHorario ? "border-red-500" : ""
+                }`}
+              />
+              {errors.rangoHorario && (
+                <span className="text-red-500 text-xs">
+                  {errors.rangoHorario.message}
+                </span>
+              )}
             </>
           )}
         </div>
         {/* Información adicional */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
-          <select {...register("vendedor")} className={`border rounded px-2 py-2 w-full ${errors.vendedor ? 'border-red-500' : ''}`}>
+          <div className="text-base font-semibold text-default-800 pb-1">
+            Información adicional
+          </div>
+          <select
+            {...register("vendedor")}
+            className={`border rounded px-2 py-2 w-full ${
+              errors.vendedor ? "border-red-500" : ""
+            }`}
+          >
             <option value="">Vendedor responsable...</option>
-            {vendedores.map(v => <option key={v}>{v}</option>)}
+            {vendedores.map((v) => (
+              <option key={v}>{v}</option>
+            ))}
           </select>
-          {errors.vendedor && <span className="text-red-500 text-xs">{errors.vendedor.message}</span>}
-          <select {...register("prioridad")} className={`border rounded px-2 py-2 w-full ${errors.prioridad ? 'border-red-500' : ''}`}>
+          {errors.vendedor && (
+            <span className="text-red-500 text-xs">
+              {errors.vendedor.message}
+            </span>
+          )}
+          <select
+            {...register("prioridad")}
+            className={`border rounded px-2 py-2 w-full ${
+              errors.prioridad ? "border-red-500" : ""
+            }`}
+          >
             <option value="">Prioridad...</option>
-            {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+            {prioridades.map((p) => (
+              <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+            ))}
           </select>
-          {errors.prioridad && <span className="text-red-500 text-xs">{errors.prioridad.message}</span>}
+          {errors.prioridad && (
+            <span className="text-red-500 text-xs">
+              {errors.prioridad.message}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex gap-2 mt-6 justify-end">
-        <Button variant="outline" type="button" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-        <Button variant="default" type="submit" disabled={isSubmitting} className="min-w-[160px] text-lg font-semibold">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Cancelar
+        </Button>
+        <Button
+          variant="default"
+          type="submit"
+          disabled={isSubmitting}
+          className="min-w-[160px] text-lg font-semibold"
+        >
           {isSubmitting ? "Guardando..." : "Guardar venta"}
         </Button>
       </div>
@@ -762,4 +1148,4 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   );
 }
 
-export default PresupuestoDetalle; 
+export default PresupuestoDetalle;
