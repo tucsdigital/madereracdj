@@ -132,8 +132,30 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
   const [submitMessage, setSubmitMessage] = useState("");
 
-  // 1. Esquema de validación sin 'nombre' ni 'vencimiento'
-  const schema = yup.object().shape({
+  // Esquema Yup para presupuesto (mínimo)
+  const schemaPresupuesto = yup.object().shape({
+    fecha: yup.string().required("La fecha es obligatoria"),
+    cliente: yup.object().shape({
+      nombre: yup.string().required("Obligatorio"),
+      email: yup.string().email("Email inválido").required("Obligatorio"),
+      telefono: yup.string().required("Obligatorio"),
+      direccion: yup.string().required("Obligatorio"),
+      cuit: yup.string().required("Obligatorio"),
+    }),
+    items: yup.array().of(
+      yup.object().shape({
+        descripcion: yup.string().required("Obligatorio"),
+        cantidad: yup.number().min(1, "Mínimo 1").required("Obligatorio"),
+        precio: yup.number().min(0, "No puede ser negativo").required("Obligatorio"),
+        unidad: yup.string().required("Obligatorio"),
+        moneda: yup.string().required("Obligatorio"),
+        descuento: yup.number().min(0).max(100),
+      })
+    ).min(1, "Agrega al menos un ítem"),
+  });
+
+  // Esquema Yup para venta (completo)
+  const schemaVenta = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
     clienteId: yup.string().required("Debe seleccionar un cliente"),
     cliente: yup.object().shape({
@@ -182,6 +204,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     costoEnvio: yup.number().notRequired(),
     observaciones: yup.string().notRequired(),
   });
+
+  // Elegir el esquema según el tipo
+  const schema = tipo === 'presupuesto' ? schemaPresupuesto : schemaVenta;
 
   const { register, handleSubmit, setValue, formState: { errors }, watch, reset, trigger } = useForm({
     resolver: yupResolver(schema),
@@ -424,18 +449,32 @@ const handleAgregarProducto = (producto) => {
         return obj;
       });
 
-      const formData = {
-        ...data,
-        clienteId: clienteId,
-        productos: productosLimpios,
-        subtotal: subtotal,
-        descuentoTotal: descuentoTotal,
-        iva: iva,
-        total: total,
-        fechaCreacion: new Date().toISOString(),
-        tipo: tipo,
-        numeroPedido: tipo === 'presupuesto' ? `PRESU-${Date.now()}` : `PED-${Date.now()}`,
-      };
+      const formData = tipo === 'presupuesto'
+        ? {
+            fecha: data.fecha,
+            cliente: data.cliente,
+            items: productosLimpios,
+            productos: productosLimpios,
+            subtotal: subtotal,
+            descuentoTotal: descuentoTotal,
+            iva: iva,
+            total: total,
+            fechaCreacion: new Date().toISOString(),
+            tipo: tipo,
+            numeroPedido: `PRESU-${Date.now()}`,
+          }
+        : {
+            ...data,
+            clienteId: clienteId || data.clienteId,
+            productos: productosLimpios,
+            subtotal: subtotal,
+            descuentoTotal: descuentoTotal,
+            iva: iva,
+            total: total,
+            fechaCreacion: new Date().toISOString(),
+            tipo: tipo,
+            numeroPedido: `PED-${Date.now()}`,
+          };
 
       console.log("Datos preparados para envío:", formData); // Debug
 
