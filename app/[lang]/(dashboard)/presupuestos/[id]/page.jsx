@@ -217,13 +217,43 @@ const PresupuestoDetalle = () => {
       <style>{`
         @media print {
           body * { visibility: hidden !important; }
-          #presupuesto-print { visibility: visible !important; position: absolute !important; left: 0; top: 0; width: 100vw; background: white; box-shadow: none; }
-          #presupuesto-print * { visibility: visible !important; }
+          #presupuesto-print, #presupuesto-print * { visibility: visible !important; }
+          #presupuesto-print {
+            position: absolute !important;
+            left: 0; top: 0; width: 100vw; min-height: 100vh;
+            background: white !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+          }
+          #presupuesto-print .no-print, #presupuesto-print .no-print * { display: none !important; }
+          #presupuesto-print .bg-white { box-shadow: none !important; border: none !important; }
+          #presupuesto-print .rounded-lg { border-radius: 0 !important; }
+          #presupuesto-print .shadow-sm { box-shadow: none !important; }
+          #presupuesto-print .mb-6, #presupuesto-print .mt-6, #presupuesto-print .py-8, #presupuesto-print .px-4, #presupuesto-print .p-6 { margin: 0 !important; padding: 0 !important; }
+          #presupuesto-print table { width: 100% !important; font-size: 13px; border-collapse: collapse; }
+          #presupuesto-print th, #presupuesto-print td { border: 1px solid #ddd !important; padding: 6px 8px !important; }
+          #presupuesto-print th { background: #f3f3f3 !important; }
+          #presupuesto-print h1, #presupuesto-print h2, #presupuesto-print h3 { margin: 0 0 8px 0 !important; }
         }
       `}</style>
       <div id="presupuesto-print" className="max-w-4xl mx-auto px-4">
+        {/* Logo y cabecera profesional para impresión */}
+        <div className="flex items-center gap-4 border-b pb-4 mb-6 print-header" style={{marginBottom: 32}}>
+          <img src="/logo-maderera.png" alt="Logo Maderera" style={{height: 60, width: 'auto'}} />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900" style={{letterSpacing: 1}}>Maderera CJ&D</h1>
+            <div className="text-gray-600 text-sm">Presupuesto / Cotización</div>
+            <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-xs text-gray-500">Fecha: {formatDate(presupuesto.fecha)}</div>
+            <div className="text-xs text-gray-500">N°: {presupuesto.id.slice(-8)}</div>
+          </div>
+        </div>
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Presupuesto #{presupuesto.id.slice(-8)}</h1>
@@ -232,11 +262,11 @@ const PresupuestoDetalle = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => router.back()}>
+              <Button variant="outline" onClick={() => router.back()} className="no-print">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver
               </Button>
-              <Button onClick={handlePrint}>
+              <Button onClick={handlePrint} className="no-print">
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir
               </Button>
