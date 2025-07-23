@@ -156,10 +156,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
     montoAbonado: yup.number()
+      .transform((value, originalValue) => originalValue === '' ? undefined : value)
       .when("pagoParcial", {
         is: true,
-        then: s => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
-        otherwise: s => s.notRequired()
+        then: (s) => s.typeError("Debe ingresar un monto").min(1, "Debe ingresar un monto").required("Obligatorio"),
+        otherwise: (s) => s.notRequired().nullable(true),
       }),
     prioridad: yup.string().required("Selecciona la prioridad"),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
@@ -508,6 +509,13 @@ const handleAgregarProducto = (producto) => {
   const [prioridad, setPrioridad] = useState("");
 
   // Elimino el estado y lógica de modalMadera y su handleAgregarMaderaPersonalizada
+
+  // Limpiar montoAbonado si se desmarca pagoParcial
+  React.useEffect(() => {
+    if (!watch("pagoParcial")) {
+      setValue("montoAbonado", "");
+    }
+  }, [watch("pagoParcial")]);
 
   return (
     <>

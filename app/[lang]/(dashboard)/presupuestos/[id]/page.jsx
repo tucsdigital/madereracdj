@@ -891,11 +891,13 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const schema = yup.object().shape({
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
-    montoAbonado: yup.number().when("pagoParcial", {
-      is: true,
-      then: (s) => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
-      otherwise: (s) => s.notRequired(),
-    }),
+    montoAbonado: yup.number()
+      .transform((value, originalValue) => originalValue === '' ? undefined : value)
+      .when("pagoParcial", {
+        is: true,
+        then: (s) => s.typeError("Debe ingresar un monto").min(1, "Debe ingresar un monto").required("Obligatorio"),
+        otherwise: (s) => s.notRequired().nullable(true),
+      }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     transportista: yup.string().when("tipoEnvio", {
       is: (val) => val && val !== "retiro_local",
@@ -972,6 +974,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
+  // Limpiar montoAbonado si se desmarca pagoParcial
+  React.useEffect(() => {
+    if (!watch("pagoParcial")) {
+      setValue("montoAbonado", "");
+    }
+  }, [watch("pagoParcial")]);
   return (
     <form
       onSubmit={handleSubmit(onFormSubmit, () => setShowForceWarning(true))}
