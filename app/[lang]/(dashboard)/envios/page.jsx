@@ -449,21 +449,8 @@ function DetalleEnvio({ envio, onClose }) {
 }
 
 // 1. Estado para modal de edición
-const [mostrarEditar, setMostrarEditar] = useState(false);
-const [envioEdit, setEnvioEdit] = useState(null);
-const transportistas = ["camion", "camioneta 1", "camioneta 2", "otro"];
-
 // 2. Filtro predeterminado a 'pendiente' al cargar
-useEffect(() => {
-  setFiltroEstado("pendiente");
-}, []);
-
 // 3. Función para abrir modal de edición
-const handleEditarEnvio = (envio) => {
-  setEnvioEdit(envio);
-  setMostrarEditar(true);
-};
-
 // 4. Modal de edición de envío
 function EditarEnvioModal({ envio, onClose, onUpdate }) {
   const [nuevoTransportista, setNuevoTransportista] = useState(envio.transportista || "");
@@ -542,6 +529,7 @@ function EditarEnvioModal({ envio, onClose, onUpdate }) {
 }
 
 const EnviosPage = () => {
+  // Hooks y estados deben estar aquí
   const [enviosData, setEnviosData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("");
@@ -550,9 +538,23 @@ const EnviosPage = () => {
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   const [mostrarCambiarEstado, setMostrarCambiarEstado] = useState(false);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
+  const [mostrarEditar, setMostrarEditar] = useState(false);
+  const [envioEdit, setEnvioEdit] = useState(null);
+  const transportistas = ["camion", "camioneta 1", "camioneta 2", "otro"];
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
+
+  // Filtro predeterminado a 'pendiente' al cargar
+  useEffect(() => {
+    setFiltroEstado("pendiente");
+  }, []);
+
+  // Función para abrir modal de edición
+  const handleEditarEnvio = (envio) => {
+    setEnvioEdit(envio);
+    setMostrarEditar(true);
+  };
 
   const cargarEnvios = async () => {
     try {
