@@ -135,6 +135,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // 1. Esquema de validación sin 'nombre' ni 'vencimiento'
   const schema = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
+    clienteId: yup.string().required("Debe seleccionar un cliente"),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").required("Obligatorio"),
@@ -185,6 +186,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     resolver: yupResolver(schema),
     defaultValues: {
       fecha: new Date().toISOString().split('T')[0],
+      clienteId: "",
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
     }
@@ -240,7 +242,6 @@ const [busquedaProducto, setBusquedaProducto] = useState("");
 
 // Manejo de selección de productos
 const handleAgregarProducto = (producto) => {
-  // Busca el producto real en productosState por doc.id
   const real = productosState.find(p => p.id === producto.id);
   if (!real) {
     setSubmitStatus("error");
@@ -249,17 +250,23 @@ const handleAgregarProducto = (producto) => {
   }
   if (!productosSeleccionados.some(p => p.id === real.id)) {
     let precio = real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta;
-    let alto = real.espesor || 0;
-    let ancho = real.ancho || 0;
-    let largo = real.largo || 0;
-    let precioPorPie = real.precioUnidad || 0;
+    let alto = Number(real.espesor) || 0;
+    let ancho = Number(real.ancho) || 0;
+    let largo = Number(real.largo) || 0;
+    let precioPorPie = Number(real.precioUnidad) || 0;
     if (real.categoria === 'Maderas') {
-      precio = calcularPrecioCorteMadera({ alto: Number(alto), ancho: Number(ancho), largo: Number(largo), precioPorPie: Number(precioPorPie) });
+      if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+        precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+      } else {
+        setSubmitStatus("error");
+        setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+        return;
+      }
     }
     setProductosSeleccionados([
       ...productosSeleccionados,
       {
-        id: real.id, // ID real de Firestore
+        id: real.id,
         nombre: real.nombre,
         precio,
         unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
@@ -267,7 +274,6 @@ const handleAgregarProducto = (producto) => {
         cantidad: 1,
         descuento: 0,
         categoria: real.categoria,
-        // Si es madera, guardar dimensiones si existen
         alto,
         ancho,
         largo,
@@ -387,24 +393,36 @@ const handleAgregarProducto = (producto) => {
     
     try {
       // Preparar datos del formulario
-      const formData = {
-        ...data,
-        clienteId: clienteId,
-        productos: productosSeleccionados.map(p => ({
-          id: p.id, // Usar el ID real de Firestore
+      const productosLimpios = productosSeleccionados.map(p => {
+        const obj = {
+          id: p.id,
           nombre: p.nombre,
           cantidad: p.cantidad,
           precio: p.precio,
           unidad: p.unidad,
           descuento: p.descuento || 0,
-        })),
+          categoria: p.categoria
+        };
+        if (p.categoria === 'Maderas') {
+          obj.alto = Number(p.alto) || 0;
+          obj.ancho = Number(p.ancho) || 0;
+          obj.largo = Number(p.largo) || 0;
+          obj.precioPorPie = Number(p.precioPorPie) || 0;
+        }
+        return obj;
+      });
+
+      const formData = {
+        ...data,
+        clienteId: clienteId,
+        productos: productosLimpios,
         subtotal: subtotal,
         descuentoTotal: descuentoTotal,
         iva: iva,
         total: total,
         fechaCreacion: new Date().toISOString(),
         tipo: tipo,
-        numeroPedido: `PED-${Date.now()}`, // <-- SIEMPRE incluir el número de pedido generado
+        numeroPedido: `PED-${Date.now()}`,
       };
 
       console.log("Datos preparados para envío:", formData); // Debug
@@ -457,24 +475,7 @@ const handleAgregarProducto = (producto) => {
     return Math.round(precio * 100) / 100;
   }
 
-  // Estado para inputs de corte de madera
-  const [maderaInputs, setMaderaInputs] = useState({ alto: '', ancho: '', largo: '', precioPorPie: '' });
-  const [precioCorteMadera, setPrecioCorteMadera] = useState(0);
-
-  // Actualiza el precio en tiempo real cuando cambian los inputs
-  useEffect(() => {
-    if (categoriaId === 'Maderas' && maderaInputs.alto && maderaInputs.ancho && maderaInputs.largo && maderaInputs.precioPorPie) {
-      const precio = calcularPrecioCorteMadera({
-        alto: Number(maderaInputs.alto),
-        ancho: Number(maderaInputs.ancho),
-        largo: Number(maderaInputs.largo),
-        precioPorPie: Number(maderaInputs.precioPorPie)
-      });
-      setPrecioCorteMadera(precio);
-    } else {
-      setPrecioCorteMadera(0);
-    }
-  }, [maderaInputs, categoriaId]);
+  // Elimino estados y lógica de maderaInputs y precioCorteMadera
 
   // 1. Buscador dinámico de clientes
   const [busquedaCliente, setBusquedaCliente] = useState("");
@@ -505,6 +506,8 @@ const handleAgregarProducto = (producto) => {
   const [rangoHorario, setRangoHorario] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [prioridad, setPrioridad] = useState("");
+
+  // Elimino el estado y lógica de modalMadera y su handleAgregarMaderaPersonalizada
 
   return (
     <>
@@ -670,23 +673,28 @@ const handleAgregarProducto = (producto) => {
                             onClick={() => {
                               if (productosSeleccionados.some(p => p.id === prod.id)) return;
                               if (prod.stock <= 0) return;
-                              // Tomar valores por defecto de Firebase
+                              // Tomar dimensiones y precioPorPie de Firebase
                               const alto = Number(prod.espesor) || 0;
                               const ancho = Number(prod.ancho) || 0;
                               const largo = Number(prod.largo) || 0;
                               const precioPorPie = Number(prod.precioUnidad) || 0;
-                              const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
-                              handleAgregarProducto({
-                                id: prod.id,
-                                nombre: prod.nombre,
-                                precio,
-                                unidad: prod.unidadMedida,
-                                stock: prod.stock,
-                                alto,
-                                ancho,
-                                largo,
-                                precioPorPie
-                              });
+                              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                handleAgregarProducto({
+                                  id: prod.id,
+                                  nombre: prod.nombre,
+                                  precio,
+                                  unidad: prod.unidadMedida,
+                                  stock: prod.stock,
+                                  alto,
+                                  ancho,
+                                  largo,
+                                  precioPorPie
+                                });
+                              } else {
+                                setSubmitStatus("error");
+                                setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+                              }
                             }}
                             disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0}
                           >
@@ -871,30 +879,6 @@ const handleAgregarProducto = (producto) => {
                     )}
                   </div>
 
-                  {/* Documentación y facturación */}
-                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 pb-1">Documentación</div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <input type="checkbox" checked={esConFactura} onChange={e => setEsConFactura(e.target.checked)} id="esConFactura" />
-                      <label htmlFor="esConFactura" className="text-sm">¿Es con factura?</label>
-                    </div>
-                    {esConFactura && (
-                      <>
-                        <Input {...register("numeroFactura")} placeholder="N° Factura" className="w-full" disabled={isSubmitting} />
-                        <Input {...register("numeroRemito")} placeholder="N° Remito" className="w-full" disabled={isSubmitting} />
-                        <Input {...register("numeroPedido")} value={numeroPedido} readOnly className="w-full" />
-                        <select {...register("tipoFactura")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                          <option value="">Tipo de factura...</option>
-                          <option value="A">Factura A</option>
-                          <option value="B">Factura B</option>
-                          <option value="C">Factura C</option>
-                          <option value="ticket">Ticket</option>
-                        </select>
-                        <Input {...register("condicionIva")} placeholder="Condición IVA" className="w-full" disabled={isSubmitting} />
-                      </>
-                    )}
-                  </div>
-
                   {/* Información adicional */}
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
@@ -979,6 +963,8 @@ const handleAgregarProducto = (producto) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Elimino el estado y lógica de modalMadera y su handleAgregarMaderaPersonalizada */}
     </>
   );
 }

@@ -22,7 +22,7 @@ const categorias = [
 
 // Esquemas de validación por categoría
 const baseSchema = {
-  id: yup.string().required("El código es obligatorio"),
+  codigo: yup.string().required("El código es obligatorio"),
   nombre: yup.string().required("El nombre es obligatorio"),
   descripcion: yup.string().required("La descripción es obligatoria"),
   categoria: yup.string().required("La categoría es obligatoria"),
@@ -163,8 +163,8 @@ function FormularioProducto({ onClose, onSuccess }) {
             <div className="font-semibold text-primary mb-1">Datos generales</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Input {...register("id")} placeholder="Código de producto" disabled={isSubmitting} />
-                {errors.id && <span className="text-red-500 text-xs">{errors.id.message}</span>}
+                <Input {...register("codigo")} placeholder="Código de producto" disabled={isSubmitting} />
+                {errors.codigo && <span className="text-red-500 text-xs">{errors.codigo.message}</span>}
               </div>
               <div>
                 <Input {...register("nombre")} placeholder="Nombre" disabled={isSubmitting} />
@@ -305,7 +305,7 @@ const ProductosPage = () => {
   // Filtro profesional
   const productosFiltrados = productos.filter(p =>
     (cat ? p.categoria === cat : true) &&
-    (filtro ? (p.nombre?.toLowerCase().includes(filtro.toLowerCase()) || p.id?.toLowerCase().includes(filtro.toLowerCase())) : true)
+    (filtro ? (p.nombre?.toLowerCase().includes(filtro.toLowerCase()) || p.codigo?.toLowerCase().includes(filtro.toLowerCase())) : true)
   );
 
   return (
@@ -354,7 +354,7 @@ const ProductosPage = () => {
             <TableBody>
                 {productosFiltrados.map(p => (
                 <TableRow key={p.id}>
-                    <TableCell>{p.id}</TableCell>
+                    <TableCell>{p.codigo}</TableCell>
                   <TableCell>{p.nombre}</TableCell>
                   <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.stock}</TableCell>
