@@ -919,6 +919,14 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     }),
     vendedor: yup.string().required("Selecciona el vendedor"),
     prioridad: yup.string().required("Selecciona la prioridad"),
+    clienteId: yup.string().required("Debe seleccionar un cliente"),
+    cliente: yup.object().shape({
+      nombre: yup.string().required("Obligatorio"),
+      email: yup.string().email("Email inválido").required("Obligatorio"),
+      telefono: yup.string().required("Obligatorio"),
+      direccion: yup.string().required("Obligatorio"),
+      cuit: yup.string().required("Obligatorio"),
+    }),
   });
   const {
     register,
@@ -940,8 +948,26 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       rangoHorario: "",
       vendedor: "",
       prioridad: "",
+      clienteId: presupuesto?.clienteId || "",
+      cliente: presupuesto?.cliente || { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
     },
   });
+
+  // Sincronizar clienteId y cliente automáticamente si cambian en presupuesto
+  React.useEffect(() => {
+    if (presupuesto?.clienteId) {
+      setValue("clienteId", presupuesto.clienteId);
+    }
+    if (presupuesto?.cliente) {
+      setValue("cliente", {
+        nombre: presupuesto.cliente.nombre || "",
+        email: presupuesto.cliente.email || "",
+        telefono: presupuesto.cliente.telefono || "",
+        direccion: presupuesto.cliente.direccion || "",
+        cuit: presupuesto.cliente.cuit || "",
+      });
+    }
+  }, [presupuesto, setValue]);
   // Log de errores de validación para debug
   React.useEffect(() => {
     if (Object.keys(errors).length > 0) {

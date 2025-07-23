@@ -1362,12 +1362,35 @@ const VentasPage = () => {
         setOpen(null);
         router.push(`/${lang}/ventas/${docRef.id}`);
       } else if (open === "presupuesto") {
-        // Limpiar datos para presupuesto también
-        const cleanFormData = JSON.parse(JSON.stringify(formData, (key, value) => {
+        // Limpiar datos para presupuesto y mapear productos
+        // 1. Sincronizar cliente
+        const clienteObj = formData.cliente || {};
+        // 2. Mapear productos seleccionados a items y productos
+        const productosLimpios = (formData.items || []).map(p => ({
+          ...p,
+          // Si hay campos extra de productos, los puedes agregar aquí
+        }));
+        // 3. Preparar el objeto a guardar
+        const cleanFormData = {
+          ...formData,
+          cliente: clienteObj,
+          items: productosLimpios,
+          productos: productosLimpios,
+          subtotal: productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0),
+          descuentoTotal: productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0),
+          iva: ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
+          total: (productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) + ((productosLimpios.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0) - productosLimpios.reduce((acc, p) => acc + (Number(p.descuento) * Number(p.cantidad)), 0)) * 0.21),
+          fechaCreacion: new Date().toISOString(),
+          tipo: "presupuesto",
+          numeroPedido: `PRESU-${Date.now()}`,
+        };
+        // Limpiar undefined y vacíos
+        const finalFormData = JSON.parse(JSON.stringify(cleanFormData, (key, value) => {
           if (value === undefined) return undefined;
           return value;
         }));
-        docRef = await addDoc(collection(db, "presupuestos"), cleanFormData);
+        console.log("[DEBUG] Datos limpios para guardar presupuesto:", finalFormData);
+        docRef = await addDoc(collection(db, "presupuestos"), finalFormData);
         setOpen(null);
         router.push(`/${lang}/presupuestos/${docRef.id}`);
       }
