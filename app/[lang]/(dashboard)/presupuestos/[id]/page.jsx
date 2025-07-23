@@ -625,7 +625,7 @@ const PresupuestoDetalle = () => {
             </div>
             <div>
               <span className="font-medium">Cliente ID:</span>{" "}
-              {presupuesto.clienteId || "-"}
+              {presupuesto.clienteId || presupuesto.cliente?.cuit || "-"}
             </div>
             <div>
               <span className="font-medium">Cantidad de productos:</span>{" "}
