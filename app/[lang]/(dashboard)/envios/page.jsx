@@ -64,11 +64,9 @@ function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
       onClose();
       return;
     }
-
     setIsSubmitting(true);
     try {
       const envioRef = doc(db, "envios", envio.id);
-      
       const historialActual = envio.historialEstados || [];
       const nuevoHistorial = [
         ...historialActual,
@@ -76,16 +74,14 @@ function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
           estado: nuevoEstado,
           fecha: new Date().toISOString(),
           comentario: comentario || `Estado cambiado a ${estadosEnvio[nuevoEstado]?.label || nuevoEstado}`,
-          cambiadoPor: "usuario", // En una app real sería el usuario actual
+          cambiadoPor: "usuario",
         }
       ];
-
       await updateDoc(envioRef, {
         estado: nuevoEstado,
         historialEstados: nuevoHistorial,
         fechaActualizacion: new Date().toISOString(),
       });
-
       onUpdate();
       onClose();
     } catch (error) {
@@ -104,7 +100,6 @@ function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
             Actualiza el estado del envío N° {envio.numeroPedido}
           </DialogDescription>
         </DialogHeader>
-        
         <div className="space-y-4">
           <div>
             <label className="text-sm font-medium">Estado actual</label>
@@ -114,26 +109,14 @@ function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
               </Badge>
             </div>
           </div>
-          
           <div>
             <label className="text-sm font-medium">Nuevo estado</label>
-            <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(estadosEnvio).map(([key, value]) => (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex items-center gap-2">
-                      <value.icon className="w-4 h-4" />
-                      {value.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value)}>
+              {Object.entries(estadosEnvio).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
           </div>
-          
           <div>
             <label className="text-sm font-medium">Comentario (opcional)</label>
             <Textarea
@@ -144,7 +127,6 @@ function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
             />
           </div>
         </div>
-        
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
             Cancelar
@@ -270,7 +252,7 @@ function DetalleEnvio({ envio, onClose }) {
 // 2. Filtro predeterminado a 'pendiente' al cargar
 // 3. Función para abrir modal de edición
 // 4. Modal de edición de envío
-function EditarEnvioModal({ envio, onClose, onUpdate }) {
+function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
   const [nuevoTransportista, setNuevoTransportista] = useState(envio.transportista || "");
   const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
   const [comentario, setComentario] = useState("");
@@ -770,6 +752,7 @@ const EnviosPage = () => {
           envio={envioEdit}
           onClose={() => { setMostrarEditar(false); setEnvioEdit(null); }}
           onUpdate={handleActualizarEnvio}
+          transportistas={transportistas}
         />
       )}
     </div>

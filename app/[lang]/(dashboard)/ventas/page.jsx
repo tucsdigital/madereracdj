@@ -248,22 +248,30 @@ const handleAgregarProducto = (producto) => {
     return;
   }
   if (!productosSeleccionados.some(p => p.id === real.id)) {
+    let precio = real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta;
+    let alto = real.espesor || 0;
+    let ancho = real.ancho || 0;
+    let largo = real.largo || 0;
+    let precioPorPie = real.precioUnidad || 0;
+    if (real.categoria === 'Maderas') {
+      precio = calcularPrecioCorteMadera({ alto: Number(alto), ancho: Number(ancho), largo: Number(largo), precioPorPie: Number(precioPorPie) });
+    }
     setProductosSeleccionados([
       ...productosSeleccionados,
       {
         id: real.id, // ID real de Firestore
         nombre: real.nombre,
-        precio: real.precioUnidad || real.precioUnidadVenta || real.precioUnidadHerraje || real.precioUnidadQuimico || real.precioUnidadHerramienta,
+        precio,
         unidad: real.unidadMedida || real.unidadVenta || real.unidadVentaHerraje || real.unidadVentaQuimico || real.unidadVentaHerramienta,
         stock: real.stock,
         cantidad: 1,
         descuento: 0,
         categoria: real.categoria,
         // Si es madera, guardar dimensiones si existen
-        alto: producto.alto || '',
-        ancho: producto.ancho || '',
-        largo: producto.largo || '',
-        precioPorPie: producto.precioPorPie || ''
+        alto,
+        ancho,
+        largo,
+        precioPorPie
       }
     ]);
   }
@@ -470,6 +478,7 @@ const handleAgregarProducto = (producto) => {
 
   // 1. Buscador dinámico de clientes
   const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
   const clientesFiltrados = clientesState.filter(c =>
     c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
     c.cuit.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
@@ -539,12 +548,12 @@ const handleAgregarProducto = (producto) => {
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
           <div className="relative w-full">
-            <div className="border rounded px-2 py-2 w-full flex items-center cursor-pointer bg-white" onClick={() => setOpenNuevoCliente(true)}>
+            <div className="border rounded px-2 py-2 w-full flex items-center cursor-pointer bg-white" onClick={() => setDropdownClientesOpen(true)}>
               <span className="flex-1 text-gray-700">{clienteSeleccionado ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}` : "Seleccionar cliente..."}</span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setOpenNuevoCliente(true)} disabled={isSubmitting}>+ Nuevo</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setOpenNuevoCliente(true); }} disabled={isSubmitting}>+ Nuevo</Button>
             </div>
             {/* Dropdown de clientes con input de búsqueda */}
-            {openNuevoCliente && (
+            {dropdownClientesOpen && (
               <div className="absolute z-50 bg-white border rounded shadow-lg w-full mt-1 max-h-72 overflow-y-auto">
                 <div className="p-2">
                   <Input
@@ -561,7 +570,7 @@ const handleAgregarProducto = (producto) => {
                       <div className="p-2 text-gray-400">No hay clientes</div>
                     )}
                     {clientesFiltrados.map(c => (
-                      <div key={c.id} className="p-2 hover:bg-primary/10 cursor-pointer rounded" onClick={() => { setClienteId(c.id); setOpenNuevoCliente(false); }}>
+                      <div key={c.id} className="p-2 hover:bg-primary/10 cursor-pointer rounded" onClick={() => { setClienteId(c.id); setDropdownClientesOpen(false); }}>
                         {c.nombre} - {c.cuit} - {c.localidad}
                       </div>
                     ))}
