@@ -937,6 +937,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       prioridad: "",
     },
   });
+  // Log de errores de validación para debug
+  React.useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.log("[YUP] Errores de validación en conversión a venta:", errors);
+    }
+  }, [errors]);
   const [showGlobalError, setShowGlobalError] = useState(false);
   useEffect(() => {
     setShowGlobalError(false);
