@@ -214,7 +214,14 @@ const PresupuestoDetalle = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #presupuesto-print { visibility: visible !important; position: absolute !important; left: 0; top: 0; width: 100vw; background: white; box-shadow: none; }
+          #presupuesto-print * { visibility: visible !important; }
+        }
+      `}</style>
+      <div id="presupuesto-print" className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
@@ -265,7 +272,7 @@ const PresupuestoDetalle = () => {
         </div>
 
         {/* Productos */}
-        {editando ? (
+        {editando && presupuestoEdit ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-4 text-gray-900">Editar Productos y Servicios</h3>
             <div className="overflow-x-auto">

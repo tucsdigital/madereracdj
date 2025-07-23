@@ -832,10 +832,6 @@ const handleAgregarProducto = (producto) => {
                       </>
                     )}
                     <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
-                    <select {...register("prioridad")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Prioridad...</option>
-                      {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                    </select>
                   </div>
 
                   {/* Información de envío */}
