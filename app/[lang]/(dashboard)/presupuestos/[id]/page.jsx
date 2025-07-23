@@ -31,6 +31,9 @@ const PresupuestoDetalle = () => {
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
 
+  // Estado para conversión a venta
+  const [convirtiendoVenta, setConvirtiendoVenta] = useState(false);
+
   useEffect(() => {
     const fetchPresupuesto = async () => {
       try {
@@ -425,18 +428,20 @@ const PresupuestoDetalle = () => {
           {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
           {editando && <Button onClick={handleGuardarCambios} disabled={loadingPrecios}>Guardar cambios</Button>}
           {editando && <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>{loadingPrecios ? "Actualizando..." : "Actualizar precios"}</Button>}
-          {editando && <Button onClick={handleAbrirVenta}>Convertir a Venta</Button>}
+          <Button onClick={() => setConvirtiendoVenta(true)}>Convertir a Venta</Button>
         </div>
 
         {/* Modal de venta */}
-        <Dialog open={openVenta} onOpenChange={setOpenVenta}>
-          <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
+        {convirtiendoVenta ? (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <FormularioVentaPresupuesto
               tipo="venta"
-              onClose={() => setOpenVenta(false)}
+              onClose={() => setConvirtiendoVenta(false)}
               onSubmit={async (formData) => {
                 try {
+                  // Guardar la venta en Firestore
                   const docRef = await addDoc(collection(db, "ventas"), formData);
+                  // Descontar stock y registrar movimiento de cada producto vendido
                   for (const prod of formData.productos) {
                     const productoRef = doc(db, "productos", prod.id);
                     const productoSnap = await getDocs(collection(db, "productos"));
@@ -460,6 +465,7 @@ const PresupuestoDetalle = () => {
                       productoNombre: prod.nombre,
                     });
                   }
+                  // Si la venta tiene envío, crear automáticamente el registro de envío
                   if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
                     const envioData = {
                       ventaId: docRef.id,
@@ -497,17 +503,120 @@ const PresupuestoDetalle = () => {
                     );
                     await addDoc(collection(db, "envios"), cleanEnvioData);
                   }
-                  setOpenVenta(false);
+                  setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
                   alert("Error al guardar venta: " + error.message);
                 }
               }}
-              initialValues={presupuestoEdit}
-              editable={true}
+              initialValues={{
+                ...presupuestoEdit,
+                tipo: "venta",
+                productos: presupuestoEdit?.productos || presupuestoEdit?.items || [],
+                items: undefined, // para evitar duplicidad
+                subtotal: undefined,
+                descuentoTotal: undefined,
+                iva: undefined,
+                total: undefined,
+                fechaCreacion: undefined,
+                numeroPedido: `PED-${Date.now()}`,
+              }}
             />
-          </DialogContent>
-        </Dialog>
+          </div>
+        ) : (
+          <Dialog open={openVenta} onOpenChange={setOpenVenta}>
+            <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
+              <FormularioVentaPresupuesto
+                tipo="venta"
+                onClose={() => setOpenVenta(false)}
+                onSubmit={async (formData) => {
+                  try {
+                    // Guardar la venta en Firestore
+                    const docRef = await addDoc(collection(db, "ventas"), formData);
+                    // Descontar stock y registrar movimiento de cada producto vendido
+                    for (const prod of formData.productos) {
+                      const productoRef = doc(db, "productos", prod.id);
+                      const productoSnap = await getDocs(collection(db, "productos"));
+                      const existe = productoSnap.docs.find(d => d.id === prod.id);
+                      if (!existe) {
+                        alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+                        return;
+                      }
+                      await updateDoc(productoRef, {
+                        stock: increment(-Math.abs(prod.cantidad))
+                      });
+                      await addDoc(collection(db, "movimientos"), {
+                        productoId: prod.id,
+                        tipo: "salida",
+                        cantidad: prod.cantidad,
+                        usuario: "Sistema",
+                        fecha: serverTimestamp(),
+                        referencia: "venta",
+                        referenciaId: docRef.id,
+                        observaciones: `Salida por venta (${formData.nombre || ''})`,
+                        productoNombre: prod.nombre,
+                      });
+                    }
+                    // Si la venta tiene envío, crear automáticamente el registro de envío
+                    if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+                      const envioData = {
+                        ventaId: docRef.id,
+                        clienteId: formData.clienteId,
+                        cliente: formData.cliente,
+                        fechaCreacion: new Date().toISOString(),
+                        fechaEntrega: formData.fechaEntrega,
+                        estado: "pendiente",
+                        prioridad: formData.prioridad || "media",
+                        vendedor: formData.vendedor,
+                        direccionEnvio: formData.direccionEnvio,
+                        localidadEnvio: formData.localidadEnvio,
+                        codigoPostal: formData.codigoPostal,
+                        tipoEnvio: formData.tipoEnvio,
+                        transportista: formData.transportista,
+                        costoEnvio: parseFloat(formData.costoEnvio) || 0,
+                        numeroPedido: formData.numeroPedido,
+                        totalVenta: formData.total,
+                        productos: formData.productos,
+                        cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+                        historialEstados: [
+                          {
+                            estado: "pendiente",
+                            fecha: new Date().toISOString(),
+                            comentario: "Envío creado automáticamente desde la venta"
+                          }
+                        ],
+                        observaciones: formData.observaciones,
+                        instruccionesEspeciales: "",
+                        fechaActualizacion: new Date().toISOString(),
+                        creadoPor: "sistema",
+                      };
+                      const cleanEnvioData = Object.fromEntries(
+                        Object.entries(envioData).filter(([_, v]) => v !== undefined)
+                      );
+                      await addDoc(collection(db, "envios"), cleanEnvioData);
+                    }
+                    setOpenVenta(false);
+                    router.push(`/${lang}/ventas/${docRef.id}`);
+                  } catch (error) {
+                    alert("Error al guardar venta: " + error.message);
+                  }
+                }}
+                initialValues={{
+                  ...presupuestoEdit,
+                  tipo: "venta",
+                  productos: presupuestoEdit?.productos || presupuestoEdit?.items || [],
+                  items: undefined, // para evitar duplicidad
+                  subtotal: undefined,
+                  descuentoTotal: undefined,
+                  iva: undefined,
+                  total: undefined,
+                  fechaCreacion: undefined,
+                  numeroPedido: `PED-${Date.now()}`,
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
