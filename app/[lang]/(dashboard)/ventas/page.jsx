@@ -434,7 +434,7 @@ const handleAgregarProducto = (producto) => {
         total: total,
         fechaCreacion: new Date().toISOString(),
         tipo: tipo,
-        numeroPedido: `PED-${Date.now()}`,
+        numeroPedido: tipo === 'presupuesto' ? `PRESU-${Date.now()}` : `PED-${Date.now()}`,
       };
 
       console.log("Datos preparados para envío:", formData); // Debug
