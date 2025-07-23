@@ -630,7 +630,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         then: s => s.min(1, "Debe ingresar un monto").required("Obligatorio"),
         otherwise: s => s.notRequired()
       }),
-    observaciones: yup.string().notRequired(),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     transportista: yup.string().when("tipoEnvio", {
       is: val => val && val !== "retiro_local",
@@ -648,45 +647,50 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: s => s.required("El rango horario es obligatorio"),
       otherwise: s => s.notRequired()
     }),
-    usarDireccionCliente: yup.boolean(),
-    direccionEnvio: yup.string().notRequired(),
-    localidadEnvio: yup.string().notRequired(),
-    codigoPostal: yup.string().notRequired(),
     vendedor: yup.string().required("Selecciona el vendedor"),
     prioridad: yup.string().required("Selecciona la prioridad"),
   });
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       formaPago: "",
       pagoParcial: false,
       montoAbonado: "",
-      observaciones: "",
       tipoEnvio: "",
       transportista: "",
       costoEnvio: "",
       fechaEntrega: "",
       rangoHorario: "",
-      usarDireccionCliente: true,
-      direccionEnvio: "",
-      localidadEnvio: "",
-      codigoPostal: "",
       vendedor: "",
       prioridad: "",
     }
   });
+  const [showGlobalError, setShowGlobalError] = useState(false);
+  useEffect(() => { setShowGlobalError(false); }, [isSubmitSuccessful]);
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
-  const usarDireccionCliente = watch("usarDireccionCliente");
+  const onFormSubmit = async (data) => {
+    setShowGlobalError(false);
+    try {
+      await onSubmit(data);
+    } catch (e) {
+      setShowGlobalError(true);
+    }
+  };
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+    <form onSubmit={handleSubmit(onFormSubmit, () => setShowGlobalError(true))} className="flex flex-col gap-6">
+      {showGlobalError && (
+        <div className="mb-2 p-3 rounded bg-red-100 text-red-800 font-semibold text-center">
+          Corrige los errores marcados para poder guardar la venta.
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Condiciones de pago y entrega */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
           <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
-          <select {...register("formaPago")} className="border rounded px-2 py-2 w-full">
+          <select {...register("formaPago")} className={`border rounded px-2 py-2 w-full ${errors.formaPago ? 'border-red-500' : ''}`}>
             <option value="">Forma de pago...</option>
             <option value="efectivo">Efectivo</option>
             <option value="transferencia">Transferencia</option>
@@ -700,14 +704,17 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             <label htmlFor="pagoParcial" className="text-sm">¿Pago parcial?</label>
           </div>
           {watch("pagoParcial") && (
-            <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")} className="w-full" />
+            <div>
+              <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")}
+                className={`w-full ${errors.montoAbonado ? 'border-red-500' : ''}`} />
+              {errors.montoAbonado && <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>}
+            </div>
           )}
-          <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" />
         </div>
         {/* Información de envío */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
           <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
-          <select {...register("tipoEnvio")} className="border rounded px-2 py-2 w-full">
+          <select {...register("tipoEnvio")} className={`border rounded px-2 py-2 w-full ${errors.tipoEnvio ? 'border-red-500' : ''}`}>
             <option value="">Tipo de envío...</option>
             <option value="retiro_local">Retiro en local</option>
             <option value="envio_domicilio">Envío a domicilio</option>
@@ -717,53 +724,39 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           {errors.tipoEnvio && <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>}
           {tipoEnvioSeleccionado !== "retiro_local" && (
             <>
-              <div className="flex items-center gap-2 mb-2">
-                <input type="checkbox" checked={usarDireccionCliente} onChange={e => setValue("usarDireccionCliente", e.target.checked)} id="usarDireccionCliente" />
-                <label htmlFor="usarDireccionCliente" className="text-sm">Usar dirección del cliente</label>
-              </div>
-              {!usarDireccionCliente && (
-                <>
-                  <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" />
-                  <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" />
-                  <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" />
-                </>
-              )}
-              {usarDireccionCliente && presupuesto.cliente && (
-                <>
-                  <Input value={presupuesto.cliente.direccion || ""} readOnly className="w-full" />
-                  <Input value={presupuesto.cliente.localidad || ""} readOnly className="w-full" />
-                  <Input value={presupuesto.cliente.codigoPostal || ""} readOnly className="w-full" />
-                </>
-              )}
-              <select {...register("transportista")} className="border rounded px-2 py-2 w-full">
+              <select {...register("transportista")} className={`border rounded px-2 py-2 w-full ${errors.transportista ? 'border-red-500' : ''}`}>
                 <option value="">Transportista...</option>
                 {transportistas.map(t => <option key={t}>{t}</option>)}
               </select>
+              {errors.transportista && <span className="text-red-500 text-xs">{errors.transportista.message}</span>}
               <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" />
-              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" />
-              <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" />
+              <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className={`w-full ${errors.fechaEntrega ? 'border-red-500' : ''}`} />
+              {errors.fechaEntrega && <span className="text-red-500 text-xs">{errors.fechaEntrega.message}</span>}
+              <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className={`w-full ${errors.rangoHorario ? 'border-red-500' : ''}`} />
+              {errors.rangoHorario && <span className="text-red-500 text-xs">{errors.rangoHorario.message}</span>}
             </>
           )}
         </div>
         {/* Información adicional */}
         <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
           <div className="text-base font-semibold text-default-800 pb-1">Información adicional</div>
-          <select {...register("vendedor")} className="border rounded px-2 py-2 w-full">
+          <select {...register("vendedor")} className={`border rounded px-2 py-2 w-full ${errors.vendedor ? 'border-red-500' : ''}`}>
             <option value="">Vendedor responsable...</option>
             {vendedores.map(v => <option key={v}>{v}</option>)}
           </select>
           {errors.vendedor && <span className="text-red-500 text-xs">{errors.vendedor.message}</span>}
-          <select {...register("prioridad")} className="border rounded px-2 py-2 w-full">
+          <select {...register("prioridad")} className={`border rounded px-2 py-2 w-full ${errors.prioridad ? 'border-red-500' : ''}`}>
             <option value="">Prioridad...</option>
             {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
           {errors.prioridad && <span className="text-red-500 text-xs">{errors.prioridad.message}</span>}
-          <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" />
         </div>
       </div>
-      <div className="flex gap-2 mt-6">
-        <Button variant="default" type="submit">Guardar venta</Button>
-        <Button variant="outline" type="button" onClick={onCancel}>Cancelar</Button>
+      <div className="flex gap-2 mt-6 justify-end">
+        <Button variant="outline" type="button" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
+        <Button variant="default" type="submit" disabled={isSubmitting} className="min-w-[160px] text-lg font-semibold">
+          {isSubmitting ? "Guardando..." : "Guardar venta"}
+        </Button>
       </div>
     </form>
   );
