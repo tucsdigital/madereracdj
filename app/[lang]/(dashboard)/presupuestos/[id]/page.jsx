@@ -265,11 +265,9 @@ const PresupuestoDetalle = () => {
         </div>
 
         {/* Productos */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-lg mb-4 text-gray-900">Productos y Servicios</h3>
-          
-          {/* Usar productos si existe, sino usar items */}
-          {(presupuesto.productos || presupuesto.items) && (
+        {editando ? (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">Editar Productos y Servicios</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -278,54 +276,152 @@ const PresupuestoDetalle = () => {
                     <th className="text-center p-3 font-medium">Cantidad</th>
                     <th className="text-center p-3 font-medium">Unidad</th>
                     <th className="text-right p-3 font-medium">Precio Unit.</th>
-                    <th className="text-right p-3 font-medium">Descuento</th>
+                    <th className="text-right p-3 font-medium">Descuento (%)</th>
                     <th className="text-right p-3 font-medium">Subtotal</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(presupuesto.productos || presupuesto.items || []).map((producto, idx) => (
+                  {(presupuestoEdit.productos || presupuestoEdit.items || []).map((producto, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="p-3 font-medium">
-                        {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                        <Input value={producto.descripcion || producto.nombre || ""} onChange={e => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr[idx].descripcion = e.target.value;
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }} />
                       </td>
-                      <td className="p-3 text-center">{producto.cantidad || 0}</td>
-                      <td className="p-3 text-center">{producto.unidad || "-"}</td>
-                      <td className="p-3 text-right">${(producto.precio || 0).toFixed(2)}</td>
-                      <td className="p-3 text-right">${(producto.descuento || 0).toFixed(2)}</td>
+                      <td className="p-3 text-center">
+                        <Input type="number" min={1} value={producto.cantidad || 0} onChange={e => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr[idx].cantidad = Number(e.target.value);
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }} className="w-20 mx-auto" />
+                      </td>
+                      <td className="p-3 text-center">
+                        <Input value={producto.unidad || ""} onChange={e => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr[idx].unidad = e.target.value;
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }} className="w-20 mx-auto" />
+                      </td>
+                      <td className="p-3 text-right">
+                        <Input type="number" min={0} value={producto.precio || 0} onChange={e => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr[idx].precio = Number(e.target.value);
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }} className="w-24 text-right" />
+                      </td>
+                      <td className="p-3 text-right">
+                        <Input type="number" min={0} max={100} value={producto.descuento || 0} onChange={e => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr[idx].descuento = Number(e.target.value);
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }} className="w-20 text-right" />
+                      </td>
                       <td className="p-3 text-right font-medium">
-                        ${((producto.precio || 0) * (producto.cantidad || 0) - (producto.descuento || 0) * (producto.cantidad || 0)).toFixed(2)}
+                        ${((producto.precio || 0) * (producto.cantidad || 0) * (1 - (producto.descuento || 0) / 100)).toFixed(2)}
+                      </td>
+                      <td>
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                          arr.splice(idx, 1);
+                          setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+                        }}>Eliminar</Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+            {/* Agregar producto manualmente */}
+            <div className="flex gap-2 mt-4">
+              <Button size="sm" variant="outline" onClick={() => {
+                const arr = [...(presupuestoEdit.productos || presupuestoEdit.items)];
+                arr.push({ descripcion: "", cantidad: 1, unidad: "", precio: 0, descuento: 0 });
+                setPresupuestoEdit(prev => ({ ...prev, productos: arr, items: arr }));
+              }}>Agregar producto</Button>
+            </div>
+            {/* Cliente editable */}
+            <div className="mt-6">
+              <label className="font-semibold">Cliente</label>
+              <select className="border rounded px-2 py-2 w-full" value={presupuestoEdit.clienteId || ""} onChange={e => {
+                const cliente = clientes.find(c => c.id === e.target.value);
+                setPresupuestoEdit(prev => ({ ...prev, clienteId: cliente?.id, cliente }));
+              }}>
+                <option value="">Seleccionar cliente</option>
+                {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            {/* Observaciones editable */}
+            <div className="mt-4">
+              <label className="font-semibold">Observaciones</label>
+              <Textarea value={presupuestoEdit.observaciones || ""} onChange={e => setPresupuestoEdit(prev => ({ ...prev, observaciones: e.target.value }))} />
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">Productos y Servicios</h3>
+            
+            {/* Usar productos si existe, sino usar items */}
+            {(presupuesto.productos || presupuesto.items) && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 border-b">
+                      <th className="text-left p-3 font-medium">Producto</th>
+                      <th className="text-center p-3 font-medium">Cantidad</th>
+                      <th className="text-center p-3 font-medium">Unidad</th>
+                      <th className="text-right p-3 font-medium">Precio Unit.</th>
+                      <th className="text-right p-3 font-medium">Descuento</th>
+                      <th className="text-right p-3 font-medium">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(presupuesto.productos || presupuesto.items || []).map((producto, idx) => (
+                      <tr key={idx} className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-medium">
+                          {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                        </td>
+                        <td className="p-3 text-center">{producto.cantidad || 0}</td>
+                        <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                        <td className="p-3 text-right">${(producto.precio || 0).toFixed(2)}</td>
+                        <td className="p-3 text-right">${(producto.descuento || 0).toFixed(2)}</td>
+                        <td className="p-3 text-right font-medium">
+                          ${((producto.precio || 0) * (producto.cantidad || 0) - (producto.descuento || 0) * (producto.cantidad || 0)).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-          {/* Totales */}
-          <div className="mt-6 flex justify-end">
-            <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>${(presupuesto.subtotal || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Descuento total:</span>
-                  <span>${(presupuesto.descuentoTotal || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>IVA (21%):</span>
-                  <span>${(presupuesto.iva || 0).toFixed(2)}</span>
-                </div>
-                <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                  <span>Total:</span>
-                  <span className="text-primary">${(presupuesto.total || 0).toFixed(2)}</span>
+            {/* Totales */}
+            <div className="mt-6 flex justify-end">
+              <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>${(presupuesto.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Descuento total:</span>
+                    <span>${(presupuesto.descuentoTotal || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>IVA (21%):</span>
+                    <span>${(presupuesto.iva || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span className="text-primary">${(presupuesto.total || 0).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Observaciones */}
         {presupuesto.observaciones && (
@@ -430,6 +526,7 @@ const PresupuestoDetalle = () => {
                 }
               }}
               initialValues={presupuestoEdit}
+              editable={true}
             />
           </DialogContent>
         </Dialog>

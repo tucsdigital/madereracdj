@@ -53,188 +53,6 @@ const estadosEnvio = {
   },
 };
 
-// Columnas para la tabla de envíos con funcionalidades avanzadas
-const enviosColumns = [
-  {
-    accessorKey: "numeroPedido",
-    header: "N° Pedido",
-    cell: ({ row }) => {
-      const numero = row.getValue("numeroPedido");
-      return (
-        <div className="font-medium text-primary cursor-pointer hover:underline">
-          {numero || "Sin número"}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "cliente",
-    header: "Cliente",
-    cell: ({ row }) => {
-      const cliente = row.original.cliente;
-      return (
-        <div>
-          <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
-          <div className="text-xs text-gray-500">{cliente?.cuit || "Sin CUIT"}</div>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "fechaEntrega",
-    header: "Fecha Entrega",
-    cell: ({ row }) => {
-      const fecha = row.getValue("fechaEntrega");
-      const fechaCreacion = row.original.fechaCreacion;
-      
-      if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
-      
-      const fechaEntrega = new Date(fecha);
-      const hoy = new Date();
-      const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
-      
-      let color = "text-gray-600";
-      if (diasRestantes < 0) color = "text-red-600 font-semibold";
-      else if (diasRestantes <= 2) color = "text-orange-600 font-semibold";
-      else if (diasRestantes <= 7) color = "text-yellow-600";
-      
-      return (
-        <div className={color}>
-          {fechaEntrega.toLocaleDateString('es-AR')}
-          {diasRestantes < 0 && <div className="text-xs text-red-500">Vencido</div>}
-          {diasRestantes >= 0 && diasRestantes <= 7 && (
-            <div className="text-xs">{diasRestantes === 0 ? "Hoy" : `${diasRestantes} días`}</div>
-          )}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "estado",
-    header: "Estado",
-    cell: ({ row }) => {
-      const estado = row.getValue("estado");
-      const estadoInfo = estadosEnvio[estado] || { 
-        label: estado, 
-        color: "bg-gray-100 text-gray-800 border-gray-200" 
-      };
-      const Icon = estadoInfo.icon || Clock;
-      
-      return (
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4" />
-          <Badge variant="outline" className={estadoInfo.color}>
-            {estadoInfo.label}
-          </Badge>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "prioridad",
-    header: "Prioridad",
-    cell: ({ row }) => {
-      const prioridad = row.getValue("prioridad");
-      const prioridades = {
-        alta: { label: "Alta", color: "bg-red-100 text-red-800 border-red-200" },
-        media: { label: "Media", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-        baja: { label: "Baja", color: "bg-green-100 text-green-800 border-green-200" },
-      };
-      const prioridadInfo = prioridades[prioridad] || { 
-        label: prioridad, 
-        color: "bg-gray-100 text-gray-800 border-gray-200" 
-      };
-      
-      return (
-        <Badge variant="outline" className={prioridadInfo.color}>
-          {prioridadInfo.label}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "tipoEnvio",
-    header: "Tipo Envío",
-    cell: ({ row }) => {
-      const tipo = row.getValue("tipoEnvio");
-      const tipos = {
-        retiro_local: "Retiro Local",
-        envio_domicilio: "Domicilio",
-        envio_obra: "Obra",
-        transporte_propio: "Transporte Propio",
-      };
-      return tipos[tipo] || tipo;
-    },
-  },
-  {
-    accessorKey: "transportista",
-    header: "Transportista",
-    cell: ({ row }) => {
-      const transportista = row.getValue("transportista");
-      return transportista || <span className="text-gray-400">Sin asignar</span>;
-    },
-  },
-  {
-    accessorKey: "totalVenta",
-    header: "Total",
-    cell: ({ row }) => {
-      const total = row.getValue("totalVenta");
-      const costoEnvio = row.original.costoEnvio || 0;
-      const totalConEnvio = parseFloat(total) + parseFloat(costoEnvio);
-      
-      return (
-        <div>
-          <div className="font-medium">${parseFloat(total).toFixed(2)}</div>
-          {costoEnvio > 0 && (
-            <div className="text-xs text-gray-500">+ ${costoEnvio.toFixed(2)} envío</div>
-          )}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "vendedor",
-    header: "Vendedor",
-    cell: ({ row }) => {
-      const vendedor = row.getValue("vendedor");
-      return vendedor || <span className="text-gray-400">Sin asignar</span>;
-    },
-  },
-  {
-    id: "acciones",
-    header: "Acciones",
-    cell: ({ row }) => {
-      const envio = row.original;
-      
-      return (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleVerDetalle(envio)}
-          >
-            Ver
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleCambiarEstado(envio)}
-          >
-            Estado
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEditarEnvio(envio)}
-          >
-            Editar
-          </Button>
-        </div>
-      );
-    },
-  },
-];
-
 // Componente para cambiar estado de envío
 function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
   const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
@@ -555,6 +373,188 @@ const EnviosPage = () => {
     setEnvioEdit(envio);
     setMostrarEditar(true);
   };
+  const handleVerDetalle = (envio) => {
+    setEnvioSeleccionado(envio);
+    setMostrarDetalle(true);
+  };
+  const handleCambiarEstado = (envio) => {
+    setEnvioSeleccionado(envio);
+    setMostrarCambiarEstado(true);
+  };
+
+  // Columnas para la tabla de envíos con funcionalidades avanzadas
+  const enviosColumns = [
+    {
+      accessorKey: "numeroPedido",
+      header: "N° Pedido",
+      cell: ({ row }) => {
+        const numero = row.getValue("numeroPedido");
+        return (
+          <div className="font-medium text-primary cursor-pointer hover:underline">
+            {numero || "Sin número"}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "cliente",
+      header: "Cliente",
+      cell: ({ row }) => {
+        const cliente = row.original.cliente;
+        return (
+          <div>
+            <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
+            <div className="text-xs text-gray-500">{cliente?.cuit || "Sin CUIT"}</div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "fechaEntrega",
+      header: "Fecha Entrega",
+      cell: ({ row }) => {
+        const fecha = row.getValue("fechaEntrega");
+        const fechaCreacion = row.original.fechaCreacion;
+        if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
+        const fechaEntrega = new Date(fecha);
+        const hoy = new Date();
+        const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+        let color = "text-gray-600";
+        if (diasRestantes < 0) color = "text-red-600 font-semibold";
+        else if (diasRestantes <= 2) color = "text-orange-600 font-semibold";
+        else if (diasRestantes <= 7) color = "text-yellow-600";
+        return (
+          <div className={color}>
+            {fechaEntrega.toLocaleDateString('es-AR')}
+            {diasRestantes < 0 && <div className="text-xs text-red-500">Vencido</div>}
+            {diasRestantes >= 0 && diasRestantes <= 7 && (
+              <div className="text-xs">{diasRestantes === 0 ? "Hoy" : `${diasRestantes} días`}</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "estado",
+      header: "Estado",
+      cell: ({ row }) => {
+        const estado = row.getValue("estado");
+        const estadoInfo = estadosEnvio[estado] || { 
+          label: estado, 
+          color: "bg-gray-100 text-gray-800 border-gray-200" 
+        };
+        const Icon = estadoInfo.icon || Clock;
+        return (
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4" />
+            <Badge variant="outline" className={estadoInfo.color}>
+              {estadoInfo.label}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "prioridad",
+      header: "Prioridad",
+      cell: ({ row }) => {
+        const prioridad = row.getValue("prioridad");
+        const prioridades = {
+          alta: { label: "Alta", color: "bg-red-100 text-red-800 border-red-200" },
+          media: { label: "Media", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+          baja: { label: "Baja", color: "bg-green-100 text-green-800 border-green-200" },
+        };
+        const prioridadInfo = prioridades[prioridad] || { 
+          label: prioridad, 
+          color: "bg-gray-100 text-gray-800 border-gray-200" 
+        };
+        return (
+          <Badge variant="outline" className={prioridadInfo.color}>
+            {prioridadInfo.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "tipoEnvio",
+      header: "Tipo Envío",
+      cell: ({ row }) => {
+        const tipo = row.getValue("tipoEnvio");
+        const tipos = {
+          retiro_local: "Retiro Local",
+          envio_domicilio: "Domicilio",
+          envio_obra: "Obra",
+          transporte_propio: "Transporte Propio",
+        };
+        return tipos[tipo] || tipo;
+      },
+    },
+    {
+      accessorKey: "transportista",
+      header: "Transportista",
+      cell: ({ row }) => {
+        const transportista = row.getValue("transportista");
+        return transportista || <span className="text-gray-400">Sin asignar</span>;
+      },
+    },
+    {
+      accessorKey: "totalVenta",
+      header: "Total",
+      cell: ({ row }) => {
+        const total = row.getValue("totalVenta");
+        const costoEnvio = row.original.costoEnvio || 0;
+        const totalConEnvio = parseFloat(total) + parseFloat(costoEnvio);
+        return (
+          <div>
+            <div className="font-medium">${parseFloat(total).toFixed(2)}</div>
+            {costoEnvio > 0 && (
+              <div className="text-xs text-gray-500">+ ${costoEnvio.toFixed(2)} envío</div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "vendedor",
+      header: "Vendedor",
+      cell: ({ row }) => {
+        const vendedor = row.getValue("vendedor");
+        return vendedor || <span className="text-gray-400">Sin asignar</span>;
+      },
+    },
+    {
+      id: "acciones",
+      header: "Acciones",
+      cell: ({ row }) => {
+        const envio = row.original;
+        return (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleVerDetalle(envio)}
+            >
+              Ver
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleCambiarEstado(envio)}
+            >
+              Estado
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleEditarEnvio(envio)}
+            >
+              Editar
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
   const cargarEnvios = async () => {
     try {
@@ -585,16 +585,6 @@ const EnviosPage = () => {
     
     return cumpleEstado && cumplePrioridad && cumpleBusqueda;
   });
-
-  const handleVerDetalle = (envio) => {
-    setEnvioSeleccionado(envio);
-    setMostrarDetalle(true);
-  };
-
-  const handleCambiarEstado = (envio) => {
-    setEnvioSeleccionado(envio);
-    setMostrarCambiarEstado(true);
-  };
 
   const handleActualizarEnvio = () => {
     cargarEnvios();
