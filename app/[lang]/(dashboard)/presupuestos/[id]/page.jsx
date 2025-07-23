@@ -921,6 +921,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting, isSubmitSuccessful },
   } = useForm({
     resolver: yupResolver(schema),
@@ -943,30 +944,53 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       console.log("[YUP] Errores de validación en conversión a venta:", errors);
     }
   }, [errors]);
-  const [showGlobalError, setShowGlobalError] = useState(false);
-  useEffect(() => {
-    setShowGlobalError(false);
-  }, [isSubmitSuccessful]);
+
+  // Estado para forzar guardar aunque haya errores
+  const [forzarGuardar, setForzarGuardar] = React.useState(false);
+  // Mostrar advertencia si se va a guardar con errores
+  const [showForceWarning, setShowForceWarning] = React.useState(false);
+
+  // Handler profesional para guardar aunque haya errores
+  const handleForceSave = async (e) => {
+    e.preventDefault();
+    setShowForceWarning(false);
+    const values = getValues();
+    console.warn("[FORCE SAVE] Guardando venta con errores de validación:", errors);
+    console.warn("[FORCE SAVE] Valores enviados:", values);
+    await onSubmit(values); // Llama igual aunque falten campos
+  };
+
+  const onFormSubmit = async (data) => {
+    setShowForceWarning(false);
+    try {
+      await onSubmit(data);
+    } catch (e) {
+      setShowForceWarning(true);
+    }
+  };
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
-  const onFormSubmit = async (data) => {
-    setShowGlobalError(false);
-    try {
-      await onSubmit(data);
-    } catch (e) {
-      setShowGlobalError(true);
-    }
-  };
   return (
     <form
-      onSubmit={handleSubmit(onFormSubmit, () => setShowGlobalError(true))}
+      onSubmit={handleSubmit(onFormSubmit, () => setShowForceWarning(true))}
       className="flex flex-col gap-6"
     >
-      {showGlobalError && (
-        <div className="mb-2 p-3 rounded bg-red-100 text-red-800 font-semibold text-center">
-          Corrige los errores marcados para poder guardar la venta.
+      {showForceWarning && (
+        <div className="mb-2 p-3 rounded bg-yellow-100 text-yellow-900 font-semibold text-center">
+          Hay errores de validación en el formulario.<br />
+          <span className="text-sm font-normal">Puedes forzar el guardado para debug, pero revisa la consola para ver los campos faltantes.</span>
+          <div className="mt-2">
+            <button
+              type="button"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded"
+              onClick={handleForceSave}
+              disabled={isSubmitting}
+            >
+              Guardar igual (debug)
+            </button>
+          </div>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
