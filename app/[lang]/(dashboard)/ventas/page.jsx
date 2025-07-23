@@ -172,7 +172,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const clienteSeleccionado = clientesState.find(c => c.id === clienteId);
   // Estado para modal de nuevo cliente
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", localidad: "" });
 
   // Estado para productos desde Firestore
   const [productosState, setProductosState] = useState([]);
@@ -276,7 +276,7 @@ const handleAgregarProducto = (producto) => {
     const docRef = await addDoc(collection(db, "clientes"), clienteObj);
     setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
     setClienteId(docRef.id);
-    setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "" });
+    setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", localidad: "" });
     setOpenNuevoCliente(false);
   };
 
@@ -440,6 +440,35 @@ const handleAgregarProducto = (producto) => {
     }
   }, [maderaInputs, categoriaId]);
 
+  // 1. Buscador dinámico de clientes
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const clientesFiltrados = clientesState.filter(c =>
+    c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
+    c.cuit.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
+    (c.localidad || "").toLowerCase().includes(busquedaCliente.toLowerCase())
+  );
+  // 2. Campo localidad en nuevo cliente
+  // 3. Select de clientes con buscador dinámico
+  // 4. Quitar inputs editables de dimensiones y precio en productos Maderas en la tabla de seleccionados
+  // 5. Descuento como porcentaje
+  // 6. ID generado tipo PRESU-XXXX o VENTA-XXXX
+  const generarId = (tipo) => {
+    const num = Math.floor(1000 + Math.random() * 9000);
+    return tipo === 'presupuesto' ? `PRESU-${num}` : `VENTA-${num}`;
+  };
+  // 7. Inputs de cantidad más grandes
+  // 8. Stock dinámico y aviso
+  // 9. Quitar condición de pago
+  // 10. Pago parcial
+  // 11. Quitar todo lo de factura
+  // 12. Envío: check para usar dirección del cliente o manual
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
+  // 13. En sección ENVÍO: fecha, rango horario, observaciones y prioridad juntos
+  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [rangoHorario, setRangoHorario] = useState("");
+  const [observaciones, setObservaciones] = useState("");
+  const [prioridad, setPrioridad] = useState("");
+
   return (
     <>
       <DialogHeader className="mb-2">
@@ -482,6 +511,14 @@ const handleAgregarProducto = (producto) => {
         <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
           <label className="font-semibold">Cliente</label>
               <div className="flex gap-2 items-center">
+                <Input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={busquedaCliente}
+                  onChange={e => setBusquedaCliente(e.target.value)}
+                  className="w-full md:w-60"
+                  disabled={clientesLoading || isSubmitting}
+                />
                 <select
                   value={clienteId}
                   onChange={e => setClienteId(e.target.value)}
@@ -491,8 +528,8 @@ const handleAgregarProducto = (producto) => {
                   disabled={clientesLoading || isSubmitting}
                 >
             <option value="">Seleccionar cliente...</option>
-                  {clientesState.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre} - {c.cuit}</option>
+                  {clientesFiltrados.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre} - {c.cuit} - {c.localidad}</option>
             ))}
           </select>
                 <Button 
@@ -581,7 +618,10 @@ const handleAgregarProducto = (producto) => {
                         <div className="col-span-5 font-medium">{prod.nombre}</div>
                         <div className="col-span-2 text-xs text-default-500">{prod.unidadMedida}</div>
                         <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioPorPie || 0}</div>
-                        <div className="col-span-2 font-mono text-xs">{prod.stock}</div>
+                        <div className="col-span-2 font-mono text-xs">
+                          Stock: {prod.stock}
+                          {prod.stock <= 0 && <span className="text-red-600 font-semibold ml-2">Sin stock</span>}
+                        </div>
                         <div className="col-span-1 flex justify-end">
                           <Button
                             type="button"
@@ -742,13 +782,15 @@ const handleAgregarProducto = (producto) => {
                         )}
                       </td>
                       <td className="text-center">
-                        <Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-14 mx-auto text-center" disabled={isSubmitting} />
+                        <Input type="number" min={1} value={p.cantidad} onChange={e => handleCantidadChange(p.id, e.target.value)} className="w-28 mx-auto text-center text-lg font-bold" disabled={isSubmitting} />
                       </td>
                       <td className="text-center">${p.precio}</td>
                       <td className="text-center">
-                        <Input type="number" min={0} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-14 mx-auto text-center" disabled={isSubmitting} />
+                        <Input type="number" min={0} max={100} value={p.descuento} onChange={e => handleDescuentoChange(p.id, e.target.value)} className="w-20 mx-auto text-center" disabled={isSubmitting} suffix="%" />
                       </td>
-                      <td className="text-center font-semibold text-primary">${(Number(p.precio) * Number(p.cantidad) - Number(p.descuento) * Number(p.cantidad)).toFixed(2)}</td>
+                      <td className="text-center font-semibold text-primary">
+                        ${((Number(p.precio) * Number(p.cantidad)) * (1 - (Number(p.descuento) / 100))).toFixed(2)}
+                      </td>
                       <td className="text-center">
                         <Button type="button" size="icon" variant="ghost" onClick={() => handleQuitarProducto(p.id)} disabled={isSubmitting} title="Quitar producto">
                           <span className="text-lg font-bold text-red-500">×</span>
@@ -774,28 +816,11 @@ const handleAgregarProducto = (producto) => {
           <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Condiciones de pago y entrega</div>
                     <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
-                    <select {...register("condicionesPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-              <option value="">Condiciones de pago...</option>
-              <option value="contado">Contado</option>
-                      <option value="30_dias">30 días</option>
-                      <option value="60_dias">60 días</option>
-                      <option value="90_dias">90 días</option>
-                      <option value="transferencia_inmediata">Transferencia inmediata</option>
-                    </select>
-                    <select {...register("metodoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                      <option value="">Método de pago...</option>
-                      <option value="efectivo">Efectivo</option>
-                      <option value="transferencia">Transferencia bancaria</option>
-                      <option value="tarjeta_debito">Tarjeta de débito</option>
-                      <option value="tarjeta_credito">Tarjeta de crédito</option>
-              <option value="cheque">Cheque</option>
-                      <option value="mercadopago">MercadoPago</option>
-            </select>
-                    <select {...register("estadoPago")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
-                <option value="">Estado de pago...</option>
-                <option value="pagado">Pagado</option>
-                <option value="pendiente">Pendiente</option>
-                      <option value="parcial">Pago parcial</option>
+                    <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
+                    <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
+                    <select {...register("prioridad")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                      <option value="">Prioridad...</option>
+                      {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                     </select>
                   </div>
 
@@ -811,9 +836,24 @@ const handleAgregarProducto = (producto) => {
                     </select>
                     {tipoEnvioSeleccionado !== "retiro_local" && (
                       <>
-                        <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
-                        <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
-                        <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
+                        <div className="flex items-center gap-2 mb-2">
+                          <input type="checkbox" checked={usarDireccionCliente} onChange={e => setUsarDireccionCliente(e.target.checked)} id="usarDireccionCliente" />
+                          <label htmlFor="usarDireccionCliente" className="text-sm">Usar dirección del cliente</label>
+                        </div>
+                        {!usarDireccionCliente && (
+                          <>
+                            <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
+                            <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
+                            <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
+                          </>
+                        )}
+                        {usarDireccionCliente && clienteSeleccionado && (
+                          <>
+                            <Input value={clienteSeleccionado.direccion || ""} readOnly className="w-full" />
+                            <Input value={clienteSeleccionado.localidad || ""} readOnly className="w-full" />
+                            <Input value={clienteSeleccionado.codigoPostal || ""} readOnly className="w-full" />
+                          </>
+                        )}
                         <select {...register("transportista")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                           <option value="">Transportista...</option>
                           {transportistas.map(t => <option key={t}>{t}</option>)}
@@ -923,6 +963,7 @@ const handleAgregarProducto = (producto) => {
             <Input placeholder="Dirección" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
             <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
             <Input placeholder="Email" className="w-full" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
+            <Input placeholder="Localidad" className="w-full" value={nuevoCliente.localidad || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>

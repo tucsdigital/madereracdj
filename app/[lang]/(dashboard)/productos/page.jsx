@@ -30,16 +30,14 @@ const baseSchema = {
   estado: yup.string().oneOf(["Activo", "Inactivo", "Descontinuado"]).required(),
   costo: yup.number().positive().required("El costo es obligatorio"),
 };
+// Ajusto los esquemas de validación:
 const maderasSchema = yup.object().shape({
   ...baseSchema,
   tipoMadera: yup.string().required("Tipo de madera obligatorio"),
-  tratamiento: yup.string().required("Tratamiento obligatorio"),
   largo: yup.number().positive().required("Largo obligatorio"),
   ancho: yup.number().positive().required("Ancho obligatorio"),
   espesor: yup.number().positive().required("Espesor obligatorio"),
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
-  precioUnidad: yup.number().positive().required("Precio obligatorio"),
-  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacion: yup.string().required("Ubicación obligatoria"),
   dimensionesEspeciales: yup.boolean(),
 });
@@ -55,7 +53,6 @@ const fijacionesSchema = yup.object().shape({
   unidadVenta: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadVenta: yup.number().positive().required("Precio obligatorio"),
-  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionFijacion: yup.string().required("Ubicación obligatoria"),
 });
 const herrajesSchema = yup.object().shape({
@@ -69,7 +66,6 @@ const herrajesSchema = yup.object().shape({
   unidadVentaHerraje: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidadHerraje: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadHerraje: yup.number().positive().required("Precio obligatorio"),
-  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionHerraje: yup.string().required("Ubicación obligatoria"),
 });
 const adhesivosSchema = yup.object().shape({
@@ -80,7 +76,6 @@ const adhesivosSchema = yup.object().shape({
   contenidoNeto: yup.string().required("Contenido neto obligatorio"),
   unidadVentaQuimico: yup.string().required("Unidad de venta obligatoria"),
   precioUnidadQuimico: yup.number().positive().required("Precio obligatorio"),
-  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionQuimico: yup.string().required("Ubicación obligatoria"),
 });
 const herramientasSchema = yup.object().shape({
@@ -93,7 +88,6 @@ const herramientasSchema = yup.object().shape({
   unidadVentaHerramienta: yup.string().required("Unidad de venta obligatoria"),
   contenidoUnidadHerramienta: yup.number().positive().required("Contenido por unidad obligatorio"),
   precioUnidadHerramienta: yup.number().positive().required("Precio obligatorio"),
-  stock: yup.number().integer().min(0).required("Stock obligatorio"),
   ubicacionHerramienta: yup.string().required("Ubicación obligatoria"),
 });
 const esquemasPorCategoria = {
@@ -205,13 +199,20 @@ function FormularioProducto({ onClose, onSuccess }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {categoria === "Maderas" && (<>
                 <div><Input {...register("tipoMadera")} placeholder="Tipo de madera" disabled={isSubmitting} /></div>
-                <div><Input {...register("tratamiento")} placeholder="Tratamiento/Acabado" disabled={isSubmitting} /></div>
                 <div><Input {...register("largo")} type="number" step="0.01" placeholder="Largo (m)" disabled={isSubmitting} /></div>
                 <div><Input {...register("ancho")} type="number" step="0.01" placeholder="Ancho (cm)" disabled={isSubmitting} /></div>
                 <div><Input {...register("espesor")} type="number" step="0.01" placeholder="Espesor (cm)" disabled={isSubmitting} /></div>
-                <div><Input {...register("unidadMedida")} placeholder="Unidad de medida de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("precioUnidad")} type="number" step="0.01" placeholder="Precio por unidad de medida" disabled={isSubmitting} /></div>
-                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Unidad de medida de venta</label>
+                  <select {...register("unidadMedida")}
+                    className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <option value="">Seleccionar unidad</option>
+                    <option value="pie">Pie</option>
+                    <option value="kg">Kg</option>
+                    <option value="cm">Cm</option>
+                  </select>
+                  {errors.unidadMedida && <span className="text-red-500 text-xs">{errors.unidadMedida.message}</span>}
+                </div>
                 <div className="md:col-span-2"><Input {...register("ubicacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><label className="flex items-center gap-2 text-xs"><input type="checkbox" {...register("dimensionesEspeciales")} disabled={isSubmitting} />Dimensiones especiales</label></div>
               </>)}
@@ -226,7 +227,6 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVenta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidad")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadVenta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionFijacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Herrajes" && (<>
@@ -239,7 +239,6 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVentaHerraje")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidadHerraje")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadHerraje")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionHerraje")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Adhesivos" && (<>
@@ -249,7 +248,6 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("contenidoNeto")} placeholder="Contenido neto/volumen" disabled={isSubmitting} /></div>
                 <div><Input {...register("unidadVentaQuimico")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadQuimico")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionQuimico")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
               {categoria === "Herramientas" && (<>
@@ -261,7 +259,6 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("unidadVentaHerramienta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("contenidoUnidadHerramienta")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
                 <div><Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("stock")} type="number" placeholder="Stock actual" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
             </div>

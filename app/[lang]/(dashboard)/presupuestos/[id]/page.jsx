@@ -2,9 +2,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, updateDoc, setDoc, addDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import FormularioVentaPresupuesto from "../../ventas/page";
 
 const PresupuestoDetalle = () => {
   const params = useParams();
@@ -13,6 +20,16 @@ const PresupuestoDetalle = () => {
   const [presupuesto, setPresupuesto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // 1. Importaciones necesarias para edición, modal y Firestore
+  const [editando, setEditando] = useState(false);
+  const [presupuestoEdit, setPresupuestoEdit] = useState(null);
+  const [openVenta, setOpenVenta] = useState(false);
+  const [ventaForm, setVentaForm] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+  const [errorForm, setErrorForm] = useState("");
 
   useEffect(() => {
     const fetchPresupuesto = async () => {
@@ -55,6 +72,81 @@ const PresupuestoDetalle = () => {
     
     fetchPresupuesto();
   }, [id, lang, params]);
+
+  // 3. Cargar clientes y productos para selects y actualización de precios
+  useEffect(() => {
+    const fetchClientesYProductos = async () => {
+      const snapClientes = await getDocs(collection(db, "clientes"));
+      setClientes(snapClientes.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const snapProductos = await getDocs(collection(db, "productos"));
+      setProductos(snapProductos.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchClientesYProductos();
+  }, []);
+
+  // 4. Al activar edición, clonar presupuesto
+  useEffect(() => {
+    if (editando && presupuesto) setPresupuestoEdit(JSON.parse(JSON.stringify(presupuesto)));
+  }, [editando, presupuesto]);
+
+  // 5. Función para actualizar precios
+  const handleActualizarPrecios = async () => {
+    setLoadingPrecios(true);
+    try {
+      const nuevosProductos = (presupuestoEdit.productos || presupuestoEdit.items || []).map(item => {
+        const prod = productos.find(p => p.id === item.id);
+        if (prod) {
+          return { ...item, precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta };
+        }
+        return item;
+      });
+      setPresupuestoEdit(prev => ({ ...prev, productos: nuevosProductos, items: nuevosProductos }));
+    } finally {
+      setLoadingPrecios(false);
+    }
+  };
+
+  // 6. Guardar cambios en Firestore
+  const handleGuardarCambios = async () => {
+    setErrorForm("");
+    // Validaciones básicas
+    if (!presupuestoEdit.clienteId || !presupuestoEdit.cliente?.nombre) { setErrorForm("Selecciona un cliente válido."); return; }
+    if (!presupuestoEdit.productos?.length && !presupuestoEdit.items?.length) { setErrorForm("Agrega al menos un producto."); return; }
+    for (const p of (presupuestoEdit.productos || presupuestoEdit.items)) {
+      if (!p.cantidad || p.cantidad <= 0) { setErrorForm("Todas las cantidades deben ser mayores a 0."); return; }
+      if (p.descuento < 0 || p.descuento > 100) { setErrorForm("El descuento debe ser entre 0 y 100%."); return; }
+    }
+    // Recalcular totales
+    const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
+    const subtotal = productosArr.reduce((acc, p) => acc + (Number(p.precio) * Number(p.cantidad)), 0);
+    const descuentoTotal = productosArr.reduce((acc, p) => acc + ((Number(p.precio) * Number(p.cantidad)) * (Number(p.descuento || 0) / 100)), 0);
+    const iva = (subtotal - descuentoTotal) * 0.21;
+    const total = subtotal - descuentoTotal + iva;
+    const docRef = doc(db, "presupuestos", presupuestoEdit.id);
+    await updateDoc(docRef, {
+      ...presupuestoEdit,
+      subtotal,
+      descuentoTotal,
+      iva,
+      total,
+      productos: productosArr,
+      items: productosArr
+    });
+    setPresupuesto({ ...presupuestoEdit, subtotal, descuentoTotal, iva, total, productos: productosArr, items: productosArr });
+    setEditando(false);
+  };
+
+  // 7. Modal para convertir a venta
+  const handleAbrirVenta = () => {
+    setVentaForm({ ...presupuestoEdit });
+    setOpenVenta(true);
+  };
+  const handleGuardarVenta = async (ventaData) => {
+    // Validaciones y lógica similar a ventas/page.jsx
+    // ...
+    setOpenVenta(false);
+    // Redirigir a la venta creada o mostrar mensaje de éxito
+  };
 
   if (loading) {
     return (
@@ -253,6 +345,94 @@ const PresupuestoDetalle = () => {
             <div><span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}</div>
           </div>
         </div>
+
+        {/* Botones de acción */}
+        <div className="flex gap-3 mt-4">
+          {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
+          {editando && <Button onClick={handleGuardarCambios} disabled={loadingPrecios}>Guardar cambios</Button>}
+          {editando && <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>{loadingPrecios ? "Actualizando..." : "Actualizar precios"}</Button>}
+          {editando && <Button onClick={handleAbrirVenta}>Convertir a Venta</Button>}
+        </div>
+
+        {/* Modal de venta */}
+        <Dialog open={openVenta} onOpenChange={setOpenVenta}>
+          <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
+            <FormularioVentaPresupuesto
+              tipo="venta"
+              onClose={() => setOpenVenta(false)}
+              onSubmit={async (formData) => {
+                try {
+                  const docRef = await addDoc(collection(db, "ventas"), formData);
+                  for (const prod of formData.productos) {
+                    const productoRef = doc(db, "productos", prod.id);
+                    const productoSnap = await getDocs(collection(db, "productos"));
+                    const existe = productoSnap.docs.find(d => d.id === prod.id);
+                    if (!existe) {
+                      alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+                      return;
+                    }
+                    await updateDoc(productoRef, {
+                      stock: increment(-Math.abs(prod.cantidad))
+                    });
+                    await addDoc(collection(db, "movimientos"), {
+                      productoId: prod.id,
+                      tipo: "salida",
+                      cantidad: prod.cantidad,
+                      usuario: "Sistema",
+                      fecha: serverTimestamp(),
+                      referencia: "venta",
+                      referenciaId: docRef.id,
+                      observaciones: `Salida por venta (${formData.nombre || ''})`,
+                      productoNombre: prod.nombre,
+                    });
+                  }
+                  if (formData.tipoEnvio && formData.tipoEnvio !== "retiro_local") {
+                    const envioData = {
+                      ventaId: docRef.id,
+                      clienteId: formData.clienteId,
+                      cliente: formData.cliente,
+                      fechaCreacion: new Date().toISOString(),
+                      fechaEntrega: formData.fechaEntrega,
+                      estado: "pendiente",
+                      prioridad: formData.prioridad || "media",
+                      vendedor: formData.vendedor,
+                      direccionEnvio: formData.direccionEnvio,
+                      localidadEnvio: formData.localidadEnvio,
+                      codigoPostal: formData.codigoPostal,
+                      tipoEnvio: formData.tipoEnvio,
+                      transportista: formData.transportista,
+                      costoEnvio: parseFloat(formData.costoEnvio) || 0,
+                      numeroPedido: formData.numeroPedido,
+                      totalVenta: formData.total,
+                      productos: formData.productos,
+                      cantidadTotal: formData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+                      historialEstados: [
+                        {
+                          estado: "pendiente",
+                          fecha: new Date().toISOString(),
+                          comentario: "Envío creado automáticamente desde la venta"
+                        }
+                      ],
+                      observaciones: formData.observaciones,
+                      instruccionesEspeciales: "",
+                      fechaActualizacion: new Date().toISOString(),
+                      creadoPor: "sistema",
+                    };
+                    const cleanEnvioData = Object.fromEntries(
+                      Object.entries(envioData).filter(([_, v]) => v !== undefined)
+                    );
+                    await addDoc(collection(db, "envios"), cleanEnvioData);
+                  }
+                  setOpenVenta(false);
+                  router.push(`/${lang}/ventas/${docRef.id}`);
+                } catch (error) {
+                  alert("Error al guardar venta: " + error.message);
+                }
+              }}
+              initialValues={presupuestoEdit}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

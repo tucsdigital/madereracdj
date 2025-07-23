@@ -37,6 +37,15 @@ function StockComprasPage() {
   const [movMsg, setMovMsg] = useState("");
   const [movLoading, setMovLoading] = useState(false);
 
+  // Estado para proveedores y buscador dinámico
+  const [proveedores, setProveedores] = useState([]);
+  const [buscadorRepo, setBuscadorRepo] = useState("");
+  const [buscadorMov, setBuscadorMov] = useState("");
+  const [repoCosto, setRepoCosto] = useState("");
+  const [repoProveedor, setRepoProveedor] = useState("");
+  const [movCosto, setMovCosto] = useState("");
+  const [movProveedor, setMovProveedor] = useState("");
+
   // Cargar productos en tiempo real
   useEffect(() => {
     setLoadingProd(true);
@@ -64,6 +73,25 @@ function StockComprasPage() {
     });
     return () => unsub();
   }, []);
+
+  // Cargar proveedores
+  useEffect(() => {
+    const q = query(collection(db, "proveedores"));
+    const unsub = onSnapshot(q, (snap) => {
+      setProveedores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Al seleccionar producto, prellenar costo
+  useEffect(() => {
+    const prod = productos.find(p => p.id === repoProductoId);
+    setRepoCosto(prod ? prod.costo : "");
+  }, [repoProductoId, productos]);
+  useEffect(() => {
+    const prod = productos.find(p => p.id === movProductoId);
+    setMovCosto(prod ? prod.costo : "");
+  }, [movProductoId, productos]);
 
   // Función profesional para registrar movimiento y actualizar stock
   async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones }) {
@@ -116,43 +144,91 @@ function StockComprasPage() {
       (m.usuario || "").toLowerCase().includes(filtroMov.toLowerCase())
     );
 
+  // Filtrar productos en buscador dinámico
+  const productosRepoFiltrados = productos.filter(p =>
+    p.nombre.toLowerCase().includes(buscadorRepo.toLowerCase()) ||
+    p.id.toLowerCase().includes(buscadorRepo.toLowerCase())
+  );
+  const productosMovFiltrados = productos.filter(p =>
+    p.nombre.toLowerCase().includes(buscadorMov.toLowerCase()) ||
+    p.id.toLowerCase().includes(buscadorMov.toLowerCase())
+  );
+
   // Handlers para formularios
   const handleRepoGuardar = async () => {
     setRepoStatus(null); setRepoMsg("");
-    if (!repoProductoId || repoCantidad <= 0) {
+    if (!repoProductoId || repoCantidad <= 0 || !repoProveedor) {
       setRepoStatus("error"); setRepoMsg("Completa todos los campos correctamente."); return;
     }
     setRepoLoading(true);
     try {
+      // Actualizar costo si cambió
+      const prod = productos.find(p => p.id === repoProductoId);
+      if (prod && Number(repoCosto) !== Number(prod.costo)) {
+        await updateDoc(doc(db, "productos", repoProductoId), { costo: Number(repoCosto) });
+      }
+      // Registrar movimiento y stock
       await registrarMovimiento({
         productoId: repoProductoId,
         tipo: "entrada",
         cantidad: Number(repoCantidad),
-        usuario: "Admin", // TODO: usuario real
+        usuario: "Admin",
         observaciones: repoObs
       });
-      setRepoStatus("success"); setRepoMsg("Reposición registrada y stock actualizado.");
-      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoStatus(null); setRepoLoading(false); }, 1200);
+      // Crear gasto automático
+      await addDoc(collection(db, "gastos"), {
+        productoId: repoProductoId,
+        productoNombre: prod?.nombre || "",
+        proveedorId: repoProveedor,
+        proveedorNombre: proveedores.find(p => p.id === repoProveedor)?.nombre || "",
+        cantidad: Number(repoCantidad),
+        costoUnitario: Number(repoCosto),
+        total: Number(repoCosto) * Number(repoCantidad),
+        fecha: serverTimestamp(),
+        tipo: "compra_stock"
+      });
+      setRepoStatus("success"); setRepoMsg("Reposición registrada, stock y gasto actualizados.");
+      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoProveedor(""); setRepoCosto(""); setRepoStatus(null); setRepoLoading(false); }, 1200);
     } catch (e) {
       setRepoStatus("error"); setRepoMsg("Error: " + e.message); setRepoLoading(false);
     }
   };
   const handleMovGuardar = async () => {
     setMovStatus(null); setMovMsg("");
-    if (!movProductoId || movCantidad <= 0) {
+    if (!movProductoId || movCantidad <= 0 || !movProveedor) {
       setMovStatus("error"); setMovMsg("Completa todos los campos correctamente."); return;
     }
     setMovLoading(true);
     try {
+      // Actualizar costo si cambió
+      const prod = productos.find(p => p.id === movProductoId);
+      if (prod && Number(movCosto) !== Number(prod.costo)) {
+        await updateDoc(doc(db, "productos", movProductoId), { costo: Number(movCosto) });
+      }
+      // Registrar movimiento y stock
       await registrarMovimiento({
         productoId: movProductoId,
         tipo: movTipo,
         cantidad: Number(movCantidad),
-        usuario: "Admin", // TODO: usuario real
+        usuario: "Admin",
         observaciones: movObs
       });
-      setMovStatus("success"); setMovMsg("Movimiento registrado y stock actualizado.");
-      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovStatus(null); setMovLoading(false); }, 1200);
+      // Crear gasto automático solo si es entrada
+      if (movTipo === "entrada") {
+        await addDoc(collection(db, "gastos"), {
+          productoId: movProductoId,
+          productoNombre: prod?.nombre || "",
+          proveedorId: movProveedor,
+          proveedorNombre: proveedores.find(p => p.id === movProveedor)?.nombre || "",
+          cantidad: Number(movCantidad),
+          costoUnitario: Number(movCosto),
+          total: Number(movCosto) * Number(movCantidad),
+          fecha: serverTimestamp(),
+          tipo: "compra_stock"
+        });
+      }
+      setMovStatus("success"); setMovMsg("Movimiento registrado, stock y gasto actualizados.");
+      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovProveedor(""); setMovCosto(""); setMovStatus(null); setMovLoading(false); }, 1200);
     } catch (e) {
       setMovStatus("error"); setMovMsg("Error: " + e.message); setMovLoading(false);
     }
@@ -279,10 +355,20 @@ function StockComprasPage() {
                 {repoMsg}
               </div>
             )}
+            {/* Buscador dinámico */}
+            <label className="font-semibold">Buscar producto</label>
+            <Input type="text" className="w-full" value={buscadorRepo} onChange={e => setBuscadorRepo(e.target.value)} placeholder="Nombre o código..." />
             <label className="font-semibold">Producto</label>
             <select className="border rounded px-2 py-2" value={repoProductoId} onChange={e => setRepoProductoId(e.target.value)}>
               <option value="">Seleccionar producto</option>
-              {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {productosRepoFiltrados.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+            <label className="font-semibold">Costo unitario</label>
+            <Input type="number" min={0} className="w-full" value={repoCosto} onChange={e => setRepoCosto(e.target.value)} />
+            <label className="font-semibold">Proveedor</label>
+            <select className="border rounded px-2 py-2" value={repoProveedor} onChange={e => setRepoProveedor(e.target.value)}>
+              <option value="">Seleccionar proveedor</option>
+              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
             <label className="font-semibold">Cantidad</label>
             <Input type="number" min={1} className="w-full" value={repoCantidad} onChange={e => setRepoCantidad(e.target.value)} />
@@ -309,10 +395,20 @@ function StockComprasPage() {
                 {movMsg}
               </div>
             )}
+            {/* Buscador dinámico */}
+            <label className="font-semibold">Buscar producto</label>
+            <Input type="text" className="w-full" value={buscadorMov} onChange={e => setBuscadorMov(e.target.value)} placeholder="Nombre o código..." />
             <label className="font-semibold">Producto</label>
             <select className="border rounded px-2 py-2" value={movProductoId} onChange={e => setMovProductoId(e.target.value)}>
               <option value="">Seleccionar producto</option>
-              {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {productosMovFiltrados.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+            <label className="font-semibold">Costo unitario</label>
+            <Input type="number" min={0} className="w-full" value={movCosto} onChange={e => setMovCosto(e.target.value)} />
+            <label className="font-semibold">Proveedor</label>
+            <select className="border rounded px-2 py-2" value={movProveedor} onChange={e => setMovProveedor(e.target.value)}>
+              <option value="">Seleccionar proveedor</option>
+              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
             <label className="font-semibold">Tipo de movimiento</label>
             <select className="border rounded px-2 py-2" value={movTipo} onChange={e => setMovTipo(e.target.value)}>

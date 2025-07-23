@@ -222,6 +222,13 @@ const enviosColumns = [
           >
             Estado
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditarEnvio(envio)}
+          >
+            Editar
+          </Button>
         </div>
       );
     },
@@ -435,6 +442,99 @@ function DetalleEnvio({ envio, onClose }) {
               ))}
             </div>
           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// 1. Estado para modal de edición
+const [mostrarEditar, setMostrarEditar] = useState(false);
+const [envioEdit, setEnvioEdit] = useState(null);
+const transportistas = ["camion", "camioneta 1", "camioneta 2", "otro"];
+
+// 2. Filtro predeterminado a 'pendiente' al cargar
+useEffect(() => {
+  setFiltroEstado("pendiente");
+}, []);
+
+// 3. Función para abrir modal de edición
+const handleEditarEnvio = (envio) => {
+  setEnvioEdit(envio);
+  setMostrarEditar(true);
+};
+
+// 4. Modal de edición de envío
+function EditarEnvioModal({ envio, onClose, onUpdate }) {
+  const [nuevoTransportista, setNuevoTransportista] = useState(envio.transportista || "");
+  const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
+  const [comentario, setComentario] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleGuardar = async () => {
+    if (!nuevoTransportista || !nuevoEstado) return;
+    setIsSubmitting(true);
+    try {
+      const envioRef = doc(db, "envios", envio.id);
+      let nuevoHistorial = envio.historialEstados || [];
+      if (nuevoEstado !== envio.estado) {
+        nuevoHistorial = [
+          ...nuevoHistorial,
+          {
+            estado: nuevoEstado,
+            fecha: new Date().toISOString(),
+            comentario: comentario || `Estado cambiado a ${estadosEnvio[nuevoEstado]?.label || nuevoEstado}`,
+            cambiadoPor: "usuario",
+          }
+        ];
+      }
+      await updateDoc(envioRef, {
+        transportista: nuevoTransportista,
+        estado: nuevoEstado,
+        historialEstados: nuevoHistorial,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      onUpdate();
+      onClose();
+    } catch (e) {
+      alert("Error al guardar cambios: " + e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Editar Envío N° {envio.numeroPedido}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Transportista</label>
+            <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoTransportista} onChange={e => setNuevoTransportista(e.target.value)}>
+              <option value="">Seleccionar transportista</option>
+              {transportistas.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Estado</label>
+            <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value)}>
+              {Object.entries(estadosEnvio).map(([key, value]) => (
+                <option key={key} value={key}>{value.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Comentario (opcional)</label>
+            <Textarea value={comentario} onChange={e => setComentario(e.target.value)} placeholder="Comentario sobre el cambio..." />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleGuardar} disabled={isSubmitting || !nuevoTransportista || !nuevoEstado}>
+            {isSubmitting ? "Guardando..." : "Guardar cambios"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -671,6 +771,13 @@ const EnviosPage = () => {
             setMostrarDetalle(false);
             setEnvioSeleccionado(null);
           }}
+        />
+      )}
+      {mostrarEditar && envioEdit && (
+        <EditarEnvioModal
+          envio={envioEdit}
+          onClose={() => { setMostrarEditar(false); setEnvioEdit(null); }}
+          onUpdate={handleActualizarEnvio}
         />
       )}
     </div>
