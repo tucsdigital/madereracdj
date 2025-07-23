@@ -890,6 +890,14 @@ const PresupuestoDetalle = () => {
 
 // Nuevo formulario minimalista para conversión a venta
 function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
+  const [clientes, setClientes] = React.useState([]);
+  // Cargar clientes al montar
+  React.useEffect(() => {
+    getDocs(collection(db, "clientes")).then(snap => {
+      setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+  }, []);
+
   const schema = yup.object().shape({
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
@@ -906,7 +914,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: (s) => s.required("Selecciona el transportista"),
       otherwise: (s) => s.notRequired(),
     }),
-    costoEnvio: yup.number().notRequired(),
+    costoEnvio: yup.number()
+      .transform((value, originalValue) => originalValue === '' ? undefined : value)
+      .notRequired(),
     fechaEntrega: yup.string().when("tipoEnvio", {
       is: (val) => val && val !== "retiro_local",
       then: (s) => s.required("La fecha de entrega es obligatoria"),
@@ -953,21 +963,15 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     },
   });
 
-  // Sincronizar clienteId y cliente automáticamente si cambian en presupuesto
+  // Sincronizar clienteId automáticamente si falta pero hay cuit
   React.useEffect(() => {
-    if (presupuesto?.clienteId) {
-      setValue("clienteId", presupuesto.clienteId);
+    if (!presupuesto?.clienteId && presupuesto?.cliente?.cuit && clientes.length > 0) {
+      const match = clientes.find(c => c.cuit === presupuesto.cliente.cuit);
+      if (match) {
+        setValue("clienteId", match.id);
+      }
     }
-    if (presupuesto?.cliente) {
-      setValue("cliente", {
-        nombre: presupuesto.cliente.nombre || "",
-        email: presupuesto.cliente.email || "",
-        telefono: presupuesto.cliente.telefono || "",
-        direccion: presupuesto.cliente.direccion || "",
-        cuit: presupuesto.cliente.cuit || "",
-      });
-    }
-  }, [presupuesto, setValue]);
+  }, [presupuesto, clientes, setValue]);
   // Log de errores de validación para debug
   React.useEffect(() => {
     if (Object.keys(errors).length > 0) {
