@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, updateDoc, increment, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download } from "lucide-react";
+import { SelectorProductosPresupuesto } from "../page";
 
 const VentaDetalle = () => {
   const params = useParams();
@@ -13,6 +14,12 @@ const VentaDetalle = () => {
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editando, setEditando] = useState(false);
+  const [ventaEdit, setVentaEdit] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+  const [errorForm, setErrorForm] = useState("");
 
   useEffect(() => {
     const fetchVenta = async () => {
@@ -55,6 +62,93 @@ const VentaDetalle = () => {
     
     fetchVenta();
   }, [id, lang, params]);
+
+  // Cargar clientes y productos para selects y edición
+  useEffect(() => {
+    const fetchClientesYProductos = async () => {
+      const snapClientes = await getDocs(collection(db, "clientes"));
+      setClientes(snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const snapProductos = await getDocs(collection(db, "productos"));
+      setProductos(snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchClientesYProductos();
+  }, []);
+  // Al activar edición, clonar venta
+  useEffect(() => {
+    if (editando && venta) setVentaEdit(JSON.parse(JSON.stringify(venta)));
+  }, [editando, venta]);
+  // Función para actualizar precios
+  const handleActualizarPrecios = async () => {
+    setLoadingPrecios(true);
+    try {
+      const nuevosProductos = (ventaEdit.productos || ventaEdit.items || []).map((item) => {
+        const prod = productos.find((p) => p.id === item.id);
+        if (prod) {
+          return {
+            ...item,
+            precio:
+              prod.precioUnidad ||
+              prod.precioUnidadVenta ||
+              prod.precioUnidadHerraje ||
+              prod.precioUnidadQuimico ||
+              prod.precioUnidadHerramienta,
+          };
+        }
+        return item;
+      });
+      setVentaEdit((prev) => ({
+        ...prev,
+        productos: nuevosProductos,
+        items: nuevosProductos,
+      }));
+    } finally {
+      setLoadingPrecios(false);
+    }
+  };
+  // Guardar cambios en Firestore
+  const handleGuardarCambios = async () => {
+    setErrorForm("");
+    if (!ventaEdit.clienteId || !ventaEdit.cliente?.nombre) {
+      setErrorForm("Selecciona un cliente válido.");
+      return;
+    }
+    if (!ventaEdit.productos?.length && !ventaEdit.items?.length) {
+      setErrorForm("Agrega al menos un producto.");
+      return;
+    }
+    for (const p of ventaEdit.productos || ventaEdit.items) {
+      if (!p.cantidad || p.cantidad <= 0) {
+        setErrorForm("Todas las cantidades deben ser mayores a 0.");
+        return;
+      }
+      if (p.descuento < 0 || p.descuento > 100) {
+        setErrorForm("El descuento debe ser entre 0 y 100%.");
+        return;
+      }
+    }
+    const productosArr = ventaEdit.productos || ventaEdit.items;
+    const subtotal = productosArr.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0);
+    const descuentoTotal = productosArr.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0);
+    const total = subtotal - descuentoTotal;
+    const docRef = doc(db, "ventas", ventaEdit.id);
+    await updateDoc(docRef, {
+      ...ventaEdit,
+      subtotal,
+      descuentoTotal,
+      total,
+      productos: productosArr,
+      items: productosArr,
+    });
+    setVenta({
+      ...ventaEdit,
+      subtotal,
+      descuentoTotal,
+      total,
+      productos: productosArr,
+      items: productosArr,
+    });
+    setEditando(false);
+  };
 
   if (loading) {
     return (
@@ -228,9 +322,9 @@ const VentaDetalle = () => {
                       <td className="p-3 text-center">{producto.cantidad || 0}</td>
                       <td className="p-3 text-center">{producto.unidad || "-"}</td>
                       <td className="p-3 text-right">${(producto.precio || 0).toFixed(2)}</td>
-                      <td className="p-3 text-right">${(producto.descuento || 0).toFixed(2)}</td>
+                      <td className="p-3 text-right">{(producto.descuento || 0).toFixed(2)}%</td>
                       <td className="p-3 text-right font-medium">
-                        ${((producto.precio || 0) * (producto.cantidad || 0) - (producto.descuento || 0) * (producto.cantidad || 0)).toFixed(2)}
+                        ${((producto.precio || 0) * (producto.cantidad || 0) * (1 - (producto.descuento || 0) / 100)).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -250,10 +344,6 @@ const VentaDetalle = () => {
                 <div className="flex justify-between">
                   <span>Descuento total:</span>
                   <span>${(venta.descuentoTotal || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>IVA (21%):</span>
-                  <span>${(venta.iva || 0).toFixed(2)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total:</span>
@@ -282,6 +372,45 @@ const VentaDetalle = () => {
             <div><span className="font-medium">Cantidad de productos:</span> {(venta.productos || venta.items || []).length}</div>
           </div>
         </div>
+
+        {!editando && (
+          <Button onClick={() => setEditando(true)}>Editar</Button>
+        )}
+        {editando && ventaEdit && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <SelectorProductosPresupuesto
+              productosSeleccionados={ventaEdit.productos || []}
+              setProductosSeleccionados={(nuevos) =>
+                setVentaEdit((prev) => ({
+                  ...prev,
+                  productos: nuevos,
+                  items: nuevos,
+                }))
+              }
+              productosState={productos}
+              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+              productosPorCategoria={productos.reduce((acc, p) => {
+                acc[p.categoria] = acc[p.categoria] || [];
+                acc[p.categoria].push(p);
+                return acc;
+              }, {})}
+              isSubmitting={loadingPrecios}
+              modoSoloProductos={true}
+            />
+            <div className="flex gap-2 mt-6">
+              <Button variant="default" onClick={handleGuardarCambios} disabled={loadingPrecios}>
+                Guardar cambios
+              </Button>
+              <Button variant="outline" onClick={() => setEditando(false)} disabled={loadingPrecios}>
+                Cancelar
+              </Button>
+              <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>
+                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+              </Button>
+            </div>
+            {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
+          </div>
+        )}
       </div>
     </div>
   );

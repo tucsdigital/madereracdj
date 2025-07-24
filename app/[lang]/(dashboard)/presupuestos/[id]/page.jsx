@@ -184,14 +184,12 @@ const PresupuestoDetalle = () => {
           (Number(p.descuento || 0) / 100),
       0
     );
-    const iva = (subtotal - descuentoTotal) * 0.21;
-    const total = subtotal - descuentoTotal + iva;
+    const total = subtotal - descuentoTotal;
     const docRef = doc(db, "presupuestos", presupuestoEdit.id);
     await updateDoc(docRef, {
       ...presupuestoEdit,
       subtotal,
       descuentoTotal,
-      iva,
       total,
       productos: productosArr,
       items: productosArr,
@@ -200,7 +198,6 @@ const PresupuestoDetalle = () => {
       ...presupuestoEdit,
       subtotal,
       descuentoTotal,
-      iva,
       total,
       productos: productosArr,
       items: productosArr,
@@ -473,14 +470,12 @@ const PresupuestoDetalle = () => {
                         (Number(p.descuento || 0) / 100),
                     0
                   );
-                  const iva = (subtotal - descuentoTotal) * 0.21;
-                  const total = subtotal - descuentoTotal + iva;
+                  const total = subtotal - descuentoTotal;
                   const docRef = doc(db, "presupuestos", presupuestoEdit.id);
                   await updateDoc(docRef, {
                     ...presupuestoEdit,
                     subtotal,
                     descuentoTotal,
-                    iva,
                     total,
                     productos: productosArr,
                     items: productosArr,
@@ -489,7 +484,6 @@ const PresupuestoDetalle = () => {
                     ...presupuestoEdit,
                     subtotal,
                     descuentoTotal,
-                    iva,
                     total,
                     productos: productosArr,
                     items: productosArr,
@@ -550,16 +544,11 @@ const PresupuestoDetalle = () => {
                             ${(producto.precio || 0).toFixed(2)}
                           </td>
                           <td className="p-3 text-right">
-                            ${(producto.descuento || 0).toFixed(2)}
+                            {(producto.descuento || 0).toFixed(2)}%
                           </td>
                           <td className="p-3 text-right font-medium">
                             $
-                            {(
-                              (producto.precio || 0) *
-                                (producto.cantidad || 0) -
-                              (producto.descuento || 0) *
-                                (producto.cantidad || 0)
-                            ).toFixed(2)}
+                            {((producto.precio || 0) * (producto.cantidad || 0) * (1 - (producto.descuento || 0) / 100)).toFixed(2)}
                           </td>
                         </tr>
                       )
@@ -581,15 +570,9 @@ const PresupuestoDetalle = () => {
                     <span>Descuento total:</span>
                     <span>${(presupuesto.descuentoTotal || 0).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>IVA (21%):</span>
-                    <span>${(presupuesto.iva || 0).toFixed(2)}</span>
-                  </div>
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
-                    <span className="text-primary">
-                      ${(presupuesto.total || 0).toFixed(2)}
-                    </span>
+                    <span className="text-primary">${(presupuesto.total || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
