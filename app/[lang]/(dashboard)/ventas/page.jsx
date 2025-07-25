@@ -205,7 +205,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       then: s => s.required("Selecciona el transportista"),
       otherwise: s => s.notRequired(),
     }),
-    costoEnvio: yup.number().notRequired(),
+    costoEnvio: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" || originalValue === undefined ? undefined : value
+      )
+      .nullable()
+      .notRequired(),
     observaciones: yup.string().notRequired(),
     direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
       is: (tipoEnvio, usarDireccionCliente) => tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
