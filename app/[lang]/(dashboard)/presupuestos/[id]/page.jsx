@@ -352,6 +352,15 @@ const PresupuestoDetalle = () => {
     window.print();
   };
 
+  // Utilidades para asegurar arrays y números seguros
+  function safeArray(val) {
+    return Array.isArray(val) ? val : [];
+  }
+  function safeNumber(val) {
+    const n = Number(val);
+    return isNaN(n) ? 0 : n;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <style>{`
@@ -632,7 +641,7 @@ const PresupuestoDetalle = () => {
             </h3>
 
             {/* Usar productos si existe, sino usar items */}
-            {(presupuesto.productos || presupuesto.items) && (
+            {(safeArray(presupuesto.productos).length > 0 || safeArray(presupuesto.items).length > 0) && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -648,37 +657,43 @@ const PresupuestoDetalle = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(presupuesto.productos || presupuesto.items || []).map(
-                      (producto, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-medium">
-                            {producto.descripcion ||
-                              producto.nombre ||
-                              "Producto sin nombre"}
-                          </td>
-                          <td className="p-3 text-center">
-                            {producto.cantidad || 0}
-                          </td>
-                          <td className="p-3 text-center">
-                            {producto.unidad || "-"}
-                          </td>
-                          <td className="p-3 text-right">
-                            ${(producto.precio || 0).toFixed(2)}
-                          </td>
-                          <td className="p-3 text-right">
-                            {(producto.descuento || 0).toFixed(2)}%
-                          </td>
-                          <td className="p-3 text-right font-medium">
-                            $
-                            {(
-                              (producto.precio || 0) *
-                              (producto.cantidad || 0) *
-                              (1 - (producto.descuento || 0) / 100)
-                            ).toFixed(2)}
-                          </td>
-                        </tr>
-                      )
-                    )}
+                    {safeArray(presupuesto.productos).length > 0
+                      ? safeArray(presupuesto.productos).map((producto, idx) => (
+                          <tr key={idx} className="border-b hover:bg-gray-50">
+                            <td className="p-3 font-medium">
+                              {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                            </td>
+                            <td className="p-3 text-center">{safeNumber(producto.cantidad)}</td>
+                            <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                            <td className="p-3 text-right">${safeNumber(producto.precio).toFixed(2)}</td>
+                            <td className="p-3 text-right">{safeNumber(producto.descuento).toFixed(2)}%</td>
+                            <td className="p-3 text-right font-medium">
+                              ${(
+                                safeNumber(producto.precio) *
+                                safeNumber(producto.cantidad) *
+                                (1 - safeNumber(producto.descuento) / 100)
+                              ).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      : safeArray(presupuesto.items).map((producto, idx) => (
+                          <tr key={idx} className="border-b hover:bg-gray-50">
+                            <td className="p-3 font-medium">
+                              {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                            </td>
+                            <td className="p-3 text-center">{safeNumber(producto.cantidad)}</td>
+                            <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                            <td className="p-3 text-right">${safeNumber(producto.precio).toFixed(2)}</td>
+                            <td className="p-3 text-right">{safeNumber(producto.descuento).toFixed(2)}%</td>
+                            <td className="p-3 text-right font-medium">
+                              ${(
+                                safeNumber(producto.precio) *
+                                safeNumber(producto.cantidad) *
+                                (1 - safeNumber(producto.descuento) / 100)
+                              ).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
                   </tbody>
                 </table>
               </div>
@@ -690,27 +705,27 @@ const PresupuestoDetalle = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>${(presupuesto.subtotal || 0).toFixed(2)}</span>
+                    <span>${safeNumber(presupuesto.subtotal).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
-                    <span>${(presupuesto.descuentoTotal || 0).toFixed(2)}</span>
+                    <span>${safeNumber(presupuesto.descuentoTotal).toFixed(2)}</span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 */}
                   {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && (
                     <div className="flex justify-between">
                       <span>Cotización de envío:</span>
-                      <span>${Number(presupuesto.costoEnvio).toFixed(2)}</span>
+                      <span>${safeNumber(presupuesto.costoEnvio).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
                       ${(
-                        (presupuesto.subtotal || 0) -
-                        (presupuesto.descuentoTotal || 0) +
+                        safeNumber(presupuesto.subtotal) -
+                        safeNumber(presupuesto.descuentoTotal) +
                         (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio))
-                          ? Number(presupuesto.costoEnvio)
+                          ? safeNumber(presupuesto.costoEnvio)
                           : 0)
                       ).toFixed(2)}
                     </span>
