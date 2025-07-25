@@ -2324,11 +2324,19 @@ const VentasPage = () => {
       } else if (open === "presupuesto") {
         try {
           const clienteObj = formData.cliente || {};
-          console.log("[DEBUG] Cliente recibido:", clienteObj);
           const productosLimpios = (formData.items || []).map((p) => ({
             ...p,
           }));
-          console.log("[DEBUG] Productos limpios:", productosLimpios);
+          let costoEnvioFinal = undefined;
+          if (
+            formData.tipoEnvio &&
+            formData.tipoEnvio !== "retiro_local" &&
+            formData.costoEnvio !== undefined &&
+            formData.costoEnvio !== ""
+          ) {
+            costoEnvioFinal = Number(formData.costoEnvio);
+            if (isNaN(costoEnvioFinal)) costoEnvioFinal = undefined;
+          }
           const cleanFormData = {
             ...formData,
             cliente: clienteObj,
@@ -2350,8 +2358,7 @@ const VentasPage = () => {
                 productosLimpios.reduce(
                   (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
                   0
-                )) *
-              0.21,
+                )) * 0.21,
             total:
               productosLimpios.reduce(
                 (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -2373,6 +2380,9 @@ const VentasPage = () => {
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: `PRESU-${Date.now()}`,
+            // ---
+            costoEnvio: costoEnvioFinal,
+            // ---
           };
           console.log("[DEBUG] Objeto preparado para guardar:", cleanFormData);
           const finalFormData = JSON.parse(

@@ -35,7 +35,7 @@ export function DataTable({ columns, data }) {
   const params = useParams();
   const { lang } = params;
 
-  console.log("DataTable data:", data);
+  // console.log("DataTable data:", data);
 
   const table = useReactTable({
     data,
