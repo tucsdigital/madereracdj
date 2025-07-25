@@ -9,6 +9,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
+import { Tooltip } from "@/components/ui/tooltip";
 
 function StockComprasPage() {
   const [tab, setTab] = useState("inventario");
@@ -45,6 +46,11 @@ function StockComprasPage() {
   const [repoProveedor, setRepoProveedor] = useState("");
   const [movCosto, setMovCosto] = useState("");
   const [movProveedor, setMovProveedor] = useState("");
+
+  // Estado para modal de detalle de producto
+  const [detalleProducto, setDetalleProducto] = useState(null);
+  const [detalleMovimientos, setDetalleMovimientos] = useState([]);
+  const [detalleOpen, setDetalleOpen] = useState(false);
 
   // Proveedores ficticios internos
   const proveedoresFicticios = [
@@ -241,6 +247,14 @@ function StockComprasPage() {
     }
   };
 
+  // Acción para ver detalle de producto
+  const handleVerDetalleProducto = (producto) => {
+    setDetalleProducto(producto);
+    const movs = movimientos.filter(m => m.productoId === producto.id);
+    setDetalleMovimientos(movs);
+    setDetalleOpen(true);
+  };
+
   return (
     <div className="py-8 px-2 max-w-5xl mx-auto">
       <div className="mb-8">
@@ -281,16 +295,28 @@ function StockComprasPage() {
                   <TableBody>
                     {productosFiltrados.map(p => (
                       <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-yellow-50" : ""}>
-                        <TableCell>{p.nombre}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{p.nombre}</span>
+                            {p.stock === 0 && <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Sin stock</span>}
+                            {p.stock > 0 && p.stock <= (p.min || 0) && <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs">Bajo</span>}
+                            {p.stock > (p.min || 0) && <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">OK</span>}
+                          </div>
+                        </TableCell>
                         <TableCell>{p.categoria}</TableCell>
-                        <TableCell>{p.stock}</TableCell>
+                        <TableCell>
+                          <Tooltip content={`Última actualización: ${p.fechaActualizacion?.toDate ? p.fechaActualizacion.toDate().toLocaleString() : "-"}`}>
+                            <span>{p.stock}</span>
+                          </Tooltip>
+                        </TableCell>
                         <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
                         <TableCell>
-                          {p.stock <= (p.min || 0) ? <span className="text-yellow-700 font-semibold">Bajo</span> : <span className="text-green-600 font-semibold">OK</span>}
+                          {p.stock === 0 ? <span className="text-red-700 font-semibold">Sin stock</span> : p.stock <= (p.min || 0) ? <span className="text-yellow-700 font-semibold">Bajo</span> : <span className="text-green-600 font-semibold">OK</span>}
                         </TableCell>
                         <TableCell>
                           <Button size="sm" variant="outline" onClick={() => { setOpenRepo(true); setRepoProductoId(p.id); }}><ArrowDown className="w-4 h-4 mr-1" />Reposición</Button>
                           <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); setMovProductoId(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
+                          <Button size="sm" variant="soft" onClick={() => handleVerDetalleProducto(p)}><Plus className="w-4 h-4 mr-1" />Ver detalle</Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -329,7 +355,7 @@ function StockComprasPage() {
                   <TableBody>
                     {movimientosFiltrados.map(m => (
                       <TableRow key={m.id}>
-                        <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleString() : "-"}</TableCell>
                         <TableCell>{m.productoNombre}</TableCell>
                         <TableCell>
                           {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
@@ -431,6 +457,60 @@ function StockComprasPage() {
             <Button variant="outline" onClick={() => setOpenMov(false)}>Cancelar</Button>
             <Button variant="default" onClick={handleMovGuardar} disabled={loadingProd || movLoading}>Guardar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Modal de detalle de producto */}
+      <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
+        <DialogContent className="w-[95vw] max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Detalle del Producto</DialogTitle>
+          </DialogHeader>
+          {detalleProducto && (
+            <div className="flex flex-col gap-2">
+              <div className="font-bold text-lg mb-2">{detalleProducto.nombre}</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                <div><b>Categoría:</b> {detalleProducto.categoria}</div>
+                <div><b>Unidad:</b> {detalleProducto.unidadMedida || detalleProducto.unidadVenta || detalleProducto.unidadVentaHerraje || detalleProducto.unidadVentaQuimico || detalleProducto.unidadVentaHerramienta}</div>
+                <div><b>Stock actual:</b> {detalleProducto.stock}</div>
+                <div><b>Mínimo:</b> {detalleProducto.min || "-"}</div>
+                <div><b>Estado:</b> {detalleProducto.stock === 0 ? "Sin stock" : detalleProducto.stock <= (detalleProducto.min || 0) ? "Bajo" : "OK"}</div>
+                <div><b>Última actualización:</b> {detalleProducto.fechaActualizacion?.toDate ? detalleProducto.fechaActualizacion.toDate().toLocaleString() : "-"}</div>
+              </div>
+              <div className="mt-2">
+                <b>Historial de movimientos:</b>
+                {detalleMovimientos.length === 0 ? (
+                  <div className="text-gray-500 text-sm">No hay movimientos registrados.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Usuario</TableHead>
+                        <TableHead>Observaciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detalleMovimientos.map(m => (
+                        <TableRow key={m.id}>
+                          <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleString() : "-"}</TableCell>
+                          <TableCell>
+                            {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
+                            {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
+                            {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
+                          </TableCell>
+                          <TableCell>{m.cantidad}</TableCell>
+                          <TableCell>{m.usuario}</TableCell>
+                          <TableCell>{m.observaciones}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
