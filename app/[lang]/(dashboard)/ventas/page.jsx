@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { columns } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
+import { columnsPresupuestos, columnsVentas } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -941,7 +941,6 @@ const handleAgregarProducto = (producto) => {
                         <div className="text-sm text-gray-600">Resta: ${(total - (watch('montoAbonado') || 0)).toFixed(2)}</div>
                       </>
                     )}
-                    <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
                   </div>
 
                   {/* Información de envío */}
@@ -1065,16 +1064,46 @@ const handleAgregarProducto = (producto) => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
-            <Input placeholder="Nombre" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
-            <Input placeholder="CUIT" className="w-full" value={nuevoCliente.cuit} onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
-            <Input placeholder="Dirección" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
-            <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
+            <Input placeholder="Nombre *" className="w-full" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} required />
+            <Input placeholder="CUIT / DNI" className="w-full" value={nuevoCliente.cuit || ''} onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
+            <Input placeholder="Dirección *" className="w-full" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} required />
+            <Input placeholder="Teléfono *" className="w-full" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} required />
             <Input placeholder="Email" className="w-full" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
             <Input placeholder="Localidad" className="w-full" value={nuevoCliente.localidad || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })} />
+            <Input placeholder="Partido" className="w-full" value={nuevoCliente.partido || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })} />
+            <Input placeholder="Barrio" className="w-full" value={nuevoCliente.barrio || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })} />
+            <Input placeholder="Área" className="w-full" value={nuevoCliente.area || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, area: e.target.value })} />
+            <Input placeholder="Lote" className="w-full" value={nuevoCliente.lote || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })} />
+            <Textarea placeholder="Descripción" className="w-full" value={nuevoCliente.descripcion || ""} onChange={e => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>
-            <Button variant="default" onClick={handleGuardarNuevoCliente}>Guardar</Button>
+            <Button variant="default" onClick={async () => {
+              // Validar campos obligatorios
+              if (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono) {
+                alert('Nombre, dirección y teléfono son obligatorios');
+                return;
+              }
+              const clienteObj = {
+                nombre: nuevoCliente.nombre,
+                cuit: nuevoCliente.cuit || '',
+                direccion: nuevoCliente.direccion,
+                telefono: nuevoCliente.telefono,
+                email: nuevoCliente.email || '',
+                localidad: nuevoCliente.localidad || '',
+                partido: nuevoCliente.partido || '',
+                barrio: nuevoCliente.barrio || '',
+                area: nuevoCliente.area || '',
+                lote: nuevoCliente.lote || '',
+                descripcion: nuevoCliente.descripcion || '',
+              };
+              const docRef = await addDoc(collection(db, "clientes"), clienteObj);
+              setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
+              setClienteId(docRef.id);
+              setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "" });
+              setOpenNuevoCliente(false);
+              setDropdownClientesOpen(false); // Cierra el dropdown
+            }}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

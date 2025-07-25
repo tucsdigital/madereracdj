@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogFooter,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +52,20 @@ const PresupuestoDetalle = () => {
 
   // Estado para conversión a venta
   const [convirtiendoVenta, setConvirtiendoVenta] = useState(false);
+
+  // Estado para nuevo cliente en presupuestos
+  const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({
+    nombre: "",
+    direccion: "",
+    telefono: "",
+    cuit: "",
+    partido: "",
+    barrio: "",
+    area: "",
+    lote: "",
+    descripcion: "",
+  });
 
   useEffect(() => {
     const fetchPresupuesto = async () => {
@@ -215,6 +230,30 @@ const PresupuestoDetalle = () => {
     // ...
     setOpenVenta(false);
     // Redirigir a la venta creada o mostrar mensaje de éxito
+  };
+
+  // Modal para nuevo cliente en presupuestos
+  const handleNuevoClienteSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const docRef = await addDoc(collection(db, "clientes"), nuevoCliente);
+      setClientes(prev => [...prev, { id: docRef.id, ...nuevoCliente }]);
+      setNuevoCliente({
+        nombre: "",
+        direccion: "",
+        telefono: "",
+        cuit: "",
+        partido: "",
+        barrio: "",
+        area: "",
+        lote: "",
+        descripcion: "",
+      });
+      setOpenNuevoCliente(false);
+    } catch (error) {
+      console.error("Error al guardar nuevo cliente:", error);
+      alert("Error al guardar cliente: " + error.message);
+    }
   };
 
   if (loading) {
@@ -882,6 +921,77 @@ const PresupuestoDetalle = () => {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Modal para nuevo cliente en presupuestos */}
+        <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
+          <DialogContent className="w-[95vw] max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Agregar Cliente</DialogTitle>
+              <DialogDescription>
+                Complete los datos del nuevo cliente para agregarlo al sistema.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleNuevoClienteSubmit} className="space-y-2">
+              <Input
+                label="Nombre *"
+                value={nuevoCliente.nombre}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
+                required
+              />
+              <Input
+                label="Dirección *"
+                value={nuevoCliente.direccion}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
+                required
+              />
+              <Input
+                label="Teléfono *"
+                value={nuevoCliente.telefono}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
+                required
+              />
+              <Input
+                label="CUIT / DNI"
+                value={nuevoCliente.cuit}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })}
+              />
+              <Input
+                label="Partido"
+                value={nuevoCliente.partido}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })}
+              />
+              <Input
+                label="Barrio"
+                value={nuevoCliente.barrio}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })}
+              />
+              <Input
+                label="Área"
+                value={nuevoCliente.area}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, area: e.target.value })}
+              />
+              <Input
+                label="Lote"
+                value={nuevoCliente.lote}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })}
+              />
+              <Textarea
+                label="Descripción"
+                value={nuevoCliente.descripcion}
+                onChange={e => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
+                rows={2}
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button type="button" variant="ghost" onClick={() => setOpenNuevoCliente(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" variant="primary">
+                  Guardar
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
