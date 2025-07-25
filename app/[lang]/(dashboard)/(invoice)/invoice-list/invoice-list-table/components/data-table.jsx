@@ -152,16 +152,6 @@ export function DataTable({ columns, data }) {
         </Table>
       </div>
       
-      {/* Información sobre la funcionalidad */}
-      {table.getRowModel().rows?.length > 0 && (
-        <div className="px-6 py-3 bg-blue-50 border-t border-blue-200">
-          <div className="flex items-center gap-2 text-sm text-blue-700">
-            <Icon icon="heroicons:information-circle" className="w-4 h-4" />
-            <span>💡 <strong>Tip:</strong> Haz click en cualquier fila para ver los detalles del documento</span>
-          </div>
-        </div>
-      )}
-      
       <DataTablePagination table={table} /> 
     </div>
   );

@@ -203,10 +203,13 @@ export const columnsPresupuestos = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => {
-      const total = row.original.subtotal ?? row.getValue("total");
+      const subtotal = row.original.subtotal ?? 0;
+      const descuento = row.original.descuentoTotal ?? 0;
+      const costoEnvio = row.original.costoEnvio;
+      const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
       return (
         <span className="font-semibold text-base text-green-700 dark:text-green-400">
-          {total ? `$${parseFloat(total).toFixed(2)}` : "-"}
+          {`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
         </span>
       );
     }
@@ -217,7 +220,7 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const costo = row.getValue("costoEnvio");
       return costo && !isNaN(Number(costo)) ? (
-        <span className="text-base text-blue-700 dark:text-blue-400">${Number(costo).toFixed(2)}</span>
+        <span className="text-base text-blue-700 dark:text-blue-400">${Number(costo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
       ) : (
         <span className="text-default-400 dark:text-default-500">-</span>
       );
@@ -251,8 +254,11 @@ export const columnsVentas = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => {
-      const total = row.getValue("total");
-      return total ? `$${parseFloat(total).toFixed(2)}` : "-";
+      const subtotal = row.original.subtotal ?? 0;
+      const descuento = row.original.descuentoTotal ?? 0;
+      const costoEnvio = row.original.costoEnvio;
+      const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
+      return total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-";
     }
   },
   {

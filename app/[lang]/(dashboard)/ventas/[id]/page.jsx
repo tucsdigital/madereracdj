@@ -515,16 +515,33 @@ const VentaDetalle = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${(venta.subtotal || 0).toFixed(2)}</span>
+                  <span>${(venta.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Descuento total:</span>
-                  <span>${(venta.descuentoTotal || 0).toFixed(2)}</span>
+                  <span>${(venta.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                 </div>
+                {/* Mostrar costo de envío si existe y es >= 0 */}
+                {venta.costoEnvio !== undefined &&
+                  venta.costoEnvio !== "" &&
+                  !isNaN(Number(venta.costoEnvio)) && (
+                    <div className="flex justify-between">
+                      <span>Costo de envío:</span>
+                      <span>${Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span className="text-primary">
-                    ${(venta.total || 0).toFixed(2)}
+                    ${(
+                      (venta.subtotal || 0) -
+                      (venta.descuentoTotal || 0) +
+                      (venta.costoEnvio !== undefined &&
+                      venta.costoEnvio !== "" &&
+                      !isNaN(Number(venta.costoEnvio))
+                        ? Number(venta.costoEnvio)
+                        : 0)
+                    ).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

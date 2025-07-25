@@ -727,13 +727,11 @@ const PresupuestoDetalle = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>${safeNumber(presupuesto.subtotal).toFixed(2)}</span>
+                    <span>${safeNumber(presupuesto.subtotal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
-                    <span>
-                      ${safeNumber(presupuesto.descuentoTotal).toFixed(2)}
-                    </span>
+                    <span>${safeNumber(presupuesto.descuentoTotal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 */}
                   {presupuesto.costoEnvio !== undefined &&
@@ -741,16 +739,13 @@ const PresupuestoDetalle = () => {
                     !isNaN(Number(presupuesto.costoEnvio)) && (
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
-                        <span>
-                          ${safeNumber(presupuesto.costoEnvio).toFixed(2)}
-                        </span>
+                        <span>${safeNumber(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                       </div>
                     )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      $
-                      {(
+                      ${(
                         safeNumber(presupuesto.subtotal) -
                         safeNumber(presupuesto.descuentoTotal) +
                         (presupuesto.costoEnvio !== undefined &&
@@ -758,7 +753,7 @@ const PresupuestoDetalle = () => {
                         !isNaN(Number(presupuesto.costoEnvio))
                           ? safeNumber(presupuesto.costoEnvio)
                           : 0)
-                      ).toFixed(2)}
+                      ).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

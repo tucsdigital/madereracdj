@@ -326,8 +326,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
     0
   );
-  const iva = (subtotal - descuentoTotal) * 0.21;
-  const total = subtotal - descuentoTotal + iva;
+  const total = subtotal - descuentoTotal;
 
   const handleDateChange = (field, date) => {
     setValue(field, date[0]);
@@ -471,7 +470,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               productos: productosLimpios,
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
-              iva: iva,
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
@@ -482,7 +480,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               productos: productosLimpios,
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
-              iva: iva,
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
@@ -1498,9 +1495,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 Descuento: <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
               </div>
               <div>
-                IVA (21%): <span className="font-bold">${iva.toFixed(2)}</span>
-              </div>
-              <div>
                 Total: <span className="font-bold text-primary">${total.toFixed(2)}</span>
               </div>
             </div>
@@ -2310,15 +2304,6 @@ const VentasPage = () => {
               (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
               0
             ),
-            iva:
-              (productosLimpios.reduce(
-                (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-                0
-              ) -
-                productosLimpios.reduce(
-                  (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
-                  0
-                )) * 0.21,
             total:
               productosLimpios.reduce(
                 (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -2327,16 +2312,7 @@ const VentasPage = () => {
               productosLimpios.reduce(
                 (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
                 0
-              ) +
-              (productosLimpios.reduce(
-                (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-                0
-              ) -
-                productosLimpios.reduce(
-                  (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
-                  0
-                )) *
-                0.21,
+              ),
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: nextNumeroPedido,
