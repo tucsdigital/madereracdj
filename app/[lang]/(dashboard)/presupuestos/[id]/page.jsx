@@ -276,7 +276,9 @@ const PresupuestoDetalle = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
-      return new Date(dateString).toLocaleDateString("es-AR");
+      // Mostrar en formato argentino y ajustar a la zona horaria de Buenos Aires
+      const dateObj = new Date(dateString);
+      return dateObj.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
     } catch {
       return dateString;
     }
@@ -341,7 +343,7 @@ const PresupuestoDetalle = () => {
               Fecha: {formatDate(presupuesto?.fecha)}
             </div>
             <div className="text-xs text-gray-500">
-              N°: {presupuesto?.id?.slice(-8)}
+              N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
             </div>
           </div>
         </div>
@@ -350,7 +352,7 @@ const PresupuestoDetalle = () => {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Presupuesto #{presupuesto.id.slice(-8)}
+                Presupuesto #{presupuesto.numeroPedido || presupuesto.id?.slice(-8)}
               </h1>
               <p className="text-gray-600 mt-1">
                 {presupuesto.nombre ||
@@ -419,6 +421,12 @@ const PresupuestoDetalle = () => {
                   <span className="font-medium">Tipo:</span>{" "}
                   {presupuesto.tipo || "Presupuesto"}
                 </div>
+                {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && (
+                  <div>
+                    <span className="font-medium">Costo estimado de envío:</span>{" $"}
+                    {Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </div>
+                )}
                 <div>
                   <span className="font-medium">Estado:</span>
                   <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
@@ -599,20 +607,28 @@ const PresupuestoDetalle = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-medium">ID del documento:</span>{" "}
-              {presupuesto.id}
+              <span className="font-medium">N° de pedido:</span> {presupuesto.numeroPedido || presupuesto.id}
             </div>
             <div>
-              <span className="font-medium">Fecha de creación:</span>{" "}
-              {formatDate(presupuesto.fechaCreacion)}
+              <span className="font-medium">ID del documento:</span> {presupuesto.id}
             </div>
             <div>
-              <span className="font-medium">Cliente ID:</span>{" "}
-              {presupuesto.clienteId || presupuesto.cliente?.cuit || "-"}
+              <span className="font-medium">Fecha de creación:</span> {formatDate(presupuesto.fechaCreacion)}
             </div>
             <div>
-              <span className="font-medium">Cantidad de productos:</span>{" "}
-              {(presupuesto.productos || presupuesto.items || []).length}
+              <span className="font-medium">Cliente ID:</span> {presupuesto.clienteId || presupuesto.cliente?.cuit || "-"}
+            </div>
+            <div>
+              <span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}
+            </div>
+            <div>
+              <span className="font-medium">Subtotal:</span> ${Number(presupuesto.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            </div>
+            <div>
+              <span className="font-medium">Descuento total:</span> ${Number(presupuesto.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            </div>
+            <div>
+              <span className="font-medium">Total:</span> ${Number(presupuesto.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
             </div>
           </div>
         </div>
@@ -1132,6 +1148,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 className={`w-full ${
                   errors.fechaEntrega ? "border-red-500" : ""
                 }`}
+                value={watch("fechaEntrega") ? new Date(watch("fechaEntrega")).toISOString().split('T')[0] : ""}
               />
               {errors.fechaEntrega && (
                 <span className="text-red-500 text-xs">
@@ -1190,6 +1207,13 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               {errors.prioridad.message}
             </span>
           )}
+          <Textarea
+            {...register("observaciones")}
+            placeholder="Observaciones adicionales"
+            className="w-full"
+            rows={3}
+            disabled={isSubmitting}
+          />
         </div>
       </div>
       <div className="flex gap-2 mt-6 justify-end">

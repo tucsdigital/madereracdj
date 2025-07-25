@@ -30,7 +30,10 @@ const enviosColumns = [
     header: "Fecha Entrega",
     cell: ({ row }) => {
       const fecha = row.getValue("fechaEntrega");
-      return fecha ? new Date(fecha).toLocaleDateString('es-AR') : "-";
+      if (!fecha) return "-";
+      // Ajustar a la zona local y mostrar en formato argentino
+      const dateObj = new Date(fecha);
+      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
     },
   },
   {
@@ -449,10 +452,22 @@ const handleAgregarProducto = (producto) => {
         return obj;
       });
 
+      // Limpiar campos de envío si es retiro_local
+      let cleanData = { ...data };
+      if (cleanData.tipoEnvio === "retiro_local") {
+        cleanData.fechaEntrega = undefined;
+        cleanData.rangoHorario = undefined;
+        cleanData.transportista = undefined;
+        cleanData.direccionEnvio = undefined;
+        cleanData.localidadEnvio = undefined;
+        cleanData.codigoPostal = undefined;
+        cleanData.costoEnvio = undefined;
+      }
+
       const formData = tipo === 'presupuesto'
         ? {
-            fecha: data.fecha,
-            cliente: data.cliente,
+            fecha: cleanData.fecha,
+            cliente: cleanData.cliente,
             items: productosLimpios,
             productos: productosLimpios,
             subtotal: subtotal,
@@ -464,8 +479,8 @@ const handleAgregarProducto = (producto) => {
             numeroPedido: `PRESU-${Date.now()}`,
           }
         : {
-            ...data,
-            clienteId: clienteId || data.clienteId,
+            ...cleanData,
+            clienteId: clienteId || cleanData.clienteId,
             productos: productosLimpios,
             subtotal: subtotal,
             descuentoTotal: descuentoTotal,
@@ -570,6 +585,19 @@ const handleAgregarProducto = (producto) => {
   // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
   React.useEffect(() => {
     if (watch("tipoEnvio") === "retiro_local") {
+      setValue("costoEnvio", "");
+    }
+  }, [watch("tipoEnvio")]);
+
+  // Limpiar todos los campos de envío si tipoEnvio es 'retiro_local'
+  React.useEffect(() => {
+    if (watch("tipoEnvio") === "retiro_local") {
+      setValue("fechaEntrega", "");
+      setValue("rangoHorario", "");
+      setValue("transportista", "");
+      setValue("direccionEnvio", "");
+      setValue("localidadEnvio", "");
+      setValue("codigoPostal", "");
       setValue("costoEnvio", "");
     }
   }, [watch("tipoEnvio")]);
@@ -726,7 +754,13 @@ const handleAgregarProducto = (producto) => {
                         <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioPorPie || 0}</div>
                         <div className="col-span-2 font-mono text-xs">
                           Stock: {prod.stock}
-                          {prod.stock <= 0 && <span className="text-red-600 font-semibold ml-2">Sin stock</span>}
+                          {/* Aviso de stock bajo o sin stock */}
+                          {prod.stock <= 0 && (
+                            <div className="text-red-600 font-semibold text-xs mt-1">¡Sin stock! Se permitirá avanzar igual.</div>
+                          )}
+                          {prod.stock > 0 && prod.stock <= 3 && (
+                            <div className="text-yellow-600 font-semibold text-xs mt-1">Stock bajo: quedan {prod.stock} unidades.</div>
+                          )}
                         </div>
                         <div className="col-span-1 flex justify-end">
                           <Button
@@ -737,13 +771,12 @@ const handleAgregarProducto = (producto) => {
                             className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
                             onClick={() => {
                               if (productosSeleccionados.some(p => p.id === prod.id)) return;
-                              if (prod.stock <= 0) return;
-                              // Tomar dimensiones y precioPorPie de Firebase
+                              // Permitir agregar aunque no haya stock
                               const alto = Number(prod.espesor) || 0;
                               const ancho = Number(prod.ancho) || 0;
                               const largo = Number(prod.largo) || 0;
                               const precioPorPie = Number(prod.precioUnidad) || 0;
-                              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                              if (prod.categoria === 'Maderas' && alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
                                 const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                                 handleAgregarProducto({
                                   id: prod.id,
@@ -756,14 +789,19 @@ const handleAgregarProducto = (producto) => {
                                   largo,
                                   precioPorPie
                                 });
-                              } else {
-                                setSubmitStatus("error");
-                                setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+                              } else if (prod.categoria !== 'Maderas') {
+                                handleAgregarProducto({
+                                  id: prod.id,
+                                  nombre: prod.nombre,
+                                  precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                                  unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                                  stock: prod.stock
+                                });
                               }
                             }}
-                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0}
+                            disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
                           >
-                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                            {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
                           </Button>
                         </div>
                       </div>
@@ -841,6 +879,13 @@ const handleAgregarProducto = (producto) => {
                             <span>Largo: <span className="font-bold">{p.largo}</span> cm</span>
                             <span>$/pie: <span className="font-bold">{p.precioPorPie}</span></span>
                             <span className="ml-2 text-primary font-semibold">Precio calculado: ${p.precio}</span>
+                            {/* Aviso de stock bajo o sin stock */}
+                            {p.stock <= 0 && (
+                              <span className="text-red-600 font-semibold ml-2">¡Sin stock! Se permitirá avanzar igual.</span>
+                            )}
+                            {p.stock > 0 && p.stock <= 3 && (
+                              <span className="text-yellow-600 font-semibold ml-2">Stock bajo: quedan {p.stock} unidades.</span>
+                            )}
                           </div>
                         )}
                       </td>
@@ -902,7 +947,7 @@ const handleAgregarProducto = (producto) => {
                   {/* Información de envío */}
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 pb-1">Información de envío</div>
-                    <select {...register("tipoEnvio")} value={tipoEnvioSeleccionado} onChange={e => { setTipoEnvioSeleccionado(e.target.value); setValue('tipoEnvio', e.target.value); }} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
+                    <select {...register("tipoEnvio")} value={tipoEnvioSeleccionado} onChange={e => { setTipoEnvioSeleccionado(e.target.value); setValue('tipoEnvio', e.target.value, { shouldValidate: true }); }} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                       <option value="">Tipo de envío...</option>
                       <option value="retiro_local">Retiro en local</option>
                       <option value="envio_domicilio">Envío a domicilio</option>
@@ -933,9 +978,17 @@ const handleAgregarProducto = (producto) => {
                           <option value="">Transportista...</option>
                           {transportistas.map(t => <option key={t}>{t}</option>)}
                         </select>
-                        {/* Solo mostrar costoEnvio si no es retiro_local */}
-                        <Input {...register("costoEnvio")} placeholder="Costo de envío" type="number" className="w-full" disabled={isSubmitting} />
-                        <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} />
+                        {tipoEnvioSeleccionado !== "retiro_local" && (
+                          <Input
+                            {...register("costoEnvio")}
+                            placeholder={tipo === 'presupuesto' ? "Costo estimado de envío" : "Costo de envío"}
+                            type="number"
+                            className="w-full"
+                            disabled={isSubmitting}
+                            min={0}
+                          />
+                        )}
+                        <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} value={watch("fechaEntrega") ? new Date(watch("fechaEntrega")).toISOString().split('T')[0] : ""} />
                         <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
                       </>
                     )}
@@ -1142,7 +1195,13 @@ export function SelectorProductosPresupuesto({ productosSeleccionados, setProduc
                     <div className="col-span-2 font-bold text-primary">${prod.precioUnidad || prod.precioPorPie || 0}</div>
                     <div className="col-span-2 font-mono text-xs">
                       Stock: {prod.stock}
-                      {prod.stock <= 0 && <span className="text-red-600 font-semibold ml-2">Sin stock</span>}
+                      {/* Aviso de stock bajo o sin stock */}
+                      {prod.stock <= 0 && (
+                        <div className="text-red-600 font-semibold text-xs mt-1">¡Sin stock! Se permitirá avanzar igual.</div>
+                      )}
+                      {prod.stock > 0 && prod.stock <= 3 && (
+                        <div className="text-yellow-600 font-semibold text-xs mt-1">Stock bajo: quedan {prod.stock} unidades.</div>
+                      )}
                     </div>
                     <div className="col-span-1 flex justify-end">
                       <Button
@@ -1153,13 +1212,12 @@ export function SelectorProductosPresupuesto({ productosSeleccionados, setProduc
                         className={productosSeleccionados.some(p => p.id === prod.id) ? "bg-yellow-200 text-yellow-700 cursor-default" : ""}
                         onClick={() => {
                           if (productosSeleccionados.some(p => p.id === prod.id)) return;
-                          if (prod.stock <= 0) return;
-                          // Tomar dimensiones y precioPorPie de Firebase
+                          // Permitir agregar aunque no haya stock
                           const alto = Number(prod.espesor) || 0;
                           const ancho = Number(prod.ancho) || 0;
                           const largo = Number(prod.largo) || 0;
                           const precioPorPie = Number(prod.precioUnidad) || 0;
-                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                          if (prod.categoria === 'Maderas' && alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
                             const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                             handleAgregarProducto({
                               id: prod.id,
@@ -1172,11 +1230,19 @@ export function SelectorProductosPresupuesto({ productosSeleccionados, setProduc
                               largo,
                               precioPorPie
                             });
+                          } else if (prod.categoria !== 'Maderas') {
+                            handleAgregarProducto({
+                              id: prod.id,
+                              nombre: prod.nombre,
+                              precio: prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
+                              unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                              stock: prod.stock
+                            });
                           }
                         }}
-                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting || prod.stock <= 0}
+                        disabled={productosSeleccionados.some(p => p.id === prod.id) || isSubmitting}
                       >
-                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : (prod.stock <= 0 ? "Sin stock" : "Agregar")}
+                        {productosSeleccionados.some(p => p.id === prod.id) ? "Agregado" : "Agregar"}
                       </Button>
                     </div>
                   </div>
@@ -1253,6 +1319,13 @@ export function SelectorProductosPresupuesto({ productosSeleccionados, setProduc
                         <span>Largo: <span className="font-bold">{p.largo}</span> cm</span>
                         <span>$/pie: <span className="font-bold">{p.precioPorPie}</span></span>
                         <span className="ml-2 text-primary font-semibold">Precio calculado: ${p.precio}</span>
+                        {/* Aviso de stock bajo o sin stock */}
+                        {p.stock <= 0 && (
+                          <span className="text-red-600 font-semibold ml-2">¡Sin stock! Se permitirá avanzar igual.</span>
+                        )}
+                        {p.stock > 0 && p.stock <= 3 && (
+                          <span className="text-yellow-600 font-semibold ml-2">Stock bajo: quedan {p.stock} unidades.</span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -1464,7 +1537,7 @@ const VentasPage = () => {
             <CardTitle>Presupuestos</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable data={presupuestosData} columns={columns} />
+            <DataTable data={presupuestosData} columns={columnsPresupuestos} />
           </CardContent>
         </Card>
         
@@ -1473,7 +1546,7 @@ const VentasPage = () => {
             <CardTitle>Ventas</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable data={ventasData} columns={columns} />
+            <DataTable data={ventasData} columns={columnsVentas} />
           </CardContent>
         </Card>
       </div>

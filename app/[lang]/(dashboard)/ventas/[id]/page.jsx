@@ -6,6 +6,7 @@ import { doc, getDoc, collection, getDocs, updateDoc, increment, serverTimestamp
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download } from "lucide-react";
 import { SelectorProductosPresupuesto } from "../page";
+import FormularioVentaPresupuesto from "../page";
 
 const VentaDetalle = () => {
   const params = useParams();
@@ -203,7 +204,9 @@ const VentaDetalle = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
-      return new Date(dateString).toLocaleDateString('es-AR');
+      // Mostrar en formato argentino y ajustar a la zona horaria de Buenos Aires
+      const dateObj = new Date(dateString);
+      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
     } catch {
       return dateString;
     }
@@ -265,9 +268,20 @@ const VentaDetalle = () => {
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-lg mb-3 text-gray-900">Información de la Venta</h3>
               <div className="space-y-2 text-sm">
+                <div><span className="font-medium">N° de pedido:</span> {venta.numeroPedido || venta.id}</div>
+                <div><span className="font-medium">ID del documento:</span> {venta.id}</div>
                 <div><span className="font-medium">Fecha de emisión:</span> {formatDate(venta.fecha)}</div>
                 <div><span className="font-medium">Fecha de entrega:</span> {formatDate(venta.fechaEntrega)}</div>
                 <div><span className="font-medium">Tipo:</span> {venta.tipo || "Venta"}</div>
+                {venta.costoEnvio !== undefined && venta.costoEnvio !== "" && (
+                  <div>
+                    <span className="font-medium">Costo de envío:</span>{" $"}
+                    {Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </div>
+                )}
+                <div><span className="font-medium">Subtotal:</span> ${Number(venta.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                <div><span className="font-medium">Descuento total:</span> ${Number(venta.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                <div><span className="font-medium">Total:</span> ${Number(venta.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
                 <div><span className="font-medium">Estado de pago:</span> 
                   <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getEstadoPagoColor(venta.estadoPago)}`}>
                     {venta.estadoPago || "No especificado"}
@@ -378,34 +392,86 @@ const VentaDetalle = () => {
         )}
         {editando && ventaEdit && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            {/* Cliente */}
+            <div className="mb-4">
+              <label className="font-semibold">Cliente</label>
+              <input
+                className="border rounded px-2 py-2 w-full mb-2"
+                value={ventaEdit.cliente?.nombre || ''}
+                onChange={e => setVentaEdit({ ...ventaEdit, cliente: { ...ventaEdit.cliente, nombre: e.target.value } })}
+                placeholder="Nombre del cliente"
+              />
+              <input
+                className="border rounded px-2 py-2 w-full mb-2"
+                value={ventaEdit.cliente?.cuit || ''}
+                onChange={e => setVentaEdit({ ...ventaEdit, cliente: { ...ventaEdit.cliente, cuit: e.target.value } })}
+                placeholder="CUIT"
+              />
+              <input
+                className="border rounded px-2 py-2 w-full mb-2"
+                value={ventaEdit.cliente?.direccion || ''}
+                onChange={e => setVentaEdit({ ...ventaEdit, cliente: { ...ventaEdit.cliente, direccion: e.target.value } })}
+                placeholder="Dirección"
+              />
+              <input
+                className="border rounded px-2 py-2 w-full mb-2"
+                value={ventaEdit.cliente?.telefono || ''}
+                onChange={e => setVentaEdit({ ...ventaEdit, cliente: { ...ventaEdit.cliente, telefono: e.target.value } })}
+                placeholder="Teléfono"
+              />
+              <input
+                className="border rounded px-2 py-2 w-full mb-2"
+                value={ventaEdit.cliente?.email || ''}
+                onChange={e => setVentaEdit({ ...ventaEdit, cliente: { ...ventaEdit.cliente, email: e.target.value } })}
+                placeholder="Email"
+              />
+            </div>
+            {/* Fechas y otros campos */}
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input className="border rounded px-2 py-2 w-full" type="date" value={ventaEdit.fecha || ''} onChange={e => setVentaEdit({ ...ventaEdit, fecha: e.target.value })} placeholder="Fecha" />
+              <input className="border rounded px-2 py-2 w-full" type="date" value={ventaEdit.fechaEntrega || ''} onChange={e => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })} placeholder="Fecha de entrega" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.formaPago || ''} onChange={e => setVentaEdit({ ...ventaEdit, formaPago: e.target.value })} placeholder="Forma de pago" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.tipoEnvio || ''} onChange={e => setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })} placeholder="Tipo de envío" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.transportista || ''} onChange={e => setVentaEdit({ ...ventaEdit, transportista: e.target.value })} placeholder="Transportista" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.vendedor || ''} onChange={e => setVentaEdit({ ...ventaEdit, vendedor: e.target.value })} placeholder="Vendedor" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.prioridad || ''} onChange={e => setVentaEdit({ ...ventaEdit, prioridad: e.target.value })} placeholder="Prioridad" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.costoEnvio || ''} onChange={e => setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })} placeholder="Costo de envío" type="number" />
+              <input className="border rounded px-2 py-2 w-full" value={ventaEdit.rangoHorario || ''} onChange={e => setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })} placeholder="Rango horario" />
+              <textarea className="border rounded px-2 py-2 w-full" value={ventaEdit.observaciones || ''} onChange={e => setVentaEdit({ ...ventaEdit, observaciones: e.target.value })} placeholder="Observaciones" />
+            </div>
+            {/* Productos/items: puedes reutilizar SelectorProductosPresupuesto aquí si lo deseas */}
             <SelectorProductosPresupuesto
               productosSeleccionados={ventaEdit.productos || []}
-              setProductosSeleccionados={(nuevos) =>
-                setVentaEdit((prev) => ({
-                  ...prev,
-                  productos: nuevos,
-                  items: nuevos,
-                }))
-              }
+              setProductosSeleccionados={nuevos => setVentaEdit(prev => ({ ...prev, productos: nuevos, items: nuevos }))}
               productosState={productos}
               categoriasState={[...new Set(productos.map((p) => p.categoria))]}
-              productosPorCategoria={productos.reduce((acc, p) => {
-                acc[p.categoria] = acc[p.categoria] || [];
-                acc[p.categoria].push(p);
-                return acc;
-              }, {})}
+              productosPorCategoria={productos.reduce((acc, p) => { acc[p.categoria] = acc[p.categoria] || []; acc[p.categoria].push(p); return acc; }, {})}
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
             <div className="flex gap-2 mt-6">
-              <Button variant="default" onClick={handleGuardarCambios} disabled={loadingPrecios}>
+              <Button variant="default" onClick={async () => {
+                // Guardar solo productos y totales y todos los campos editados
+                const productosArr = ventaEdit.productos || [];
+                const subtotal = productosArr.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0);
+                const descuentoTotal = productosArr.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0);
+                const total = subtotal - descuentoTotal;
+                const docRef = doc(db, "ventas", ventaEdit.id);
+                await updateDoc(docRef, {
+                  ...ventaEdit,
+                  subtotal,
+                  descuentoTotal,
+                  total,
+                  productos: productosArr,
+                  items: productosArr,
+                });
+                setVenta({ ...ventaEdit, subtotal, descuentoTotal, total, productos: productosArr, items: productosArr });
+                setEditando(false);
+              }} disabled={loadingPrecios}>
                 Guardar cambios
               </Button>
               <Button variant="outline" onClick={() => setEditando(false)} disabled={loadingPrecios}>
                 Cancelar
-              </Button>
-              <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>
-                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
               </Button>
             </div>
             {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
