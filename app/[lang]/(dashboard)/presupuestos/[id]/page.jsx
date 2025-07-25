@@ -338,14 +338,7 @@ const PresupuestoDetalle = () => {
     }
   };
 
-  // Calcular fecha de vencimiento automática (7 días después de emisión)
-  const fechaVencimientoAuto = React.useMemo(() => {
-    if (!presupuesto?.fecha) return null;
-    const fecha = new Date(presupuesto.fecha);
-    if (isNaN(fecha.getTime())) return null; // Fecha inválida
-    fecha.setDate(fecha.getDate() + 7);
-    return fecha;
-  }, [presupuesto?.fecha]);
+  // Eliminar el cálculo de fecha de vencimiento automática
 
   // Función para imprimir
   const handlePrint = () => {
@@ -435,11 +428,15 @@ const PresupuestoDetalle = () => {
                 </p>
               )}
               {/* Mostrar costo de envío si existe y es mayor a 0 */}
-              {presupuesto.costoEnvio !== undefined && Number(presupuesto.costoEnvio) > 0 && (
-                <div className="mt-1 text-sm text-primary font-semibold">
-                  Costo de envío estimado: ${Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </div>
-              )}
+              {presupuesto.costoEnvio !== undefined &&
+                Number(presupuesto.costoEnvio) > 0 && (
+                  <div className="mt-1 text-sm text-primary font-semibold">
+                    Costo de envío estimado: $
+                    {Number(presupuesto.costoEnvio).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </div>
+                )}
             </div>
             <div className="flex gap-3">
               <Button
@@ -529,10 +526,10 @@ const PresupuestoDetalle = () => {
                     ? formatFechaLocal(presupuesto.fecha)
                     : "-"}
                 </div>
-                {/** Fecha de vencimiento automática */}
+                {/* Eliminar el cálculo de fecha de vencimiento automática */}
                 <div>
                   <span className="font-medium">Fecha de vencimiento:</span>{" "}
-                  {fechaVencimientoAuto ? formatFechaLocal(fechaVencimientoAuto.toISOString().split("T")[0]) : "-"}
+                  -
                 </div>
                 <div>
                   <span className="font-medium">Tipo:</span>{" "}
@@ -540,7 +537,7 @@ const PresupuestoDetalle = () => {
                 </div>
                 {presupuesto.costoEnvio !== undefined &&
                   presupuesto.costoEnvio !== "" && (
-                <div>
+                    <div>
                       <span className="font-medium">
                         Costo estimado de envío:
                       </span>{" "}
@@ -641,7 +638,8 @@ const PresupuestoDetalle = () => {
             </h3>
 
             {/* Usar productos si existe, sino usar items */}
-            {(safeArray(presupuesto.productos).length > 0 || safeArray(presupuesto.items).length > 0) && (
+            {(safeArray(presupuesto.productos).length > 0 ||
+              safeArray(presupuesto.items).length > 0) && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -658,35 +656,59 @@ const PresupuestoDetalle = () => {
                   </thead>
                   <tbody>
                     {safeArray(presupuesto.productos).length > 0
-                      ? safeArray(presupuesto.productos).map((producto, idx) => (
-                          <tr key={idx} className="border-b hover:bg-gray-50">
-                            <td className="p-3 font-medium">
-                              {producto.descripcion || producto.nombre || "Producto sin nombre"}
-                            </td>
-                            <td className="p-3 text-center">{safeNumber(producto.cantidad)}</td>
-                            <td className="p-3 text-center">{producto.unidad || "-"}</td>
-                            <td className="p-3 text-right">${safeNumber(producto.precio).toFixed(2)}</td>
-                            <td className="p-3 text-right">{safeNumber(producto.descuento).toFixed(2)}%</td>
-                            <td className="p-3 text-right font-medium">
-                              ${(
-                                safeNumber(producto.precio) *
-                                safeNumber(producto.cantidad) *
-                                (1 - safeNumber(producto.descuento) / 100)
-                              ).toFixed(2)}
-                            </td>
-                          </tr>
-                        ))
+                      ? safeArray(presupuesto.productos).map(
+                          (producto, idx) => (
+                            <tr key={idx} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-medium">
+                                {producto.descripcion ||
+                                  producto.nombre ||
+                                  "Producto sin nombre"}
+                              </td>
+                              <td className="p-3 text-center">
+                                {safeNumber(producto.cantidad)}
+                              </td>
+                              <td className="p-3 text-center">
+                                {producto.unidad || "-"}
+                              </td>
+                              <td className="p-3 text-right">
+                                ${safeNumber(producto.precio).toFixed(2)}
+                              </td>
+                              <td className="p-3 text-right">
+                                {safeNumber(producto.descuento).toFixed(2)}%
+                              </td>
+                              <td className="p-3 text-right font-medium">
+                                $
+                                {(
+                                  safeNumber(producto.precio) *
+                                  safeNumber(producto.cantidad) *
+                                  (1 - safeNumber(producto.descuento) / 100)
+                                ).toFixed(2)}
+                              </td>
+                            </tr>
+                          )
+                        )
                       : safeArray(presupuesto.items).map((producto, idx) => (
                           <tr key={idx} className="border-b hover:bg-gray-50">
                             <td className="p-3 font-medium">
-                              {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                              {producto.descripcion ||
+                                producto.nombre ||
+                                "Producto sin nombre"}
                             </td>
-                            <td className="p-3 text-center">{safeNumber(producto.cantidad)}</td>
-                            <td className="p-3 text-center">{producto.unidad || "-"}</td>
-                            <td className="p-3 text-right">${safeNumber(producto.precio).toFixed(2)}</td>
-                            <td className="p-3 text-right">{safeNumber(producto.descuento).toFixed(2)}%</td>
+                            <td className="p-3 text-center">
+                              {safeNumber(producto.cantidad)}
+                            </td>
+                            <td className="p-3 text-center">
+                              {producto.unidad || "-"}
+                            </td>
+                            <td className="p-3 text-right">
+                              ${safeNumber(producto.precio).toFixed(2)}
+                            </td>
+                            <td className="p-3 text-right">
+                              {safeNumber(producto.descuento).toFixed(2)}%
+                            </td>
                             <td className="p-3 text-right font-medium">
-                              ${(
+                              $
+                              {(
                                 safeNumber(producto.precio) *
                                 safeNumber(producto.cantidad) *
                                 (1 - safeNumber(producto.descuento) / 100)
@@ -709,22 +731,31 @@ const PresupuestoDetalle = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
-                    <span>${safeNumber(presupuesto.descuentoTotal).toFixed(2)}</span>
+                    <span>
+                      ${safeNumber(presupuesto.descuentoTotal).toFixed(2)}
+                    </span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 */}
-                  {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && (
-                    <div className="flex justify-between">
-                      <span>Cotización de envío:</span>
-                      <span>${safeNumber(presupuesto.costoEnvio).toFixed(2)}</span>
-                    </div>
-                  )}
+                  {presupuesto.costoEnvio !== undefined &&
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) && (
+                      <div className="flex justify-between">
+                        <span>Cotización de envío:</span>
+                        <span>
+                          ${safeNumber(presupuesto.costoEnvio).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${(
+                      $
+                      {(
                         safeNumber(presupuesto.subtotal) -
                         safeNumber(presupuesto.descuentoTotal) +
-                        (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio))
+                        (presupuesto.costoEnvio !== undefined &&
+                        presupuesto.costoEnvio !== "" &&
+                        !isNaN(Number(presupuesto.costoEnvio))
                           ? safeNumber(presupuesto.costoEnvio)
                           : 0)
                       ).toFixed(2)}
@@ -791,8 +822,8 @@ const PresupuestoDetalle = () => {
                   // Limpiar datos antes de guardar
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
-                    if (value === undefined) return undefined;
-                    return value;
+                      if (value === undefined) return undefined;
+                      return value;
                     })
                   );
                   console.log(
