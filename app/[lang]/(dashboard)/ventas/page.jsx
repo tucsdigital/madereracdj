@@ -2357,7 +2357,7 @@ const VentasPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 py-8 max-w-7xl mx-auto font-sans">
+    <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 px-2">
         <div className="flex-1 flex justify-start">
           <Button
