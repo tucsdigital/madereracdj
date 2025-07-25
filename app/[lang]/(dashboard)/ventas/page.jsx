@@ -473,6 +473,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
+              // Agregar costoEnvio si corresponde
+              costoEnvio:
+                cleanData.tipoEnvio && cleanData.tipoEnvio !== "retiro_local"
+                  ? cleanData.costoEnvio !== undefined && cleanData.costoEnvio !== ""
+                    ? Number(cleanData.costoEnvio)
+                    : undefined
+                  : undefined,
             }
           : {
               ...cleanData,
@@ -981,17 +988,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   type="button"
                                   size="sm"
                                   variant={
-                                    productosSeleccionados.some(
-                                      (p) => p.id === prod.id
-                                    )
+                                    productosSeleccionados.some((p) => p.id === prod.id)
                                       ? "soft"
                                       : "default"
                                   }
                                   color="primary"
                                   className={
-                                    productosSeleccionados.some(
-                                      (p) => p.id === prod.id
-                                    )
+                                    productosSeleccionados.some((p) => p.id === prod.id)
                                       ? "bg-yellow-200 text-yellow-700 cursor-default"
                                       : ""
                                   }
