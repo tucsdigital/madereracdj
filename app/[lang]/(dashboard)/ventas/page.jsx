@@ -474,7 +474,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
-              numeroPedido: `PRESU-${Date.now()}`,
             }
           : {
               ...cleanData,
@@ -486,7 +485,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
-              numeroPedido: `PED-${Date.now()}`,
             };
       console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
@@ -997,8 +995,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       : ""
                                   }
                                   onClick={() => {
-                                    if (tipo === "venta" && prod.stock <= 0)
-                                      return;
                                     handleAgregarProducto({
                                       id: prod.id,
                                       nombre: prod.nombre,
@@ -1020,17 +1016,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   disabled={
                                     productosSeleccionados.some(
                                       (p) => p.id === prod.id
-                                    ) ||
-                                    isSubmitting ||
-                                    (tipo === "venta" && prod.stock <= 0)
+                                    ) || isSubmitting
                                   }
                                 >
-                                  {productosSeleccionados.some(
-                                    (p) => p.id === prod.id
-                                  )
+                                  {productosSeleccionados.some((p) => p.id === prod.id)
                                     ? "Agregado"
-                                    : tipo === "venta" && prod.stock <= 0
-                                    ? "Sin stock"
                                     : "Agregar"}
                                 </Button>
                               </div>
@@ -2241,6 +2231,9 @@ const VentasPage = () => {
             return value;
           })
         );
+        // Obtener el próximo número correlativo de venta
+        const nextNumeroPedido = await getNextVentaNumber();
+        cleanFormData.numeroPedido = nextNumeroPedido;
         console.log("[DEBUG] Datos limpios para guardar venta:", cleanFormData);
         docRef = await addDoc(collection(db, "ventas"), cleanFormData);
         for (const prod of cleanFormData.productos) {
@@ -2337,6 +2330,8 @@ const VentasPage = () => {
             costoEnvioFinal = Number(formData.costoEnvio);
             if (isNaN(costoEnvioFinal)) costoEnvioFinal = undefined;
           }
+          // Obtener el próximo número correlativo de presupuesto
+          const nextNumeroPedido = await getNextPresupuestoNumber();
           const cleanFormData = {
             ...formData,
             cliente: clienteObj,
@@ -2379,7 +2374,7 @@ const VentasPage = () => {
                 0.21,
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
-            numeroPedido: `PRESU-${Date.now()}`,
+            numeroPedido: nextNumeroPedido,
             // ---
             costoEnvio: costoEnvioFinal,
             // ---
@@ -2465,3 +2460,31 @@ const VentasPage = () => {
 };
 
 export default VentasPage;
+
+// Numeración autoincremental para ventas
+const getNextVentaNumber = async () => {
+  const snap = await getDocs(collection(db, "ventas"));
+  let maxNum = 0;
+  snap.docs.forEach((doc) => {
+    const data = doc.data();
+    if (data.numeroPedido && data.numeroPedido.startsWith("PED-")) {
+      const num = parseInt(data.numeroPedido.replace("PED-", ""), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  });
+  return `PED-${String(maxNum + 1).padStart(5, "0")}`;
+};
+
+// Numeración autoincremental para presupuestos
+const getNextPresupuestoNumber = async () => {
+  const snap = await getDocs(collection(db, "presupuestos"));
+  let maxNum = 0;
+  snap.docs.forEach((doc) => {
+    const data = doc.data();
+    if (data.numeroPedido && data.numeroPedido.startsWith("PRESU-")) {
+      const num = parseInt(data.numeroPedido.replace("PRESU-", ""), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  });
+  return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
+};

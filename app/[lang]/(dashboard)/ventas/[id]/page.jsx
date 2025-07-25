@@ -51,21 +51,21 @@ const VentaDetalle = () => {
         console.log("ID extraído:", id);
         console.log("Lang extraído:", lang);
         console.log("URL actual:", window.location.href);
-
+        
         if (!id) {
           console.error("No se encontró ID en los parámetros");
           setError("No se proporcionó ID de venta");
           setLoading(false);
           return;
         }
-
+        
         const docRef = doc(db, "ventas", id);
         console.log("Referencia del documento:", docRef);
-
+        
         const docSnap = await getDoc(docRef);
         console.log("Documento existe:", docSnap.exists());
         console.log("Datos del documento:", docSnap.data());
-
+        
         if (docSnap.exists()) {
           const ventaData = { id: docSnap.id, ...docSnap.data() };
           console.log("Venta cargada exitosamente:", ventaData);
@@ -81,7 +81,7 @@ const VentaDetalle = () => {
         setLoading(false);
       }
     };
-
+    
     fetchVenta();
   }, [id, lang, params]);
 
@@ -271,7 +271,7 @@ const VentaDetalle = () => {
             alt="Logo Maderera"
             style={{ height: 60, width: "auto" }}
           />
-          <div>
+            <div>
             <h1 className="text-2xl font-bold text-gray-900" style={{ letterSpacing: 1 }}>
               Maderera CJ&D
             </h1>
@@ -285,16 +285,16 @@ const VentaDetalle = () => {
             <div className="text-xs text-gray-500">
               N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
             </div>
+            </div>
           </div>
-        </div>
 
-        {/* Información del cliente */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-gray-50 rounded-lg p-4">
+          {/* Información del cliente */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="font-semibold text-lg mb-3 text-gray-900">
               Información del Cliente
             </h3>
-            <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium">Nombre:</span>{" "}
                 {venta.cliente?.nombre || "-"}
@@ -348,11 +348,11 @@ const VentaDetalle = () => {
             </div>
           </div>
           {/* Información de la Venta: solo fecha de emisión y estado de pago */}
-          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="font-semibold text-lg mb-3 text-gray-900">
               Información de la Venta
             </h3>
-            <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium">Fecha de emisión:</span>{" "}
                 {formatFechaLocal(venta.fecha)}
@@ -366,7 +366,7 @@ const VentaDetalle = () => {
                 >
                   {venta.estadoPago ||
                     (venta.pagoParcial ? "Parcial" : "Completo")}
-                </span>
+                  </span>
               </div>
             </div>
           </div>
@@ -457,7 +457,7 @@ const VentaDetalle = () => {
           <h3 className="font-semibold text-lg mb-4 text-gray-900">
             Productos y Servicios
           </h3>
-
+          
           {/* Usar productos si existe, sino usar items */}
           {(venta.productos || venta.items) && (
             <div className="overflow-x-auto">
@@ -475,8 +475,8 @@ const VentaDetalle = () => {
                 <tbody>
                   {(venta.productos || venta.items || []).map(
                     (producto, idx) => (
-                      <tr key={idx} className="border-b hover:bg-gray-50">
-                        <td className="p-3 font-medium">
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">
                           {producto.descripcion ||
                             producto.nombre ||
                             "Producto sin nombre"}
@@ -492,16 +492,16 @@ const VentaDetalle = () => {
                         </td>
                         <td className="p-3 text-right">
                           {(producto.descuento || 0).toFixed(2)}%
-                        </td>
-                        <td className="p-3 text-right font-medium">
+                      </td>
+                      <td className="p-3 text-right font-medium">
                           $
                           {(
                             (producto.precio || 0) *
                             (producto.cantidad || 0) *
                             (1 - (producto.descuento || 0) / 100)
                           ).toFixed(2)}
-                        </td>
-                      </tr>
+                      </td>
+                    </tr>
                     )
                   )}
                 </tbody>
@@ -773,4 +773,4 @@ const VentaDetalle = () => {
   );
 };
 
-export default VentaDetalle;
+export default VentaDetalle; 

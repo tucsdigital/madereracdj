@@ -530,7 +530,7 @@ const PresupuestoDetalle = () => {
                 </div>
                 {presupuesto.costoEnvio !== undefined &&
                   presupuesto.costoEnvio !== "" && (
-                    <div>
+                <div>
                       <span className="font-medium">
                         Costo estimado de envío:
                       </span>{" "}
@@ -775,8 +775,8 @@ const PresupuestoDetalle = () => {
                   // Limpiar datos antes de guardar
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
-                      if (value === undefined) return undefined;
-                      return value;
+                    if (value === undefined) return undefined;
+                    return value;
                     })
                   );
                   console.log(
