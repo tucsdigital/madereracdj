@@ -2,10 +2,9 @@ import {
   DashBoard,
   Users,
   Building,
-  Graph,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes } from "lucide-react";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -16,12 +15,12 @@ export const menusConfig = {
     },
     {
       title: "Ventas / Presupuestos",
-      icon: Graph,
+      icon: Receipt,
       href: "/ventas",
     },
     {
       title: "Envíos",
-      icon: Settings,
+      icon: Truck,
       href: "/envios",
     },
     {
@@ -36,18 +35,23 @@ export const menusConfig = {
     },
     {
       title: "Gastos",
-      icon: Graph,
+      icon: PiggyBank,
       href: "/gastos",
     },
     {
-      title: "Obras",
-      icon: Settings,
+      title: "Obras / Proyectos",
+      icon: Briefcase,
       href: "/obras-proyectos",
     },
     {
       title: "Clientes",
       icon: Users2,
       href: "/clientes",
+    },
+    {
+      title: "Precios",
+      icon: DollarSign,
+      href: "/precios",
     },
   ],
   sidebarNav: {
@@ -59,12 +63,12 @@ export const menusConfig = {
       },
       {
         title: "Ventas / Presupuestos",
-        icon: Graph,
+        icon: Receipt,
         href: "/ventas",
       },
       {
         title: "Envíos",
-        icon: Settings,
+        icon: Truck,
         href: "/envios",
       },
       {
@@ -79,18 +83,23 @@ export const menusConfig = {
       },
       {
         title: "Gastos",
-        icon: Graph,
+        icon: PiggyBank,
         href: "/gastos",
       },
       {
         title: "Obras / Proyectos",
-        icon: Settings,
+        icon: Briefcase,
         href: "/obras-proyectos",
       },
       {
         title: "Clientes",
         icon: Users2,
         href: "/clientes",
+      },
+      {
+        title: "Precios",
+        icon: DollarSign,
+        href: "/precios",
       },
     ],
     classic: [
@@ -105,12 +114,12 @@ export const menusConfig = {
       },
       {
         title: "Ventas / Presupuestos",
-        icon: Graph,
+        icon: Receipt,
         href: "/ventas",
       },
       {
         title: "Envíos",
-        icon: Settings,
+        icon: Truck,
         href: "/envios",
       },
       {
@@ -125,18 +134,23 @@ export const menusConfig = {
       },
       {
         title: "Gastos",
-        icon: Graph,
+        icon: PiggyBank,
         href: "/gastos",
       },
       {
         title: "Obras / Proyectos",
-        icon: Settings,
+        icon: Briefcase,
         href: "/obras-proyectos",
       },
       {
         title: "Clientes",
         icon: Users2,
         href: "/clientes",
+      },
+      {
+        title: "Precios",
+        icon: DollarSign,
+        href: "/precios",
       },
     ],
   },
