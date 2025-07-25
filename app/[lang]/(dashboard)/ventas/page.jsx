@@ -39,6 +39,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
+import { Icon } from "@iconify/react";
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -583,21 +584,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   return (
     <>
       <DialogHeader className="mb-2">
-        <DialogTitle>
+        <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+          <Icon icon={tipo === "presupuesto" ? "heroicons:document-plus" : "heroicons:shopping-cart"} className="w-6 h-6" />
           {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Venta"}
         </DialogTitle>
-        <DialogDescription>
-          Complete todos los campos requeridos para crear un nuevo{" "}
-          {tipo === "presupuesto" ? "presupuesto" : "venta"}.
+        <DialogDescription className="text-base text-default-600">
+          Complete todos los campos requeridos para crear un nuevo {tipo === "presupuesto" ? "presupuesto" : "venta"}.
         </DialogDescription>
       </DialogHeader>
 
       {submitStatus && (
         <div
-          className={`mb-4 p-4 rounded-lg flex items-center gap-3 ${
+          className={`mb-4 p-4 rounded-lg flex items-center gap-3 text-base font-medium shadow border ${
             submitStatus === "success"
-              ? "bg-green-50 border border-green-200 text-green-800"
-              : "bg-red-50 border border-red-200 text-red-800"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
           }`}
         >
           {submitStatus === "success" ? (
@@ -605,16 +606,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           ) : (
             <AlertCircle className="w-5 h-5 text-red-600" />
           )}
-          <span className="font-medium">{submitMessage}</span>
+          <span>{submitMessage}</span>
         </div>
       )}
 
       <form
         onSubmit={handleSubmit(handleFormSubmit)}
-        className="flex flex-col h-full"
+        className="flex flex-col h-full gap-0"
       >
         <div className="flex-1 overflow-y-auto px-1 pb-4 max-h-[calc(85vh-200px)]">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8">
             <input
               type="hidden"
               {...register("fecha")}
@@ -622,14 +623,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               readOnly
             />
 
-            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-              <label className="font-semibold">Cliente</label>
+            {/* Sección Cliente */}
+            <section className="bg-white rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
+              <label className="font-semibold text-lg text-default-800 flex items-center gap-2">
+                <Icon icon="heroicons:user" className="w-5 h-5 text-primary" /> Cliente
+              </label>
               <div className="relative w-full">
                 <div
-                  className="border rounded px-2 py-2 w-full flex items-center cursor-pointer bg-white"
+                  className="border border-default-200 rounded-lg px-3 py-3 w-full flex items-center cursor-pointer bg-white hover:border-primary focus-within:border-primary transition-all"
                   onClick={() => setDropdownClientesOpen(true)}
                 >
-                  <span className="flex-1 text-gray-700">
+                  <span className="flex-1 text-default-700 text-base">
                     {clienteSeleccionado
                       ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
                       : "Seleccionar cliente..."}
@@ -638,37 +642,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="text-primary font-semibold"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenNuevoCliente(true);
                     }}
                     disabled={isSubmitting}
                   >
-                    + Nuevo
+                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" /> Nuevo
                   </Button>
                 </div>
                 {dropdownClientesOpen && (
-                  <div className="absolute z-50 bg-white border rounded shadow-lg w-full mt-1 max-h-72 overflow-y-auto">
+                  <div className="absolute z-50 bg-white border border-default-200 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
                     <div className="p-2">
                       <Input
                         type="text"
                         placeholder="Buscar cliente..."
                         value={busquedaCliente}
                         onChange={(e) => setBusquedaCliente(e.target.value)}
-                        className="w-full mb-2"
+                        className="w-full mb-2 rounded-md border-default-200 focus:border-primary"
                         autoFocus
                         disabled={clientesLoading || isSubmitting}
                       />
                       <div className="divide-y divide-gray-100">
                         {clientesFiltrados.length === 0 && (
-                          <div className="p-2 text-gray-400">
-                            No hay clientes
-                          </div>
+                          <div className="p-2 text-gray-400 text-sm">No hay clientes</div>
                         )}
                         {clientesFiltrados.map((c) => (
                           <div
                             key={c.id}
-                            className="p-2 hover:bg-primary/10 cursor-pointer rounded"
+                            className="p-2 hover:bg-primary/10 cursor-pointer rounded text-base"
                             onClick={() => {
                               handleClienteChange(c.id);
                               setDropdownClientesOpen(false);
@@ -683,21 +686,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 )}
               </div>
               {errors.clienteId && (
-                <span className="text-red-500 text-xs">
+                <span className="text-red-500 text-xs mt-1">
                   {errors.clienteId.message}
                 </span>
               )}
-              <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                <div className="text-base font-semibold text-default-800 pb-1">
-                  Datos del cliente
+              <div className="space-y-2 bg-default-50 rounded-lg p-4 border border-default-100 shadow-sm">
+                <div className="text-base font-semibold text-default-800 pb-1 flex items-center gap-2">
+                  <Icon icon="heroicons:identification" className="w-4 h-4 text-primary" /> Datos del cliente
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Input
                       value={clienteSeleccionado?.nombre || ""}
                       placeholder="Nombre del cliente"
                       readOnly
-                      className="w-full"
+                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
                     />
                     {errors.cliente?.nombre && (
                       <span className="text-red-500 text-xs">
@@ -710,7 +713,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.cuit || ""}
                       placeholder="CUIT"
                       readOnly
-                      className="w-full"
+                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
                     />
                     {errors.cliente?.cuit && (
                       <span className="text-red-500 text-xs">
@@ -723,7 +726,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.direccion || ""}
                       placeholder="Dirección"
                       readOnly
-                      className="w-full"
+                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
                     />
                     {errors.cliente?.direccion && (
                       <span className="text-red-500 text-xs">
@@ -736,7 +739,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.telefono || ""}
                       placeholder="Teléfono"
                       readOnly
-                      className="w-full"
+                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
                     />
                     {errors.cliente?.telefono && (
                       <span className="text-red-500 text-xs">
@@ -749,7 +752,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.email || ""}
                       placeholder="Email"
                       readOnly
-                      className="w-full"
+                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
                     />
                     {errors.cliente?.email && (
                       <span className="text-red-500 text-xs">
@@ -761,13 +764,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </section>
 
-            <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-              <label className="font-semibold">Productos</label>
+            {/* Sección Productos */}
+            <section className="bg-white rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
+              <label className="font-semibold text-lg text-default-800 flex items-center gap-2">
+                <Icon icon="heroicons:cube" className="w-5 h-5 text-primary" /> Productos
+              </label>
               <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
                 {categoriasState.length === 0 && (
-                  <span className="text-gray-400">
-                    No hay categorías con productos
-                  </span>
+                  <span className="text-gray-400">No hay categorías con productos</span>
                 )}
                 {categoriasState.map((cat) => (
                   <Button
@@ -1143,9 +1147,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               disabled={isSubmitting}
                               title="Quitar producto"
                             >
-                              <span className="text-lg font-bold text-red-500">
-                                ×
-                              </span>
+                              <span className="text-lg font-bold text-red-500">×</span>
                             </Button>
                           </td>
                         </tr>
@@ -1161,7 +1163,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               )}
             </section>
 
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Sección condiciones y envío */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {tipo === "venta" && (
                 <>
                   <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
@@ -1484,38 +1487,31 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           </div>
         </div>
 
-        <div className="bg-white p-4 space-y-4 flex-shrink-0">
+        {/* Totales y acciones */}
+        <div className="bg-white p-6 space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100 shadow">
           <div className="flex flex-col items-end gap-2">
-            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
-                Subtotal:{" "}
-                <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                Subtotal: <span className="font-bold">${subtotal.toFixed(2)}</span>
               </div>
               <div>
-                Descuento:{" "}
-                <span className="font-semibold">
-                  ${descuentoTotal.toFixed(2)}
-                </span>
+                Descuento: <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
               </div>
               <div>
-                IVA (21%):{" "}
-                <span className="font-semibold">${iva.toFixed(2)}</span>
+                IVA (21%): <span className="font-bold">${iva.toFixed(2)}</span>
               </div>
               <div>
-                Total:{" "}
-                <span className="font-bold text-primary">
-                  ${total.toFixed(2)}
-                </span>
+                Total: <span className="font-bold text-primary">${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-4 justify-end pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="hover:bg-gray-100"
+              className="hover:bg-gray-100 rounded-md px-6 py-2 text-base"
               disabled={isSubmitting}
             >
               Cancelar
@@ -1523,7 +1519,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <Button
               type="submit"
               variant="default"
-              className="shadow-md min-w-[140px]"
+              className="shadow-md min-w-[160px] rounded-md px-6 py-2 text-base font-semibold"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -1540,124 +1536,99 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       </form>
 
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[420px]">
+        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20">
           <DialogHeader>
-            <DialogTitle>Agregar Cliente</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold text-primary flex items-center gap-2">
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar Cliente
+            </DialogTitle>
+            <DialogDescription className="text-base text-default-600">
               Complete los datos del nuevo cliente para agregarlo al sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <div className="flex flex-col gap-4 py-2">
             <Input
               placeholder="Nombre *"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.nombre}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
               required
             />
             <Input
               placeholder="CUIT / DNI"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.cuit || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })}
             />
             <Input
               placeholder="Dirección *"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.direccion}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
               required
             />
             <Input
               placeholder="Teléfono *"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.telefono}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
               required
             />
             <Input
               placeholder="Email"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.email}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, email: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })}
             />
             <Input
               placeholder="Localidad"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.localidad || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })}
             />
             <Input
               placeholder="Partido"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.partido || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })}
             />
             <Input
               placeholder="Barrio"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.barrio || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })}
             />
             <Input
               placeholder="Área"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.area || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, area: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, area: e.target.value })}
             />
             <Input
               placeholder="Lote"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
               value={nuevoCliente.lote || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })}
             />
             <Textarea
               placeholder="Descripción"
-              className="w-full"
+              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary min-h-[60px]"
               value={nuevoCliente.descripcion || ""}
-              onChange={(e) =>
-                setNuevoCliente({
-                  ...nuevoCliente,
-                  descripcion: e.target.value,
-                })
-              }
+              onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-4 justify-end pt-2">
             <Button
               variant="outline"
+              className="hover:bg-gray-100 rounded-md px-6 py-2 text-base"
               onClick={() => setOpenNuevoCliente(false)}
             >
               Cancelar
             </Button>
             <Button
               variant="default"
+              className="shadow-md min-w-[120px] rounded-md px-6 py-2 text-base font-semibold"
               onClick={async () => {
-                if (
-                  !nuevoCliente.nombre ||
-                  !nuevoCliente.direccion ||
-                  !nuevoCliente.telefono
-                ) {
+                if (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono) {
                   alert("Nombre, dirección y teléfono son obligatorios");
                   return;
                 }
@@ -1674,14 +1645,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   lote: nuevoCliente.lote || "",
                   descripcion: nuevoCliente.descripcion || "",
                 };
-                const docRef = await addDoc(
-                  collection(db, "clientes"),
-                  clienteObj
-                );
-                setClientesState([
-                  ...clientesState,
-                  { ...clienteObj, id: docRef.id },
-                ]);
+                const docRef = await addDoc(collection(db, "clientes"), clienteObj);
+                setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
                 setClienteId(docRef.id);
                 setNuevoCliente({
                   nombre: "",
@@ -2416,38 +2381,55 @@ const VentasPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 py-8">
-      <div className="flex gap-4 mb-4 justify-end">
-        <Button variant="default" onClick={() => setOpen("presupuesto")}>
-          Agregar Presupuesto
-        </Button>
-        <Button variant="default" onClick={() => setOpen("venta")}>
-          Agregar Venta
-        </Button>
+    <div className="flex flex-col gap-8 py-8 max-w-7xl mx-auto font-sans">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 px-2">
+        <div className="flex-1 flex justify-start">
+          <Button
+            variant="default"
+            className="flex items-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
+            onClick={() => setOpen("presupuesto")}
+          >
+            <Icon icon="heroicons:document-plus" className="w-5 h-5" />
+            Agregar Presupuesto
+          </Button>
+        </div>
+        <div className="flex-1 flex justify-end">
+          <Button
+            variant="default"
+            className="flex items-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
+            onClick={() => setOpen("venta")}
+          >
+            <Icon icon="heroicons:shopping-cart" className="w-5 h-5" />
+            Agregar Venta
+          </Button>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Presupuestos</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
+        <Card className="rounded-xl shadow-lg border border-default-200">
+          <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
+            <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
+              <Icon icon="heroicons:document-text" className="w-6 h-6 text-primary" />
+              Presupuestos
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <DataTable data={presupuestosData} columns={columnsPresupuestos} />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas</CardTitle>
+        <Card className="rounded-xl shadow-lg border border-default-200">
+          <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
+            <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
+              <Icon icon="heroicons:shopping-cart" className="w-6 h-6 text-green-600" />
+              Ventas
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <DataTable data={ventasData} columns={columnsVentas} />
           </CardContent>
         </Card>
       </div>
-
       <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
+        <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20">
           <FormularioVentaPresupuesto
             tipo={open}
             onClose={handleClose}
