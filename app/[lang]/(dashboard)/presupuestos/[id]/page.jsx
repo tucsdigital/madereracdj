@@ -342,6 +342,7 @@ const PresupuestoDetalle = () => {
   const fechaVencimientoAuto = React.useMemo(() => {
     if (!presupuesto?.fecha) return null;
     const fecha = new Date(presupuesto.fecha);
+    if (isNaN(fecha.getTime())) return null; // Fecha inválida
     fecha.setDate(fecha.getDate() + 7);
     return fecha;
   }, [presupuesto?.fecha]);
