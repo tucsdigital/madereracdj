@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Users, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, where, updateDoc, doc } from "firebase/firestore";
+import { Textarea } from "@/components/ui/textarea";
 
 const ClientesPage = () => {
   const [open, setOpen] = useState(false);
@@ -19,8 +20,11 @@ const ClientesPage = () => {
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [ventas, setVentas] = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
-  const [form, setForm] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo" });
+  const [form, setForm] = useState({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "" });
   const [saving, setSaving] = useState(false);
+  const [editCliente, setEditCliente] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMsg, setEditMsg] = useState("");
 
   useEffect(() => {
     const fetchClientes = async () => {
@@ -34,11 +38,14 @@ const ClientesPage = () => {
 
   const handleVerDetalle = async (cliente) => {
     setSelectedCliente(cliente);
+    setEditCliente({ ...cliente });
+    setEditMsg("");
     setDetalleOpen(true);
-    // Consultar ventas y presupuestos asociados
+    // Consultar ventas asociadas por clienteId
     const ventasSnap = await getDocs(query(collection(db, "ventas"), where("clienteId", "==", cliente.id)));
     setVentas(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    const presupuestosSnap = await getDocs(query(collection(db, "presupuestos"), where("clienteId", "==", cliente.id)));
+    // Consultar presupuestos asociados por cliente.cuit
+    const presupuestosSnap = await getDocs(query(collection(db, "presupuestos"), where("cliente.cuit", "==", cliente.cuit)));
     setPresupuestos(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   };
 
@@ -46,12 +53,33 @@ const ClientesPage = () => {
     if (!form.nombre || !form.direccion || !form.telefono) return;
     setSaving(true);
     await addDoc(collection(db, "clientes"), form);
-    setForm({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo" });
+    setForm({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "" });
     setOpen(false);
     // Refrescar lista
     const snap = await getDocs(collection(db, "clientes"));
     setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     setSaving(false);
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!editCliente.nombre || !editCliente.direccion || !editCliente.telefono) {
+      setEditMsg("Nombre, dirección y teléfono son obligatorios.");
+      return;
+    }
+    setEditSaving(true);
+    setEditMsg("");
+    try {
+      await updateDoc(doc(db, "clientes", editCliente.id), editCliente);
+      setEditMsg("Datos actualizados correctamente.");
+      // Refrescar lista
+      const snap = await getDocs(collection(db, "clientes"));
+      setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setSelectedCliente({ ...editCliente });
+      setTimeout(() => setEditMsg(""), 1200);
+    } catch (e) {
+      setEditMsg("Error al guardar: " + e.message);
+    }
+    setEditSaving(false);
   };
 
   return (
@@ -116,6 +144,12 @@ const ClientesPage = () => {
             <Input placeholder="Dirección *" className="w-full" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} required />
             <Input placeholder="Teléfono *" className="w-full" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} required />
             <Input placeholder="Email" className="w-full" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <Input placeholder="Localidad" className="w-full" value={form.localidad} onChange={e => setForm(f => ({ ...f, localidad: e.target.value }))} />
+            <Input placeholder="Partido" className="w-full" value={form.partido} onChange={e => setForm(f => ({ ...f, partido: e.target.value }))} />
+            <Input placeholder="Barrio" className="w-full" value={form.barrio} onChange={e => setForm(f => ({ ...f, barrio: e.target.value }))} />
+            <Input placeholder="Área" className="w-full" value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))} />
+            <Input placeholder="Lote" className="w-full" value={form.lote} onChange={e => setForm(f => ({ ...f, lote: e.target.value }))} />
+            <Textarea placeholder="Descripción" className="w-full" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
             <select className="border rounded px-2 py-2" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}>
               <option value="Activo">Activo</option>
               <option value="Inactivo">Inactivo</option>
@@ -133,16 +167,64 @@ const ClientesPage = () => {
           <DialogHeader>
             <DialogTitle>Detalle del Cliente</DialogTitle>
           </DialogHeader>
-          {selectedCliente && (
+          {selectedCliente && editCliente && (
             <div className="flex flex-col gap-2">
-              <div className="font-bold text-lg mb-2">{selectedCliente.nombre}</div>
+              <div className="font-bold text-lg mb-2">{editCliente.nombre}</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                <div><b>CUIT/DNI:</b> {selectedCliente.cuit || "-"}</div>
-                <div><b>Dirección:</b> {selectedCliente.direccion}</div>
-                <div><b>Teléfono:</b> {selectedCliente.telefono}</div>
-                <div><b>Email:</b> {selectedCliente.email || "-"}</div>
-                <div><b>Estado:</b> {selectedCliente.estado}</div>
+                <div>
+                  <b>Nombre:</b>
+                  <Input className="w-full mt-1" value={editCliente.nombre || ""} onChange={e => setEditCliente(c => ({ ...c, nombre: e.target.value }))} />
+                </div>
+                <div>
+                  <b>CUIT/DNI:</b>
+                  <Input className="w-full mt-1" value={editCliente.cuit || ""} onChange={e => setEditCliente(c => ({ ...c, cuit: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Dirección:</b>
+                  <Input className="w-full mt-1" value={editCliente.direccion || ""} onChange={e => setEditCliente(c => ({ ...c, direccion: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Teléfono:</b>
+                  <Input className="w-full mt-1" value={editCliente.telefono || ""} onChange={e => setEditCliente(c => ({ ...c, telefono: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Email:</b>
+                  <Input className="w-full mt-1" value={editCliente.email || ""} onChange={e => setEditCliente(c => ({ ...c, email: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Localidad:</b>
+                  <Input className="w-full mt-1" value={editCliente.localidad || ""} onChange={e => setEditCliente(c => ({ ...c, localidad: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Partido:</b>
+                  <Input className="w-full mt-1" value={editCliente.partido || ""} onChange={e => setEditCliente(c => ({ ...c, partido: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Barrio:</b>
+                  <Input className="w-full mt-1" value={editCliente.barrio || ""} onChange={e => setEditCliente(c => ({ ...c, barrio: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Área:</b>
+                  <Input className="w-full mt-1" value={editCliente.area || ""} onChange={e => setEditCliente(c => ({ ...c, area: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Lote:</b>
+                  <Input className="w-full mt-1" value={editCliente.lote || ""} onChange={e => setEditCliente(c => ({ ...c, lote: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <b>Descripción:</b>
+                  <Textarea className="w-full mt-1" value={editCliente.descripcion || ""} onChange={e => setEditCliente(c => ({ ...c, descripcion: e.target.value }))} />
+                </div>
+                <div>
+                  <b>Estado:</b>
+                  <select className="w-full mt-1 border rounded px-2 py-2" value={editCliente.estado} onChange={e => setEditCliente(c => ({ ...c, estado: e.target.value }))}>
+                    <option value="Activo">Activo</option>
+                    <option value="Inactivo">Inactivo</option>
+                  </select>
+                </div>
               </div>
+              {editMsg && <div className={`p-2 rounded text-sm ${editMsg.startsWith("Error") ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}`}>{editMsg}</div>}
+              <Button variant="default" onClick={handleGuardarEdicion} disabled={editSaving}>{editSaving ? "Guardando..." : "Guardar cambios"}</Button>
               <div className="mt-2">
                 <b>Ventas asociadas:</b>
                 {ventas.length === 0 ? (
