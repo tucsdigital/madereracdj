@@ -8,6 +8,19 @@ import { ArrowLeft, Printer, Download } from "lucide-react";
 import { SelectorProductosPresupuesto } from "../page";
 import FormularioVentaPresupuesto from "../page";
 
+// Agregar función utilitaria para fechas
+function formatFechaLocal(dateString) {
+  if (!dateString) return "-";
+  if (dateString.includes("T")) {
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleDateString("es-AR");
+  }
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return dateString;
+  const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+  return dateObj.toLocaleDateString("es-AR");
+}
+
 const VentaDetalle = () => {
   const params = useParams();
   const router = useRouter();
@@ -200,18 +213,6 @@ const VentaDetalle = () => {
     );
   }
 
-  // Función para formatear fecha
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    try {
-      // Mostrar en formato argentino y ajustar a la zona horaria de Buenos Aires
-      const dateObj = new Date(dateString);
-      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
-    } catch {
-      return dateString;
-    }
-  };
-
   // Función para imprimir
   const handlePrint = () => {
     window.print();
@@ -238,7 +239,7 @@ const VentaDetalle = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Venta #{venta.numeroPedido || venta.id?.slice(-8)}</h1>
               <p className="text-gray-600 mt-1">
-                {venta.nombre || `Venta ${formatDate(venta.fecha)}`}
+                {venta.nombre || `Venta ${formatFechaLocal(venta.fecha)}`}
               </p>
             </div>
             <div className="flex gap-3">
@@ -274,8 +275,8 @@ const VentaDetalle = () => {
               <h3 className="font-semibold text-lg mb-3 text-gray-900">Información de la Venta</h3>
               <div className="space-y-2 text-sm">
                 <div><span className="font-medium">N° de pedido:</span> {venta.numeroPedido || venta.id}</div>
-                <div><span className="font-medium">Fecha de emisión:</span> {venta.fecha ? new Date(venta.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
-                {venta.fechaEntrega && <div><span className="font-medium">Fecha de entrega:</span> {new Date(venta.fechaEntrega).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>}
+                <div><span className="font-medium">Fecha de emisión:</span> {formatFechaLocal(venta.fecha)}</div>
+                {venta.fechaEntrega && <div><span className="font-medium">Fecha de entrega:</span> {formatFechaLocal(venta.fechaEntrega)}</div>}
                 <div><span className="font-medium">Tipo:</span> {venta.tipo || "Venta"}</div>
                 {venta.costoEnvio !== undefined && venta.costoEnvio !== "" && (
                   <div><span className="font-medium">Costo de envío:</span> ${Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
@@ -378,7 +379,7 @@ const VentaDetalle = () => {
           <h3 className="font-semibold text-lg mb-3 text-gray-900">Información Adicional</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div><span className="font-medium">N° de pedido:</span> {venta.numeroPedido || venta.id}</div>
-            <div><span className="font-medium">Fecha de creación:</span> {venta.fechaCreacion ? new Date(venta.fechaCreacion).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
+            <div><span className="font-medium">Fecha de creación:</span> {formatFechaLocal(venta.fechaCreacion)}</div>
             <div><span className="font-medium">Cantidad de productos:</span> {(venta.productos || venta.items || []).length}</div>
           </div>
         </div>

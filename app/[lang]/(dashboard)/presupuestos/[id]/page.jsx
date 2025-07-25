@@ -32,6 +32,19 @@ import FormularioVentaPresupuesto, {
   SelectorProductosPresupuesto,
 } from "../../ventas/page";
 
+// Agregar función utilitaria para fechas
+function formatFechaLocal(dateString) {
+  if (!dateString) return "-";
+  if (dateString.includes("T")) {
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleDateString("es-AR");
+  }
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return dateString;
+  const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+  return dateObj.toLocaleDateString("es-AR");
+}
+
 const PresupuestoDetalle = () => {
   const params = useParams();
   const router = useRouter();
@@ -237,7 +250,7 @@ const PresupuestoDetalle = () => {
     e.preventDefault();
     try {
       const docRef = await addDoc(collection(db, "clientes"), nuevoCliente);
-      setClientes(prev => [...prev, { id: docRef.id, ...nuevoCliente }]);
+      setClientes((prev) => [...prev, { id: docRef.id, ...nuevoCliente }]);
       setNuevoCliente({
         nombre: "",
         direccion: "",
@@ -317,7 +330,9 @@ const PresupuestoDetalle = () => {
     try {
       // Mostrar en formato argentino y ajustar a la zona horaria de Buenos Aires
       const dateObj = new Date(dateString);
-      return dateObj.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" });
+      return dateObj.toLocaleDateString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+      });
     } catch {
       return dateString;
     }
@@ -380,7 +395,10 @@ const PresupuestoDetalle = () => {
           {/* Header profesional: solo mostrar número de pedido */}
           <div className="ml-auto text-right">
             <div className="text-xs text-gray-500">
-              Fecha: {presupuesto?.fecha ? new Date(presupuesto.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}
+              Fecha:{" "}
+              {presupuesto?.fecha
+                ? formatFechaLocal(presupuesto.fecha)
+                : "-"}
             </div>
             <div className="text-xs text-gray-500">
               N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
@@ -392,7 +410,8 @@ const PresupuestoDetalle = () => {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Presupuesto #{presupuesto.numeroPedido || presupuesto.id?.slice(-8)}
+                Presupuesto #
+                {presupuesto.numeroPedido || presupuesto.id?.slice(-8)}
               </h1>
               <p className="text-gray-600 mt-1">
                 {presupuesto.nombre ||
@@ -423,16 +442,56 @@ const PresupuestoDetalle = () => {
               </h3>
               {/* Información del cliente: solo datos relevantes, sin repeticiones */}
               <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Nombre:</span> {presupuesto.cliente?.nombre || "-"}</div>
-                <div><span className="font-medium">CUIT / DNI:</span> {presupuesto.cliente?.cuit || "-"}</div>
-                <div><span className="font-medium">Dirección:</span> {presupuesto.cliente?.direccion || "-"}</div>
-                <div><span className="font-medium">Teléfono:</span> {presupuesto.cliente?.telefono || "-"}</div>
-                {presupuesto.cliente?.partido && <div><span className="font-medium">Partido:</span> {presupuesto.cliente.partido}</div>}
-                {presupuesto.cliente?.barrio && <div><span className="font-medium">Barrio:</span> {presupuesto.cliente.barrio}</div>}
-                {presupuesto.cliente?.area && <div><span className="font-medium">Área:</span> {presupuesto.cliente.area}</div>}
-                {presupuesto.cliente?.lote && <div><span className="font-medium">Lote:</span> {presupuesto.cliente.lote}</div>}
-                {presupuesto.cliente?.descripcion && <div><span className="font-medium">Descripción:</span> {presupuesto.cliente.descripcion}</div>}
-                <div><span className="font-medium">Email:</span> {presupuesto.cliente?.email || "-"}</div>
+                <div>
+                  <span className="font-medium">Nombre:</span>{" "}
+                  {presupuesto.cliente?.nombre || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">CUIT / DNI:</span>{" "}
+                  {presupuesto.cliente?.cuit || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Dirección:</span>{" "}
+                  {presupuesto.cliente?.direccion || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Teléfono:</span>{" "}
+                  {presupuesto.cliente?.telefono || "-"}
+                </div>
+                {presupuesto.cliente?.partido && (
+                  <div>
+                    <span className="font-medium">Partido:</span>{" "}
+                    {presupuesto.cliente.partido}
+                  </div>
+                )}
+                {presupuesto.cliente?.barrio && (
+                  <div>
+                    <span className="font-medium">Barrio:</span>{" "}
+                    {presupuesto.cliente.barrio}
+                  </div>
+                )}
+                {presupuesto.cliente?.area && (
+                  <div>
+                    <span className="font-medium">Área:</span>{" "}
+                    {presupuesto.cliente.area}
+                  </div>
+                )}
+                {presupuesto.cliente?.lote && (
+                  <div>
+                    <span className="font-medium">Lote:</span>{" "}
+                    {presupuesto.cliente.lote}
+                  </div>
+                )}
+                {presupuesto.cliente?.descripcion && (
+                  <div>
+                    <span className="font-medium">Descripción:</span>{" "}
+                    {presupuesto.cliente.descripcion}
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium">Email:</span>{" "}
+                  {presupuesto.cliente?.email || "-"}
+                </div>
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
@@ -441,13 +500,40 @@ const PresupuestoDetalle = () => {
               </h3>
               {/* Información del presupuesto: solo datos clave, sin ID */}
               <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Fecha de emisión:</span> {presupuesto.fecha ? new Date(presupuesto.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
-                {presupuesto.vencimiento && <div><span className="font-medium">Fecha de vencimiento:</span> {new Date(presupuesto.vencimiento).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>}
-                <div><span className="font-medium">Tipo:</span> {presupuesto.tipo || "Presupuesto"}</div>
-                {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && (
-                  <div><span className="font-medium">Costo estimado de envío:</span> ${Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                <div>
+                  <span className="font-medium">Fecha de emisión:</span>{" "}
+                  {presupuesto.fecha
+                    ? formatFechaLocal(presupuesto.fecha)
+                    : "-"}
+                </div>
+                {presupuesto.vencimiento && (
+                  <div>
+                    <span className="font-medium">Fecha de vencimiento:</span>{" "}
+                    {formatFechaLocal(presupuesto.vencimiento)}
+                  </div>
                 )}
-                <div><span className="font-medium">Estado:</span> <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Activo</span></div>
+                <div>
+                  <span className="font-medium">Tipo:</span>{" "}
+                  {presupuesto.tipo || "Presupuesto"}
+                </div>
+                {presupuesto.costoEnvio !== undefined &&
+                  presupuesto.costoEnvio !== "" && (
+                    <div>
+                      <span className="font-medium">
+                        Costo estimado de envío:
+                      </span>{" "}
+                      $
+                      {Number(presupuesto.costoEnvio).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </div>
+                  )}
+                <div>
+                  <span className="font-medium">Estado:</span>{" "}
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                    Activo
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -571,7 +657,11 @@ const PresupuestoDetalle = () => {
                           </td>
                           <td className="p-3 text-right font-medium">
                             $
-                            {((producto.precio || 0) * (producto.cantidad || 0) * (1 - (producto.descuento || 0) / 100)).toFixed(2)}
+                            {(
+                              (producto.precio || 0) *
+                              (producto.cantidad || 0) *
+                              (1 - (producto.descuento || 0) / 100)
+                            ).toFixed(2)}
                           </td>
                         </tr>
                       )
@@ -595,7 +685,9 @@ const PresupuestoDetalle = () => {
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
-                    <span className="text-primary">${(presupuesto.total || 0).toFixed(2)}</span>
+                    <span className="text-primary">
+                      ${(presupuesto.total || 0).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -622,12 +714,38 @@ const PresupuestoDetalle = () => {
           </h3>
           {/* Información adicional: eliminar ID, solo mostrar número de pedido y datos útiles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><span className="font-medium">N° de pedido:</span> {presupuesto.numeroPedido || presupuesto.id}</div>
-            <div><span className="font-medium">Fecha de creación:</span> {presupuesto.fechaCreacion ? new Date(presupuesto.fechaCreacion).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
-            <div><span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}</div>
-            <div><span className="font-medium">Subtotal:</span> ${Number(presupuesto.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
-            <div><span className="font-medium">Descuento total:</span> ${Number(presupuesto.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
-            <div><span className="font-medium">Total:</span> ${Number(presupuesto.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+            <div>
+              <span className="font-medium">N° de pedido:</span>{" "}
+              {presupuesto.numeroPedido || presupuesto.id}
+            </div>
+            <div>
+              <span className="font-medium">Fecha de creación:</span>{" "}
+              {presupuesto.fechaCreacion
+                ? formatFechaLocal(presupuesto.fechaCreacion)
+                : "-"}
+            </div>
+            <div>
+              <span className="font-medium">Cantidad de productos:</span>{" "}
+              {(presupuesto.productos || presupuesto.items || []).length}
+            </div>
+            <div>
+              <span className="font-medium">Subtotal:</span> $
+              {Number(presupuesto.subtotal || 0).toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })}
+            </div>
+            <div>
+              <span className="font-medium">Descuento total:</span> $
+              {Number(presupuesto.descuentoTotal || 0).toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })}
+            </div>
+            <div>
+              <span className="font-medium">Total:</span> $
+              {Number(presupuesto.total || 0).toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })}
+            </div>
           </div>
         </div>
 
@@ -672,11 +790,16 @@ const PresupuestoDetalle = () => {
                     numeroPedido: `PED-${Date.now()}`,
                   };
                   // Limpiar datos antes de guardar
-                  const cleanVentaData = JSON.parse(JSON.stringify(ventaData, (key, value) => {
-                    if (value === undefined) return undefined;
-                    return value;
-                  }));
-                  console.log("[DEBUG] Datos limpios para guardar venta desde presupuesto:", cleanVentaData);
+                  const cleanVentaData = JSON.parse(
+                    JSON.stringify(ventaData, (key, value) => {
+                      if (value === undefined) return undefined;
+                      return value;
+                    })
+                  );
+                  console.log(
+                    "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
+                    cleanVentaData
+                  );
                   const docRef = await addDoc(
                     collection(db, "ventas"),
                     cleanVentaData
@@ -707,7 +830,9 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ""})`,
+                      observaciones: `Salida por venta (${
+                        presupuesto.cliente?.nombre || ""
+                      })`,
                       productoNombre: prod.nombre,
                     });
                   }
@@ -759,7 +884,10 @@ const PresupuestoDetalle = () => {
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
-                  console.error("Error al guardar venta desde presupuesto:", error);
+                  console.error(
+                    "Error al guardar venta desde presupuesto:",
+                    error
+                  );
                   alert("Error al guardar venta: " + error.message);
                 }
               }}
@@ -894,54 +1022,82 @@ const PresupuestoDetalle = () => {
               <Input
                 label="Nombre *"
                 value={nuevoCliente.nombre}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+                }
                 required
               />
               <Input
                 label="Dirección *"
                 value={nuevoCliente.direccion}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({
+                    ...nuevoCliente,
+                    direccion: e.target.value,
+                  })
+                }
                 required
               />
               <Input
                 label="Teléfono *"
                 value={nuevoCliente.telefono}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
+                }
                 required
               />
               <Input
                 label="CUIT / DNI"
                 value={nuevoCliente.cuit}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
+                }
               />
               <Input
                 label="Partido"
                 value={nuevoCliente.partido}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
+                }
               />
               <Input
                 label="Barrio"
                 value={nuevoCliente.barrio}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
+                }
               />
               <Input
                 label="Área"
                 value={nuevoCliente.area}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, area: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, area: e.target.value })
+                }
               />
               <Input
                 label="Lote"
                 value={nuevoCliente.lote}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
+                }
               />
               <Textarea
                 label="Descripción"
                 value={nuevoCliente.descripcion}
-                onChange={e => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
+                onChange={(e) =>
+                  setNuevoCliente({
+                    ...nuevoCliente,
+                    descripcion: e.target.value,
+                  })
+                }
                 rows={2}
               />
               <div className="flex justify-end gap-2 mt-4">
-                <Button type="button" variant="ghost" onClick={() => setOpenNuevoCliente(false)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setOpenNuevoCliente(false)}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" variant="primary">
@@ -961,19 +1117,26 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const [clientes, setClientes] = React.useState([]);
   // Cargar clientes al montar
   React.useEffect(() => {
-    getDocs(collection(db, "clientes")).then(snap => {
-      setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    getDocs(collection(db, "clientes")).then((snap) => {
+      setClientes(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
   }, []);
 
   const schema = yup.object().shape({
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
-    montoAbonado: yup.number()
-      .transform((value, originalValue) => originalValue === '' ? undefined : value)
+    montoAbonado: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" ? undefined : value
+      )
       .when("pagoParcial", {
         is: true,
-        then: (s) => s.typeError("Debe ingresar un monto").min(1, "Debe ingresar un monto").required("Obligatorio"),
+        then: (s) =>
+          s
+            .typeError("Debe ingresar un monto")
+            .min(1, "Debe ingresar un monto")
+            .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
@@ -982,8 +1145,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: (s) => s.required("Selecciona el transportista"),
       otherwise: (s) => s.notRequired(),
     }),
-    costoEnvio: yup.number()
-      .transform((value, originalValue) => originalValue === '' ? undefined : value)
+    costoEnvio: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" ? undefined : value
+      )
       .notRequired(),
     fechaEntrega: yup.string().when("tipoEnvio", {
       is: (val) => val && val !== "retiro_local",
@@ -1027,14 +1193,24 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       vendedor: "",
       prioridad: "",
       clienteId: presupuesto?.clienteId || "",
-      cliente: presupuesto?.cliente || { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
+      cliente: presupuesto?.cliente || {
+        nombre: "",
+        email: "",
+        telefono: "",
+        direccion: "",
+        cuit: "",
+      },
     },
   });
 
   // Sincronizar clienteId automáticamente si falta pero hay cuit
   React.useEffect(() => {
-    if (!presupuesto?.clienteId && presupuesto?.cliente?.cuit && clientes.length > 0) {
-      const match = clientes.find(c => c.cuit === presupuesto.cliente.cuit);
+    if (
+      !presupuesto?.clienteId &&
+      presupuesto?.cliente?.cuit &&
+      clientes.length > 0
+    ) {
+      const match = clientes.find((c) => c.cuit === presupuesto.cliente.cuit);
       if (match) {
         setValue("clienteId", match.id);
       }
@@ -1057,7 +1233,10 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     e.preventDefault();
     setShowForceWarning(false);
     const values = getValues();
-    console.warn("[FORCE SAVE] Guardando venta con errores de validación:", errors);
+    console.warn(
+      "[FORCE SAVE] Guardando venta con errores de validación:",
+      errors
+    );
     console.warn("[FORCE SAVE] Valores enviados:", values);
     await onSubmit(values); // Llama igual aunque falten campos
   };
@@ -1094,8 +1273,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     >
       {showForceWarning && (
         <div className="mb-2 p-3 rounded bg-yellow-100 text-yellow-900 font-semibold text-center">
-          Hay errores de validación en el formulario.<br />
-          <span className="text-sm font-normal">Puedes forzar el guardado para debug, pero revisa la consola para ver los campos faltantes.</span>
+          Hay errores de validación en el formulario.
+          <br />
+          <span className="text-sm font-normal">
+            Puedes forzar el guardado para debug, pero revisa la consola para
+            ver los campos faltantes.
+          </span>
           <div className="mt-2">
             <button
               type="button"
@@ -1217,7 +1400,13 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 className={`w-full ${
                   errors.fechaEntrega ? "border-red-500" : ""
                 }`}
-                value={watch("fechaEntrega") ? new Date(watch("fechaEntrega")).toISOString().split('T')[0] : ""}
+                value={
+                  watch("fechaEntrega")
+                    ? new Date(watch("fechaEntrega"))
+                        .toISOString()
+                        .split("T")[0]
+                    : ""
+                }
               />
               {errors.fechaEntrega && (
                 <span className="text-red-500 text-xs">
