@@ -181,12 +181,9 @@ export const columnsPresupuestos = [
   {
     accessorKey: "numeroPedido",
     header: "N° Pedido",
-    cell: ({ row }) => row.getValue("numeroPedido") || row.getValue("id")
-  },
-  {
-    accessorKey: "cliente.nombre",
-    header: "Cliente",
-    cell: ({ row }) => row.original.cliente?.nombre || "-"
+    cell: ({ row }) => (
+      <span className="font-mono text-sm text-primary dark:text-primary-300">{row.getValue("numeroPedido") || row.getValue("id")}</span>
+    )
   },
   {
     accessorKey: "fecha",
@@ -195,45 +192,36 @@ export const columnsPresupuestos = [
       const fecha = row.getValue("fecha");
       if (!fecha) return "-";
       const dateObj = new Date(fecha);
-      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+      return (
+        <span className="whitespace-nowrap text-sm text-default-700 dark:text-default-200">
+          {dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+        </span>
+      );
     }
   },
   {
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => {
-      const total = row.getValue("total");
-      return total ? `$${parseFloat(total).toFixed(2)}` : "-";
+      const total = row.original.subtotal ?? row.getValue("total");
+      return (
+        <span className="font-semibold text-base text-green-700 dark:text-green-400">
+          {total ? `$${parseFloat(total).toFixed(2)}` : "-"}
+        </span>
+      );
     }
   },
   {
-    accessorKey: "tipoEnvio",
-    header: "Tipo Envío",
+    accessorKey: "costoEnvio",
+    header: "Costo Envío",
     cell: ({ row }) => {
-      const tipo = row.getValue("tipoEnvio");
-      const tipos = {
-        retiro_local: "Retiro Local",
-        envio_domicilio: "Domicilio",
-        envio_obra: "Obra",
-        transporte_propio: "Transporte Propio",
-      };
-      return tipos[tipo] || tipo;
+      const costo = row.getValue("costoEnvio");
+      return costo && !isNaN(Number(costo)) ? (
+        <span className="text-base text-blue-700 dark:text-blue-400">${Number(costo).toFixed(2)}</span>
+      ) : (
+        <span className="text-default-400 dark:text-default-500">-</span>
+      );
     }
-  },
-  {
-    accessorKey: "vendedor",
-    header: "Vendedor",
-    cell: ({ row }) => row.getValue("vendedor") || "-"
-  },
-  {
-    accessorKey: "prioridad",
-    header: "Prioridad",
-    cell: ({ row }) => row.getValue("prioridad") || "-"
-  },
-  {
-    accessorKey: "estado",
-    header: "Estado",
-    cell: ({ row }) => row.getValue("estado") || "-"
   },
 ];
 
