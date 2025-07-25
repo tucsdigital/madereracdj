@@ -396,9 +396,7 @@ const PresupuestoDetalle = () => {
           <div className="ml-auto text-right">
             <div className="text-xs text-gray-500">
               Fecha:{" "}
-              {presupuesto?.fecha
-                ? formatFechaLocal(presupuesto.fecha)
-                : "-"}
+              {presupuesto?.fecha ? formatFechaLocal(presupuesto.fecha) : "-"}
             </div>
             <div className="text-xs text-gray-500">
               N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
@@ -410,13 +408,20 @@ const PresupuestoDetalle = () => {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Presupuesto #
-                {presupuesto.numeroPedido || presupuesto.id?.slice(-8)}
+                N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
               </h1>
-              <p className="text-gray-600 mt-1">
-                {presupuesto.nombre ||
-                  `Presupuesto ${formatDate(presupuesto.fecha)}`}
-              </p>
+              {/* Mostrar observaciones si existen */}
+              {presupuesto.observaciones && (
+                <p className="text-gray-600 mt-1 whitespace-pre-line">
+                  {presupuesto.observaciones}
+                </p>
+              )}
+              {/* Mostrar costo de envío si existe y es mayor a 0 */}
+              {presupuesto.costoEnvio !== undefined && Number(presupuesto.costoEnvio) > 0 && (
+                <div className="mt-1 text-sm text-primary font-semibold">
+                  Costo de envío estimado: ${Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <Button
@@ -706,48 +711,6 @@ const PresupuestoDetalle = () => {
             </p>
           </div>
         )}
-
-        {/* Información adicional */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="font-semibold text-lg mb-3 text-gray-900">
-            Información Adicional
-          </h3>
-          {/* Información adicional: eliminar ID, solo mostrar número de pedido y datos útiles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">N° de pedido:</span>{" "}
-              {presupuesto.numeroPedido || presupuesto.id}
-            </div>
-            <div>
-              <span className="font-medium">Fecha de creación:</span>{" "}
-              {presupuesto.fechaCreacion
-                ? formatFechaLocal(presupuesto.fechaCreacion)
-                : "-"}
-            </div>
-            <div>
-              <span className="font-medium">Cantidad de productos:</span>{" "}
-              {(presupuesto.productos || presupuesto.items || []).length}
-            </div>
-            <div>
-              <span className="font-medium">Subtotal:</span> $
-              {Number(presupuesto.subtotal || 0).toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-              })}
-            </div>
-            <div>
-              <span className="font-medium">Descuento total:</span> $
-              {Number(presupuesto.descuentoTotal || 0).toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-              })}
-            </div>
-            <div>
-              <span className="font-medium">Total:</span> $
-              {Number(presupuesto.total || 0).toLocaleString("es-AR", {
-                minimumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-        </div>
 
         {/* Botones de acción */}
         <div className="flex gap-3 mt-4">
