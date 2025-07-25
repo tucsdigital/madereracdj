@@ -182,7 +182,9 @@ export const columnsPresupuestos = [
     accessorKey: "numeroPedido",
     header: "N° Pedido",
     cell: ({ row }) => (
-      <span className="font-mono text-sm text-primary dark:text-primary-300">{row.getValue("numeroPedido") || row.getValue("id")}</span>
+      <span className="font-mono text-sm px-2 py-1 rounded bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-300 inline-block">
+        {row.getValue("numeroPedido") || row.getValue("id")}
+      </span>
     )
   },
   {
@@ -190,10 +192,10 @@ export const columnsPresupuestos = [
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return "-";
+      if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
       const dateObj = new Date(fecha);
       return (
-        <span className="whitespace-nowrap text-sm text-default-700 dark:text-default-200">
+        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
           {dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
         </span>
       );
@@ -208,7 +210,7 @@ export const columnsPresupuestos = [
       const costoEnvio = row.original.costoEnvio;
       const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
       return (
-        <span className="font-semibold text-base text-green-700 dark:text-green-400">
+        <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
           {`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
         </span>
       );
@@ -220,9 +222,11 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const costo = row.getValue("costoEnvio");
       return costo && !isNaN(Number(costo)) ? (
-        <span className="text-base text-blue-700 dark:text-blue-400">${Number(costo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+        <span className="inline-block px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400 font-medium">
+          ${Number(costo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+        </span>
       ) : (
-        <span className="text-default-400 dark:text-default-500">-</span>
+        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-400 dark:text-default-500">-</span>
       );
     }
   },
@@ -233,21 +237,33 @@ export const columnsVentas = [
   {
     accessorKey: "numeroPedido",
     header: "N° Pedido",
-    cell: ({ row }) => row.getValue("numeroPedido") || row.getValue("id")
+    cell: ({ row }) => (
+      <span className="font-mono text-sm px-2 py-1 rounded bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-300 inline-block">
+        {row.getValue("numeroPedido") || row.getValue("id")}
+      </span>
+    )
   },
   {
     accessorKey: "cliente.nombre",
     header: "Cliente",
-    cell: ({ row }) => row.original.cliente?.nombre || "-"
+    cell: ({ row }) => (
+      <span className="font-semibold text-default-800 dark:text-default-200">
+        {row.original.cliente?.nombre || "-"}
+      </span>
+    )
   },
   {
     accessorKey: "fecha",
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return "-";
+      if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
       const dateObj = new Date(fecha);
-      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+      return (
+        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
+          {dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+        </span>
+      );
     }
   },
   {
@@ -258,7 +274,11 @@ export const columnsVentas = [
       const descuento = row.original.descuentoTotal ?? 0;
       const costoEnvio = row.original.costoEnvio;
       const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
-      return total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-";
+      return (
+        <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
+          {total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-"}
+        </span>
+      );
     }
   },
   {
@@ -272,22 +292,36 @@ export const columnsVentas = [
         envio_obra: "Obra",
         transporte_propio: "Transporte Propio",
       };
-      return tipos[tipo] || tipo;
+      return (
+        <span className="inline-block px-2 py-1 rounded bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
+          {tipos[tipo] || tipo}
+        </span>
+      );
     }
   },
   {
     accessorKey: "vendedor",
     header: "Vendedor",
-    cell: ({ row }) => row.getValue("vendedor") || "-"
+    cell: ({ row }) => (
+      <span className="text-default-700 dark:text-default-300">{row.getValue("vendedor") || "-"}</span>
+    )
   },
   {
     accessorKey: "prioridad",
     header: "Prioridad",
-    cell: ({ row }) => row.getValue("prioridad") || "-"
+    cell: ({ row }) => (
+      <span className="inline-block px-2 py-1 rounded bg-yellow-50 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 font-medium">
+        {row.getValue("prioridad") || "-"}
+      </span>
+    )
   },
   {
     accessorKey: "estado",
     header: "Estado",
-    cell: ({ row }) => row.getValue("estado") || "-"
+    cell: ({ row }) => (
+      <span className="inline-block px-2 py-1 rounded bg-gray-200 dark:bg-default-700 text-default-700 dark:text-default-200 font-medium">
+        {row.getValue("estado") || "-"}
+      </span>
+    )
   },
 ];
