@@ -236,7 +236,7 @@ const VentaDetalle = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Venta #{venta.id.slice(-8)}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Venta #{venta.numeroPedido || venta.id?.slice(-8)}</h1>
               <p className="text-gray-600 mt-1">
                 {venta.nombre || `Venta ${formatDate(venta.fecha)}`}
               </p>
@@ -259,9 +259,14 @@ const VentaDetalle = () => {
               <h3 className="font-semibold text-lg mb-3 text-gray-900">Información del Cliente</h3>
               <div className="space-y-2 text-sm">
                 <div><span className="font-medium">Nombre:</span> {venta.cliente?.nombre || "-"}</div>
-                <div><span className="font-medium">CUIT:</span> {venta.cliente?.cuit || "-"}</div>
+                <div><span className="font-medium">CUIT / DNI:</span> {venta.cliente?.cuit || "-"}</div>
                 <div><span className="font-medium">Dirección:</span> {venta.cliente?.direccion || "-"}</div>
                 <div><span className="font-medium">Teléfono:</span> {venta.cliente?.telefono || "-"}</div>
+                {venta.cliente?.partido && <div><span className="font-medium">Partido:</span> {venta.cliente.partido}</div>}
+                {venta.cliente?.barrio && <div><span className="font-medium">Barrio:</span> {venta.cliente.barrio}</div>}
+                {venta.cliente?.area && <div><span className="font-medium">Área:</span> {venta.cliente.area}</div>}
+                {venta.cliente?.lote && <div><span className="font-medium">Lote:</span> {venta.cliente.lote}</div>}
+                {venta.cliente?.descripcion && <div><span className="font-medium">Descripción:</span> {venta.cliente.descripcion}</div>}
                 <div><span className="font-medium">Email:</span> {venta.cliente?.email || "-"}</div>
               </div>
             </div>
@@ -269,24 +274,16 @@ const VentaDetalle = () => {
               <h3 className="font-semibold text-lg mb-3 text-gray-900">Información de la Venta</h3>
               <div className="space-y-2 text-sm">
                 <div><span className="font-medium">N° de pedido:</span> {venta.numeroPedido || venta.id}</div>
-                <div><span className="font-medium">ID del documento:</span> {venta.id}</div>
-                <div><span className="font-medium">Fecha de emisión:</span> {formatDate(venta.fecha)}</div>
-                <div><span className="font-medium">Fecha de entrega:</span> {formatDate(venta.fechaEntrega)}</div>
+                <div><span className="font-medium">Fecha de emisión:</span> {venta.fecha ? new Date(venta.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
+                {venta.fechaEntrega && <div><span className="font-medium">Fecha de entrega:</span> {new Date(venta.fechaEntrega).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>}
                 <div><span className="font-medium">Tipo:</span> {venta.tipo || "Venta"}</div>
                 {venta.costoEnvio !== undefined && venta.costoEnvio !== "" && (
-                  <div>
-                    <span className="font-medium">Costo de envío:</span>{" $"}
-                    {Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </div>
+                  <div><span className="font-medium">Costo de envío:</span> ${Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
                 )}
                 <div><span className="font-medium">Subtotal:</span> ${Number(venta.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
                 <div><span className="font-medium">Descuento total:</span> ${Number(venta.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
                 <div><span className="font-medium">Total:</span> ${Number(venta.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
-                <div><span className="font-medium">Estado de pago:</span> 
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getEstadoPagoColor(venta.estadoPago)}`}>
-                    {venta.estadoPago || "No especificado"}
-                  </span>
-                </div>
+                <div><span className="font-medium">Estado de pago:</span> <span className={`ml-2 px-2 py-1 rounded-full text-xs ${getEstadoPagoColor(venta.estadoPago)}`}>{venta.estadoPago || "No especificado"}</span></div>
               </div>
             </div>
           </div>
@@ -380,9 +377,8 @@ const VentaDetalle = () => {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="font-semibold text-lg mb-3 text-gray-900">Información Adicional</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div><span className="font-medium">ID del documento:</span> {venta.id}</div>
-            <div><span className="font-medium">Fecha de creación:</span> {formatDate(venta.fechaCreacion)}</div>
-            <div><span className="font-medium">Cliente ID:</span> {venta.clienteId || "-"}</div>
+            <div><span className="font-medium">N° de pedido:</span> {venta.numeroPedido || venta.id}</div>
+            <div><span className="font-medium">Fecha de creación:</span> {venta.fechaCreacion ? new Date(venta.fechaCreacion).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
             <div><span className="font-medium">Cantidad de productos:</span> {(venta.productos || venta.items || []).length}</div>
           </div>
         </div>

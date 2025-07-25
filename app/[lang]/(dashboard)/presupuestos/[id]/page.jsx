@@ -377,9 +377,10 @@ const PresupuestoDetalle = () => {
             </div>
             <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
           </div>
+          {/* Header profesional: solo mostrar número de pedido */}
           <div className="ml-auto text-right">
             <div className="text-xs text-gray-500">
-              Fecha: {formatDate(presupuesto?.fecha)}
+              Fecha: {presupuesto?.fecha ? new Date(presupuesto.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}
             </div>
             <div className="text-xs text-gray-500">
               N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
@@ -420,58 +421,33 @@ const PresupuestoDetalle = () => {
               <h3 className="font-semibold text-lg mb-3 text-gray-900">
                 Información del Cliente
               </h3>
+              {/* Información del cliente: solo datos relevantes, sin repeticiones */}
               <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Nombre:</span>{" "}
-                  {presupuesto.cliente?.nombre || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">CUIT:</span>{" "}
-                  {presupuesto.cliente?.cuit || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Dirección:</span>{" "}
-                  {presupuesto.cliente?.direccion || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Teléfono:</span>{" "}
-                  {presupuesto.cliente?.telefono || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span>{" "}
-                  {presupuesto.cliente?.email || "-"}
-                </div>
+                <div><span className="font-medium">Nombre:</span> {presupuesto.cliente?.nombre || "-"}</div>
+                <div><span className="font-medium">CUIT / DNI:</span> {presupuesto.cliente?.cuit || "-"}</div>
+                <div><span className="font-medium">Dirección:</span> {presupuesto.cliente?.direccion || "-"}</div>
+                <div><span className="font-medium">Teléfono:</span> {presupuesto.cliente?.telefono || "-"}</div>
+                {presupuesto.cliente?.partido && <div><span className="font-medium">Partido:</span> {presupuesto.cliente.partido}</div>}
+                {presupuesto.cliente?.barrio && <div><span className="font-medium">Barrio:</span> {presupuesto.cliente.barrio}</div>}
+                {presupuesto.cliente?.area && <div><span className="font-medium">Área:</span> {presupuesto.cliente.area}</div>}
+                {presupuesto.cliente?.lote && <div><span className="font-medium">Lote:</span> {presupuesto.cliente.lote}</div>}
+                {presupuesto.cliente?.descripcion && <div><span className="font-medium">Descripción:</span> {presupuesto.cliente.descripcion}</div>}
+                <div><span className="font-medium">Email:</span> {presupuesto.cliente?.email || "-"}</div>
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-lg mb-3 text-gray-900">
                 Información del Presupuesto
               </h3>
+              {/* Información del presupuesto: solo datos clave, sin ID */}
               <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Fecha de emisión:</span>{" "}
-                  {formatDate(presupuesto.fecha)}
-                </div>
-                <div>
-                  <span className="font-medium">Fecha de vencimiento:</span>{" "}
-                  {formatDate(presupuesto.vencimiento)}
-                </div>
-                <div>
-                  <span className="font-medium">Tipo:</span>{" "}
-                  {presupuesto.tipo || "Presupuesto"}
-                </div>
+                <div><span className="font-medium">Fecha de emisión:</span> {presupuesto.fecha ? new Date(presupuesto.fecha).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
+                {presupuesto.vencimiento && <div><span className="font-medium">Fecha de vencimiento:</span> {new Date(presupuesto.vencimiento).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</div>}
+                <div><span className="font-medium">Tipo:</span> {presupuesto.tipo || "Presupuesto"}</div>
                 {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && (
-                  <div>
-                    <span className="font-medium">Costo estimado de envío:</span>{" $"}
-                    {Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </div>
+                  <div><span className="font-medium">Costo estimado de envío:</span> ${Number(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
                 )}
-                <div>
-                  <span className="font-medium">Estado:</span>
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    Activo
-                  </span>
-                </div>
+                <div><span className="font-medium">Estado:</span> <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Activo</span></div>
               </div>
             </div>
           </div>
@@ -644,31 +620,14 @@ const PresupuestoDetalle = () => {
           <h3 className="font-semibold text-lg mb-3 text-gray-900">
             Información Adicional
           </h3>
+          {/* Información adicional: eliminar ID, solo mostrar número de pedido y datos útiles */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium">N° de pedido:</span> {presupuesto.numeroPedido || presupuesto.id}
-            </div>
-            <div>
-              <span className="font-medium">ID del documento:</span> {presupuesto.id}
-            </div>
-            <div>
-              <span className="font-medium">Fecha de creación:</span> {formatDate(presupuesto.fechaCreacion)}
-            </div>
-            <div>
-              <span className="font-medium">Cliente ID:</span> {presupuesto.clienteId || presupuesto.cliente?.cuit || "-"}
-            </div>
-            <div>
-              <span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}
-            </div>
-            <div>
-              <span className="font-medium">Subtotal:</span> ${Number(presupuesto.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-            </div>
-            <div>
-              <span className="font-medium">Descuento total:</span> ${Number(presupuesto.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-            </div>
-            <div>
-              <span className="font-medium">Total:</span> ${Number(presupuesto.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-            </div>
+            <div><span className="font-medium">N° de pedido:</span> {presupuesto.numeroPedido || presupuesto.id}</div>
+            <div><span className="font-medium">Fecha de creación:</span> {presupuesto.fechaCreacion ? new Date(presupuesto.fechaCreacion).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : "-"}</div>
+            <div><span className="font-medium">Cantidad de productos:</span> {(presupuesto.productos || presupuesto.items || []).length}</div>
+            <div><span className="font-medium">Subtotal:</span> ${Number(presupuesto.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+            <div><span className="font-medium">Descuento total:</span> ${Number(presupuesto.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+            <div><span className="font-medium">Total:</span> ${Number(presupuesto.total || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
 
