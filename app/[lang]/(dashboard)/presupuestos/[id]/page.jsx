@@ -338,6 +338,14 @@ const PresupuestoDetalle = () => {
     }
   };
 
+  // Calcular fecha de vencimiento automática (7 días después de emisión)
+  const fechaVencimientoAuto = React.useMemo(() => {
+    if (!presupuesto?.fecha) return null;
+    const fecha = new Date(presupuesto.fecha);
+    fecha.setDate(fecha.getDate() + 7);
+    return fecha;
+  }, [presupuesto?.fecha]);
+
   // Función para imprimir
   const handlePrint = () => {
     window.print();
@@ -511,12 +519,11 @@ const PresupuestoDetalle = () => {
                     ? formatFechaLocal(presupuesto.fecha)
                     : "-"}
                 </div>
-                {presupuesto.vencimiento && (
-                  <div>
-                    <span className="font-medium">Fecha de vencimiento:</span>{" "}
-                    {formatFechaLocal(presupuesto.vencimiento)}
-                  </div>
-                )}
+                {/** Fecha de vencimiento automática */}
+                <div>
+                  <span className="font-medium">Fecha de vencimiento:</span>{" "}
+                  {fechaVencimientoAuto ? formatFechaLocal(fechaVencimientoAuto.toISOString().split("T")[0]) : "-"}
+                </div>
                 <div>
                   <span className="font-medium">Tipo:</span>{" "}
                   {presupuesto.tipo || "Presupuesto"}
@@ -688,10 +695,23 @@ const PresupuestoDetalle = () => {
                     <span>Descuento total:</span>
                     <span>${(presupuesto.descuentoTotal || 0).toFixed(2)}</span>
                   </div>
+                  {/* Mostrar costo de envío si existe y es >= 0 */}
+                  {presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && (
+                    <div className="flex justify-between">
+                      <span>Cotización de envío:</span>
+                      <span>${Number(presupuesto.costoEnvio).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${(presupuesto.total || 0).toFixed(2)}
+                      ${(
+                        (presupuesto.subtotal || 0) -
+                        (presupuesto.descuentoTotal || 0) +
+                        (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio))
+                          ? Number(presupuesto.costoEnvio)
+                          : 0)
+                      ).toFixed(2)}
                     </span>
                   </div>
                 </div>
