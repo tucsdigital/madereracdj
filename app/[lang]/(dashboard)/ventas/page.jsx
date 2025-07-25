@@ -189,23 +189,39 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       }),
     prioridad: yup.string().required("Selecciona la prioridad"),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
+    usarDireccionCliente: yup.boolean().default(true),
     fechaEntrega: yup.string().when("tipoEnvio", {
       is: val => val && val !== "retiro_local",
       then: s => s.required("La fecha de entrega es obligatoria"),
-      otherwise: s => s.notRequired()
+      otherwise: s => s.notRequired(),
     }),
     rangoHorario: yup.string().when("tipoEnvio", {
       is: val => val && val !== "retiro_local",
       then: s => s.required("El rango horario es obligatorio"),
-      otherwise: s => s.notRequired()
+      otherwise: s => s.notRequired(),
     }),
     transportista: yup.string().when("tipoEnvio", {
       is: val => val && val !== "retiro_local",
       then: s => s.required("Selecciona el transportista"),
-      otherwise: s => s.notRequired()
+      otherwise: s => s.notRequired(),
     }),
     costoEnvio: yup.number().notRequired(),
     observaciones: yup.string().notRequired(),
+    direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) => tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: s => s.required("La dirección de envío es obligatoria"),
+      otherwise: s => s.notRequired(),
+    }),
+    localidadEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) => tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: s => s.required("La localidad es obligatoria"),
+      otherwise: s => s.notRequired(),
+    }),
+    codigoPostal: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) => tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: s => s.required("El código postal es obligatorio"),
+      otherwise: s => s.notRequired(),
+    }),
   });
 
   // Elegir el esquema según el tipo
@@ -218,6 +234,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       clienteId: "",
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
+      usarDireccionCliente: true,
     }
   });
 
@@ -404,33 +421,26 @@ const handleAgregarProducto = (producto) => {
   const handleFormSubmit = async (data) => {
     setHasSubmitted(true);
     console.log("[DEBUG] handleFormSubmit - data recibida:", data);
-    // Resetear estados previos
     setSubmitStatus(null);
     setSubmitMessage("");
-    
-    // Validaciones adicionales
+
     if (!clienteId) {
       setSubmitStatus("error");
       setSubmitMessage("Debe seleccionar un cliente");
       return;
     }
-
     if (productosSeleccionados.length === 0) {
       setSubmitStatus("error");
       setSubmitMessage("Debe agregar al menos un producto");
       return;
     }
-
-    // Validar que todos los productos tengan cantidad > 0
     const productosInvalidos = productosSeleccionados.filter(p => p.cantidad <= 0);
     if (productosInvalidos.length > 0) {
       setSubmitStatus("error");
       setSubmitMessage("Todos los productos deben tener una cantidad mayor a 0");
       return;
     }
-
     setIsSubmitting(true);
-    
     try {
       // Preparar datos del formulario
       const productosLimpios = productosSeleccionados.map(p => {
@@ -451,8 +461,6 @@ const handleAgregarProducto = (producto) => {
         }
         return obj;
       });
-
-      // Limpiar campos de envío si es retiro_local
       let cleanData = { ...data };
       if (cleanData.tipoEnvio === "retiro_local") {
         cleanData.fechaEntrega = undefined;
@@ -463,7 +471,6 @@ const handleAgregarProducto = (producto) => {
         cleanData.codigoPostal = undefined;
         cleanData.costoEnvio = undefined;
       }
-
       const formData = tipo === 'presupuesto'
         ? {
             fecha: cleanData.fecha,
@@ -490,21 +497,13 @@ const handleAgregarProducto = (producto) => {
             tipo: tipo,
             numeroPedido: `PED-${Date.now()}`,
           };
-
-      console.log("Datos preparados para envío:", formData); // Debug
-
-      // Llamar a la función onSubmit del componente padre
+      console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
-      
-      // Éxito
       setSubmitStatus("success");
       setSubmitMessage(`${tipo === 'presupuesto' ? 'Presupuesto' : 'Venta'} guardado exitosamente`);
-      
-      // Cerrar modal después de un breve delay para mostrar el mensaje de éxito
       setTimeout(() => {
         onClose();
       }, 1500);
-      
     } catch (error) {
       console.error("Error al guardar:", error);
       setSubmitStatus("error");
@@ -931,6 +930,7 @@ const handleAgregarProducto = (producto) => {
                       <option value="cheque">Cheque</option>
                       <option value="otro">Otro</option>
                     </select>
+                    {errors.formaPago && <span className="text-red-500 text-xs">{errors.formaPago.message}</span>}
                     <div className="flex items-center gap-2 mt-2">
                       <input type="checkbox" id="pagoParcial" {...register("pagoParcial")} />
                       <label htmlFor="pagoParcial" className="text-sm">¿Pago parcial?</label>
@@ -939,6 +939,7 @@ const handleAgregarProducto = (producto) => {
                       <>
                         <Input type="number" min={0} placeholder="Monto abonado" {...register("montoAbonado")} className="w-full" disabled={isSubmitting} />
                         <div className="text-sm text-gray-600">Resta: ${(total - (watch('montoAbonado') || 0)).toFixed(2)}</div>
+                        {errors.montoAbonado && <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>}
                       </>
                     )}
                   </div>
@@ -953,6 +954,7 @@ const handleAgregarProducto = (producto) => {
                       <option value="envio_obra">Envío a obra</option>
                       <option value="transporte_propio">Transporte propio del cliente</option>
                     </select>
+                    {errors.tipoEnvio && <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>}
                     {tipoEnvioSeleccionado !== "retiro_local" && (
                       <>
                         <div className="flex items-center gap-2 mb-2">
@@ -964,6 +966,9 @@ const handleAgregarProducto = (producto) => {
                             <Input {...register("direccionEnvio")} placeholder="Dirección de envío" className="w-full" disabled={isSubmitting} />
                             <Input {...register("localidadEnvio")} placeholder="Localidad/Ciudad" className="w-full" disabled={isSubmitting} />
                             <Input {...register("codigoPostal")} placeholder="Código postal" className="w-full" disabled={isSubmitting} />
+                            {errors.direccionEnvio && <span className="text-red-500 text-xs">{errors.direccionEnvio.message}</span>}
+                            {errors.localidadEnvio && <span className="text-red-500 text-xs">{errors.localidadEnvio.message}</span>}
+                            {errors.codigoPostal && <span className="text-red-500 text-xs">{errors.codigoPostal.message}</span>}
                           </>
                         )}
                         {usarDireccionCliente && clienteSeleccionado && (
@@ -977,6 +982,7 @@ const handleAgregarProducto = (producto) => {
                           <option value="">Transportista...</option>
                           {transportistas.map(t => <option key={t}>{t}</option>)}
                         </select>
+                        {errors.transportista && <span className="text-red-500 text-xs">{errors.transportista.message}</span>}
                         {tipoEnvioSeleccionado !== "retiro_local" && (
                           <Input
                             {...register("costoEnvio")}
@@ -987,8 +993,11 @@ const handleAgregarProducto = (producto) => {
                             min={0}
                           />
                         )}
+                        {errors.costoEnvio && <span className="text-red-500 text-xs">{errors.costoEnvio.message}</span>}
                         <Input {...register("fechaEntrega")} placeholder="Fecha de entrega" type="date" className="w-full" disabled={isSubmitting} value={watch("fechaEntrega") ? new Date(watch("fechaEntrega")).toISOString().split('T')[0] : ""} />
+                        {errors.fechaEntrega && <span className="text-red-500 text-xs">{errors.fechaEntrega.message}</span>}
                         <Input {...register("rangoHorario")} placeholder="Rango horario (ej: 8-12, 14-18)" className="w-full" disabled={isSubmitting} />
+                        {errors.rangoHorario && <span className="text-red-500 text-xs">{errors.rangoHorario.message}</span>}
                       </>
                     )}
                   </div>
@@ -1000,11 +1009,14 @@ const handleAgregarProducto = (producto) => {
                       <option value="">Vendedor responsable...</option>
                       {vendedores.map(v => <option key={v}>{v}</option>)}
                     </select>
+                    {errors.vendedor && <span className="text-red-500 text-xs">{errors.vendedor.message}</span>}
                     <select {...register("prioridad")} className="border rounded px-2 py-2 w-full" disabled={isSubmitting}>
                       <option value="">Prioridad...</option>
                       {prioridades.map(p => <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                     </select>
+                    {errors.prioridad && <span className="text-red-500 text-xs">{errors.prioridad.message}</span>}
                     <Textarea {...register("observaciones")} placeholder="Observaciones adicionales" className="w-full" disabled={isSubmitting} />
+                    {errors.observaciones && <span className="text-red-500 text-xs">{errors.observaciones.message}</span>}
                   </div>
                 </>
               )}
