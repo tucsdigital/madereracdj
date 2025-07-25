@@ -624,16 +624,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
 
             {/* Sección Cliente */}
-            <section className="bg-white rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
-              <label className="font-semibold text-lg text-default-800 flex items-center gap-2">
-                <Icon icon="heroicons:user" className="w-5 h-5 text-primary" /> Cliente
+            <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+              <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
+                <Icon icon="heroicons:user" className="w-5 h-5 text-primary dark:text-primary-300" /> Cliente
               </label>
               <div className="relative w-full">
                 <div
-                  className="border border-default-200 rounded-lg px-3 py-3 w-full flex items-center cursor-pointer bg-white hover:border-primary focus-within:border-primary transition-all"
+                  className="border border-default-200 dark:border-default-700 rounded-lg px-3 py-3 w-full flex items-center cursor-pointer bg-white hover:bg-gray-100 dark:bg-default-800 transition-all"
                   onClick={() => setDropdownClientesOpen(true)}
                 >
-                  <span className="flex-1 text-default-700 text-base">
+                  <span className="flex-1 text-default-700 dark:text-default-100 text-base">
                     {clienteSeleccionado
                       ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
                       : "Seleccionar cliente..."}
@@ -642,7 +642,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-primary font-semibold"
+                    className="text-primary dark:text-primary-300 font-semibold"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenNuevoCliente(true);
@@ -653,25 +653,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </Button>
                 </div>
                 {dropdownClientesOpen && (
-                  <div className="absolute z-50 bg-white border border-default-200 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
+                  <div className="absolute z-50 bg-white dark:bg-default-900 border border-default-200 dark:border-default-700 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
                     <div className="p-2">
                       <Input
                         type="text"
                         placeholder="Buscar cliente..."
                         value={busquedaCliente}
                         onChange={(e) => setBusquedaCliente(e.target.value)}
-                        className="w-full mb-2 rounded-md border-default-200 focus:border-primary"
+                        className="w-full mb-2 rounded-md border-default-200 dark:border-default-700 focus:border-primary dark:focus:border-primary-400"
                         autoFocus
                         disabled={clientesLoading || isSubmitting}
                       />
                       <div className="divide-y divide-gray-100">
                         {clientesFiltrados.length === 0 && (
-                          <div className="p-2 text-gray-400 text-sm">No hay clientes</div>
+                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">No hay clientes</div>
                         )}
                         {clientesFiltrados.map((c) => (
                           <div
                             key={c.id}
-                            className="p-2 hover:bg-primary/10 cursor-pointer rounded text-base"
+                            className="p-2 hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer rounded text-base"
                             onClick={() => {
                               handleClienteChange(c.id);
                               setDropdownClientesOpen(false);
@@ -686,13 +686,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 )}
               </div>
               {errors.clienteId && (
-                <span className="text-red-500 text-xs mt-1">
+                <span className="text-red-500 dark:text-red-400 text-xs mt-1">
                   {errors.clienteId.message}
                 </span>
               )}
-              <div className="space-y-2 bg-default-50 rounded-lg p-4 border border-default-100 shadow-sm">
-                <div className="text-base font-semibold text-default-800 pb-1 flex items-center gap-2">
-                  <Icon icon="heroicons:identification" className="w-4 h-4 text-primary" /> Datos del cliente
+              <div className="space-y-2 bg-default-50 dark:bg-default-800 rounded-lg p-4 border border-default-100 shadow-sm">
+                <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1 flex items-center gap-2">
+                  <Icon icon="heroicons:identification" className="w-4 h-4 text-primary dark:text-primary-300" /> Datos del cliente
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -700,10 +700,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.nombre || ""}
                       placeholder="Nombre del cliente"
                       readOnly
-                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
                     />
                     {errors.cliente?.nombre && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.cliente?.nombre.message}
                       </span>
                     )}
@@ -713,10 +713,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.cuit || ""}
                       placeholder="CUIT"
                       readOnly
-                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
                     />
                     {errors.cliente?.cuit && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.cliente?.cuit.message}
                       </span>
                     )}
@@ -726,10 +726,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.direccion || ""}
                       placeholder="Dirección"
                       readOnly
-                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
                     />
                     {errors.cliente?.direccion && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.cliente?.direccion.message}
                       </span>
                     )}
@@ -739,10 +739,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.telefono || ""}
                       placeholder="Teléfono"
                       readOnly
-                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
                     />
                     {errors.cliente?.telefono && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.cliente?.telefono.message}
                       </span>
                     )}
@@ -752,10 +752,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.email || ""}
                       placeholder="Email"
                       readOnly
-                      className="w-full bg-gray-50 border border-default-200 rounded-md text-base"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
                     />
                     {errors.cliente?.email && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.cliente?.email.message}
                       </span>
                     )}
@@ -765,13 +765,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </section>
 
             {/* Sección Productos */}
-            <section className="bg-white rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
-              <label className="font-semibold text-lg text-default-800 flex items-center gap-2">
-                <Icon icon="heroicons:cube" className="w-5 h-5 text-primary" /> Productos
+            <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+              <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
+                <Icon icon="heroicons:cube" className="w-5 h-5 text-primary dark:text-primary-300" /> Productos
               </label>
               <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
                 {categoriasState.length === 0 && (
-                  <span className="text-gray-400">No hay categorías con productos</span>
+                  <span className="text-gray-400 dark:text-default-500">No hay categorías con productos</span>
                 )}
                 {categoriasState.map((cat) => (
                   <Button
@@ -802,7 +802,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   {categoriaId === "Maderas" && (
                     <div className="w-full mb-2 animate-fade-in">
-                      <div className="divide-y divide-gray-200 bg-white rounded-b">
+                      <div className="divide-y divide-gray-200 bg-white dark:bg-default-900 rounded-b">
                         {productosPorCategoria[categoriaId]
                           ?.filter(
                             (prod) =>
@@ -934,7 +934,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </div>
                   )}
                   {categoriaId !== "Maderas" && (
-                    <div className="bg-gray-100 rounded-b">
+                    <div className="bg-gray-100 dark:bg-default-800 rounded-b">
                       <div className="divide-y divide-gray-200">
                         {productosPorCategoria[categoriaId]
                           ?.filter(
@@ -1037,7 +1037,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               )}
               {productosSeleccionados.length > 0 && (
                 <div className="overflow-x-auto mt-4">
-                  <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
+                  <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
                     <thead>
                       <tr className="bg-primary/10 text-primary font-semibold">
                         <th className="p-2 text-left">Categoría</th>
@@ -1157,7 +1157,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
               )}
               {hasSubmitted && errors.items && (
-                <span className="text-red-500 text-xs">
+                <span className="text-red-500 dark:text-red-400 text-xs">
                   {errors.items.message}
                 </span>
               )}
@@ -1167,8 +1167,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {tipo === "venta" && (
                 <>
-                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 pb-1">
+                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
                       Condiciones de pago y entrega
                     </div>
                     <select
@@ -1184,7 +1184,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <option value="otro">Otro</option>
                     </select>
                     {errors.formaPago && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.formaPago.message}
                       </span>
                     )}
@@ -1213,7 +1213,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {(total - (watch("montoAbonado") || 0)).toFixed(2)}
                         </div>
                         {errors.montoAbonado && (
-                          <span className="text-red-500 text-xs">
+                          <span className="text-red-500 dark:text-red-400 text-xs">
                             {errors.montoAbonado.message}
                           </span>
                         )}
@@ -1221,8 +1221,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     )}
                   </div>
 
-                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 pb-1">
+                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
                       Información de envío
                     </div>
                     <select
@@ -1246,7 +1246,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       </option>
                     </select>
                     {errors.tipoEnvio && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.tipoEnvio.message}
                       </span>
                     )}
@@ -1289,17 +1289,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               disabled={isSubmitting}
                             />
                             {errors.direccionEnvio && (
-                              <span className="text-red-500 text-xs">
+                              <span className="text-red-500 dark:text-red-400 text-xs">
                                 {errors.direccionEnvio.message}
                               </span>
                             )}
                             {errors.localidadEnvio && (
-                              <span className="text-red-500 text-xs">
+                              <span className="text-red-500 dark:text-red-400 text-xs">
                                 {errors.localidadEnvio.message}
                               </span>
                             )}
                             {errors.codigoPostal && (
-                              <span className="text-red-500 text-xs">
+                              <span className="text-red-500 dark:text-red-400 text-xs">
                                 {errors.codigoPostal.message}
                               </span>
                             )}
@@ -1335,7 +1335,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           ))}
                         </select>
                         {errors.transportista && (
-                          <span className="text-red-500 text-xs">
+                          <span className="text-red-500 dark:text-red-400 text-xs">
                             {errors.transportista.message}
                           </span>
                         )}
@@ -1354,7 +1354,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           />
                         )}
                         {errors.costoEnvio && (
-                          <span className="text-red-500 text-xs">
+                          <span className="text-red-500 dark:text-red-400 text-xs">
                             {errors.costoEnvio.message}
                           </span>
                         )}
@@ -1373,7 +1373,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           }
                         />
                         {errors.fechaEntrega && (
-                          <span className="text-red-500 text-xs">
+                          <span className="text-red-500 dark:text-red-400 text-xs">
                             {errors.fechaEntrega.message}
                           </span>
                         )}
@@ -1384,7 +1384,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           disabled={isSubmitting}
                         />
                         {errors.rangoHorario && (
-                          <span className="text-red-500 text-xs">
+                          <span className="text-red-500 dark:text-red-400 text-xs">
                             {errors.rangoHorario.message}
                           </span>
                         )}
@@ -1392,8 +1392,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     )}
                   </div>
 
-                  <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 pb-1">
+                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
                       Información adicional
                     </div>
                     <select
@@ -1407,7 +1407,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ))}
                     </select>
                     {errors.vendedor && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.vendedor.message}
                       </span>
                     )}
@@ -1424,7 +1424,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ))}
                     </select>
                     {errors.prioridad && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.prioridad.message}
                       </span>
                     )}
@@ -1435,7 +1435,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       disabled={isSubmitting}
                     />
                     {errors.observaciones && (
-                      <span className="text-red-500 text-xs">
+                      <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.observaciones.message}
                       </span>
                     )}
@@ -1443,8 +1443,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </>
               )}
               {tipo === "presupuesto" && (
-                <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-                  <div className="text-base font-semibold text-default-800 pb-1">
+                <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
                     Información de envío
                   </div>
                   <select
@@ -1461,7 +1461,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </option>
                   </select>
                   {errors.tipoEnvio && (
-                    <span className="text-red-500 text-xs">
+                    <span className="text-red-500 dark:text-red-400 text-xs">
                       {errors.tipoEnvio.message}
                     </span>
                   )}
@@ -1477,7 +1477,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       />
                     )}
                   {errors.costoEnvio && (
-                    <span className="text-red-500 text-xs">
+                    <span className="text-red-500 dark:text-red-400 text-xs">
                       {errors.costoEnvio.message}
                     </span>
                   )}
@@ -1488,9 +1488,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
 
         {/* Totales y acciones */}
-        <div className="bg-white p-6 space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100 shadow">
+        <div className="bg-white space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100">
           <div className="flex flex-col items-end gap-2">
-            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
                 Subtotal: <span className="font-bold">${subtotal.toFixed(2)}</span>
               </div>
@@ -1511,7 +1511,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="hover:bg-gray-100 rounded-md px-6 py-2 text-base"
+              className="hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-6 py-2 text-base"
               disabled={isSubmitting}
             >
               Cancelar
@@ -1536,82 +1536,82 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       </form>
 
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20">
+        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-white dark:bg-default-900 dark:border-default-700">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-primary flex items-center gap-2">
+            <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2">
               <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar Cliente
             </DialogTitle>
-            <DialogDescription className="text-base text-default-600">
+            <DialogDescription className="text-base text-default-600 dark:text-default-300">
               Complete los datos del nuevo cliente para agregarlo al sistema.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <Input
               placeholder="Nombre *"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.nombre}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
               required
             />
             <Input
               placeholder="CUIT / DNI"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.cuit || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })}
             />
             <Input
               placeholder="Dirección *"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.direccion}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
               required
             />
             <Input
               placeholder="Teléfono *"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.telefono}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
               required
             />
             <Input
               placeholder="Email"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.email}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })}
             />
             <Input
               placeholder="Localidad"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.localidad || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })}
             />
             <Input
               placeholder="Partido"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.partido || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })}
             />
             <Input
               placeholder="Barrio"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.barrio || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })}
             />
             <Input
               placeholder="Área"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.area || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, area: e.target.value })}
             />
             <Input
               placeholder="Lote"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.lote || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })}
             />
             <Textarea
               placeholder="Descripción"
-              className="w-full rounded-md border-default-200 px-4 py-2 text-base focus:border-primary min-h-[60px]"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2 min-h-[60px]"
               value={nuevoCliente.descripcion || ""}
               onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
             />
@@ -1619,7 +1619,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           <DialogFooter className="flex flex-row gap-4 justify-end pt-2">
             <Button
               variant="outline"
-              className="hover:bg-gray-100 rounded-md px-6 py-2 text-base"
+              className="hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-6 py-2 text-base"
               onClick={() => setOpenNuevoCliente(false)}
             >
               Cancelar
@@ -1775,11 +1775,11 @@ export function SelectorProductosPresupuesto({
   }
 
   return (
-    <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+    <section className="bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
       <label className="font-semibold">Productos</label>
       <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
         {categoriasState.length === 0 && (
-          <span className="text-gray-400">No hay categorías con productos</span>
+          <span className="text-gray-400 dark:text-default-500">No hay categorías con productos</span>
         )}
         {categoriasState.map((cat) => (
           <Button
@@ -1810,7 +1810,7 @@ export function SelectorProductosPresupuesto({
           </div>
           {categoriaId === "Maderas" && (
             <div className="w-full mb-2 animate-fade-in">
-              <div className="divide-y divide-gray-200 bg-white rounded-b">
+              <div className="divide-y divide-gray-200 bg-white dark:bg-default-900 rounded-b">
                 {productosPorCategoria[categoriaId]
                   ?.filter(
                     (prod) =>
@@ -1935,7 +1935,7 @@ export function SelectorProductosPresupuesto({
             </div>
           )}
           {categoriaId !== "Maderas" && (
-            <div className="bg-gray-100 rounded-b">
+            <div className="bg-gray-100 dark:bg-default-800 rounded-b">
               <div className="divide-y divide-gray-200">
                 {productosPorCategoria[categoriaId]
                   ?.filter(
@@ -2034,7 +2034,7 @@ export function SelectorProductosPresupuesto({
       )}
       {productosSeleccionados.length > 0 && (
         <div className="overflow-x-auto mt-4">
-          <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
+          <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
             <thead>
               <tr className="bg-primary/10 text-primary font-semibold">
                 <th className="p-2 text-left">Categoría</th>
