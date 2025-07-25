@@ -175,3 +175,125 @@ export const columns = [
     },
   },
 ];
+
+// Columnas para la tabla de presupuestos
+export const columnsPresupuestos = [
+  {
+    accessorKey: "numeroPedido",
+    header: "N° Pedido",
+    cell: ({ row }) => row.getValue("numeroPedido") || row.getValue("id")
+  },
+  {
+    accessorKey: "cliente.nombre",
+    header: "Cliente",
+    cell: ({ row }) => row.original.cliente?.nombre || "-"
+  },
+  {
+    accessorKey: "fecha",
+    header: "Fecha",
+    cell: ({ row }) => {
+      const fecha = row.getValue("fecha");
+      if (!fecha) return "-";
+      const dateObj = new Date(fecha);
+      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+    }
+  },
+  {
+    accessorKey: "total",
+    header: "Total",
+    cell: ({ row }) => {
+      const total = row.getValue("total");
+      return total ? `$${parseFloat(total).toFixed(2)}` : "-";
+    }
+  },
+  {
+    accessorKey: "tipoEnvio",
+    header: "Tipo Envío",
+    cell: ({ row }) => {
+      const tipo = row.getValue("tipoEnvio");
+      const tipos = {
+        retiro_local: "Retiro Local",
+        envio_domicilio: "Domicilio",
+        envio_obra: "Obra",
+        transporte_propio: "Transporte Propio",
+      };
+      return tipos[tipo] || tipo;
+    }
+  },
+  {
+    accessorKey: "vendedor",
+    header: "Vendedor",
+    cell: ({ row }) => row.getValue("vendedor") || "-"
+  },
+  {
+    accessorKey: "prioridad",
+    header: "Prioridad",
+    cell: ({ row }) => row.getValue("prioridad") || "-"
+  },
+  {
+    accessorKey: "estado",
+    header: "Estado",
+    cell: ({ row }) => row.getValue("estado") || "-"
+  },
+];
+
+// Columnas para la tabla de ventas
+export const columnsVentas = [
+  {
+    accessorKey: "numeroPedido",
+    header: "N° Pedido",
+    cell: ({ row }) => row.getValue("numeroPedido") || row.getValue("id")
+  },
+  {
+    accessorKey: "cliente.nombre",
+    header: "Cliente",
+    cell: ({ row }) => row.original.cliente?.nombre || "-"
+  },
+  {
+    accessorKey: "fecha",
+    header: "Fecha",
+    cell: ({ row }) => {
+      const fecha = row.getValue("fecha");
+      if (!fecha) return "-";
+      const dateObj = new Date(fecha);
+      return dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+    }
+  },
+  {
+    accessorKey: "total",
+    header: "Total",
+    cell: ({ row }) => {
+      const total = row.getValue("total");
+      return total ? `$${parseFloat(total).toFixed(2)}` : "-";
+    }
+  },
+  {
+    accessorKey: "tipoEnvio",
+    header: "Tipo Envío",
+    cell: ({ row }) => {
+      const tipo = row.getValue("tipoEnvio");
+      const tipos = {
+        retiro_local: "Retiro Local",
+        envio_domicilio: "Domicilio",
+        envio_obra: "Obra",
+        transporte_propio: "Transporte Propio",
+      };
+      return tipos[tipo] || tipo;
+    }
+  },
+  {
+    accessorKey: "vendedor",
+    header: "Vendedor",
+    cell: ({ row }) => row.getValue("vendedor") || "-"
+  },
+  {
+    accessorKey: "prioridad",
+    header: "Prioridad",
+    cell: ({ row }) => row.getValue("prioridad") || "-"
+  },
+  {
+    accessorKey: "estado",
+    header: "Estado",
+    cell: ({ row }) => row.getValue("estado") || "-"
+  },
+];
