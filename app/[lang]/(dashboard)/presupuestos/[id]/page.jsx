@@ -1264,64 +1264,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Condiciones de pago y entrega */}
-        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
-            Condiciones de pago y entrega
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Forma de pago *
-            </label>
-            <select
-              {...register("formaPago")}
-              className={`w-full border rounded-md px-3 py-2 ${
-                errors.formaPago ? "border-red-500" : "border-gray-300"
-              }`}
-            >
-              <option value="">Seleccionar forma de pago...</option>
-              <option value="efectivo">Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="cheque">Cheque</option>
-              <option value="otro">Otro</option>
-            </select>
-            {errors.formaPago && (
-              <span className="text-red-500 text-xs">{errors.formaPago.message}</span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="pagoParcial"
-              {...register("pagoParcial")}
-            />
-            <label htmlFor="pagoParcial" className="text-sm">
-              ¿Pago parcial?
-            </label>
-          </div>
-          
-          {watch("pagoParcial") && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Monto abonado *
-              </label>
-              <Input
-                type="number"
-                min={0}
-                placeholder="Monto abonado"
-                {...register("montoAbonado")}
-                className={`w-full ${
-                  errors.montoAbonado ? "border-red-500" : ""
-                }`}
-              />
-              {errors.montoAbonado && (
-                <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Información de envío */}
         <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -1489,6 +1431,65 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 )}
               </div>
             </>
+          )}
+        </div>
+
+        {/* Condiciones de pago y entrega */}
+        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
+            Condiciones de pago y entrega
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Forma de pago *
+            </label>
+            <select
+              {...register("formaPago")}
+              className={`w-full border rounded-md px-3 py-2 ${
+                errors.formaPago ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Seleccionar forma de pago...</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="cheque">Cheque</option>
+              <option value="otro">Otro</option>
+            </select>
+            {errors.formaPago && (
+              <span className="text-red-500 text-xs">{errors.formaPago.message}</span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="pagoParcial"
+              {...register("pagoParcial")}
+            />
+            <label htmlFor="pagoParcial" className="text-sm">
+              ¿Pago parcial?
+            </label>
+          </div>
+          
+          {watch("pagoParcial") && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Monto abonado *
+              </label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Monto abonado"
+                {...register("montoAbonado")}
+                className={`w-full ${
+                  errors.montoAbonado ? "border-red-500" : ""
+                }`}
+              />
+              {errors.montoAbonado && (
+                <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>
+              )}
+            </div>
           )}
         </div>
 
