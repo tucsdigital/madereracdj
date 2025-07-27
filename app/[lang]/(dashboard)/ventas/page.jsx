@@ -167,12 +167,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       then: (s) => s.required("La localidad es obligatoria"),
       otherwise: (s) => s.notRequired(),
     }),
-    codigoPostal: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
-      is: (tipoEnvio, usarDireccionCliente) =>
-        tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
-      then: (s) => s.required("El código postal es obligatorio"),
-      otherwise: (s) => s.notRequired(),
-    }),
   });
 
   const schema = tipo === "presupuesto" ? schemaPresupuesto : schemaVenta;
@@ -458,7 +452,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         cleanData.transportista = undefined;
         cleanData.direccionEnvio = undefined;
         cleanData.localidadEnvio = undefined;
-        cleanData.codigoPostal = undefined;
         cleanData.costoEnvio = undefined;
       }
       const formData =
@@ -579,7 +572,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setValue("transportista", "");
       setValue("direccionEnvio", "");
       setValue("localidadEnvio", "");
-      setValue("codigoPostal", "");
       setValue("costoEnvio", "");
     }
   }, [watch("tipoEnvio")]);
@@ -1281,12 +1273,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               className="w-full"
                               disabled={isSubmitting}
                             />
-                            <Input
-                              {...register("codigoPostal")}
-                              placeholder="Código postal"
-                              className="w-full"
-                              disabled={isSubmitting}
-                            />
                             {errors.direccionEnvio && (
                               <span className="text-red-500 dark:text-red-400 text-xs">
                                 {errors.direccionEnvio.message}
@@ -1295,11 +1281,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             {errors.localidadEnvio && (
                               <span className="text-red-500 dark:text-red-400 text-xs">
                                 {errors.localidadEnvio.message}
-                              </span>
-                            )}
-                            {errors.codigoPostal && (
-                              <span className="text-red-500 dark:text-red-400 text-xs">
-                                {errors.codigoPostal.message}
                               </span>
                             )}
                           </>
@@ -1313,11 +1294,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             />
                             <Input
                               value={clienteSeleccionado.localidad || ""}
-                              readOnly
-                              className="w-full"
-                            />
-                            <Input
-                              value={clienteSeleccionado.codigoPostal || ""}
                               readOnly
                               className="w-full"
                             />
@@ -2242,7 +2218,6 @@ const VentasPage = () => {
             vendedor: cleanFormData.vendedor,
             direccionEnvio: cleanFormData.direccionEnvio,
             localidadEnvio: cleanFormData.localidadEnvio,
-            codigoPostal: cleanFormData.codigoPostal,
             tipoEnvio: cleanFormData.tipoEnvio,
             transportista: cleanFormData.transportista,
             costoEnvio: parseFloat(cleanFormData.costoEnvio) || 0,

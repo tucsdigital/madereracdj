@@ -170,6 +170,14 @@ const VentaDetalle = () => {
       0
     );
     const total = subtotal - descuentoTotal;
+    const totalAbonado = (ventaEdit.pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
+    if (totalAbonado >= total) {
+      ventaEdit.estadoPago = "pagado";
+    } else if (totalAbonado > 0) {
+      ventaEdit.estadoPago = "parcial";
+    } else {
+      ventaEdit.estadoPago = "pendiente";
+    }
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, {
       ...ventaEdit,
@@ -561,7 +569,60 @@ const VentaDetalle = () => {
           </div>
         )}
 
+        {/* 1. Visualización del historial de pagos */}
+        {venta.pagos && venta.pagos.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-3 text-gray-900">Historial de Pagos</h3>
+            <table className="w-full text-sm mb-2">
+              <thead>
+                <tr className="bg-gray-100 border-b">
+                  <th className="p-2 text-left">Fecha</th>
+                  <th className="p-2 text-left">Método</th>
+                  <th className="p-2 text-right">Monto</th>
+                  <th className="p-2 text-left">Usuario</th>
+                </tr>
+              </thead>
+              <tbody>
+                {venta.pagos.map((pago, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
+                    <td className="p-2">{pago.metodo}</td>
+                    <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
+                    <td className="p-2">{pago.usuario || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex justify-between font-semibold mt-2">
+              <span>Total abonado:</span>
+              <span>${venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between mt-1">
+              <span>Saldo pendiente:</span>
+              <span>${((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
+            </div>
+            <div className="mt-2">
+              <span className="font-medium">Estado de pago: </span>
+              {((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)) <= 0 ? (
+                <span className="text-green-700 font-bold">Pagado</span>
+              ) : venta.pagos.length > 0 ? (
+                <span className="text-yellow-700 font-bold">Parcial</span>
+              ) : (
+                <span className="text-red-700 font-bold">Pendiente</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 1. Visualización: aviso destacado si hay pago parcial */}
+        {venta.pagoParcial && (
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded">
+            <strong>Pago parcial:</strong> Monto abonado: <b>${venta.montoAbonado || 0}</b> / Total: <b>${venta.total || 0}</b> — Saldo pendiente: <b>${((venta.total || 0) - (venta.montoAbonado || 0)).toFixed(2)}</b>
+          </div>
+        )}
+
         {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
+        {/* 2. Edición: lógica mejorada de pago parcial */}
         {editando && ventaEdit && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-8">
             {/* Condiciones de pago y entrega */}
@@ -588,7 +649,7 @@ const VentaDetalle = () => {
                     type="checkbox"
                     id="pagoParcialEdit"
                     checked={!!ventaEdit.pagoParcial}
-                    onChange={e => setVentaEdit({ ...ventaEdit, pagoParcial: e.target.checked })}
+                    onChange={e => setVentaEdit({ ...ventaEdit, pagoParcial: e.target.checked, montoAbonado: e.target.checked ? (ventaEdit.montoAbonado || 0) : 0 })}
                   />
                   <label htmlFor="pagoParcialEdit" className="text-sm">¿Pago parcial?</label>
                 </div>
@@ -599,17 +660,23 @@ const VentaDetalle = () => {
                       <input
                         type="number"
                         min={0}
+                        max={ventaEdit.total || 0}
                         className="border rounded px-2 py-2 w-full mt-1"
                         value={ventaEdit.montoAbonado || ""}
-                        onChange={e => setVentaEdit({ ...ventaEdit, montoAbonado: e.target.value })}
+                        onChange={e => {
+                          let val = Number(e.target.value);
+                          if (val > (ventaEdit.total || 0)) val = ventaEdit.total || 0;
+                          setVentaEdit({ ...ventaEdit, montoAbonado: val });
+                        }}
                       />
                     </label>
                     <div className="text-sm text-gray-600 mt-4 md:mt-8">
-                      Resta: $
-                      {(
-                        (ventaEdit.total || 0) - (Number(ventaEdit.montoAbonado) || 0)
-                      ).toFixed(2)}
+                      Saldo pendiente: $
+                      {((ventaEdit.total || 0) - (Number(ventaEdit.montoAbonado) || 0)).toFixed(2)}
                     </div>
+                    {Number(ventaEdit.montoAbonado) >= (ventaEdit.total || 0) && (
+                      <div className="text-green-700 font-semibold ml-4">Pago completo</div>
+                    )}
                   </div>
                 )}
               </div>
@@ -658,12 +725,6 @@ const VentaDetalle = () => {
                           onChange={e => setVentaEdit({ ...ventaEdit, localidadEnvio: e.target.value })}
                           placeholder="Localidad/Ciudad"
                         />
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.codigoPostal || ""}
-                          onChange={e => setVentaEdit({ ...ventaEdit, codigoPostal: e.target.value })}
-                          placeholder="Código postal"
-                        />
                       </>
                     ) : (
                       <>
@@ -678,12 +739,6 @@ const VentaDetalle = () => {
                           value={ventaEdit.cliente?.localidad || ""}
                           readOnly
                           placeholder="Localidad del cliente"
-                        />
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.cliente?.codigoPostal || ""}
-                          readOnly
-                          placeholder="Código postal del cliente"
                         />
                       </>
                     )}
@@ -796,6 +851,108 @@ const VentaDetalle = () => {
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
+            {/* 2. Edición: agregar nuevo pago */}
+            {ventaEdit.pagos && ventaEdit.pagos.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold mb-2">Historial de Pagos</h4>
+                <table className="w-full text-sm mb-2">
+                  <thead>
+                    <tr className="bg-gray-100 border-b">
+                      <th className="p-2 text-left">Fecha</th>
+                      <th className="p-2 text-left">Método</th>
+                      <th className="p-2 text-right">Monto</th>
+                      <th className="p-2 text-left">Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventaEdit.pagos.map((pago, idx) => (
+                      <tr key={idx} className="border-b">
+                        <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
+                        <td className="p-2">{pago.metodo}</td>
+                        <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
+                        <td className="p-2">{pago.usuario || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex justify-between font-semibold mt-2">
+                  <span>Total abonado:</span>
+                  <span>${ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Saldo pendiente:</span>
+                  <span>${((ventaEdit.total || 0) - ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+            {/* Formulario para agregar nuevo pago */}
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <h4 className="font-semibold mb-2">Agregar nuevo pago</h4>
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <input
+                  className="border rounded px-2 py-2 w-full md:w-40"
+                  type="number"
+                  min={1}
+                  max={(ventaEdit.total || 0) - (ventaEdit.pagos ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0) : 0)}
+                  placeholder="Monto"
+                  value={ventaEdit.nuevoPagoMonto || ""}
+                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoMonto: e.target.value })}
+                />
+                <select
+                  className="border rounded px-2 py-2 w-full md:w-40"
+                  value={ventaEdit.nuevoPagoMetodo || ""}
+                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoMetodo: e.target.value })}
+                >
+                  <option value="">Método...</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="otro">Otro</option>
+                </select>
+                <input
+                  className="border rounded px-2 py-2 w-full md:w-40"
+                  type="date"
+                  value={ventaEdit.nuevoPagoFecha || new Date().toISOString().split('T')[0]}
+                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoFecha: e.target.value })}
+                />
+                <input
+                  className="border rounded px-2 py-2 w-full md:w-40"
+                  type="text"
+                  placeholder="Usuario (opcional)"
+                  value={ventaEdit.nuevoPagoUsuario || ""}
+                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoUsuario: e.target.value })}
+                />
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    if (!ventaEdit.nuevoPagoMonto || !ventaEdit.nuevoPagoMetodo) return;
+                    const nuevoPago = {
+                      fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split('T')[0],
+                      monto: Number(ventaEdit.nuevoPagoMonto),
+                      metodo: ventaEdit.nuevoPagoMetodo,
+                      usuario: ventaEdit.nuevoPagoUsuario || "-"
+                    };
+                    setVentaEdit(prev => ({
+                      ...prev,
+                      pagos: [...(prev.pagos || []), nuevoPago],
+                      nuevoPagoMonto: "",
+                      nuevoPagoMetodo: "",
+                      nuevoPagoFecha: new Date().toISOString().split('T')[0],
+                      nuevoPagoUsuario: ""
+                    }));
+                  }}
+                  disabled={
+                    !ventaEdit.nuevoPagoMonto ||
+                    !ventaEdit.nuevoPagoMetodo ||
+                    Number(ventaEdit.nuevoPagoMonto) <= 0 ||
+                    Number(ventaEdit.nuevoPagoMonto) > ((ventaEdit.total || 0) - (ventaEdit.pagos ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0) : 0))
+                  }
+                >
+                  Agregar pago
+                </Button>
+              </div>
+            </div>
             <div className="flex gap-2 mt-6">
               <Button
                 variant="default"
@@ -815,6 +972,14 @@ const VentaDetalle = () => {
                     0
                   );
                   const total = subtotal - descuentoTotal;
+                  const totalAbonado = (ventaEdit.pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
+                  if (totalAbonado >= total) {
+                    ventaEdit.estadoPago = "pagado";
+                  } else if (totalAbonado > 0) {
+                    ventaEdit.estadoPago = "parcial";
+                  } else {
+                    ventaEdit.estadoPago = "pendiente";
+                  }
                   const docRef = doc(db, "ventas", ventaEdit.id);
                   await updateDoc(docRef, {
                     ...ventaEdit,
