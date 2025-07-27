@@ -1273,76 +1273,7 @@ const VentaDetalle = () => {
             <div className="flex gap-2 mt-6">
               <Button
                 variant="default"
-                onClick={async () => {
-                  // Guardar solo productos y totales y todos los campos editados
-                  const productosArr = ventaEdit.productos || [];
-                  const subtotal = productosArr.reduce(
-                    (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-                    0
-                  );
-                  const descuentoTotal = productosArr.reduce(
-                    (acc, p) =>
-                      acc +
-                      Number(p.precio) *
-                        Number(p.cantidad) *
-                        (Number(p.descuento || 0) / 100),
-                    0
-                  );
-                  // Calcular costo de envío solo si no es retiro local
-                  const costoEnvioCalculado = 
-                    ventaEdit.tipoEnvio && 
-                    ventaEdit.tipoEnvio !== "retiro_local" && 
-                    ventaEdit.costoEnvio !== undefined && 
-                    ventaEdit.costoEnvio !== "" && 
-                    !isNaN(Number(ventaEdit.costoEnvio)) 
-                      ? Number(ventaEdit.costoEnvio) 
-                      : 0;
-                  const total = subtotal - descuentoTotal + costoEnvioCalculado;
-                  const totalAbonado = (ventaEdit.pagos || []).reduce(
-                    (acc, p) => acc + Number(p.monto),
-                    0
-                  );
-                  if (totalAbonado >= total) {
-                    ventaEdit.estadoPago = "pagado";
-                  } else if (totalAbonado > 0) {
-                    ventaEdit.estadoPago = "parcial";
-                  } else {
-                    ventaEdit.estadoPago = "pendiente";
-                  }
-                  // Eliminar montoAbonado si hay array pagos
-                  if (
-                    Array.isArray(ventaEdit.pagos) &&
-                    ventaEdit.pagos.length > 0
-                  ) {
-                    delete ventaEdit.montoAbonado;
-                  }
-                  // Si no existe array pagos, guardar pagosSimples como pagos y eliminar montoAbonado
-                  if (
-                    !Array.isArray(ventaEdit.pagos) &&
-                    pagosSimples.length > 0
-                  ) {
-                    ventaEdit.pagos = pagosSimples;
-                    delete ventaEdit.montoAbonado;
-                  }
-                  const docRef = doc(db, "ventas", ventaEdit.id);
-                  await updateDoc(docRef, {
-                    ...ventaEdit,
-                    subtotal,
-                    descuentoTotal,
-                    total,
-                    productos: productosArr,
-                    items: productosArr,
-                  });
-                  setVenta({
-                    ...ventaEdit,
-                    subtotal,
-                    descuentoTotal,
-                    total,
-                    productos: productosArr,
-                    items: productosArr,
-                  });
-                  setEditando(false);
-                }}
+                onClick={handleGuardarCambios}
                 disabled={loadingPrecios}
               >
                 Guardar cambios
