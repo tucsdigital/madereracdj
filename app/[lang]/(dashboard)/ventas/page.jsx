@@ -517,7 +517,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     }
   };
 
-  const [numeroPedido, setNumeroPedido] = useState(() => `PED-${Date.now()}`);
   const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
   const [esConFactura, setEsConFactura] = useState(false);
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];

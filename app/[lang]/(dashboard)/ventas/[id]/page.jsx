@@ -564,151 +564,93 @@ const VentaDetalle = () => {
         {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
         {editando && ventaEdit && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            {/* Cliente */}
-            <div className="mb-4">
-              <label className="font-semibold">Cliente</label>
-              <input
-                className="border rounded px-2 py-2 w-full mb-2"
-                value={ventaEdit.cliente?.nombre || ""}
-                onChange={(e) =>
-                  setVentaEdit({
-                    ...ventaEdit,
-                    cliente: { ...ventaEdit.cliente, nombre: e.target.value },
-                  })
-                }
-                placeholder="Nombre del cliente"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full mb-2"
-                value={ventaEdit.cliente?.cuit || ""}
-                onChange={(e) =>
-                  setVentaEdit({
-                    ...ventaEdit,
-                    cliente: { ...ventaEdit.cliente, cuit: e.target.value },
-                  })
-                }
-                placeholder="CUIT"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full mb-2"
-                value={ventaEdit.cliente?.direccion || ""}
-                onChange={(e) =>
-                  setVentaEdit({
-                    ...ventaEdit,
-                    cliente: {
-                      ...ventaEdit.cliente,
-                      direccion: e.target.value,
-                    },
-                  })
-                }
-                placeholder="Dirección"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full mb-2"
-                value={ventaEdit.cliente?.telefono || ""}
-                onChange={(e) =>
-                  setVentaEdit({
-                    ...ventaEdit,
-                    cliente: { ...ventaEdit.cliente, telefono: e.target.value },
-                  })
-                }
-                placeholder="Teléfono"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full mb-2"
-                value={ventaEdit.cliente?.email || ""}
-                onChange={(e) =>
-                  setVentaEdit({
-                    ...ventaEdit,
-                    cliente: { ...ventaEdit.cliente, email: e.target.value },
-                  })
-                }
-                placeholder="Email"
-              />
-            </div>
-            {/* Fechas y otros campos */}
+            {/* === Información de Envío y Pago (idéntico a alta de venta) === */}
             <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 className="border rounded px-2 py-2 w-full"
                 type="date"
                 value={ventaEdit.fecha || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, fecha: e.target.value })
-                }
+                onChange={(e) => setVentaEdit({ ...ventaEdit, fecha: e.target.value })}
                 placeholder="Fecha"
               />
               <input
                 className="border rounded px-2 py-2 w-full"
                 type="date"
                 value={ventaEdit.fechaEntrega || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })
-                }
+                onChange={(e) => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
                 placeholder="Fecha de entrega"
               />
-              <input
+              <select
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.formaPago || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, formaPago: e.target.value })
-                }
-                placeholder="Forma de pago"
-              />
-              <input
+                onChange={(e) => setVentaEdit({ ...ventaEdit, formaPago: e.target.value })}
+              >
+                <option value="">Forma de pago...</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="cheque">Cheque</option>
+                <option value="otro">Otro</option>
+              </select>
+              <select
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.tipoEnvio || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })
-                }
-                placeholder="Tipo de envío"
-              />
-              <input
+                onChange={(e) => setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })}
+              >
+                <option value="">Tipo de envío...</option>
+                <option value="retiro_local">Retiro en local</option>
+                <option value="envio_domicilio">Envío a domicilio</option>
+                <option value="envio_obra">Envío a obra</option>
+                <option value="transporte_propio">Transporte propio del cliente</option>
+              </select>
+              <select
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.transportista || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, transportista: e.target.value })
-                }
-                placeholder="Transportista"
-              />
-              <input
+                onChange={(e) => setVentaEdit({ ...ventaEdit, transportista: e.target.value })}
+              >
+                <option value="">Transportista...</option>
+                <option value="camion">camion</option>
+                <option value="camioneta 1">camioneta 1</option>
+                <option value="camioneta 2">camioneta 2</option>
+              </select>
+              <select
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.vendedor || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, vendedor: e.target.value })
-                }
-                placeholder="Vendedor"
-              />
-              <input
+                onChange={(e) => setVentaEdit({ ...ventaEdit, vendedor: e.target.value })}
+              >
+                <option value="">Vendedor responsable...</option>
+                <option value="coco">coco</option>
+                <option value="damian">damian</option>
+                <option value="lauti">lauti</option>
+                <option value="jose">jose</option>
+              </select>
+              <select
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.prioridad || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
-                }
-                placeholder="Prioridad"
-              />
+                onChange={(e) => setVentaEdit({ ...ventaEdit, prioridad: e.target.value })}
+              >
+                <option value="">Prioridad...</option>
+                <option value="alta">Alta</option>
+                <option value="media">Media</option>
+                <option value="baja">Baja</option>
+              </select>
               <input
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.costoEnvio || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })
-                }
+                onChange={(e) => setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })}
                 placeholder="Costo de envío"
                 type="number"
               />
               <input
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.rangoHorario || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })
-                }
+                onChange={(e) => setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })}
                 placeholder="Rango horario"
               />
               <textarea
                 className="border rounded px-2 py-2 w-full"
                 value={ventaEdit.observaciones || ""}
-                onChange={(e) =>
-                  setVentaEdit({ ...ventaEdit, observaciones: e.target.value })
-                }
+                onChange={(e) => setVentaEdit({ ...ventaEdit, observaciones: e.target.value })}
                 placeholder="Observaciones"
               />
             </div>
