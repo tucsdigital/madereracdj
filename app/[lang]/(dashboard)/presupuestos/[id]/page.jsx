@@ -861,27 +861,6 @@ const PresupuestoDetalle = () => {
                       })()}
                     </span>
                   </div>
-                  {/* Mostrar saldo pendiente si hay pago parcial en el formulario de conversión */}
-                  {convirtiendoVenta && (
-                    <div className="border-t pt-2 flex justify-between text-sm">
-                      <span className="font-medium text-gray-600">Saldo pendiente:</span>
-                      <span className="font-medium text-red-600">
-                        ${(() => {
-                          // Calcular el total completo incluyendo envío
-                          const subtotal = safeNumber(presupuesto.subtotal);
-                          const descuento = safeNumber(presupuesto.descuentoTotal);
-                          const envio = presupuesto.costoEnvio !== undefined && 
-                                       presupuesto.costoEnvio !== "" && 
-                                       !isNaN(Number(presupuesto.costoEnvio)) && 
-                                       Number(presupuesto.costoEnvio) > 0 
-                                         ? Number(presupuesto.costoEnvio) 
-                                         : 0;
-                          const total = subtotal - descuento + envio;
-                          return total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
-                        })()}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
