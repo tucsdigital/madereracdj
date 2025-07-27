@@ -139,8 +139,18 @@ const PresupuestoDetalle = () => {
 
   // 4. Al activar edición, clonar presupuesto
   useEffect(() => {
-    if (editando && presupuesto)
-      setPresupuestoEdit(JSON.parse(JSON.stringify(presupuesto)));
+    if (editando && presupuesto) {
+      const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
+      
+      // Si hay costo de envío pero no tipo de envío, establecer automáticamente como envío a domicilio
+      if (presupuestoClonado.costoEnvio && 
+          presupuestoClonado.costoEnvio > 0 && 
+          !presupuestoClonado.tipoEnvio) {
+        presupuestoClonado.tipoEnvio = "envio_domicilio";
+      }
+      
+      setPresupuestoEdit(presupuestoClonado);
+    }
   }, [editando, presupuesto]);
 
   // 5. Función para actualizar precios
@@ -610,6 +620,8 @@ const PresupuestoDetalle = () => {
                       setPresupuestoEdit({
                         ...presupuestoEdit,
                         tipoEnvio: e.target.value,
+                        // Si se selecciona retiro local, limpiar costo de envío
+                        costoEnvio: e.target.value === "retiro_local" ? "" : presupuestoEdit.costoEnvio,
                       })
                     }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -817,8 +829,7 @@ const PresupuestoDetalle = () => {
                   {presupuesto.costoEnvio !== undefined &&
                     presupuesto.costoEnvio !== "" &&
                     !isNaN(Number(presupuesto.costoEnvio)) &&
-                    presupuesto.tipoEnvio &&
-                    presupuesto.tipoEnvio !== "retiro_local" && (
+                    Number(presupuesto.costoEnvio) > 0 && (
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
                         <span>${safeNumber(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
@@ -827,7 +838,17 @@ const PresupuestoDetalle = () => {
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${safeNumber(presupuesto.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      ${(() => {
+                        const subtotal = safeNumber(presupuesto.subtotal);
+                        const descuento = safeNumber(presupuesto.descuentoTotal);
+                        const envio = presupuesto.costoEnvio !== undefined && 
+                                     presupuesto.costoEnvio !== "" && 
+                                     !isNaN(Number(presupuesto.costoEnvio)) && 
+                                     Number(presupuesto.costoEnvio) > 0 
+                                       ? Number(presupuesto.costoEnvio) 
+                                       : 0;
+                        return (subtotal - descuento + envio).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -1175,15 +1196,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     }),
   });
   
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: yupResolver(schema),
-    defaultValues: {
+  // Determinar valores por defecto inteligentes
+  const getDefaultValues = () => {
+    const defaults = {
       formaPago: "",
       pagoParcial: false,
       montoAbonado: "",
@@ -1197,7 +1212,26 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       direccionEnvio: "",
       localidadEnvio: "",
       usarDireccionCliente: true,
-    },
+    };
+
+    // Si el presupuesto tiene costo de envío, establecer automáticamente como envío a domicilio
+    if (presupuesto.costoEnvio && presupuesto.costoEnvio > 0) {
+      defaults.tipoEnvio = "envio_domicilio";
+      defaults.costoEnvio = presupuesto.costoEnvio.toString();
+    }
+
+    return defaults;
+  };
+  
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: getDefaultValues(),
   });
 
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
