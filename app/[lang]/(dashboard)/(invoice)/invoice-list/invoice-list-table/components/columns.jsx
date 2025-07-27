@@ -12,7 +12,9 @@ import Link from "next/link";
 const formatDate = (dateString) => {
   if (!dateString) return "-";
   try {
-    return new Date(dateString).toLocaleDateString('es-AR');
+    // Corregir el cálculo de la fecha para evitar el problema de zona horaria
+    const fecha = new Date(dateString + 'T00:00:00');
+    return fecha.toLocaleDateString('es-AR');
   } catch {
     return dateString;
   }
@@ -188,15 +190,25 @@ export const columnsPresupuestos = [
     )
   },
   {
+    accessorKey: "cliente",
+    header: "Cliente",
+    cell: ({ row }) => (
+      <span className="font-semibold text-default-800 dark:text-default-200">
+        {row.original.cliente?.nombre || "-"}
+      </span>
+    )
+  },
+  {
     accessorKey: "fecha",
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
       if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
-      const dateObj = new Date(fecha);
+      // Corregir el cálculo de la fecha para evitar el problema de zona horaria
+      const dateObj = new Date(fecha + 'T00:00:00');
       return (
         <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+          {dateObj.toLocaleDateString('es-AR')}
         </span>
       );
     }
@@ -255,10 +267,11 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
       if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
-      const dateObj = new Date(fecha);
+      // Corregir el cálculo de la fecha para evitar el problema de zona horaria
+      const dateObj = new Date(fecha + 'T00:00:00');
       return (
         <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+          {dateObj.toLocaleDateString('es-AR')}
         </span>
       );
     }
