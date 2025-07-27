@@ -336,7 +336,6 @@ const EnviosPage = () => {
   const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
-  const [mostrarCambiarEstado, setMostrarCambiarEstado] = useState(false);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [envioEdit, setEnvioEdit] = useState(null);
@@ -358,10 +357,6 @@ const EnviosPage = () => {
   const handleVerDetalle = (envio) => {
     setEnvioSeleccionado(envio);
     setMostrarDetalle(true);
-  };
-  const handleCambiarEstado = (envio) => {
-    setEnvioSeleccionado(envio);
-    setMostrarCambiarEstado(true);
   };
 
   // Columnas para la tabla de envíos con funcionalidades avanzadas
@@ -398,8 +393,12 @@ const EnviosPage = () => {
         const fecha = row.getValue("fechaEntrega");
         const fechaCreacion = row.original.fechaCreacion;
         if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
-        const fechaEntrega = new Date(fecha);
+        
+        // Corregir el cálculo de la fecha para evitar el problema de zona horaria
+        const fechaEntrega = new Date(fecha + 'T00:00:00');
         const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+        
         const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
         let color = "text-gray-600";
         if (diasRestantes < 0) color = "text-red-600 font-semibold";
@@ -517,13 +516,6 @@ const EnviosPage = () => {
               onClick={() => handleVerDetalle(envio)}
             >
               Ver
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleCambiarEstado(envio)}
-            >
-              Estado
             </Button>
             <Button
               size="sm"
@@ -727,16 +719,7 @@ const EnviosPage = () => {
       </Card>
 
       {/* Modales */}
-      {mostrarCambiarEstado && envioSeleccionado && (
-        <CambiarEstadoEnvio
-          envio={envioSeleccionado}
-          onClose={() => {
-            setMostrarCambiarEstado(false);
-            setEnvioSeleccionado(null);
-          }}
-          onUpdate={handleActualizarEnvio}
-        />
-      )}
+      {/* Eliminado: CambiarEstadoEnvio */}
 
       {mostrarDetalle && envioSeleccionado && (
         <DetalleEnvio
