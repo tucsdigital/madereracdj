@@ -1110,15 +1110,7 @@ const VentaDetalle = () => {
                           0
                         )
                       ).toFixed(2)}`}
-                      value={
-                        ventaEdit.nuevoPagoMonto !== undefined
-                          ? ventaEdit.nuevoPagoMonto
-                          : (ventaEdit.total || 0) -
-                            pagosSimples.reduce(
-                              (acc, p) => acc + Number(p.monto),
-                              0
-                            )
-                      }
+                      value={ventaEdit.nuevoPagoMonto || ""}
                       onChange={(e) =>
                         setVentaEdit({
                           ...ventaEdit,
