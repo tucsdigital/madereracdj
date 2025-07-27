@@ -109,17 +109,18 @@ const VentaDetalle = () => {
   // Al activar edición, inicializar pagosSimples si no hay array pagos
   useEffect(() => {
     if (editando && venta && !Array.isArray(venta.pagos)) {
-      setPagosSimples([
-        venta.montoAbonado > 0
-          ? {
-              fecha: venta.fecha || new Date().toISOString().split("T")[0],
-              monto: Number(venta.montoAbonado),
-              metodo: venta.formaPago || "-",
-              usuario: "-",
-            }
-          :
-          null,
-      ].filter(Boolean));
+      setPagosSimples(
+        [
+          venta.montoAbonado > 0
+            ? {
+                fecha: venta.fecha || new Date().toISOString().split("T")[0],
+                monto: Number(venta.montoAbonado),
+                metodo: venta.formaPago || "-",
+                usuario: "-",
+              }
+            : null,
+        ].filter(Boolean)
+      );
     }
   }, [editando, venta]);
   // Función para actualizar precios
@@ -439,65 +440,26 @@ const VentaDetalle = () => {
                 <span className="font-medium">Fecha de emisión:</span>{" "}
                 {formatFechaLocal(venta.fecha)}
               </div>
+              {/* Estado de la venta */}
               <div>
-                <span className="font-medium">Estado de pago:</span>{" "}
-                <span
-                  className={`ml-2 px-2 py-1 rounded-full text-xs ${getEstadoPagoColor(
-                    venta.estadoPago
-                  )}`}
-                >
-                  {venta.estadoPago ||
-                    (venta.pagoParcial ? "Parcial" : "Completo")}
-                </span>
+                <span className="font-medium">Estado de la venta:</span>{" "}
+                {(() => {
+                  const total = venta.total || 0;
+                  const tienePagos = Array.isArray(venta.pagos) && venta.pagos.length > 0;
+                  const montoAbonado = tienePagos
+                    ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                    : Number(venta.montoAbonado || 0);
+                  if (montoAbonado >= total) {
+                    return <span className="text-green-700 font-bold ml-2">Pagado</span>;
+                  } else if (montoAbonado > 0) {
+                    return <span className="text-yellow-700 font-bold ml-2">Parcial</span>;
+                  } else {
+                    return <span className="text-red-700 font-bold ml-2">Pendiente</span>;
+                  }
+                })()}
               </div>
             </div>
-            {/* Badge destacado de estado de pago adaptado */}
-            {(() => {
-              // Determinar totales y abonos
-              const total = venta.total || 0;
-              const tienePagos = Array.isArray(venta.pagos) && venta.pagos.length > 0;
-              const montoAbonado = tienePagos
-                ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                : Number(venta.montoAbonado || 0);
-              const saldoPendiente = total - montoAbonado;
-              const estadoPago = (venta.estadoPago || "").toLowerCase();
-              if (estadoPago === "pagado" || estadoPago === "completo") {
-                return (
-                  <div className="flex items-center gap-2 mt-2 bg-green-100 border-l-4 border-green-500 text-green-800 p-3 rounded print:bg-green-50">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    <span className="font-bold">Venta pagada en su totalidad</span>
-                  </div>
-                );
-              }
-              if ((estadoPago === "parcial" || estadoPago === "pendiente") && saldoPendiente > 0) {
-                if (estadoPago === "parcial") {
-                  return (
-                    <div className="flex items-center gap-2 mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded print:bg-yellow-50">
-                      <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h4v4m0-4V8" /></svg>
-                      <span className="font-bold">Pago parcial:</span>
-                      <span>
-                        Monto abonado: <b>${montoAbonado.toFixed(2)}</b> / Total: <b>${total.toFixed(2)}</b> — Saldo pendiente: <b>${saldoPendiente.toFixed(2)}</b>
-                      </span>
-                    </div>
-                  );
-                }
-                // pendiente
-                return (
-                  <div className="flex items-center gap-2 mt-2 bg-red-100 border-l-4 border-red-500 text-red-800 p-3 rounded print:bg-red-50">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3" /></svg>
-                    <span className="font-bold">Pago pendiente</span>
-                    {montoAbonado > 0 ? (
-                      <span>
-                        — Monto abonado: <b>${montoAbonado.toFixed(2)}</b> / Total: <b>${total.toFixed(2)}</b> — Saldo pendiente: <b>${saldoPendiente.toFixed(2)}</b>
-                      </span>
-                    ) : (
-                      <span>— Total a pagar: <b>${total.toFixed(2)}</b></span>
-                    )}
-                  </div>
-                );
-              }
-              return null;
-            })()}
+            {/* aqui ubicar el estado de la venta */}
           </div>
         </div>
         {/* 2. Información de Envío y Pago */}
@@ -581,9 +543,11 @@ const VentaDetalle = () => {
         )}
 
         {/* 3. Historial de pagos o montoAbonado */}
-        {(Array.isArray(venta.pagos) && venta.pagos.length > 0) ? (
+        {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">Historial de Pagos</h3>
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+              Historial de Pagos
+            </h3>
             <table className="w-full text-sm mb-2">
               <thead>
                 <tr className="bg-gray-100 border-b">
@@ -598,7 +562,9 @@ const VentaDetalle = () => {
                   <tr key={idx} className="border-b">
                     <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
                     <td className="p-2">{pago.metodo}</td>
-                    <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
+                    <td className="p-2 text-right">
+                      ${Number(pago.monto).toFixed(2)}
+                    </td>
                     <td className="p-2">{pago.usuario || "-"}</td>
                   </tr>
                 ))}
@@ -607,18 +573,27 @@ const VentaDetalle = () => {
             <div className="flex justify-between font-semibold mt-2">
               <span>Total abonado:</span>
               <span>
-                ${venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}
+                $
+                {venta.pagos
+                  .reduce((acc, p) => acc + Number(p.monto), 0)
+                  .toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between mt-1">
               <span>Saldo pendiente:</span>
               <span>
-                ${((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}
+                $
+                {(
+                  (venta.total || 0) -
+                  venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                ).toFixed(2)}
               </span>
             </div>
             <div className="mt-2">
               <span className="font-medium">Estado de pago: </span>
-              {((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <= 0) ? (
+              {(venta.total || 0) -
+                venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <=
+              0 ? (
                 <span className="text-green-700 font-bold">Pagado</span>
               ) : venta.pagos.length > 0 ? (
                 <span className="text-yellow-700 font-bold">Parcial</span>
@@ -630,14 +605,21 @@ const VentaDetalle = () => {
         ) : (
           (venta.montoAbonado > 0 || venta.pagoParcial) && (
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-              <h3 className="font-semibold text-lg mb-2 text-gray-900">Pagos</h3>
+              <h3 className="font-semibold text-lg mb-2 text-gray-900">
+                Pagos
+              </h3>
               <div className="flex justify-between font-semibold mt-2">
                 <span>Total abonado:</span>
                 <span>${Number(venta.montoAbonado || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between mt-1">
                 <span>Saldo pendiente:</span>
-                <span>${((venta.total || 0) - Number(venta.montoAbonado || 0)).toFixed(2)}</span>
+                <span>
+                  $
+                  {(
+                    (venta.total || 0) - Number(venta.montoAbonado || 0)
+                  ).toFixed(2)}
+                </span>
               </div>
               <div className="mt-2">
                 <span className="font-medium">Estado de pago: </span>
@@ -1028,39 +1010,60 @@ const VentaDetalle = () => {
               modoSoloProductos={true}
             />
             {/* En edición: historial de pagos simples */}
-            {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0 && (
-              <div className="bg-white rounded-lg p-4 mb-4">
-                <h4 className="font-semibold mb-2">Historial de Pagos</h4>
-                <table className="w-full text-sm mb-2">
-                  <thead>
-                    <tr className="bg-gray-100 border-b">
-                      <th className="p-2 text-left">Fecha</th>
-                      <th className="p-2 text-left">Método</th>
-                      <th className="p-2 text-right">Monto</th>
-                      <th className="p-2 text-left">Usuario</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagosSimples.map((pago, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
-                        <td className="p-2">{pago.metodo}</td>
-                        <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
-                        <td className="p-2">{pago.usuario || "-"}</td>
+            {editando &&
+              ventaEdit &&
+              !Array.isArray(ventaEdit.pagos) &&
+              pagosSimples.length > 0 && (
+                <div className="bg-white rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold mb-2">Historial de Pagos</h4>
+                  <table className="w-full text-sm mb-2">
+                    <thead>
+                      <tr className="bg-gray-100 border-b">
+                        <th className="p-2 text-left">Fecha</th>
+                        <th className="p-2 text-left">Método</th>
+                        <th className="p-2 text-right">Monto</th>
+                        <th className="p-2 text-left">Usuario</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="flex justify-between font-semibold mt-2">
-                  <span>Total abonado:</span>
-                  <span>${pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
+                    </thead>
+                    <tbody>
+                      {pagosSimples.map((pago, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="p-2">
+                            {formatFechaLocal(pago.fecha)}
+                          </td>
+                          <td className="p-2">{pago.metodo}</td>
+                          <td className="p-2 text-right">
+                            ${Number(pago.monto).toFixed(2)}
+                          </td>
+                          <td className="p-2">{pago.usuario || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="flex justify-between font-semibold mt-2">
+                    <span>Total abonado:</span>
+                    <span>
+                      $
+                      {pagosSimples
+                        .reduce((acc, p) => acc + Number(p.monto), 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span>Saldo pendiente:</span>
+                    <span>
+                      $
+                      {(
+                        (ventaEdit.total || 0) -
+                        pagosSimples.reduce(
+                          (acc, p) => acc + Number(p.monto),
+                          0
+                        )
+                      ).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between mt-1">
-                  <span>Saldo pendiente:</span>
-                  <span>${((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
-                </div>
-              </div>
-            )}
+              )}
             {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
             {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
               <div className="bg-blue-50 rounded-lg p-4 mb-4">
@@ -1070,10 +1073,28 @@ const VentaDetalle = () => {
                     className="border rounded px-2 py-2 w-full md:w-40"
                     type="number"
                     min={1}
-                    max={(ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)}
-                    placeholder={`Saldo pendiente: $${((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}`}
-                    value={ventaEdit.nuevoPagoMonto || ((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))}
-                    onChange={(e) => setVentaEdit({ ...ventaEdit, nuevoPagoMonto: e.target.value })}
+                    max={
+                      (ventaEdit.total || 0) -
+                      pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                    }
+                    placeholder={`Saldo pendiente: $${(
+                      (ventaEdit.total || 0) -
+                      pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                    ).toFixed(2)}`}
+                    value={
+                      ventaEdit.nuevoPagoMonto ||
+                      (ventaEdit.total || 0) -
+                        pagosSimples.reduce(
+                          (acc, p) => acc + Number(p.monto),
+                          0
+                        )
+                    }
+                    onChange={(e) =>
+                      setVentaEdit({
+                        ...ventaEdit,
+                        nuevoPagoMonto: e.target.value,
+                      })
+                    }
                   />
                   <Button
                     variant="default"
@@ -1083,7 +1104,9 @@ const VentaDetalle = () => {
                       setPagosSimples((prev) => [
                         ...prev,
                         {
-                          fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
+                          fecha:
+                            ventaEdit.nuevoPagoFecha ||
+                            new Date().toISOString().split("T")[0],
                           monto: abono,
                           metodo: ventaEdit.nuevoPagoMetodo || "-",
                           usuario: ventaEdit.nuevoPagoUsuario || "-",
@@ -1100,15 +1123,33 @@ const VentaDetalle = () => {
                     disabled={
                       !ventaEdit.nuevoPagoMonto ||
                       Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                      Number(ventaEdit.nuevoPagoMonto) > (ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                      Number(ventaEdit.nuevoPagoMonto) >
+                        (ventaEdit.total || 0) -
+                          pagosSimples.reduce(
+                            (acc, p) => acc + Number(p.monto),
+                            0
+                          )
                     }
                   >
                     Completar pago
                   </Button>
                 </div>
-                {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >= (ventaEdit.total || 0) && (
+                {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >=
+                  (ventaEdit.total || 0) && (
                   <div className="mt-3 text-green-700 font-semibold flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    <svg
+                      className="w-5 h-5 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
                     ¡Venta pagada en su totalidad!
                   </div>
                 )}
@@ -1254,11 +1295,17 @@ const VentaDetalle = () => {
                     ventaEdit.estadoPago = "pendiente";
                   }
                   // Eliminar montoAbonado si hay array pagos
-                  if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+                  if (
+                    Array.isArray(ventaEdit.pagos) &&
+                    ventaEdit.pagos.length > 0
+                  ) {
                     delete ventaEdit.montoAbonado;
                   }
                   // Si no existe array pagos, guardar pagosSimples como pagos y eliminar montoAbonado
-                  if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+                  if (
+                    !Array.isArray(ventaEdit.pagos) &&
+                    pagosSimples.length > 0
+                  ) {
                     ventaEdit.pagos = pagosSimples;
                     delete ventaEdit.montoAbonado;
                   }
