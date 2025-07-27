@@ -43,6 +43,9 @@ const VentaDetalle = () => {
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
 
+  // Hook para pagosSimples si no hay array pagos
+  const [pagosSimples, setPagosSimples] = useState([]);
+
   useEffect(() => {
     const fetchVenta = async () => {
       try {
@@ -102,6 +105,22 @@ const VentaDetalle = () => {
   // Al activar edición, clonar venta
   useEffect(() => {
     if (editando && venta) setVentaEdit(JSON.parse(JSON.stringify(venta)));
+  }, [editando, venta]);
+  // Al activar edición, inicializar pagosSimples si no hay array pagos
+  useEffect(() => {
+    if (editando && venta && !Array.isArray(venta.pagos)) {
+      setPagosSimples([
+        venta.montoAbonado > 0
+          ? {
+              fecha: venta.fecha || new Date().toISOString().split("T")[0],
+              monto: Number(venta.montoAbonado),
+              metodo: venta.formaPago || "-",
+              usuario: "-",
+            }
+          :
+          null,
+      ].filter(Boolean));
+    }
   }, [editando, venta]);
   // Función para actualizar precios
   const handleActualizarPrecios = async () => {
@@ -183,6 +202,11 @@ const VentaDetalle = () => {
     }
     // Eliminar montoAbonado si hay array pagos
     if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+      delete ventaEdit.montoAbonado;
+    }
+    // Si no existe array pagos, guardar pagosSimples como pagos y eliminar montoAbonado
+    if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+      ventaEdit.pagos = pagosSimples;
       delete ventaEdit.montoAbonado;
     }
     const docRef = doc(db, "ventas", ventaEdit.id);
@@ -1003,42 +1027,91 @@ const VentaDetalle = () => {
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
-            {/* 2. Edición: agregar nuevo pago */}
+            {/* En edición: historial de pagos simples */}
+            {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0 && (
+              <div className="bg-white rounded-lg p-4 mb-4">
+                <h4 className="font-semibold mb-2">Historial de Pagos</h4>
+                <table className="w-full text-sm mb-2">
+                  <thead>
+                    <tr className="bg-gray-100 border-b">
+                      <th className="p-2 text-left">Fecha</th>
+                      <th className="p-2 text-left">Método</th>
+                      <th className="p-2 text-right">Monto</th>
+                      <th className="p-2 text-left">Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagosSimples.map((pago, idx) => (
+                      <tr key={idx} className="border-b">
+                        <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
+                        <td className="p-2">{pago.metodo}</td>
+                        <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
+                        <td className="p-2">{pago.usuario || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex justify-between font-semibold mt-2">
+                  <span>Total abonado:</span>
+                  <span>${pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Saldo pendiente:</span>
+                  <span>${((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+            {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
             {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
               <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold mb-2">Agregar pago</h4>
+                <h4 className="font-semibold mb-2">Completar pago</h4>
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <input
                     className="border rounded px-2 py-2 w-full md:w-40"
                     type="number"
                     min={1}
-                    max={(ventaEdit.total || 0) - Number(ventaEdit.montoAbonado || 0)}
-                    placeholder="Monto"
-                    value={ventaEdit.nuevoPagoMonto || ""}
+                    max={(ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)}
+                    placeholder={`Saldo pendiente: $${((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}`}
+                    value={ventaEdit.nuevoPagoMonto || ((ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))}
                     onChange={(e) => setVentaEdit({ ...ventaEdit, nuevoPagoMonto: e.target.value })}
                   />
                   <Button
                     variant="default"
                     onClick={() => {
                       if (!ventaEdit.nuevoPagoMonto) return;
-                      const nuevoMonto = Number(ventaEdit.montoAbonado || 0) + Number(ventaEdit.nuevoPagoMonto);
+                      const abono = Number(ventaEdit.nuevoPagoMonto);
+                      setPagosSimples((prev) => [
+                        ...prev,
+                        {
+                          fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
+                          monto: abono,
+                          metodo: ventaEdit.nuevoPagoMetodo || "-",
+                          usuario: ventaEdit.nuevoPagoUsuario || "-",
+                        },
+                      ]);
                       setVentaEdit({
                         ...ventaEdit,
-                        montoAbonado: nuevoMonto,
                         nuevoPagoMonto: "",
-                        pagoParcial: nuevoMonto < (ventaEdit.total || 0),
-                        estadoPago: nuevoMonto >= (ventaEdit.total || 0) ? "pagado" : (nuevoMonto > 0 ? "parcial" : "pendiente"),
+                        nuevoPagoMetodo: "",
+                        nuevoPagoFecha: new Date().toISOString().split("T")[0],
+                        nuevoPagoUsuario: "",
                       });
                     }}
                     disabled={
                       !ventaEdit.nuevoPagoMonto ||
                       Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                      Number(ventaEdit.nuevoPagoMonto) > (ventaEdit.total || 0) - Number(ventaEdit.montoAbonado || 0)
+                      Number(ventaEdit.nuevoPagoMonto) > (ventaEdit.total || 0) - pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
                     }
                   >
-                    Agregar pago
+                    Completar pago
                   </Button>
                 </div>
+                {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >= (ventaEdit.total || 0) && (
+                  <div className="mt-3 text-green-700 font-semibold flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    ¡Venta pagada en su totalidad!
+                  </div>
+                )}
               </div>
             )}
             {/* Formulario para agregar nuevo pago */}
@@ -1182,6 +1255,11 @@ const VentaDetalle = () => {
                   }
                   // Eliminar montoAbonado si hay array pagos
                   if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+                    delete ventaEdit.montoAbonado;
+                  }
+                  // Si no existe array pagos, guardar pagosSimples como pagos y eliminar montoAbonado
+                  if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+                    ventaEdit.pagos = pagosSimples;
                     delete ventaEdit.montoAbonado;
                   }
                   const docRef = doc(db, "ventas", ventaEdit.id);
