@@ -9,7 +9,7 @@ import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet
 export const menusConfig = {
   mainNav: [
     {
-      title: "Inicio",
+      title: "Dashboard",
       icon: DashBoard,
       href: "/dashboard",
     },
@@ -29,7 +29,7 @@ export const menusConfig = {
       href: "/productos",
     },
     {
-      title: "Stock y Compras",
+      title: "Stock",
       icon: Boxes,
       href: "/stock-compras",
     },
@@ -39,7 +39,7 @@ export const menusConfig = {
       href: "/gastos",
     },
     {
-      title: "Obras / Proyectos",
+      title: "Obras",
       icon: Briefcase,
       href: "/obras-proyectos",
     },
@@ -57,7 +57,7 @@ export const menusConfig = {
   sidebarNav: {
     modern: [
       {
-        title: "Sección dashboard",
+        title: "Dashboard",
         icon: DashBoard,
         href: "/dashboard",
       },
@@ -77,7 +77,7 @@ export const menusConfig = {
         href: "/productos",
       },
       {
-        title: "Stock y Compras",
+        title: "Stock",
         icon: Boxes,
         href: "/stock-compras",
       },
@@ -87,7 +87,7 @@ export const menusConfig = {
         href: "/gastos",
       },
       {
-        title: "Obras / Proyectos",
+        title: "Obras",
         icon: Briefcase,
         href: "/obras-proyectos",
       },
@@ -108,7 +108,7 @@ export const menusConfig = {
         title: "Menú Principal",
       },
       {
-        title: "Sección dashboard",
+        title: "Dashboard",
         icon: DashBoard,
         href: "/dashboard",
       },
@@ -128,7 +128,7 @@ export const menusConfig = {
         href: "/productos",
       },
       {
-        title: "Stock y Compras",
+        title: "Stock",
         icon: Boxes,
         href: "/stock-compras",
       },
@@ -138,7 +138,7 @@ export const menusConfig = {
         href: "/gastos",
       },
       {
-        title: "Obras / Proyectos",
+        title: "Obras",
         icon: Briefcase,
         href: "/obras-proyectos",
       },
