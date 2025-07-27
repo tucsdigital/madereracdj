@@ -104,7 +104,23 @@ const VentaDetalle = () => {
   }, []);
   // Al activar edición, clonar venta
   useEffect(() => {
-    if (editando && venta) setVentaEdit(JSON.parse(JSON.stringify(venta)));
+    if (editando && venta) {
+      console.log("=== DEBUG Clonando venta para edición ===");
+      console.log("venta original:", venta);
+      
+      const ventaClonada = JSON.parse(JSON.stringify(venta));
+      
+      // Asegurar que la información del cliente se preserve
+      if (venta.cliente && !ventaClonada.cliente) {
+        ventaClonada.cliente = venta.cliente;
+      }
+      if (venta.clienteId && !ventaClonada.clienteId) {
+        ventaClonada.clienteId = venta.clienteId;
+      }
+      
+      console.log("venta clonada:", ventaClonada);
+      setVentaEdit(ventaClonada);
+    }
   }, [editando, venta]);
   // Al activar edición, inicializar pagosSimples si no hay array pagos
   useEffect(() => {
@@ -158,10 +174,33 @@ const VentaDetalle = () => {
   // Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
-    if (!ventaEdit.clienteId || !ventaEdit.cliente?.nombre) {
-      setErrorForm("Selecciona un cliente válido.");
+    
+    // Debug logs para entender qué está pasando
+    console.log("=== DEBUG handleGuardarCambios ===");
+    console.log("ventaEdit:", ventaEdit);
+    console.log("ventaEdit.clienteId:", ventaEdit.clienteId);
+    console.log("ventaEdit.cliente:", ventaEdit.cliente);
+    console.log("ventaEdit.cliente?.nombre:", ventaEdit.cliente?.nombre);
+    
+    // Validación más robusta del cliente
+    if (!ventaEdit.clienteId) {
+      console.log("Error: No hay clienteId");
+      setErrorForm("Error: No se encontró ID del cliente.");
       return;
     }
+    
+    if (!ventaEdit.cliente) {
+      console.log("Error: No hay objeto cliente");
+      setErrorForm("Error: No se encontró información del cliente.");
+      return;
+    }
+    
+    if (!ventaEdit.cliente.nombre) {
+      console.log("Error: No hay nombre del cliente");
+      setErrorForm("Error: No se encontró nombre del cliente.");
+      return;
+    }
+    
     if (!ventaEdit.productos?.length && !ventaEdit.items?.length) {
       setErrorForm("Agrega al menos un producto.");
       return;
@@ -219,6 +258,15 @@ const VentaDetalle = () => {
       ventaEdit.pagos = pagosSimples;
       delete ventaEdit.montoAbonado;
     }
+    
+    // Asegurar que la información del cliente se preserve
+    if (!ventaEdit.cliente && venta.cliente) {
+      ventaEdit.cliente = venta.cliente;
+    }
+    if (!ventaEdit.clienteId && venta.clienteId) {
+      ventaEdit.clienteId = venta.clienteId;
+    }
+    
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, {
       ...ventaEdit,
