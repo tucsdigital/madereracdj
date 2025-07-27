@@ -423,6 +423,88 @@ const VentaDetalle = () => {
                 </span>
               </div>
             </div>
+            {/* Badge destacado de estado de pago */}
+            {venta.estadoPago === "pagado" && (
+              <div className="flex items-center gap-2 mt-2 bg-green-100 border-l-4 border-green-500 text-green-800 p-3 rounded print:bg-green-50">
+                <svg
+                  className="w-5 h-5 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span className="font-bold">Venta pagada en su totalidad</span>
+              </div>
+            )}
+            {venta.estadoPago === "parcial" && (
+              <div className="flex items-center gap-2 mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded print:bg-yellow-50">
+                <svg
+                  className="w-5 h-5 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 12h4v4m0-4V8"
+                  />
+                </svg>
+                <span className="font-bold">Pago parcial:</span>
+                <span>
+                  Monto abonado:{" "}
+                  <b>
+                    $
+                    {venta.pagos
+                      ? venta.pagos
+                          .reduce((acc, p) => acc + Number(p.monto), 0)
+                          .toFixed(2)
+                      : 0}
+                  </b>{" "}
+                  / Total: <b>${(venta.total || 0).toFixed(2)}</b> — Saldo
+                  pendiente:{" "}
+                  <b>
+                    $
+                    {(
+                      (venta.total || 0) -
+                      (venta.pagos
+                        ? venta.pagos.reduce(
+                            (acc, p) => acc + Number(p.monto),
+                            0
+                          )
+                        : 0)
+                    ).toFixed(2)}
+                  </b>
+                </span>
+              </div>
+            )}
+            {(venta.estadoPago === "pendiente" || !venta.estadoPago) && (
+              <div className="flex items-center gap-2 mt-2 bg-red-100 border-l-4 border-red-500 text-red-800 p-3 rounded print:bg-red-50">
+                <svg
+                  className="w-5 h-5 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8v4l3 3"
+                  />
+                </svg>
+                <span className="font-bold">Pago pendiente</span>
+              </div>
+            )}
           </div>
         </div>
         {/* 2. Información de Envío y Pago */}
