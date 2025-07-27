@@ -445,16 +445,29 @@ const VentaDetalle = () => {
                 <span className="font-medium">Estado de la venta:</span>{" "}
                 {(() => {
                   const total = venta.total || 0;
-                  const tienePagos = Array.isArray(venta.pagos) && venta.pagos.length > 0;
+                  const tienePagos =
+                    Array.isArray(venta.pagos) && venta.pagos.length > 0;
                   const montoAbonado = tienePagos
                     ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                     : Number(venta.montoAbonado || 0);
                   if (montoAbonado >= total) {
-                    return <span className="text-green-700 font-bold ml-2">Pagado</span>;
+                    return (
+                      <span className="text-green-700 font-bold ml-2">
+                        Pagado
+                      </span>
+                    );
                   } else if (montoAbonado > 0) {
-                    return <span className="text-yellow-700 font-bold ml-2">Parcial</span>;
+                    return (
+                      <span className="text-yellow-700 font-bold ml-2">
+                        Parcial
+                      </span>
+                    );
                   } else {
-                    return <span className="text-red-700 font-bold ml-2">Pendiente</span>;
+                    return (
+                      <span className="text-red-700 font-bold ml-2">
+                        Pendiente
+                      </span>
+                    );
                   }
                 })()}
               </div>
@@ -1054,31 +1067,57 @@ const VentaDetalle = () => {
               )}
             {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
             {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg p-6 mb-8 border border-blue-100">
-                <h4 className="font-bold text-lg mb-4 text-blue-900 flex items-center gap-2">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3" /></svg>
+              <div className="bg-white dark:bg-default-900 border border-default-300 rounded-md shadow-lg p-6 mb-8">
+                <h4 className="font-semibold text-lg mb-4 text-default-900 flex items-center gap-2">
+                  <svg
+                    className="w-6 h-6 text-default-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 8v4l3 3"
+                    />
+                  </svg>
                   Agregar nuevo pago
                 </h4>
-                <form className="flex flex-col md:flex-row md:items-end gap-4" onSubmit={e => e.preventDefault()}>
+                <form
+                  className="flex flex-col md:flex-row md:items-end gap-4"
+                  onSubmit={(e) => e.preventDefault()}
+                >
                   <div className="flex flex-col w-full md:w-32">
-                    <label className="text-xs font-medium text-blue-800 mb-1">Monto</label>
+                    <label className="text-xs font-medium text-default-800 mb-1">
+                      Monto
+                    </label>
                     <input
-                      className="border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition w-full text-base bg-white shadow-sm"
+                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
                       type="number"
                       min={1}
                       max={
                         (ventaEdit.total || 0) -
-                        pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                        pagosSimples.reduce(
+                          (acc, p) => acc + Number(p.monto),
+                          0
+                        )
                       }
                       placeholder={`Saldo pendiente: $${(
                         (ventaEdit.total || 0) -
-                        pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                        pagosSimples.reduce(
+                          (acc, p) => acc + Number(p.monto),
+                          0
+                        )
                       ).toFixed(2)}`}
                       value={
                         ventaEdit.nuevoPagoMonto !== undefined
                           ? ventaEdit.nuevoPagoMonto
                           : (ventaEdit.total || 0) -
-                            pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                            pagosSimples.reduce(
+                              (acc, p) => acc + Number(p.monto),
+                              0
+                            )
                       }
                       onChange={(e) =>
                         setVentaEdit({
@@ -1089,12 +1128,17 @@ const VentaDetalle = () => {
                     />
                   </div>
                   <div className="flex flex-col w-full md:w-40">
-                    <label className="text-xs font-medium text-blue-800 mb-1">Método</label>
+                    <label className="text-xs font-medium text-default-800 mb-1">
+                      Método
+                    </label>
                     <select
-                      className="border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition w-full text-base bg-white shadow-sm"
+                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
                       value={ventaEdit.nuevoPagoMetodo || ""}
                       onChange={(e) =>
-                        setVentaEdit({ ...ventaEdit, nuevoPagoMetodo: e.target.value })
+                        setVentaEdit({
+                          ...ventaEdit,
+                          nuevoPagoMetodo: e.target.value,
+                        })
                       }
                     >
                       <option value="">Método...</option>
@@ -1106,33 +1150,50 @@ const VentaDetalle = () => {
                     </select>
                   </div>
                   <div className="flex flex-col w-full md:w-44">
-                    <label className="text-xs font-medium text-blue-800 mb-1">Fecha</label>
+                    <label className="text-xs font-medium text-default-800 mb-1">
+                      Fecha
+                    </label>
                     <input
-                      className="border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition w-full text-base bg-white shadow-sm"
+                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
                       type="date"
-                      value={ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0]}
+                      value={
+                        ventaEdit.nuevoPagoFecha ||
+                        new Date().toISOString().split("T")[0]
+                      }
                       onChange={(e) =>
-                        setVentaEdit({ ...ventaEdit, nuevoPagoFecha: e.target.value })
+                        setVentaEdit({
+                          ...ventaEdit,
+                          nuevoPagoFecha: e.target.value,
+                        })
                       }
                     />
                   </div>
                   <div className="flex flex-col w-full md:w-48">
-                    <label className="text-xs font-medium text-blue-800 mb-1">Usuario (opcional)</label>
+                    <label className="text-xs font-medium text-default-800 mb-1">
+                      Usuario (opcional)
+                    </label>
                     <input
-                      className="border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition w-full text-base bg-white shadow-sm"
+                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
                       type="text"
                       placeholder="Usuario (opcional)"
                       value={ventaEdit.nuevoPagoUsuario || ""}
                       onChange={(e) =>
-                        setVentaEdit({ ...ventaEdit, nuevoPagoUsuario: e.target.value })
+                        setVentaEdit({
+                          ...ventaEdit,
+                          nuevoPagoUsuario: e.target.value,
+                        })
                       }
                     />
                   </div>
                   <Button
                     variant="default"
-                    className="bg-blue-400 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-lg shadow-md transition disabled:opacity-60 disabled:cursor-not-allowed mt-4 md:mt-0"
+                    className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-2 rounded-md shadow transition disabled:opacity-60 disabled:cursor-not-allowed mt-4 md:mt-0 text-sm"
                     onClick={() => {
-                      if (!ventaEdit.nuevoPagoMonto || !ventaEdit.nuevoPagoMetodo) return;
+                      if (
+                        !ventaEdit.nuevoPagoMonto ||
+                        !ventaEdit.nuevoPagoMetodo
+                      )
+                        return;
                       const abono = Number(ventaEdit.nuevoPagoMonto);
                       setPagosSimples((prev) => [
                         ...prev,
@@ -1159,20 +1220,35 @@ const VentaDetalle = () => {
                       Number(ventaEdit.nuevoPagoMonto) <= 0 ||
                       Number(ventaEdit.nuevoPagoMonto) >
                         (ventaEdit.total || 0) -
-                          pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
+                          pagosSimples.reduce(
+                            (acc, p) => acc + Number(p.monto),
+                            0
+                          )
                     }
                   >
                     <span className="flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
                       Agregar pago
                     </span>
                   </Button>
                 </form>
                 {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >=
                   (ventaEdit.total || 0) && (
-                  <div className="mt-4 text-green-700 font-semibold flex items-center gap-2">
+                  <div className="mt-4 text-green-700 dark:text-green-400 font-semibold flex items-center gap-2">
                     <svg
-                      className="w-5 h-5 text-green-600"
+                      className="w-5 h-5 text-green-600 dark:text-green-400"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
