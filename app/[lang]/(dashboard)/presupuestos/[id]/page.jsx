@@ -485,6 +485,16 @@ const PresupuestoDetalle = () => {
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir
               </Button>
+              {!editando && !convirtiendoVenta && (
+                <Button onClick={() => setEditando(true)} className="no-print">
+                  Editar Presupuesto
+                </Button>
+              )}
+              {!editando && !convirtiendoVenta && (
+                <Button onClick={() => setConvirtiendoVenta(true)} className="no-print">
+                  Convertir a Venta
+                </Button>
+              )}
             </div>
           </div>
 
@@ -868,20 +878,6 @@ const PresupuestoDetalle = () => {
             </p>
           </div>
         )}
-
-        {/* Botones de acción consolidados */}
-        <div className="flex gap-3 mt-4">
-          {!editando ? (
-            <>
-              <Button onClick={() => setEditando(true)}>
-                Editar Presupuesto
-              </Button>
-              <Button onClick={() => setConvirtiendoVenta(true)}>
-                Convertir a Venta
-              </Button>
-            </>
-          ) : null}
-        </div>
 
         {/* Modal de venta */}
         {convirtiendoVenta ? (
