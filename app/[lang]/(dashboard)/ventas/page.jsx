@@ -2402,12 +2402,12 @@ const getNextVentaNumber = async () => {
   let maxNum = 0;
   snap.docs.forEach((doc) => {
     const data = doc.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("PED-")) {
-      const num = parseInt(data.numeroPedido.replace("PED-", ""), 10);
+    if (data.numeroPedido && data.numeroPedido.startsWith("VENTA-")) {
+      const num = parseInt(data.numeroPedido.replace("VENTA-", ""), 10);
       if (!isNaN(num) && num > maxNum) maxNum = num;
     }
   });
-  return `PED-${String(maxNum + 1).padStart(5, "0")}`;
+  return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
 };
 
 // Numeración autoincremental para presupuestos

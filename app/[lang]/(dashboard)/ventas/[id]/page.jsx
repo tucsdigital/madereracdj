@@ -589,18 +589,6 @@ const VentaDetalle = () => {
                 ).toFixed(2)}
               </span>
             </div>
-            <div className="mt-2">
-              <span className="font-medium">Estado de pago: </span>
-              {(venta.total || 0) -
-                venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <=
-              0 ? (
-                <span className="text-green-700 font-bold">Pagado</span>
-              ) : venta.pagos.length > 0 ? (
-                <span className="text-yellow-700 font-bold">Parcial</span>
-              ) : (
-                <span className="text-red-700 font-bold">Pendiente</span>
-              )}
-            </div>
           </div>
         ) : (
           (venta.montoAbonado > 0 || venta.pagoParcial) && (
@@ -1067,7 +1055,7 @@ const VentaDetalle = () => {
             {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
             {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
               <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold mb-2">Completar pago</h4>
+                <h4 className="font-semibold mb-2">Agregar nuevo pago</h4>
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <input
                     className="border rounded px-2 py-2 w-full md:w-40"
@@ -1082,12 +1070,10 @@ const VentaDetalle = () => {
                       pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
                     ).toFixed(2)}`}
                     value={
-                      ventaEdit.nuevoPagoMonto ||
-                      (ventaEdit.total || 0) -
-                        pagosSimples.reduce(
-                          (acc, p) => acc + Number(p.monto),
-                          0
-                        )
+                      ventaEdit.nuevoPagoMonto !== undefined
+                        ? ventaEdit.nuevoPagoMonto
+                        : (ventaEdit.total || 0) -
+                          pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
                     }
                     onChange={(e) =>
                       setVentaEdit({
@@ -1096,10 +1082,41 @@ const VentaDetalle = () => {
                       })
                     }
                   />
+                  <select
+                    className="border rounded px-2 py-2 w-full md:w-40"
+                    value={ventaEdit.nuevoPagoMetodo || ""}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, nuevoPagoMetodo: e.target.value })
+                    }
+                  >
+                    <option value="">Método...</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                  <input
+                    className="border rounded px-2 py-2 w-full md:w-40"
+                    type="date"
+                    value={ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0]}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, nuevoPagoFecha: e.target.value })
+                    }
+                  />
+                  <input
+                    className="border rounded px-2 py-2 w-full md:w-40"
+                    type="text"
+                    placeholder="Usuario (opcional)"
+                    value={ventaEdit.nuevoPagoUsuario || ""}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, nuevoPagoUsuario: e.target.value })
+                    }
+                  />
                   <Button
                     variant="default"
                     onClick={() => {
-                      if (!ventaEdit.nuevoPagoMonto) return;
+                      if (!ventaEdit.nuevoPagoMonto || !ventaEdit.nuevoPagoMetodo) return;
                       const abono = Number(ventaEdit.nuevoPagoMonto);
                       setPagosSimples((prev) => [
                         ...prev,
@@ -1108,7 +1125,7 @@ const VentaDetalle = () => {
                             ventaEdit.nuevoPagoFecha ||
                             new Date().toISOString().split("T")[0],
                           monto: abono,
-                          metodo: ventaEdit.nuevoPagoMetodo || "-",
+                          metodo: ventaEdit.nuevoPagoMetodo,
                           usuario: ventaEdit.nuevoPagoUsuario || "-",
                         },
                       ]);
@@ -1122,16 +1139,14 @@ const VentaDetalle = () => {
                     }}
                     disabled={
                       !ventaEdit.nuevoPagoMonto ||
+                      !ventaEdit.nuevoPagoMetodo ||
                       Number(ventaEdit.nuevoPagoMonto) <= 0 ||
                       Number(ventaEdit.nuevoPagoMonto) >
                         (ventaEdit.total || 0) -
-                          pagosSimples.reduce(
-                            (acc, p) => acc + Number(p.monto),
-                            0
-                          )
+                          pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)
                     }
                   >
-                    Completar pago
+                    Agregar pago
                   </Button>
                 </div>
                 {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >=
