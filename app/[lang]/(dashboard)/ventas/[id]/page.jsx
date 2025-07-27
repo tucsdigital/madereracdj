@@ -563,109 +563,231 @@ const VentaDetalle = () => {
 
         {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
         {editando && ventaEdit && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            {/* === Información de Envío y Pago (idéntico a alta de venta) === */}
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                className="border rounded px-2 py-2 w-full"
-                type="date"
-                value={ventaEdit.fecha || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, fecha: e.target.value })}
-                placeholder="Fecha"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full"
-                type="date"
-                value={ventaEdit.fechaEntrega || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
-                placeholder="Fecha de entrega"
-              />
-              <select
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.formaPago || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, formaPago: e.target.value })}
-              >
-                <option value="">Forma de pago...</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="cheque">Cheque</option>
-                <option value="otro">Otro</option>
-              </select>
-              <select
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.tipoEnvio || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })}
-              >
-                <option value="">Tipo de envío...</option>
-                <option value="retiro_local">Retiro en local</option>
-                <option value="envio_domicilio">Envío a domicilio</option>
-                <option value="envio_obra">Envío a obra</option>
-                <option value="transporte_propio">Transporte propio del cliente</option>
-              </select>
-              <select
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.transportista || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, transportista: e.target.value })}
-              >
-                <option value="">Transportista...</option>
-                <option value="camion">camion</option>
-                <option value="camioneta 1">camioneta 1</option>
-                <option value="camioneta 2">camioneta 2</option>
-              </select>
-              <select
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.vendedor || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, vendedor: e.target.value })}
-              >
-                <option value="">Vendedor responsable...</option>
-                <option value="coco">coco</option>
-                <option value="damian">damian</option>
-                <option value="lauti">lauti</option>
-                <option value="jose">jose</option>
-              </select>
-              <select
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.prioridad || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, prioridad: e.target.value })}
-              >
-                <option value="">Prioridad...</option>
-                <option value="alta">Alta</option>
-                <option value="media">Media</option>
-                <option value="baja">Baja</option>
-              </select>
-              <input
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.costoEnvio || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })}
-                placeholder="Costo de envío"
-                type="number"
-              />
-              <input
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.rangoHorario || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })}
-                placeholder="Rango horario"
-              />
-              <textarea
-                className="border rounded px-2 py-2 w-full"
-                value={ventaEdit.observaciones || ""}
-                onChange={(e) => setVentaEdit({ ...ventaEdit, observaciones: e.target.value })}
-                placeholder="Observaciones"
-              />
-            </div>
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-8">
+            {/* Condiciones de pago y entrega */}
+            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Condiciones de pago y entrega</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium">Forma de pago</span>
+                  <select
+                    className="border rounded px-2 py-2 w-full mt-1"
+                    value={ventaEdit.formaPago || ""}
+                    onChange={e => setVentaEdit({ ...ventaEdit, formaPago: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </label>
+                <div className="flex items-center gap-2 mt-6 md:mt-0">
+                  <input
+                    type="checkbox"
+                    id="pagoParcialEdit"
+                    checked={!!ventaEdit.pagoParcial}
+                    onChange={e => setVentaEdit({ ...ventaEdit, pagoParcial: e.target.checked })}
+                  />
+                  <label htmlFor="pagoParcialEdit" className="text-sm">¿Pago parcial?</label>
+                </div>
+                {ventaEdit.pagoParcial && (
+                  <div className="col-span-2 flex flex-col md:flex-row gap-4 items-center mt-2">
+                    <label className="flex-1">
+                      <span className="text-sm font-medium">Monto abonado</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="border rounded px-2 py-2 w-full mt-1"
+                        value={ventaEdit.montoAbonado || ""}
+                        onChange={e => setVentaEdit({ ...ventaEdit, montoAbonado: e.target.value })}
+                      />
+                    </label>
+                    <div className="text-sm text-gray-600 mt-4 md:mt-8">
+                      Resta: $
+                      {(
+                        (ventaEdit.total || 0) - (Number(ventaEdit.montoAbonado) || 0)
+                      ).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Información de envío */}
+            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Información de envío</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium">Tipo de envío</span>
+                  <select
+                    className="border rounded px-2 py-2 w-full mt-1"
+                    value={ventaEdit.tipoEnvio || ""}
+                    onChange={e => setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="retiro_local">Retiro en local</option>
+                    <option value="envio_domicilio">Envío a domicilio</option>
+                    <option value="envio_obra">Envío a obra</option>
+                    <option value="transporte_propio">Transporte propio del cliente</option>
+                  </select>
+                </label>
+                {ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" && (
+                  <>
+                    <label className="block col-span-2">
+                      <span className="text-sm font-medium">¿Usar dirección del cliente?</span>
+                      <input
+                        type="checkbox"
+                        className="ml-2"
+                        checked={ventaEdit.usarDireccionCliente !== false}
+                        onChange={e => setVentaEdit({ ...ventaEdit, usarDireccionCliente: e.target.checked })}
+                      />
+                    </label>
+                    {ventaEdit.usarDireccionCliente === false ? (
+                      <>
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.direccionEnvio || ""}
+                          onChange={e => setVentaEdit({ ...ventaEdit, direccionEnvio: e.target.value })}
+                          placeholder="Dirección de envío"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.localidadEnvio || ""}
+                          onChange={e => setVentaEdit({ ...ventaEdit, localidadEnvio: e.target.value })}
+                          placeholder="Localidad/Ciudad"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.codigoPostal || ""}
+                          onChange={e => setVentaEdit({ ...ventaEdit, codigoPostal: e.target.value })}
+                          placeholder="Código postal"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.cliente?.direccion || ""}
+                          readOnly
+                          placeholder="Dirección del cliente"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.cliente?.localidad || ""}
+                          readOnly
+                          placeholder="Localidad del cliente"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.cliente?.codigoPostal || ""}
+                          readOnly
+                          placeholder="Código postal del cliente"
+                        />
+                      </>
+                    )}
+                    <select
+                      className="border rounded px-2 py-2 w-full"
+                      value={ventaEdit.transportista || ""}
+                      onChange={e => setVentaEdit({ ...ventaEdit, transportista: e.target.value })}
+                    >
+                      <option value="">Transportista...</option>
+                      <option value="camion">camion</option>
+                      <option value="camioneta 1">camioneta 1</option>
+                      <option value="camioneta 2">camioneta 2</option>
+                    </select>
+                    <input
+                      className="border rounded px-2 py-2 w-full"
+                      value={ventaEdit.costoEnvio || ""}
+                      onChange={e => setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })}
+                      placeholder="Costo de envío"
+                      type="number"
+                    />
+                    <input
+                      className="border rounded px-2 py-2 w-full"
+                      type="date"
+                      value={ventaEdit.fechaEntrega || ""}
+                      onChange={e => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
+                      placeholder="Fecha de entrega"
+                    />
+                    <input
+                      className="border rounded px-2 py-2 w-full"
+                      value={ventaEdit.rangoHorario || ""}
+                      onChange={e => setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })}
+                      placeholder="Rango horario (ej: 8-12, 14-18)"
+                    />
+                  </>
+                )}
+                {ventaEdit.tipoEnvio === "retiro_local" && (
+                  <>
+                    <input
+                      className="border rounded px-2 py-2 w-full"
+                      type="date"
+                      value={ventaEdit.fechaEntrega || ""}
+                      onChange={e => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
+                      placeholder="Fecha de retiro"
+                    />
+                  </>
+                )}
+              </div>
+            </section>
+
+            {/* Información adicional */}
+            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Información adicional</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium">Vendedor responsable</span>
+                  <select
+                    className="border rounded px-2 py-2 w-full mt-1"
+                    value={ventaEdit.vendedor || ""}
+                    onChange={e => setVentaEdit({ ...ventaEdit, vendedor: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="coco">coco</option>
+                    <option value="damian">damian</option>
+                    <option value="lauti">lauti</option>
+                    <option value="jose">jose</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium">Prioridad</span>
+                  <select
+                    className="border rounded px-2 py-2 w-full mt-1"
+                    value={ventaEdit.prioridad || ""}
+                    onChange={e => setVentaEdit({ ...ventaEdit, prioridad: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="alta">Alta</option>
+                    <option value="media">Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </label>
+                <label className="block col-span-2">
+                  <span className="text-sm font-medium">Observaciones</span>
+                  <textarea
+                    className="border rounded px-2 py-2 w-full mt-1"
+                    value={ventaEdit.observaciones || ""}
+                    onChange={e => setVentaEdit({ ...ventaEdit, observaciones: e.target.value })}
+                    placeholder="Observaciones"
+                  />
+                </label>
+              </div>
+            </section>
+
             {/* Productos/items: puedes reutilizar SelectorProductosPresupuesto aquí si lo deseas */}
             <SelectorProductosPresupuesto
               productosSeleccionados={ventaEdit.productos || []}
-              setProductosSeleccionados={(nuevos) =>
-                setVentaEdit((prev) => ({
+              setProductosSeleccionados={nuevos =>
+                setVentaEdit(prev => ({
                   ...prev,
                   productos: nuevos,
                   items: nuevos,
                 }))
               }
               productosState={productos}
-              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+              categoriasState={[...new Set(productos.map(p => p.categoria))]}
               productosPorCategoria={productos.reduce((acc, p) => {
                 acc[p.categoria] = acc[p.categoria] || [];
                 acc[p.categoria].push(p);
