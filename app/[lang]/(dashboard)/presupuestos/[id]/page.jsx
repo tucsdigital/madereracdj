@@ -765,17 +765,7 @@ const PresupuestoDetalle = () => {
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${(
-                        safeNumber(presupuesto.subtotal) -
-                        safeNumber(presupuesto.descuentoTotal) +
-                        (presupuesto.costoEnvio !== undefined &&
-                        presupuesto.costoEnvio !== "" &&
-                        !isNaN(Number(presupuesto.costoEnvio)) &&
-                        presupuesto.tipoEnvio &&
-                        presupuesto.tipoEnvio !== "retiro_local"
-                          ? safeNumber(presupuesto.costoEnvio)
-                          : 0)
-                      ).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      ${safeNumber(presupuesto.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

@@ -743,18 +743,7 @@ const VentaDetalle = () => {
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span className="text-primary">
-                    $
-                    {(
-                      (venta.subtotal || 0) -
-                      (venta.descuentoTotal || 0) +
-                      (venta.costoEnvio !== undefined &&
-                      venta.costoEnvio !== "" &&
-                      !isNaN(Number(venta.costoEnvio)) &&
-                      venta.tipoEnvio &&
-                      venta.tipoEnvio !== "retiro_local"
-                        ? Number(venta.costoEnvio)
-                        : 0)
-                    ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    ${(venta.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

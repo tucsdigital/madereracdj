@@ -205,10 +205,7 @@ export const columnsPresupuestos = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => {
-      const subtotal = row.original.subtotal ?? 0;
-      const descuento = row.original.descuentoTotal ?? 0;
-      const costoEnvio = row.original.costoEnvio;
-      const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
+      const total = row.original.total ?? 0;
       return (
         <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
           {`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
@@ -270,10 +267,7 @@ export const columnsVentas = [
     accessorKey: "total",
     header: "Total",
     cell: ({ row }) => {
-      const subtotal = row.original.subtotal ?? 0;
-      const descuento = row.original.descuentoTotal ?? 0;
-      const costoEnvio = row.original.costoEnvio;
-      const total = subtotal - descuento + (costoEnvio !== undefined && costoEnvio !== "" && !isNaN(Number(costoEnvio)) ? Number(costoEnvio) : 0);
+      const total = row.original.total ?? 0;
       return (
         <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
           {total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-"}
