@@ -181,6 +181,10 @@ const VentaDetalle = () => {
     } else {
       ventaEdit.estadoPago = "pendiente";
     }
+    // Eliminar montoAbonado si hay array pagos
+    if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+      delete ventaEdit.montoAbonado;
+    }
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, {
       ...ventaEdit,
@@ -1175,6 +1179,10 @@ const VentaDetalle = () => {
                     ventaEdit.estadoPago = "parcial";
                   } else {
                     ventaEdit.estadoPago = "pendiente";
+                  }
+                  // Eliminar montoAbonado si hay array pagos
+                  if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+                    delete ventaEdit.montoAbonado;
                   }
                   const docRef = doc(db, "ventas", ventaEdit.id);
                   await updateDoc(docRef, {
