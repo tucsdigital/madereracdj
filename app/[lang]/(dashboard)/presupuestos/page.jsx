@@ -77,8 +77,8 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   });
 
   const items = watch("items");
-
-  // Estado para cliente seleccionado
+  const tipoEnvio = watch("tipoEnvio");
+  const costoEnvio = watch("costoEnvio");
   const [clienteId, setClienteId] = useState("");
   // Estado para clientes desde Firestore
   const [clientesState, setClientesState] = useState([]);
@@ -114,7 +114,16 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   const subtotal = productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad), 0);
   const descuentoTotal = productosSeleccionados.reduce((acc, p) => acc + (p.descuento * p.cantidad), 0);
   const iva = (subtotal - descuentoTotal) * 0.21;
-  const total = subtotal - descuentoTotal + iva;
+  // Calcular costo de envío solo si no es retiro local
+  const costoEnvioCalculado = 
+    tipoEnvio && 
+    tipoEnvio !== "retiro_local" && 
+    costoEnvio !== undefined && 
+    costoEnvio !== "" && 
+    !isNaN(Number(costoEnvio)) 
+      ? Number(costoEnvio) 
+      : 0;
+  const total = subtotal - descuentoTotal + iva + costoEnvioCalculado;
 
   // Flatpickr handlers
   const handleDateChange = (field, date) => {
@@ -441,6 +450,9 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
               <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
               <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
               <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
+              {costoEnvioCalculado > 0 && (
+                <div>Costo de envío: <span className="font-semibold">${costoEnvioCalculado.toFixed(2)}</span></div>
+              )}
               <div>Total: <span className="font-bold text-primary">${total.toFixed(2)}</span></div>
             </div>
           </div>

@@ -212,7 +212,16 @@ const PresupuestoDetalle = () => {
           (Number(p.descuento || 0) / 100),
       0
     );
-    const total = subtotal - descuentoTotal;
+    // Calcular costo de envío solo si no es retiro local
+    const costoEnvioCalculado = 
+      presupuestoEdit.tipoEnvio && 
+      presupuestoEdit.tipoEnvio !== "retiro_local" && 
+      presupuestoEdit.costoEnvio !== undefined && 
+      presupuestoEdit.costoEnvio !== "" && 
+      !isNaN(Number(presupuestoEdit.costoEnvio)) 
+        ? Number(presupuestoEdit.costoEnvio) 
+        : 0;
+    const total = subtotal - descuentoTotal + costoEnvioCalculado;
     const docRef = doc(db, "presupuestos", presupuestoEdit.id);
     await updateDoc(docRef, {
       ...presupuestoEdit,
@@ -598,7 +607,16 @@ const PresupuestoDetalle = () => {
                         (Number(p.descuento || 0) / 100),
                     0
                   );
-                  const total = subtotal - descuentoTotal;
+                  // Calcular costo de envío solo si no es retiro local
+                  const costoEnvioCalculado = 
+                    presupuestoEdit.tipoEnvio && 
+                    presupuestoEdit.tipoEnvio !== "retiro_local" && 
+                    presupuestoEdit.costoEnvio !== undefined && 
+                    presupuestoEdit.costoEnvio !== "" && 
+                    !isNaN(Number(presupuestoEdit.costoEnvio)) 
+                      ? Number(presupuestoEdit.costoEnvio) 
+                      : 0;
+                  const total = subtotal - descuentoTotal + costoEnvioCalculado;
                   const docRef = doc(db, "presupuestos", presupuestoEdit.id);
                   await updateDoc(docRef, {
                     ...presupuestoEdit,
@@ -733,10 +751,12 @@ const PresupuestoDetalle = () => {
                     <span>Descuento total:</span>
                     <span>${safeNumber(presupuesto.descuentoTotal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
-                  {/* Mostrar costo de envío si existe y es >= 0 */}
+                  {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
                   {presupuesto.costoEnvio !== undefined &&
                     presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) && (
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    presupuesto.tipoEnvio &&
+                    presupuesto.tipoEnvio !== "retiro_local" && (
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
                         <span>${safeNumber(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
@@ -750,7 +770,9 @@ const PresupuestoDetalle = () => {
                         safeNumber(presupuesto.descuentoTotal) +
                         (presupuesto.costoEnvio !== undefined &&
                         presupuesto.costoEnvio !== "" &&
-                        !isNaN(Number(presupuesto.costoEnvio))
+                        !isNaN(Number(presupuesto.costoEnvio)) &&
+                        presupuesto.tipoEnvio &&
+                        presupuesto.tipoEnvio !== "retiro_local"
                           ? safeNumber(presupuesto.costoEnvio)
                           : 0)
                       ).toLocaleString('es-AR', { minimumFractionDigits: 2 })}

@@ -189,7 +189,16 @@ const VentaDetalle = () => {
           (Number(p.descuento || 0) / 100),
       0
     );
-    const total = subtotal - descuentoTotal;
+    // Calcular costo de envío solo si no es retiro local
+    const costoEnvioCalculado = 
+      ventaEdit.tipoEnvio && 
+      ventaEdit.tipoEnvio !== "retiro_local" && 
+      ventaEdit.costoEnvio !== undefined && 
+      ventaEdit.costoEnvio !== "" && 
+      !isNaN(Number(ventaEdit.costoEnvio)) 
+        ? Number(ventaEdit.costoEnvio) 
+        : 0;
+    const total = subtotal - descuentoTotal + costoEnvioCalculado;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
       (acc, p) => acc + Number(p.monto),
       0
@@ -715,10 +724,12 @@ const VentaDetalle = () => {
                     })}
                   </span>
                 </div>
-                {/* Mostrar costo de envío si existe y es >= 0 */}
+                {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
                 {venta.costoEnvio !== undefined &&
                   venta.costoEnvio !== "" &&
-                  !isNaN(Number(venta.costoEnvio)) && (
+                  !isNaN(Number(venta.costoEnvio)) &&
+                  venta.tipoEnvio &&
+                  venta.tipoEnvio !== "retiro_local" && (
                     <div className="flex justify-between">
                       <span>Costo de envío:</span>
                       <span>
@@ -738,7 +749,9 @@ const VentaDetalle = () => {
                       (venta.descuentoTotal || 0) +
                       (venta.costoEnvio !== undefined &&
                       venta.costoEnvio !== "" &&
-                      !isNaN(Number(venta.costoEnvio))
+                      !isNaN(Number(venta.costoEnvio)) &&
+                      venta.tipoEnvio &&
+                      venta.tipoEnvio !== "retiro_local"
                         ? Number(venta.costoEnvio)
                         : 0)
                     ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
@@ -1275,7 +1288,16 @@ const VentaDetalle = () => {
                         (Number(p.descuento || 0) / 100),
                     0
                   );
-                  const total = subtotal - descuentoTotal;
+                  // Calcular costo de envío solo si no es retiro local
+                  const costoEnvioCalculado = 
+                    ventaEdit.tipoEnvio && 
+                    ventaEdit.tipoEnvio !== "retiro_local" && 
+                    ventaEdit.costoEnvio !== undefined && 
+                    ventaEdit.costoEnvio !== "" && 
+                    !isNaN(Number(ventaEdit.costoEnvio)) 
+                      ? Number(ventaEdit.costoEnvio) 
+                      : 0;
+                  const total = subtotal - descuentoTotal + costoEnvioCalculado;
                   const totalAbonado = (ventaEdit.pagos || []).reduce(
                     (acc, p) => acc + Number(p.monto),
                     0

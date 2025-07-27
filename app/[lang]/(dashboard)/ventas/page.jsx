@@ -191,6 +191,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   });
 
   const items = watch("items");
+  const tipoEnvio = watch("tipoEnvio");
+  const costoEnvio = watch("costoEnvio");
   const [clienteId, setClienteId] = useState("");
   const [clientesState, setClientesState] = useState([]);
   const [clientesLoading, setClientesLoading] = useState(true);
@@ -320,7 +322,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
     0
   );
-  const total = subtotal - descuentoTotal;
+  // Calcular costo de envío solo si no es retiro local
+  const costoEnvioCalculado = 
+    tipoEnvio && 
+    tipoEnvio !== "retiro_local" && 
+    costoEnvio !== undefined && 
+    costoEnvio !== "" && 
+    !isNaN(Number(costoEnvio)) 
+      ? Number(costoEnvio) 
+      : 0;
+  const total = subtotal - descuentoTotal + costoEnvioCalculado;
 
   const handleDateChange = (field, date) => {
     setValue(field, date[0]);
@@ -1472,6 +1483,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               <div>
                 Descuento: <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
               </div>
+              {costoEnvioCalculado > 0 && (
+                <div>
+                  Costo de envío: <span className="font-bold">${costoEnvioCalculado.toFixed(2)}</span>
+                </div>
+              )}
               <div>
                 Total: <span className="font-bold text-primary">${total.toFixed(2)}</span>
               </div>
