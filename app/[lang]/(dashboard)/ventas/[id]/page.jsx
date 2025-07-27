@@ -190,13 +190,13 @@ const VentaDetalle = () => {
       0
     );
     // Calcular costo de envío solo si no es retiro local
-    const costoEnvioCalculado = 
-      ventaEdit.tipoEnvio && 
-      ventaEdit.tipoEnvio !== "retiro_local" && 
-      ventaEdit.costoEnvio !== undefined && 
-      ventaEdit.costoEnvio !== "" && 
-      !isNaN(Number(ventaEdit.costoEnvio)) 
-        ? Number(ventaEdit.costoEnvio) 
+    const costoEnvioCalculado =
+      ventaEdit.tipoEnvio &&
+      ventaEdit.tipoEnvio !== "retiro_local" &&
+      ventaEdit.costoEnvio !== undefined &&
+      ventaEdit.costoEnvio !== "" &&
+      !isNaN(Number(ventaEdit.costoEnvio))
+        ? Number(ventaEdit.costoEnvio)
         : 0;
     const total = subtotal - descuentoTotal + costoEnvioCalculado;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
@@ -310,6 +310,20 @@ const VentaDetalle = () => {
     }
   };
 
+  const estadoPago = venta.estadoPago || "pendiente";
+  // Calcular monto abonado correctamente: priorizar array pagos, sino usar montoAbonado
+  const montoAbonado = Array.isArray(venta.pagos) && venta.pagos.length > 0
+    ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+    : Number(venta.montoAbonado || 0);
+  const saldoPendiente = (venta.total || 0) - montoAbonado;
+  
+  // Determinar estado de pago basado en el monto abonado real
+  const estadoPagoCalculado = montoAbonado >= (venta.total || 0) 
+    ? "pagado" 
+    : montoAbonado > 0 
+    ? "parcial" 
+    : "pendiente";
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <style>{`
@@ -378,6 +392,47 @@ const VentaDetalle = () => {
             </div>
             <div className="text-xs text-gray-500">
               N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+            </div>
+          </div>
+        </div>
+        {/* Header con botones */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+              </h1>
+              {/* Mostrar observaciones si existen */}
+              {venta.observaciones && (
+                <p className="text-gray-600 mt-1 whitespace-pre-line">
+                  {venta.observaciones}
+                </p>
+              )}
+              {/* Mostrar fecha de actualización si existe */}
+              {venta.fechaActualizacion && (
+                <div className="mt-1 text-xs text-gray-500">
+                  Última actualización: {formatFechaLocal(venta.fechaActualizacion)}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="no-print"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver
+              </Button>
+              <Button onClick={handlePrint} className="no-print">
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir
+              </Button>
+              {!editando && (
+                <Button onClick={() => setEditando(true)} className="no-print">
+                  Editar
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -454,18 +509,17 @@ const VentaDetalle = () => {
                 <span className="font-medium">Estado de la venta:</span>{" "}
                 {(() => {
                   const total = venta.total || 0;
-                  const tienePagos =
-                    Array.isArray(venta.pagos) && venta.pagos.length > 0;
-                  const montoAbonado = tienePagos
+                  const montoAbonadoCalculado = Array.isArray(venta.pagos) && venta.pagos.length > 0
                     ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                     : Number(venta.montoAbonado || 0);
-                  if (montoAbonado >= total) {
+                  
+                  if (montoAbonadoCalculado >= total) {
                     return (
                       <span className="text-green-700 font-bold ml-2">
                         Pagado
                       </span>
                     );
-                  } else if (montoAbonado > 0) {
+                  } else if (montoAbonadoCalculado > 0) {
                     return (
                       <span className="text-yellow-700 font-bold ml-2">
                         Parcial
@@ -564,86 +618,81 @@ const VentaDetalle = () => {
           </div>
         )}
 
-        {/* 3. Historial de pagos o montoAbonado */}
-        {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
-              Historial de Pagos
-            </h3>
-            <table className="w-full text-sm mb-2">
-              <thead>
-                <tr className="bg-gray-100 border-b">
-                  <th className="p-2 text-left">Fecha</th>
-                  <th className="p-2 text-left">Método</th>
-                  <th className="p-2 text-right">Monto</th>
-                  <th className="p-2 text-left">Usuario</th>
-                </tr>
-              </thead>
-              <tbody>
-                {venta.pagos.map((pago, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
-                    <td className="p-2">{pago.metodo}</td>
-                    <td className="p-2 text-right">
-                      ${Number(pago.monto).toFixed(2)}
-                    </td>
-                    <td className="p-2">{pago.usuario || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex justify-between font-semibold mt-2">
-              <span>Total abonado:</span>
-              <span>
-                $
-                {venta.pagos
-                  .reduce((acc, p) => acc + Number(p.monto), 0)
-                  .toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between mt-1">
-              <span>Saldo pendiente:</span>
-              <span>
-                $
-                {(
-                  (venta.total || 0) -
-                  venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                ).toFixed(2)}
+        {/* 3. Información de Pagos */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-lg mb-4 text-gray-900">
+            Información de Pagos
+          </h3>
+          
+          {/* Estado de pago */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-700">Estado de pago:</span>
+              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                estadoPagoCalculado === "pagado" ? "bg-green-100 text-green-800" :
+                estadoPagoCalculado === "parcial" ? "bg-yellow-100 text-yellow-800" :
+                "bg-red-100 text-red-800"
+              }`}>
+                {estadoPagoCalculado === "pagado" ? "Pagado" :
+                 estadoPagoCalculado === "parcial" ? "Pago Parcial" :
+                 "Pendiente"}
               </span>
             </div>
           </div>
-        ) : (
-          (venta.montoAbonado > 0 || venta.pagoParcial) && (
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-              <h3 className="font-semibold text-lg mb-2 text-gray-900">
-                Pagos
-              </h3>
-              <div className="flex justify-between font-semibold mt-2">
-                <span>Total abonado:</span>
-                <span>${Number(venta.montoAbonado || 0).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between mt-1">
-                <span>Saldo pendiente:</span>
-                <span>
-                  $
-                  {(
-                    (venta.total || 0) - Number(venta.montoAbonado || 0)
-                  ).toFixed(2)}
+
+          {/* Detalles de pagos */}
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total de la venta:</span>
+              <span className="font-semibold">${(venta.total || 0).toFixed(2)}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-gray-600">Monto abonado:</span>
+              <span className="font-semibold text-green-600">
+                ${montoAbonado.toFixed(2)}
+              </span>
+            </div>
+            
+            {saldoPendiente > 0 && (
+              <div className="flex justify-between border-t pt-2">
+                <span className="text-gray-600">Saldo pendiente:</span>
+                <span className="font-semibold text-red-600">
+                  ${saldoPendiente.toFixed(2)}
                 </span>
               </div>
-              <div className="mt-2">
-                <span className="font-medium">Estado de pago: </span>
-                {Number(venta.montoAbonado || 0) >= (venta.total || 0) ? (
-                  <span className="text-green-700 font-bold">Pagado</span>
-                ) : Number(venta.montoAbonado || 0) > 0 ? (
-                  <span className="text-yellow-700 font-bold">Parcial</span>
-                ) : (
-                  <span className="text-red-700 font-bold">Pendiente</span>
-                )}
+            )}
+          </div>
+
+          {/* Historial de pagos si existe */}
+          {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-700 mb-2">Historial de pagos:</h4>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-1">Fecha</th>
+                      <th className="text-left py-1">Método</th>
+                      <th className="text-right py-1">Monto</th>
+                      <th className="text-left py-1">Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {venta.pagos.map((pago, idx) => (
+                      <tr key={idx} className="border-b border-gray-200">
+                        <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
+                        <td className="py-1">{pago.metodo}</td>
+                        <td className="py-1 text-right">${Number(pago.monto).toFixed(2)}</td>
+                        <td className="py-1">{pago.usuario || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )
-        )}
+          )}
+        </div>
 
         {/* 4. Productos y servicios */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
@@ -743,7 +792,10 @@ const VentaDetalle = () => {
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span className="text-primary">
-                    ${(venta.total || 0).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    $
+                    {(venta.total || 0).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
               </div>
@@ -762,21 +814,6 @@ const VentaDetalle = () => {
             </p>
           </div>
         )}
-
-        {/* 7. Acciones */}
-        <div className="flex gap-3 mt-6 no-print">
-          <Button onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
-          </Button>
-          <Button onClick={handlePrint}>
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir
-          </Button>
-          {!editando && (
-            <Button onClick={() => setEditando(true)}>Editar</Button>
-          )}
-        </div>
 
         {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
         {editando && ventaEdit && (
@@ -1012,63 +1049,8 @@ const VentaDetalle = () => {
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
-            {/* En edición: historial de pagos simples */}
-            {editando &&
-              ventaEdit &&
-              !Array.isArray(ventaEdit.pagos) &&
-              pagosSimples.length > 0 && (
-                <div className="bg-white rounded-lg p-4 mb-4">
-                  <h4 className="font-semibold mb-2">Historial de Pagos</h4>
-                  <table className="w-full text-sm mb-2">
-                    <thead>
-                      <tr className="bg-gray-100 border-b">
-                        <th className="p-2 text-left">Fecha</th>
-                        <th className="p-2 text-left">Método</th>
-                        <th className="p-2 text-right">Monto</th>
-                        <th className="p-2 text-left">Usuario</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagosSimples.map((pago, idx) => (
-                        <tr key={idx} className="border-b">
-                          <td className="p-2">
-                            {formatFechaLocal(pago.fecha)}
-                          </td>
-                          <td className="p-2">{pago.metodo}</td>
-                          <td className="p-2 text-right">
-                            ${Number(pago.monto).toFixed(2)}
-                          </td>
-                          <td className="p-2">{pago.usuario || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="flex justify-between font-semibold mt-2">
-                    <span>Total abonado:</span>
-                    <span>
-                      $
-                      {pagosSimples
-                        .reduce((acc, p) => acc + Number(p.monto), 0)
-                        .toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span>Saldo pendiente:</span>
-                    <span>
-                      $
-                      {(
-                        (ventaEdit.total || 0) -
-                        pagosSimples.reduce(
-                          (acc, p) => acc + Number(p.monto),
-                          0
-                        )
-                      ).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
             {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
-            {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
+            {editando && ventaEdit && (
               <div className="bg-white dark:bg-default-900 border border-default-300 rounded-md shadow-lg p-6 mb-8">
                 <h4 className="font-semibold text-lg mb-4 text-default-900 flex items-center gap-2">
                   <svg
@@ -1100,17 +1082,15 @@ const VentaDetalle = () => {
                       min={1}
                       max={
                         (ventaEdit.total || 0) -
-                        pagosSimples.reduce(
-                          (acc, p) => acc + Number(p.monto),
-                          0
-                        )
+                        (Array.isArray(ventaEdit.pagos) 
+                          ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                          : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
                       }
                       placeholder={`Saldo pendiente: $${(
                         (ventaEdit.total || 0) -
-                        pagosSimples.reduce(
-                          (acc, p) => acc + Number(p.monto),
-                          0
-                        )
+                        (Array.isArray(ventaEdit.pagos) 
+                          ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                          : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
                       ).toFixed(2)}`}
                       value={ventaEdit.nuevoPagoMonto || ""}
                       onChange={(e) =>
@@ -1189,24 +1169,42 @@ const VentaDetalle = () => {
                       )
                         return;
                       const abono = Number(ventaEdit.nuevoPagoMonto);
-                      setPagosSimples((prev) => [
-                        ...prev,
-                        {
-                          fecha:
-                            ventaEdit.nuevoPagoFecha ||
-                            new Date().toISOString().split("T")[0],
+                      
+                      // Si ya existe array pagos, agregar a ese array
+                      if (Array.isArray(ventaEdit.pagos)) {
+                        const nuevoPago = {
+                          fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
                           monto: abono,
                           metodo: ventaEdit.nuevoPagoMetodo,
                           usuario: ventaEdit.nuevoPagoUsuario || "-",
-                        },
-                      ]);
-                      setVentaEdit({
-                        ...ventaEdit,
-                        nuevoPagoMonto: "",
-                        nuevoPagoMetodo: "",
-                        nuevoPagoFecha: new Date().toISOString().split("T")[0],
-                        nuevoPagoUsuario: "",
-                      });
+                        };
+                        setVentaEdit({
+                          ...ventaEdit,
+                          pagos: [...ventaEdit.pagos, nuevoPago],
+                          nuevoPagoMonto: "",
+                          nuevoPagoMetodo: "",
+                          nuevoPagoFecha: new Date().toISOString().split("T")[0],
+                          nuevoPagoUsuario: "",
+                        });
+                      } else {
+                        // Si no existe array pagos, usar pagosSimples
+                        setPagosSimples((prev) => [
+                          ...prev,
+                          {
+                            fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
+                            monto: abono,
+                            metodo: ventaEdit.nuevoPagoMetodo,
+                            usuario: ventaEdit.nuevoPagoUsuario || "-",
+                          },
+                        ]);
+                        setVentaEdit({
+                          ...ventaEdit,
+                          nuevoPagoMonto: "",
+                          nuevoPagoMetodo: "",
+                          nuevoPagoFecha: new Date().toISOString().split("T")[0],
+                          nuevoPagoUsuario: "",
+                        });
+                      }
                     }}
                     disabled={
                       !ventaEdit.nuevoPagoMonto ||
@@ -1214,10 +1212,9 @@ const VentaDetalle = () => {
                       Number(ventaEdit.nuevoPagoMonto) <= 0 ||
                       Number(ventaEdit.nuevoPagoMonto) >
                         (ventaEdit.total || 0) -
-                          pagosSimples.reduce(
-                            (acc, p) => acc + Number(p.monto),
-                            0
-                          )
+                          (Array.isArray(ventaEdit.pagos) 
+                            ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                            : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
                     }
                   >
                     <span className="flex items-center gap-2">
@@ -1238,7 +1235,9 @@ const VentaDetalle = () => {
                     </span>
                   </Button>
                 </form>
-                {pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0) >=
+                {(Array.isArray(ventaEdit.pagos) 
+                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                  : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)) >=
                   (ventaEdit.total || 0) && (
                   <div className="mt-4 text-green-700 dark:text-green-400 font-semibold flex items-center gap-2">
                     <svg

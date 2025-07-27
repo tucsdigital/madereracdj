@@ -47,6 +47,10 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     nombre: yup.string().required("El nombre es obligatorio"),
     fecha: yup.string().required("La fecha es obligatoria"),
     vencimiento: yup.string().required("La fecha de vencimiento es obligatoria"),
+    tipoEnvio: yup.string(),
+    costoEnvio: yup.number().transform((value, originalValue) =>
+      originalValue === "" ? undefined : value
+    ).notRequired(),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").required("Obligatorio"),
@@ -71,6 +75,8 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
       nombre: "",
       fecha: new Date().toISOString().split('T')[0], // Fecha actual por defecto
       vencimiento: "",
+      tipoEnvio: "",
+      costoEnvio: "",
       cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
       items: [],
     }
@@ -184,9 +190,15 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     fetchClientes();
   }, []);
 
+  // Debug: monitorear valores de envío
+  useEffect(() => {
+    console.log("Valores de envío actualizados:", { tipoEnvio, costoEnvio, costoEnvioCalculado });
+  }, [tipoEnvio, costoEnvio, costoEnvioCalculado]);
+
   // Función de envío del formulario con validación profesional
   const handleFormSubmit = async (data) => {
     console.log("Formulario enviado con datos:", data); // Debug
+    console.log("Campos de envío:", { tipoEnvio: data.tipoEnvio, costoEnvio: data.costoEnvio }); // Debug específico
     
     // Resetear estados previos
     setSubmitStatus(null);
@@ -227,9 +239,16 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
         total: total,
         fechaCreacion: new Date().toISOString(),
         tipo: "presupuesto",
+        // Incluir campos de envío - capturar del formulario
+        tipoEnvio: data.tipoEnvio || "",
+        costoEnvio: data.costoEnvio ? Number(data.costoEnvio) : undefined,
       };
 
       console.log("Datos preparados para envío:", formData); // Debug
+      console.log("Campos de envío en formData:", { 
+        tipoEnvio: formData.tipoEnvio, 
+        costoEnvio: formData.costoEnvio 
+      }); // Debug específico
 
       // Llamar a la función onSubmit del componente padre
       await onSubmit(formData);
@@ -444,6 +463,41 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
 
         {/* Sección fija de totales y footer */}
         <div className="border-t bg-white p-4 space-y-4 flex-shrink-0">
+          {/* Información de envío */}
+          <section className="bg-white rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
+            <label className="font-semibold">Información de envío</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <select
+                  {...register("tipoEnvio")}
+                  className="border rounded px-2 py-2 w-full"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Tipo de envío...</option>
+                  <option value="retiro_local">Retiro en local</option>
+                  <option value="envio_domicilio">Envío a domicilio</option>
+                  <option value="envio_obra">Envío a obra</option>
+                  <option value="transporte_propio">Transporte propio del cliente</option>
+                </select>
+                {errors.tipoEnvio && (
+                  <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>
+                )}
+              </div>
+              <div>
+                <Input
+                  {...register("costoEnvio")}
+                  placeholder="Costo de envío"
+                  type="number"
+                  className="w-full"
+                  disabled={isSubmitting}
+                />
+                {errors.costoEnvio && (
+                  <span className="text-red-500 text-xs">{errors.costoEnvio.message}</span>
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* Totales */}
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
@@ -566,7 +620,17 @@ const PresupuestosPage = () => {
     console.log("Recibiendo datos en PresupuestosPage:", formData); // Debug
     setLoading(true);
     try {
-      const docRef = await addDoc(collection(db, "presupuestos"), formData);
+      // Procesar los datos para incluir correctamente los campos de envío
+      const cleanFormData = {
+        ...formData,
+        // Asegurar que los campos de envío se guarden correctamente
+        tipoEnvio: formData.tipoEnvio || "",
+        costoEnvio: formData.costoEnvio ? Number(formData.costoEnvio) : undefined,
+      };
+      
+      console.log("Datos procesados para guardar:", cleanFormData); // Debug
+      
+      const docRef = await addDoc(collection(db, "presupuestos"), cleanFormData);
       setOpen(false);
       router.push(`/${lang}/presupuestos/${docRef.id}`);
     } catch (error) {

@@ -198,48 +198,67 @@ const PresupuestoDetalle = () => {
         return;
       }
     }
-    // Recalcular totales
-    const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-    const subtotal = productosArr.reduce(
-      (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-      0
-    );
-    const descuentoTotal = productosArr.reduce(
-      (acc, p) =>
-        acc +
-        Number(p.precio) *
-          Number(p.cantidad) *
-          (Number(p.descuento || 0) / 100),
-      0
-    );
-    // Calcular costo de envío solo si no es retiro local
-    const costoEnvioCalculado = 
-      presupuestoEdit.tipoEnvio && 
-      presupuestoEdit.tipoEnvio !== "retiro_local" && 
-      presupuestoEdit.costoEnvio !== undefined && 
-      presupuestoEdit.costoEnvio !== "" && 
-      !isNaN(Number(presupuestoEdit.costoEnvio)) 
-        ? Number(presupuestoEdit.costoEnvio) 
-        : 0;
-    const total = subtotal - descuentoTotal + costoEnvioCalculado;
-    const docRef = doc(db, "presupuestos", presupuestoEdit.id);
-    await updateDoc(docRef, {
-      ...presupuestoEdit,
-      subtotal,
-      descuentoTotal,
-      total,
-      productos: productosArr,
-      items: productosArr,
-    });
-    setPresupuesto({
-      ...presupuestoEdit,
-      subtotal,
-      descuentoTotal,
-      total,
-      productos: productosArr,
-      items: productosArr,
-    });
-    setEditando(false);
+    
+    try {
+      // Recalcular totales
+      const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
+      const subtotal = productosArr.reduce(
+        (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+        0
+      );
+      const descuentoTotal = productosArr.reduce(
+        (acc, p) =>
+          acc +
+          Number(p.precio) *
+            Number(p.cantidad) *
+            (Number(p.descuento || 0) / 100),
+        0
+      );
+      // Calcular costo de envío solo si no es retiro local
+      const costoEnvioCalculado = 
+        presupuestoEdit.tipoEnvio && 
+        presupuestoEdit.tipoEnvio !== "retiro_local" && 
+        presupuestoEdit.costoEnvio !== undefined && 
+        presupuestoEdit.costoEnvio !== "" && 
+        !isNaN(Number(presupuestoEdit.costoEnvio)) 
+          ? Number(presupuestoEdit.costoEnvio) 
+          : 0;
+      const total = subtotal - descuentoTotal + costoEnvioCalculado;
+      
+      // Generar número de pedido si no existe
+      let numeroPedido = presupuestoEdit.numeroPedido;
+      if (!numeroPedido) {
+        numeroPedido = await getNextPresupuestoNumber();
+      }
+      
+      const docRef = doc(db, "presupuestos", presupuestoEdit.id);
+      await updateDoc(docRef, {
+        ...presupuestoEdit,
+        subtotal,
+        descuentoTotal,
+        total,
+        productos: productosArr,
+        items: productosArr,
+        numeroPedido,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      
+      setPresupuesto({
+        ...presupuestoEdit,
+        subtotal,
+        descuentoTotal,
+        total,
+        productos: productosArr,
+        items: productosArr,
+        numeroPedido,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      setEditando(false);
+      setErrorForm("");
+    } catch (error) {
+      console.error("Error al guardar cambios:", error);
+      setErrorForm(`Error al guardar: ${error.message}`);
+    }
   };
 
   // 7. Modal para convertir a venta
@@ -436,16 +455,12 @@ const PresupuestoDetalle = () => {
                   {presupuesto.observaciones}
                 </p>
               )}
-              {/* Mostrar costo de envío si existe y es mayor a 0 */}
-              {presupuesto.costoEnvio !== undefined &&
-                Number(presupuesto.costoEnvio) > 0 && (
-                  <div className="mt-1 text-sm text-primary font-semibold">
-                    Costo de envío estimado: $
-                    {Number(presupuesto.costoEnvio).toLocaleString("es-AR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                )}
+              {/* Mostrar fecha de actualización si existe */}
+              {presupuesto.fechaActualizacion && (
+                <div className="mt-1 text-xs text-gray-500">
+                  Última actualización: {formatFechaLocal(presupuesto.fechaActualizacion)}
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <Button
@@ -570,6 +585,88 @@ const PresupuestoDetalle = () => {
         {/* Productos */}
         {editando && presupuestoEdit ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+              Editar Presupuesto
+            </h3>
+            
+            {/* Mensaje de error */}
+            {errorForm && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm font-medium">{errorForm}</p>
+              </div>
+            )}
+            
+            {/* Información editable */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="space-y-4">
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de envío
+                  </label>
+                  <select
+                    value={presupuestoEdit.tipoEnvio || ""}
+                    onChange={(e) =>
+                      setPresupuestoEdit({
+                        ...presupuestoEdit,
+                        tipoEnvio: e.target.value,
+                      })
+                    }
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    <option value="">Seleccionar tipo de envío...</option>
+                    <option value="retiro_local">Retiro en local</option>
+                    <option value="envio_domicilio">Envío a domicilio</option>
+                    <option value="envio_obra">Envío a obra</option>
+                    <option value="transporte_propio">
+                      Transporte propio del cliente
+                    </option>
+                  </select>
+                </div>
+                
+                {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Costo de envío
+                    </label>
+                    <Input
+                      type="number"
+                      value={presupuestoEdit.costoEnvio || ""}
+                      onChange={(e) =>
+                        setPresupuestoEdit({
+                          ...presupuestoEdit,
+                          costoEnvio: e.target.value,
+                        })
+                      }
+                      placeholder="Costo de envío"
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Observaciones
+                  </label>
+                  <Textarea
+                    value={presupuestoEdit.observaciones || ""}
+                    onChange={(e) =>
+                      setPresupuestoEdit({
+                        ...presupuestoEdit,
+                        observaciones: e.target.value,
+                      })
+                    }
+                    placeholder="Observaciones adicionales"
+                    className="w-full"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Selector de productos */}
             <SelectorProductosPresupuesto
               productosSeleccionados={presupuestoEdit.productos || []}
               setProductosSeleccionados={(nuevos) =>
@@ -589,56 +686,14 @@ const PresupuestoDetalle = () => {
               isSubmitting={loadingPrecios}
               modoSoloProductos={true}
             />
+            
             <div className="flex gap-2 mt-6">
               <Button
                 variant="default"
-                onClick={async () => {
-                  // Guardar solo productos y totales
-                  const productosArr = presupuestoEdit.productos || [];
-                  const subtotal = productosArr.reduce(
-                    (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-                    0
-                  );
-                  const descuentoTotal = productosArr.reduce(
-                    (acc, p) =>
-                      acc +
-                      Number(p.precio) *
-                        Number(p.cantidad) *
-                        (Number(p.descuento || 0) / 100),
-                    0
-                  );
-                  // Calcular costo de envío solo si no es retiro local
-                  const costoEnvioCalculado = 
-                    presupuestoEdit.tipoEnvio && 
-                    presupuestoEdit.tipoEnvio !== "retiro_local" && 
-                    presupuestoEdit.costoEnvio !== undefined && 
-                    presupuestoEdit.costoEnvio !== "" && 
-                    !isNaN(Number(presupuestoEdit.costoEnvio)) 
-                      ? Number(presupuestoEdit.costoEnvio) 
-                      : 0;
-                  const total = subtotal - descuentoTotal + costoEnvioCalculado;
-                  const docRef = doc(db, "presupuestos", presupuestoEdit.id);
-                  await updateDoc(docRef, {
-                    ...presupuestoEdit,
-                    subtotal,
-                    descuentoTotal,
-                    total,
-                    productos: productosArr,
-                    items: productosArr,
-                  });
-                  setPresupuesto({
-                    ...presupuestoEdit,
-                    subtotal,
-                    descuentoTotal,
-                    total,
-                    productos: productosArr,
-                    items: productosArr,
-                  });
-                  setEditando(false);
-                }}
+                onClick={handleGuardarCambios}
                 disabled={loadingPrecios}
               >
-                Guardar productos
+                Guardar cambios
               </Button>
               <Button
                 variant="outline"
@@ -646,6 +701,13 @@ const PresupuestoDetalle = () => {
                 disabled={loadingPrecios}
               >
                 Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleActualizarPrecios}
+                disabled={loadingPrecios}
+              >
+                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
               </Button>
             </div>
           </div>
@@ -786,74 +848,93 @@ const PresupuestoDetalle = () => {
           </div>
         )}
 
-        {/* Botones de acción */}
+        {/* Botones de acción consolidados */}
         <div className="flex gap-3 mt-4">
-          {!editando && (
-            <Button onClick={() => setEditando(true)}>Editar</Button>
-          )}
-          {editando && (
-            <Button onClick={handleGuardarCambios} disabled={loadingPrecios}>
-              Guardar cambios
-            </Button>
-          )}
-          {editando && (
-            <Button onClick={handleActualizarPrecios} disabled={loadingPrecios}>
-              {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-            </Button>
-          )}
-          <Button onClick={() => setConvirtiendoVenta(true)}>
-            Convertir a Venta
-          </Button>
+          {!editando ? (
+            <>
+              <Button onClick={() => setEditando(true)}>
+                Editar Presupuesto
+              </Button>
+              <Button onClick={() => setConvirtiendoVenta(true)}>
+                Convertir a Venta
+              </Button>
+            </>
+          ) : null}
         </div>
 
         {/* Modal de venta */}
         {convirtiendoVenta ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+              Convertir Presupuesto a Venta
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Complete los campos adicionales necesarios para convertir este presupuesto en una venta.
+            </p>
             <FormularioConvertirVenta
               presupuesto={presupuesto}
               onCancel={() => setConvirtiendoVenta(false)}
               onSubmit={async (ventaCampos) => {
                 try {
-                  // Combinar datos del presupuesto con los campos de venta
+                  // Crear estructura de venta siguiendo exactamente el formato de ventas/page.jsx
                   const ventaData = {
-                    ...presupuesto,
-                    ...ventaCampos,
+                    // Datos del presupuesto
+                    fecha: presupuesto.fecha,
+                    clienteId: presupuesto.clienteId,
+                    cliente: presupuesto.cliente,
+                    productos: presupuesto.productos || presupuesto.items,
+                    items: presupuesto.productos || presupuesto.items,
+                    subtotal: presupuesto.subtotal,
+                    descuentoTotal: presupuesto.descuentoTotal,
+                    total: presupuesto.total,
+                    observaciones: presupuesto.observaciones,
+                    
+                    // Datos específicos de venta
                     tipo: "venta",
-                    subtotal: undefined,
-                    descuentoTotal: undefined,
-                    iva: undefined,
-                    total: undefined,
                     fechaCreacion: new Date().toISOString(),
-                    numeroPedido: `PED-${Date.now()}`,
+                    numeroPedido: await getNextVentaNumber(),
+                    
+                    // Campos de pago
+                    formaPago: ventaCampos.formaPago,
+                    pagoParcial: ventaCampos.pagoParcial || false,
+                    montoAbonado: ventaCampos.montoAbonado || 0,
+                    
+                    // Campos de envío
+                    tipoEnvio: ventaCampos.tipoEnvio,
+                    fechaEntrega: ventaCampos.fechaEntrega,
+                    rangoHorario: ventaCampos.rangoHorario,
+                    transportista: ventaCampos.transportista,
+                    costoEnvio: ventaCampos.costoEnvio,
+                    direccionEnvio: ventaCampos.direccionEnvio,
+                    localidadEnvio: ventaCampos.localidadEnvio,
+                    usarDireccionCliente: ventaCampos.usarDireccionCliente || true,
+                    
+                    // Campos adicionales
+                    vendedor: ventaCampos.vendedor,
+                    prioridad: ventaCampos.prioridad,
                   };
-                  // Limpiar datos antes de guardar
+                  
+                  // Limpiar datos antes de guardar (igual que en ventas/page.jsx)
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
                       if (value === undefined) return undefined;
                       return value;
                     })
                   );
-                  console.log(
-                    "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
-                    cleanVentaData
-                  );
-                  const docRef = await addDoc(
-                    collection(db, "ventas"),
-                    cleanVentaData
-                  );
-                  for (const prod of presupuesto.productos ||
-                    presupuesto.items) {
+                  
+                  console.log("[DEBUG] Datos limpios para guardar venta desde presupuesto:", cleanVentaData);
+                  
+                  // Guardar venta en Firestore
+                  const docRef = await addDoc(collection(db, "ventas"), cleanVentaData);
+                  
+                  // Descontar stock y registrar movimientos (igual que en ventas/page.jsx)
+                  for (const prod of cleanVentaData.productos) {
+                    console.log("[DEBUG] Intentando descontar stock para producto:", prod.id);
                     const productoRef = doc(db, "productos", prod.id);
-                    const productoSnap = await getDocs(
-                      collection(db, "productos")
-                    );
-                    const existe = productoSnap.docs.find(
-                      (d) => d.id === prod.id
-                    );
+                    const productoSnap = await getDocs(collection(db, "productos"));
+                    const existe = productoSnap.docs.find((d) => d.id === prod.id);
                     if (!existe) {
-                      alert(
-                        `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
-                      );
+                      alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
                       return;
                     }
                     await updateDoc(productoRef, {
@@ -867,184 +948,60 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${
-                        presupuesto.cliente?.nombre || ""
-                      })`,
+                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ""})`,
                       productoNombre: prod.nombre,
                     });
                   }
-                  if (
-                    ventaCampos.tipoEnvio &&
-                    ventaCampos.tipoEnvio !== "retiro_local"
-                  ) {
+                  
+                  // Crear envío si corresponde (igual que en ventas/page.jsx)
+                  if (cleanVentaData.tipoEnvio && cleanVentaData.tipoEnvio !== "retiro_local") {
                     const envioData = {
                       ventaId: docRef.id,
-                      clienteId: presupuesto.clienteId,
-                      cliente: presupuesto.cliente,
+                      clienteId: cleanVentaData.clienteId,
+                      cliente: cleanVentaData.cliente,
                       fechaCreacion: new Date().toISOString(),
-                      fechaEntrega: ventaCampos.fechaEntrega,
+                      fechaEntrega: cleanVentaData.fechaEntrega,
                       estado: "pendiente",
-                      prioridad: ventaCampos.prioridad || "media",
-                      vendedor: ventaCampos.vendedor,
-                      direccionEnvio: ventaCampos.direccionEnvio,
-                      localidadEnvio: ventaCampos.localidadEnvio,
-                      codigoPostal: ventaCampos.codigoPostal,
-                      tipoEnvio: ventaCampos.tipoEnvio,
-                      transportista: ventaCampos.transportista,
-                      costoEnvio: parseFloat(ventaCampos.costoEnvio) || 0,
-                      numeroPedido: ventaData.numeroPedido,
-                      totalVenta: ventaData.total,
-                      productos: presupuesto.productos || presupuesto.items,
-                      cantidadTotal: (
-                        presupuesto.productos || presupuesto.items
-                      ).reduce((acc, p) => acc + p.cantidad, 0),
+                      prioridad: cleanVentaData.prioridad || "media",
+                      vendedor: cleanVentaData.vendedor,
+                      direccionEnvio: cleanVentaData.direccionEnvio,
+                      localidadEnvio: cleanVentaData.localidadEnvio,
+                      tipoEnvio: cleanVentaData.tipoEnvio,
+                      transportista: cleanVentaData.transportista,
+                      costoEnvio: parseFloat(cleanVentaData.costoEnvio) || 0,
+                      numeroPedido: cleanVentaData.numeroPedido,
+                      totalVenta: cleanVentaData.total,
+                      productos: cleanVentaData.productos,
+                      cantidadTotal: cleanVentaData.productos.reduce((acc, p) => acc + p.cantidad, 0),
                       historialEstados: [
                         {
                           estado: "pendiente",
                           fecha: new Date().toISOString(),
-                          comentario:
-                            "Envío creado automáticamente desde la venta",
+                          comentario: "Envío creado automáticamente desde la venta",
                         },
                       ],
-                      observaciones: ventaCampos.observaciones,
+                      observaciones: cleanVentaData.observaciones,
                       instruccionesEspeciales: "",
                       fechaActualizacion: new Date().toISOString(),
                       creadoPor: "sistema",
                     };
                     const cleanEnvioData = Object.fromEntries(
-                      Object.entries(envioData).filter(
-                        ([_, v]) => v !== undefined
-                      )
+                      Object.entries(envioData).filter(([_, v]) => v !== undefined)
                     );
                     await addDoc(collection(db, "envios"), cleanEnvioData);
+                    console.log("Envío creado automáticamente para la venta:", docRef.id);
                   }
+                  
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
-                  console.error(
-                    "Error al guardar venta desde presupuesto:",
-                    error
-                  );
+                  console.error("Error al guardar venta desde presupuesto:", error);
                   alert("Error al guardar venta: " + error.message);
                 }
               }}
             />
           </div>
-        ) : (
-          <Dialog open={openVenta} onOpenChange={setOpenVenta}>
-            <DialogContent className="w-[95vw] max-w-[1500px] h-[90vh] flex flex-col">
-              <FormularioVentaPresupuesto
-                tipo="venta"
-                onClose={() => setOpenVenta(false)}
-                onSubmit={async (formData) => {
-                  try {
-                    // Guardar la venta en Firestore
-                    const docRef = await addDoc(
-                      collection(db, "ventas"),
-                      formData
-                    );
-                    // Descontar stock y registrar movimiento de cada producto vendido
-                    for (const prod of formData.productos) {
-                      const productoRef = doc(db, "productos", prod.id);
-                      const productoSnap = await getDocs(
-                        collection(db, "productos")
-                      );
-                      const existe = productoSnap.docs.find(
-                        (d) => d.id === prod.id
-                      );
-                      if (!existe) {
-                        alert(
-                          `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
-                        );
-                        return;
-                      }
-                      await updateDoc(productoRef, {
-                        stock: increment(-Math.abs(prod.cantidad)),
-                      });
-                      await addDoc(collection(db, "movimientos"), {
-                        productoId: prod.id,
-                        tipo: "salida",
-                        cantidad: prod.cantidad,
-                        usuario: "Sistema",
-                        fecha: serverTimestamp(),
-                        referencia: "venta",
-                        referenciaId: docRef.id,
-                        observaciones: `Salida por venta (${
-                          formData.nombre || ""
-                        })`,
-                        productoNombre: prod.nombre,
-                      });
-                    }
-                    // Si la venta tiene envío, crear automáticamente el registro de envío
-                    if (
-                      formData.tipoEnvio &&
-                      formData.tipoEnvio !== "retiro_local"
-                    ) {
-                      const envioData = {
-                        ventaId: docRef.id,
-                        clienteId: formData.clienteId,
-                        cliente: formData.cliente,
-                        fechaCreacion: new Date().toISOString(),
-                        fechaEntrega: formData.fechaEntrega,
-                        estado: "pendiente",
-                        prioridad: formData.prioridad || "media",
-                        vendedor: formData.vendedor,
-                        direccionEnvio: formData.direccionEnvio,
-                        localidadEnvio: formData.localidadEnvio,
-                        codigoPostal: formData.codigoPostal,
-                        tipoEnvio: formData.tipoEnvio,
-                        transportista: formData.transportista,
-                        costoEnvio: parseFloat(formData.costoEnvio) || 0,
-                        numeroPedido: formData.numeroPedido,
-                        totalVenta: formData.total,
-                        productos: formData.productos,
-                        cantidadTotal: formData.productos.reduce(
-                          (acc, p) => acc + p.cantidad,
-                          0
-                        ),
-                        historialEstados: [
-                          {
-                            estado: "pendiente",
-                            fecha: new Date().toISOString(),
-                            comentario:
-                              "Envío creado automáticamente desde la venta",
-                          },
-                        ],
-                        observaciones: formData.observaciones,
-                        instruccionesEspeciales: "",
-                        fechaActualizacion: new Date().toISOString(),
-                        creadoPor: "sistema",
-                      };
-                      const cleanEnvioData = Object.fromEntries(
-                        Object.entries(envioData).filter(
-                          ([_, v]) => v !== undefined
-                        )
-                      );
-                      await addDoc(collection(db, "envios"), cleanEnvioData);
-                    }
-                    setOpenVenta(false);
-                    router.push(`/${lang}/ventas/${docRef.id}`);
-                  } catch (error) {
-                    alert("Error al guardar venta: " + error.message);
-                  }
-                }}
-                initialValues={{
-                  ...presupuestoEdit,
-                  tipo: "venta",
-                  productos:
-                    presupuestoEdit?.productos || presupuestoEdit?.items || [],
-                  items: undefined, // para evitar duplicidad
-                  subtotal: undefined,
-                  descuentoTotal: undefined,
-                  iva: undefined,
-                  total: undefined,
-                  fechaCreacion: undefined,
-                  numeroPedido: `PED-${Date.now()}`,
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+        ) : null}
 
         {/* Modal para nuevo cliente en presupuestos */}
         <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
@@ -1199,23 +1156,31 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       otherwise: (s) => s.notRequired(),
     }),
     vendedor: yup.string().required("Selecciona el vendedor"),
-    prioridad: yup.string().required("Selecciona la prioridad"),
-    clienteId: yup.string().required("Debe seleccionar un cliente"),
-    cliente: yup.object().shape({
-      nombre: yup.string().required("Obligatorio"),
-      email: yup.string().email("Email inválido").required("Obligatorio"),
-      telefono: yup.string().required("Obligatorio"),
-      direccion: yup.string().required("Obligatorio"),
-      cuit: yup.string().required("Obligatorio"),
+    prioridad: yup.string().when("tipoEnvio", {
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("Selecciona la prioridad"),
+      otherwise: (s) => s.notRequired(),
+    }),
+    direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) =>
+        tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: (s) => s.required("La dirección de envío es obligatoria"),
+      otherwise: (s) => s.notRequired(),
+    }),
+    localidadEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) =>
+        tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: (s) => s.required("La localidad es obligatoria"),
+      otherwise: (s) => s.notRequired(),
     }),
   });
+  
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    getValues,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -1229,130 +1194,74 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       rangoHorario: "",
       vendedor: "",
       prioridad: "",
-      clienteId: presupuesto?.clienteId || "",
-      cliente: presupuesto?.cliente || {
-        nombre: "",
-        email: "",
-        telefono: "",
-        direccion: "",
-        cuit: "",
-      },
+      direccionEnvio: "",
+      localidadEnvio: "",
+      usarDireccionCliente: true,
     },
   });
 
-  // Sincronizar clienteId automáticamente si falta pero hay cuit
-  React.useEffect(() => {
-    if (
-      !presupuesto?.clienteId &&
-      presupuesto?.cliente?.cuit &&
-      clientes.length > 0
-    ) {
-      const match = clientes.find((c) => c.cuit === presupuesto.cliente.cuit);
-      if (match) {
-        setValue("clienteId", match.id);
-      }
-    }
-  }, [presupuesto, clientes, setValue]);
-  // Log de errores de validación para debug
-  React.useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      console.log("[YUP] Errores de validación en conversión a venta:", errors);
-    }
-  }, [errors]);
-
-  // Estado para forzar guardar aunque haya errores
-  const [forzarGuardar, setForzarGuardar] = React.useState(false);
-  // Mostrar advertencia si se va a guardar con errores
-  const [showForceWarning, setShowForceWarning] = React.useState(false);
-
-  // Handler profesional para guardar aunque haya errores
-  const handleForceSave = async (e) => {
-    e.preventDefault();
-    setShowForceWarning(false);
-    const values = getValues();
-    console.warn(
-      "[FORCE SAVE] Guardando venta con errores de validación:",
-      errors
-    );
-    console.warn("[FORCE SAVE] Valores enviados:", values);
-    await onSubmit(values); // Llama igual aunque falten campos
-  };
-
-  const onFormSubmit = async (data) => {
-    setShowForceWarning(false);
-    try {
-      await onSubmit(data);
-    } catch (e) {
-      setShowForceWarning(true);
-    }
-  };
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
+  const usarDireccionCliente = watch("usarDireccionCliente");
+  
   // Limpiar montoAbonado si se desmarca pagoParcial
   React.useEffect(() => {
     if (!watch("pagoParcial")) {
       setValue("montoAbonado", "");
     }
-  }, [watch("pagoParcial")]);
+  }, [watch("pagoParcial"), setValue]);
 
   // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
   React.useEffect(() => {
     if (watch("tipoEnvio") === "retiro_local") {
       setValue("costoEnvio", "");
+      setValue("fechaEntrega", "");
+      setValue("rangoHorario", "");
+      setValue("transportista", "");
+      setValue("prioridad", "");
     }
-  }, [watch("tipoEnvio")]);
+  }, [watch("tipoEnvio"), setValue]);
+
+  // Establecer fecha de entrega por defecto al día actual
+  React.useEffect(() => {
+    if (tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local") {
+      setValue("fechaEntrega", new Date().toISOString().split("T")[0]);
+    }
+  }, [tipoEnvioSeleccionado, setValue]);
+
   return (
-    <form
-      onSubmit={handleSubmit(onFormSubmit, () => setShowForceWarning(true))}
-      className="flex flex-col gap-6"
-    >
-      {showForceWarning && (
-        <div className="mb-2 p-3 rounded bg-yellow-100 text-yellow-900 font-semibold text-center">
-          Hay errores de validación en el formulario.
-          <br />
-          <span className="text-sm font-normal">
-            Puedes forzar el guardado para debug, pero revisa la consola para
-            ver los campos faltantes.
-          </span>
-          <div className="mt-2">
-            <button
-              type="button"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded"
-              onClick={handleForceSave}
-              disabled={isSubmitting}
-            >
-              Guardar igual (debug)
-            </button>
-          </div>
-        </div>
-      )}
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Condiciones de pago y entrega */}
-        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">
+        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Condiciones de pago y entrega
           </div>
-          <select
-            {...register("formaPago")}
-            className={`border rounded px-2 py-2 w-full ${
-              errors.formaPago ? "border-red-500" : ""
-            }`}
-          >
-            <option value="">Forma de pago...</option>
-            <option value="efectivo">Efectivo</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="tarjeta">Tarjeta</option>
-            <option value="cheque">Cheque</option>
-            <option value="otro">Otro</option>
-          </select>
-          {errors.formaPago && (
-            <span className="text-red-500 text-xs">
-              {errors.formaPago.message}
-            </span>
-          )}
-          <div className="flex items-center gap-2 mt-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Forma de pago *
+            </label>
+            <select
+              {...register("formaPago")}
+              className={`w-full border rounded-md px-3 py-2 ${
+                errors.formaPago ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Seleccionar forma de pago...</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="cheque">Cheque</option>
+              <option value="otro">Otro</option>
+            </select>
+            {errors.formaPago && (
+              <span className="text-red-500 text-xs">{errors.formaPago.message}</span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="pagoParcial"
@@ -1362,8 +1271,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               ¿Pago parcial?
             </label>
           </div>
+          
           {watch("pagoParcial") && (
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Monto abonado *
+              </label>
               <Input
                 type="number"
                 min={0}
@@ -1374,144 +1287,210 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 }`}
               />
               {errors.montoAbonado && (
-                <span className="text-red-500 text-xs">
-                  {errors.montoAbonado.message}
-                </span>
+                <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>
               )}
             </div>
           )}
         </div>
+
         {/* Información de envío */}
-        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">
+        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información de envío
           </div>
-          <select
-            {...register("tipoEnvio")}
-            className={`border rounded px-2 py-2 w-full ${
-              errors.tipoEnvio ? "border-red-500" : ""
-            }`}
-          >
-            <option value="">Tipo de envío...</option>
-            <option value="retiro_local">Retiro en local</option>
-            <option value="envio_domicilio">Envío a domicilio</option>
-            <option value="envio_obra">Envío a obra</option>
-            <option value="transporte_propio">
-              Transporte propio del cliente
-            </option>
-          </select>
-          {errors.tipoEnvio && (
-            <span className="text-red-500 text-xs">
-              {errors.tipoEnvio.message}
-            </span>
-          )}
-          {tipoEnvioSeleccionado !== "retiro_local" && (
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de envío *
+            </label>
+            <select
+              {...register("tipoEnvio")}
+              className={`w-full border rounded-md px-3 py-2 ${
+                errors.tipoEnvio ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Seleccionar tipo de envío...</option>
+              <option value="retiro_local">Retiro en local</option>
+              <option value="envio_domicilio">Envío a domicilio</option>
+              <option value="envio_obra">Envío a obra</option>
+              <option value="transporte_propio">Transporte propio del cliente</option>
+            </select>
+            {errors.tipoEnvio && (
+              <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>
+            )}
+          </div>
+          
+          {tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local" && (
             <>
-              <select
-                {...register("transportista")}
-                className={`border rounded px-2 py-2 w-full ${
-                  errors.transportista ? "border-red-500" : ""
-                }`}
-              >
-                <option value="">Transportista...</option>
-                {transportistas.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-              {errors.transportista && (
-                <span className="text-red-500 text-xs">
-                  {errors.transportista.message}
-                </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="usarDireccionCliente"
+                  {...register("usarDireccionCliente")}
+                />
+                <label htmlFor="usarDireccionCliente" className="text-sm">
+                  Usar dirección del cliente
+                </label>
+              </div>
+              
+              {!usarDireccionCliente && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dirección de envío *
+                    </label>
+                    <Input
+                      {...register("direccionEnvio")}
+                      placeholder="Dirección de envío"
+                      className={`w-full ${
+                        errors.direccionEnvio ? "border-red-500" : ""
+                      }`}
+                    />
+                    {errors.direccionEnvio && (
+                      <span className="text-red-500 text-xs">{errors.direccionEnvio.message}</span>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Localidad *
+                    </label>
+                    <Input
+                      {...register("localidadEnvio")}
+                      placeholder="Localidad/Ciudad"
+                      className={`w-full ${
+                        errors.localidadEnvio ? "border-red-500" : ""
+                      }`}
+                    />
+                    {errors.localidadEnvio && (
+                      <span className="text-red-500 text-xs">{errors.localidadEnvio.message}</span>
+                    )}
+                  </div>
+                </>
               )}
-              {/* Solo mostrar costoEnvio si no es retiro_local */}
-              <Input
-                {...register("costoEnvio")}
-                placeholder="Costo de envío"
-                type="number"
-                className="w-full"
-              />
-              <Input
-                {...register("fechaEntrega")}
-                placeholder="Fecha de entrega"
-                type="date"
-                className={`w-full ${
-                  errors.fechaEntrega ? "border-red-500" : ""
-                }`}
-                value={
-                  watch("fechaEntrega")
-                    ? new Date(watch("fechaEntrega"))
-                        .toISOString()
-                        .split("T")[0]
-                    : ""
-                }
-              />
-              {errors.fechaEntrega && (
-                <span className="text-red-500 text-xs">
-                  {errors.fechaEntrega.message}
-                </span>
-              )}
-              <Input
-                {...register("rangoHorario")}
-                placeholder="Rango horario (ej: 8-12, 14-18)"
-                className={`w-full ${
-                  errors.rangoHorario ? "border-red-500" : ""
-                }`}
-              />
-              {errors.rangoHorario && (
-                <span className="text-red-500 text-xs">
-                  {errors.rangoHorario.message}
-                </span>
-              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Transportista *
+                </label>
+                <select
+                  {...register("transportista")}
+                  className={`w-full border rounded-md px-3 py-2 ${
+                    errors.transportista ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Seleccionar transportista...</option>
+                  {transportistas.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+                {errors.transportista && (
+                  <span className="text-red-500 text-xs">{errors.transportista.message}</span>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Costo de envío
+                </label>
+                <Input
+                  {...register("costoEnvio")}
+                  placeholder="Costo de envío"
+                  type="number"
+                  className="w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de entrega *
+                </label>
+                <Input
+                  {...register("fechaEntrega")}
+                  placeholder="Fecha de entrega"
+                  type="date"
+                  className={`w-full ${
+                    errors.fechaEntrega ? "border-red-500" : ""
+                  }`}
+                  value={
+                    watch("fechaEntrega")
+                      ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
+                      : ""
+                  }
+                />
+                {errors.fechaEntrega && (
+                  <span className="text-red-500 text-xs">{errors.fechaEntrega.message}</span>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rango horario *
+                </label>
+                <Input
+                  {...register("rangoHorario")}
+                  placeholder="Rango horario (ej: 8-12, 14-18)"
+                  className={`w-full ${
+                    errors.rangoHorario ? "border-red-500" : ""
+                  }`}
+                />
+                {errors.rangoHorario && (
+                  <span className="text-red-500 text-xs">{errors.rangoHorario.message}</span>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prioridad *
+                </label>
+                <select
+                  {...register("prioridad")}
+                  className={`w-full border rounded-md px-3 py-2 ${
+                    errors.prioridad ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Seleccionar prioridad...</option>
+                  {prioridades.map((p) => (
+                    <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+                {errors.prioridad && (
+                  <span className="text-red-500 text-xs">{errors.prioridad.message}</span>
+                )}
+              </div>
             </>
           )}
         </div>
+
         {/* Información adicional */}
-        <div className="space-y-2 bg-white rounded-lg p-4 border border-default-200 shadow-sm">
-          <div className="text-base font-semibold text-default-800 pb-1">
+        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
           </div>
-          <select
-            {...register("vendedor")}
-            className={`border rounded px-2 py-2 w-full ${
-              errors.vendedor ? "border-red-500" : ""
-            }`}
-          >
-            <option value="">Vendedor responsable...</option>
-            {vendedores.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </select>
-          {errors.vendedor && (
-            <span className="text-red-500 text-xs">
-              {errors.vendedor.message}
-            </span>
-          )}
-          <select
-            {...register("prioridad")}
-            className={`border rounded px-2 py-2 w-full ${
-              errors.prioridad ? "border-red-500" : ""
-            }`}
-          >
-            <option value="">Prioridad...</option>
-            {prioridades.map((p) => (
-              <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-            ))}
-          </select>
-          {errors.prioridad && (
-            <span className="text-red-500 text-xs">
-              {errors.prioridad.message}
-            </span>
-          )}
-          <Textarea
-            {...register("observaciones")}
-            placeholder="Observaciones adicionales"
-            className="w-full"
-            rows={3}
-            disabled={isSubmitting}
-          />
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Vendedor responsable *
+            </label>
+            <select
+              {...register("vendedor")}
+              className={`w-full border rounded-md px-3 py-2 ${
+                errors.vendedor ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Seleccionar vendedor...</option>
+              {vendedores.map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+            {errors.vendedor && (
+              <span className="text-red-500 text-xs">{errors.vendedor.message}</span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex gap-2 mt-6 justify-end">
+      
+      <div className="flex gap-3 justify-end">
         <Button
           variant="outline"
           type="button"
@@ -1524,9 +1503,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           variant="default"
           type="submit"
           disabled={isSubmitting}
-          className="min-w-[160px] text-lg font-semibold"
+          className="min-w-[160px]"
         >
-          {isSubmitting ? "Guardando..." : "Guardar venta"}
+          {isSubmitting ? "Guardando..." : "Convertir a Venta"}
         </Button>
       </div>
     </form>
@@ -1534,3 +1513,31 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 }
 
 export default PresupuestoDetalle;
+
+// Numeración autoincremental para presupuestos
+const getNextPresupuestoNumber = async () => {
+  const snap = await getDocs(collection(db, "presupuestos"));
+  let maxNum = 0;
+  snap.docs.forEach((doc) => {
+    const data = doc.data();
+    if (data.numeroPedido && data.numeroPedido.startsWith("PRESU-")) {
+      const num = parseInt(data.numeroPedido.replace("PRESU-", ""), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  });
+  return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
+};
+
+// Numeración autoincremental para ventas
+const getNextVentaNumber = async () => {
+  const snap = await getDocs(collection(db, "ventas"));
+  let maxNum = 0;
+  snap.docs.forEach((doc) => {
+    const data = doc.data();
+    if (data.numeroPedido && data.numeroPedido.startsWith("VENTA-")) {
+      const num = parseInt(data.numeroPedido.replace("VENTA-", ""), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  });
+  return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
+};

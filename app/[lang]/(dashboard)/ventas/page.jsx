@@ -477,7 +477,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
-              // Agregar costoEnvio si corresponde
+              // Agregar campos de envío
+              tipoEnvio: cleanData.tipoEnvio || "",
               costoEnvio:
                 cleanData.tipoEnvio && cleanData.tipoEnvio !== "retiro_local"
                   ? cleanData.costoEnvio !== undefined && cleanData.costoEnvio !== ""
@@ -584,6 +585,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setValue("direccionEnvio", "");
       setValue("localidadEnvio", "");
       setValue("costoEnvio", "");
+    } else if (watch("tipoEnvio") && watch("tipoEnvio") !== "retiro_local") {
+      // Establecer fecha de entrega por defecto al día actual
+      setValue("fechaEntrega", new Date().toISOString().split("T")[0]);
     }
   }, [watch("tipoEnvio")]);
 
@@ -1171,60 +1175,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <>
                   <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
-                      Condiciones de pago y entrega
-                    </div>
-                    <select
-                      {...register("formaPago")}
-                      className="border rounded px-2 py-2 w-full"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Forma de pago...</option>
-                      <option value="efectivo">Efectivo</option>
-                      <option value="transferencia">Transferencia</option>
-                      <option value="tarjeta">Tarjeta</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                    {errors.formaPago && (
-                      <span className="text-red-500 dark:text-red-400 text-xs">
-                        {errors.formaPago.message}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        type="checkbox"
-                        id="pagoParcial"
-                        {...register("pagoParcial")}
-                      />
-                      <label htmlFor="pagoParcial" className="text-sm">
-                        ¿Pago parcial?
-                      </label>
-                    </div>
-                    {watch("pagoParcial") && (
-                      <>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="Monto abonado"
-                          {...register("montoAbonado")}
-                          className="w-full"
-                          disabled={isSubmitting}
-                        />
-                        <div className="text-sm text-gray-600">
-                          Resta: $
-                          {(total - (watch("montoAbonado") || 0)).toFixed(2)}
-                        </div>
-                        {errors.montoAbonado && (
-                          <span className="text-red-500 dark:text-red-400 text-xs">
-                            {errors.montoAbonado.message}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
                       Información de envío
                     </div>
                     <select
@@ -1250,6 +1200,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {errors.tipoEnvio && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.tipoEnvio.message}
+                      </span>
+                    )}
+                    {tipoEnvioSeleccionado === "envio_domicilio" && (
+                      <select
+                        {...register("prioridad")}
+                        className="border rounded px-2 py-2 w-full"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Prioridad...</option>
+                        {prioridades.map((p) => (
+                          <option key={p}>
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {errors.prioridad && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.prioridad.message}
                       </span>
                     )}
                     {tipoEnvioSeleccionado !== "retiro_local" && (
@@ -1397,23 +1366,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         {errors.vendedor.message}
                       </span>
                     )}
-                    <select
-                      {...register("prioridad")}
-                      className="border rounded px-2 py-2 w-full"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Prioridad...</option>
-                      {prioridades.map((p) => (
-                        <option key={p}>
-                          {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.prioridad && (
-                      <span className="text-red-500 dark:text-red-400 text-xs">
-                        {errors.prioridad.message}
-                      </span>
-                    )}
                     <Textarea
                       {...register("observaciones")}
                       placeholder="Observaciones adicionales"
@@ -1470,6 +1422,68 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
               )}
             </section>
+
+            {/* Sección Condiciones de pago y entrega - ÚLTIMA */}
+            {tipo === "venta" && (
+              <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+                <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
+                  <Icon icon="heroicons:credit-card" className="w-5 h-5 text-primary dark:text-primary-300" /> Condiciones de pago y entrega
+                </label>
+                <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
+                    Condiciones de pago y entrega
+                  </div>
+                  <select
+                    {...register("formaPago")}
+                    className="border rounded px-2 py-2 w-full"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Forma de pago...</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                  {errors.formaPago && (
+                    <span className="text-red-500 dark:text-red-400 text-xs">
+                      {errors.formaPago.message}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="pagoParcial"
+                      {...register("pagoParcial")}
+                    />
+                    <label htmlFor="pagoParcial" className="text-sm">
+                      ¿Pago parcial?
+                    </label>
+                  </div>
+                  {watch("pagoParcial") && (
+                    <>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Monto abonado"
+                        {...register("montoAbonado")}
+                        className="w-full"
+                        disabled={isSubmitting}
+                      />
+                      <div className="text-sm text-gray-600">
+                        Resta: $
+                        {(total - (watch("montoAbonado") || 0)).toFixed(2)}
+                      </div>
+                      {errors.montoAbonado && (
+                        <span className="text-red-500 dark:text-red-400 text-xs">
+                          {errors.montoAbonado.message}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
         </div>
 
@@ -2272,6 +2286,12 @@ const VentasPage = () => {
           const productosLimpios = (formData.items || []).map((p) => ({
             ...p,
           }));
+          
+          console.log("[DEBUG] Campos de envío recibidos:", {
+            tipoEnvio: formData.tipoEnvio,
+            costoEnvio: formData.costoEnvio
+          });
+          
           let costoEnvioFinal = undefined;
           if (
             formData.tipoEnvio &&
@@ -2282,6 +2302,9 @@ const VentasPage = () => {
             costoEnvioFinal = Number(formData.costoEnvio);
             if (isNaN(costoEnvioFinal)) costoEnvioFinal = undefined;
           }
+          
+          console.log("[DEBUG] Costo de envío procesado:", costoEnvioFinal);
+          
           // Obtener el próximo número correlativo de presupuesto
           const nextNumeroPedido = await getNextPresupuestoNumber();
           const cleanFormData = {
@@ -2309,9 +2332,9 @@ const VentasPage = () => {
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: nextNumeroPedido,
-            // ---
+            // Incluir campos de envío
+            tipoEnvio: formData.tipoEnvio || "",
             costoEnvio: costoEnvioFinal,
-            // ---
           };
           console.log("[DEBUG] Objeto preparado para guardar:", cleanFormData);
           const finalFormData = JSON.parse(
