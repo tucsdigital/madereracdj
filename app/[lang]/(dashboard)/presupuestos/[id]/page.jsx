@@ -861,6 +861,28 @@ const PresupuestoDetalle = () => {
                       })()}
                     </span>
                   </div>
+                  {/* Mostrar saldo pendiente si hay pago parcial en el formulario de conversión */}
+                  {convirtiendoVenta && (
+                    <div className="border-t pt-2 flex justify-between text-sm">
+                      <span className="font-medium text-gray-600">Saldo pendiente:</span>
+                      <span className="font-medium text-red-600">
+                        ${(() => {
+                          const total = (() => {
+                            const subtotal = safeNumber(presupuesto.subtotal);
+                            const descuento = safeNumber(presupuesto.descuentoTotal);
+                            const envio = presupuesto.costoEnvio !== undefined && 
+                                         presupuesto.costoEnvio !== "" && 
+                                         !isNaN(Number(presupuesto.costoEnvio)) && 
+                                         Number(presupuesto.costoEnvio) > 0 
+                                           ? Number(presupuesto.costoEnvio) 
+                                           : 0;
+                            return subtotal - descuento + envio;
+                          })();
+                          return total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1147,6 +1169,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           s
             .typeError("Debe ingresar un monto")
             .min(1, "Debe ingresar un monto")
+            .max(presupuesto.total || 0, `No puede exceder el total de $${presupuesto.total || 0}`)
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
@@ -1480,7 +1503,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               <Input
                 type="number"
                 min={0}
-                placeholder="Monto abonado"
+                max={presupuesto.total || 0}
+                placeholder={`Saldo pendiente: $${(() => {
+                  const total = presupuesto.total || 0;
+                  const montoAbonado = watch("montoAbonado") ? Number(watch("montoAbonado")) : 0;
+                  return (total - montoAbonado).toFixed(2);
+                })()}`}
                 {...register("montoAbonado")}
                 className={`w-full ${
                   errors.montoAbonado ? "border-red-500" : ""
