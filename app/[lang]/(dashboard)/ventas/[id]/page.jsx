@@ -423,88 +423,50 @@ const VentaDetalle = () => {
                 </span>
               </div>
             </div>
-            {/* Badge destacado de estado de pago */}
-            {venta.estadoPago === "pagado" && (
-              <div className="flex items-center gap-2 mt-2 bg-green-100 border-l-4 border-green-500 text-green-800 p-3 rounded print:bg-green-50">
-                <svg
-                  className="w-5 h-5 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span className="font-bold">Venta pagada en su totalidad</span>
-              </div>
-            )}
-            {venta.estadoPago === "parcial" && (
-              <div className="flex items-center gap-2 mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded print:bg-yellow-50">
-                <svg
-                  className="w-5 h-5 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 12h4v4m0-4V8"
-                  />
-                </svg>
-                <span className="font-bold">Pago parcial:</span>
-                <span>
-                  Monto abonado:{" "}
-                  <b>
-                    $
-                    {venta.pagos
-                      ? venta.pagos
-                          .reduce((acc, p) => acc + Number(p.monto), 0)
-                          .toFixed(2)
-                      : 0}
-                  </b>{" "}
-                  / Total: <b>${(venta.total || 0).toFixed(2)}</b> — Saldo
-                  pendiente:{" "}
-                  <b>
-                    $
-                    {(
-                      (venta.total || 0) -
-                      (venta.pagos
-                        ? venta.pagos.reduce(
-                            (acc, p) => acc + Number(p.monto),
-                            0
-                          )
-                        : 0)
-                    ).toFixed(2)}
-                  </b>
-                </span>
-              </div>
-            )}
-            {(venta.estadoPago === "pendiente" || !venta.estadoPago) && (
-              <div className="flex items-center gap-2 mt-2 bg-red-100 border-l-4 border-red-500 text-red-800 p-3 rounded print:bg-red-50">
-                <svg
-                  className="w-5 h-5 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 8v4l3 3"
-                  />
-                </svg>
-                <span className="font-bold">Pago pendiente</span>
-              </div>
-            )}
+            {/* Badge destacado de estado de pago adaptado */}
+            {(() => {
+              // Determinar totales y abonos
+              const total = venta.total || 0;
+              const tienePagos = Array.isArray(venta.pagos) && venta.pagos.length > 0;
+              const montoAbonado = tienePagos
+                ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                : Number(venta.montoAbonado || 0);
+              const saldoPendiente = total - montoAbonado;
+              const estadoPago = venta.estadoPago || (venta.pagoParcial ? "parcial" : (montoAbonado >= total ? "pagado" : "pendiente"));
+              if (estadoPago === "pagado") {
+                return (
+                  <div className="flex items-center gap-2 mt-2 bg-green-100 border-l-4 border-green-500 text-green-800 p-3 rounded print:bg-green-50">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    <span className="font-bold">Venta pagada en su totalidad</span>
+                  </div>
+                );
+              }
+              if (estadoPago === "parcial") {
+                return (
+                  <div className="flex items-center gap-2 mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded print:bg-yellow-50">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h4v4m0-4V8" /></svg>
+                    <span className="font-bold">Pago parcial:</span>
+                    <span>
+                      Monto abonado: <b>${montoAbonado.toFixed(2)}</b> / Total: <b>${total.toFixed(2)}</b> — Saldo pendiente: <b>${saldoPendiente.toFixed(2)}</b>
+                    </span>
+                  </div>
+                );
+              }
+              // pendiente
+              return (
+                <div className="flex items-center gap-2 mt-2 bg-red-100 border-l-4 border-red-500 text-red-800 p-3 rounded print:bg-red-50">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3" /></svg>
+                  <span className="font-bold">Pago pendiente</span>
+                  {montoAbonado > 0 ? (
+                    <span>
+                      — Monto abonado: <b>${montoAbonado.toFixed(2)}</b> / Total: <b>${total.toFixed(2)}</b> — Saldo pendiente: <b>${saldoPendiente.toFixed(2)}</b>
+                    </span>
+                  ) : (
+                    <span>— Total a pagar: <b>${total.toFixed(2)}</b></span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
         {/* 2. Información de Envío y Pago */}
@@ -587,12 +549,10 @@ const VentaDetalle = () => {
           </div>
         )}
 
-        {/* 3. Historial de pagos */}
-        {venta.pagos && venta.pagos.length > 0 && (
+        {/* 3. Historial de pagos o montoAbonado */}
+        {(Array.isArray(venta.pagos) && venta.pagos.length > 0) ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
-              Historial de Pagos
-            </h3>
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">Historial de Pagos</h3>
             <table className="w-full text-sm mb-2">
               <thead>
                 <tr className="bg-gray-100 border-b">
@@ -607,9 +567,7 @@ const VentaDetalle = () => {
                   <tr key={idx} className="border-b">
                     <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
                     <td className="p-2">{pago.metodo}</td>
-                    <td className="p-2 text-right">
-                      ${Number(pago.monto).toFixed(2)}
-                    </td>
+                    <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
                     <td className="p-2">{pago.usuario || "-"}</td>
                   </tr>
                 ))}
@@ -618,27 +576,18 @@ const VentaDetalle = () => {
             <div className="flex justify-between font-semibold mt-2">
               <span>Total abonado:</span>
               <span>
-                $
-                {venta.pagos
-                  .reduce((acc, p) => acc + Number(p.monto), 0)
-                  .toFixed(2)}
+                ${venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between mt-1">
               <span>Saldo pendiente:</span>
               <span>
-                $
-                {(
-                  (venta.total || 0) -
-                  venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                ).toFixed(2)}
+                ${((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}
               </span>
             </div>
             <div className="mt-2">
               <span className="font-medium">Estado de pago: </span>
-              {(venta.total || 0) -
-                venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <=
-              0 ? (
+              {((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <= 0) ? (
                 <span className="text-green-700 font-bold">Pagado</span>
               ) : venta.pagos.length > 0 ? (
                 <span className="text-yellow-700 font-bold">Parcial</span>
@@ -647,6 +596,30 @@ const VentaDetalle = () => {
               )}
             </div>
           </div>
+        ) : (
+          (venta.montoAbonado > 0 || venta.pagoParcial) && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+              <h3 className="font-semibold text-lg mb-2 text-gray-900">Pagos</h3>
+              <div className="flex justify-between font-semibold mt-2">
+                <span>Total abonado:</span>
+                <span>${Number(venta.montoAbonado || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between mt-1">
+                <span>Saldo pendiente:</span>
+                <span>${((venta.total || 0) - Number(venta.montoAbonado || 0)).toFixed(2)}</span>
+              </div>
+              <div className="mt-2">
+                <span className="font-medium">Estado de pago: </span>
+                {Number(venta.montoAbonado || 0) >= (venta.total || 0) ? (
+                  <span className="text-green-700 font-bold">Pagado</span>
+                ) : Number(venta.montoAbonado || 0) > 0 ? (
+                  <span className="text-yellow-700 font-bold">Parcial</span>
+                ) : (
+                  <span className="text-red-700 font-bold">Pendiente</span>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         {/* 4. Productos y servicios */}
@@ -1024,52 +997,40 @@ const VentaDetalle = () => {
               modoSoloProductos={true}
             />
             {/* 2. Edición: agregar nuevo pago */}
-            {ventaEdit.pagos && ventaEdit.pagos.length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold mb-2">Historial de Pagos</h4>
-                <table className="w-full text-sm mb-2">
-                  <thead>
-                    <tr className="bg-gray-100 border-b">
-                      <th className="p-2 text-left">Fecha</th>
-                      <th className="p-2 text-left">Método</th>
-                      <th className="p-2 text-right">Monto</th>
-                      <th className="p-2 text-left">Usuario</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ventaEdit.pagos.map((pago, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
-                        <td className="p-2">{pago.metodo}</td>
-                        <td className="p-2 text-right">
-                          ${Number(pago.monto).toFixed(2)}
-                        </td>
-                        <td className="p-2">{pago.usuario || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="flex justify-between font-semibold mt-2">
-                  <span>Total abonado:</span>
-                  <span>
-                    $
-                    {ventaEdit.pagos
-                      .reduce((acc, p) => acc + Number(p.monto), 0)
-                      .toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Saldo pendiente:</span>
-                  <span>
-                    $
-                    {(
-                      (ventaEdit.total || 0) -
-                      ventaEdit.pagos.reduce(
-                        (acc, p) => acc + Number(p.monto),
-                        0
-                      )
-                    ).toFixed(2)}
-                  </span>
+            {editando && ventaEdit && !Array.isArray(ventaEdit.pagos) && (
+              <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold mb-2">Agregar pago</h4>
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <input
+                    className="border rounded px-2 py-2 w-full md:w-40"
+                    type="number"
+                    min={1}
+                    max={(ventaEdit.total || 0) - Number(ventaEdit.montoAbonado || 0)}
+                    placeholder="Monto"
+                    value={ventaEdit.nuevoPagoMonto || ""}
+                    onChange={(e) => setVentaEdit({ ...ventaEdit, nuevoPagoMonto: e.target.value })}
+                  />
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      if (!ventaEdit.nuevoPagoMonto) return;
+                      const nuevoMonto = Number(ventaEdit.montoAbonado || 0) + Number(ventaEdit.nuevoPagoMonto);
+                      setVentaEdit({
+                        ...ventaEdit,
+                        montoAbonado: nuevoMonto,
+                        nuevoPagoMonto: "",
+                        pagoParcial: nuevoMonto < (ventaEdit.total || 0),
+                        estadoPago: nuevoMonto >= (ventaEdit.total || 0) ? "pagado" : (nuevoMonto > 0 ? "parcial" : "pendiente"),
+                      });
+                    }}
+                    disabled={
+                      !ventaEdit.nuevoPagoMonto ||
+                      Number(ventaEdit.nuevoPagoMonto) <= 0 ||
+                      Number(ventaEdit.nuevoPagoMonto) > (ventaEdit.total || 0) - Number(ventaEdit.montoAbonado || 0)
+                    }
+                  >
+                    Agregar pago
+                  </Button>
                 </div>
               </div>
             )}
