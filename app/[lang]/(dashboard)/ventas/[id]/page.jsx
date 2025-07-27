@@ -1163,7 +1163,7 @@ const VentaDetalle = () => {
                           ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                           : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
                       }
-                      placeholder={`Saldo pendiente: $${(
+                      placeholder={`$${(
                         (ventaEdit.total || 0) -
                         (Array.isArray(ventaEdit.pagos) 
                           ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
