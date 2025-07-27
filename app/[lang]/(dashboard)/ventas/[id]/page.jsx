@@ -51,21 +51,21 @@ const VentaDetalle = () => {
         console.log("ID extraído:", id);
         console.log("Lang extraído:", lang);
         console.log("URL actual:", window.location.href);
-        
+
         if (!id) {
           console.error("No se encontró ID en los parámetros");
           setError("No se proporcionó ID de venta");
           setLoading(false);
           return;
         }
-        
+
         const docRef = doc(db, "ventas", id);
         console.log("Referencia del documento:", docRef);
-        
+
         const docSnap = await getDoc(docRef);
         console.log("Documento existe:", docSnap.exists());
         console.log("Datos del documento:", docSnap.data());
-        
+
         if (docSnap.exists()) {
           const ventaData = { id: docSnap.id, ...docSnap.data() };
           console.log("Venta cargada exitosamente:", ventaData);
@@ -81,7 +81,7 @@ const VentaDetalle = () => {
         setLoading(false);
       }
     };
-    
+
     fetchVenta();
   }, [id, lang, params]);
 
@@ -170,7 +170,10 @@ const VentaDetalle = () => {
       0
     );
     const total = subtotal - descuentoTotal;
-    const totalAbonado = (ventaEdit.pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
+    const totalAbonado = (ventaEdit.pagos || []).reduce(
+      (acc, p) => acc + Number(p.monto),
+      0
+    );
     if (totalAbonado >= total) {
       ventaEdit.estadoPago = "pagado";
     } else if (totalAbonado > 0) {
@@ -271,16 +274,61 @@ const VentaDetalle = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <style>{`
+    select {
+      background: #fff !important;
+      border: 1px solid #d1d5db !important;
+      border-radius: 6px !important;
+      padding: 8px 12px !important;
+      font-size: 1rem !important;
+      color: #222 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transition: border 0.2s;
+    }
+    select:focus {
+      border: 1.5px solid #2563eb !important;
+      box-shadow: 0 0 0 2px #2563eb22 !important;
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #venta-print, #venta-print * { visibility: visible !important; }
+      #venta-print {
+        position: absolute !important;
+        left: 0; top: 0; width: 100vw; min-height: 100vh;
+        background: white !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+      }
+      #venta-print .no-print, #venta-print .no-print * { display: none !important; }
+      #venta-print .bg-white { box-shadow: none !important; border: none !important; }
+      #venta-print .rounded-lg { border-radius: 0 !important; }
+      #venta-print .shadow-sm { box-shadow: none !important; }
+      #venta-print .mb-6, #venta-print .mt-6, #venta-print .py-8, #venta-print .px-4, #venta-print .p-6 { margin: 0 !important; padding: 0 !important; }
+      #venta-print table { width: 100% !important; font-size: 13px; border-collapse: collapse; }
+      #venta-print th, #venta-print td { border: 1px solid #ddd !important; padding: 6px 8px !important; }
+      #venta-print th { background: #f3f3f3 !important; }
+      #venta-print h1, #venta-print h2, #venta-print h3 { margin: 0 0 8px 0 !important; }
+    }
+  `}</style>
+      <div id="venta-print" className="max-w-4xl mx-auto px-4">
         {/* Header profesional igual al de presupuesto */}
-        <div className="flex items-center gap-4 border-b pb-4 mb-6 print-header" style={{ marginBottom: 32 }}>
+        <div
+          className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
+          style={{ marginBottom: 32 }}
+        >
           <img
             src="/logo-maderera.png"
             alt="Logo Maderera"
             style={{ height: 60, width: "auto" }}
           />
-            <div>
-            <h1 className="text-2xl font-bold text-gray-900" style={{ letterSpacing: 1 }}>
+          <div>
+            <h1
+              className="text-2xl font-bold text-gray-900"
+              style={{ letterSpacing: 1 }}
+            >
               Maderera CJ&D
             </h1>
             <div className="text-gray-600 text-sm">Venta / Comprobante</div>
@@ -293,16 +341,15 @@ const VentaDetalle = () => {
             <div className="text-xs text-gray-500">
               N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
             </div>
-            </div>
           </div>
-
-          {/* Información del cliente */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">
+        </div>
+        {/* 1. Información del cliente y venta */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-gray-50 rounded-lg p-6 shadow-sm flex flex-col gap-2">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información del Cliente
             </h3>
-              <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium">Nombre:</span>{" "}
                 {venta.cliente?.nombre || "-"}
@@ -355,12 +402,11 @@ const VentaDetalle = () => {
               </div>
             </div>
           </div>
-          {/* Información de la Venta: solo fecha de emisión y estado de pago */}
-            <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">
+          <div className="bg-gray-50 rounded-lg p-6 shadow-sm flex flex-col gap-2">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de la Venta
             </h3>
-              <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium">Fecha de emisión:</span>{" "}
                 {formatFechaLocal(venta.fecha)}
@@ -374,19 +420,18 @@ const VentaDetalle = () => {
                 >
                   {venta.estadoPago ||
                     (venta.pagoParcial ? "Parcial" : "Completo")}
-                  </span>
+                </span>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Información de Envío y Pago */}
+        {/* 2. Información de Envío y Pago */}
         {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de Envío y Pago
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
                   <span className="font-medium">Tipo de envío:</span>{" "}
@@ -435,8 +480,8 @@ const VentaDetalle = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de Envío y Pago
             </h3>
             <div className="space-y-2 text-sm">
@@ -460,12 +505,74 @@ const VentaDetalle = () => {
           </div>
         )}
 
-        {/* Productos */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-lg mb-4 text-gray-900">
+        {/* 3. Historial de pagos */}
+        {venta.pagos && venta.pagos.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+              Historial de Pagos
+            </h3>
+            <table className="w-full text-sm mb-2">
+              <thead>
+                <tr className="bg-gray-100 border-b">
+                  <th className="p-2 text-left">Fecha</th>
+                  <th className="p-2 text-left">Método</th>
+                  <th className="p-2 text-right">Monto</th>
+                  <th className="p-2 text-left">Usuario</th>
+                </tr>
+              </thead>
+              <tbody>
+                {venta.pagos.map((pago, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
+                    <td className="p-2">{pago.metodo}</td>
+                    <td className="p-2 text-right">
+                      ${Number(pago.monto).toFixed(2)}
+                    </td>
+                    <td className="p-2">{pago.usuario || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex justify-between font-semibold mt-2">
+              <span>Total abonado:</span>
+              <span>
+                $
+                {venta.pagos
+                  .reduce((acc, p) => acc + Number(p.monto), 0)
+                  .toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between mt-1">
+              <span>Saldo pendiente:</span>
+              <span>
+                $
+                {(
+                  (venta.total || 0) -
+                  venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                ).toFixed(2)}
+              </span>
+            </div>
+            <div className="mt-2">
+              <span className="font-medium">Estado de pago: </span>
+              {(venta.total || 0) -
+                venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0) <=
+              0 ? (
+                <span className="text-green-700 font-bold">Pagado</span>
+              ) : venta.pagos.length > 0 ? (
+                <span className="text-yellow-700 font-bold">Parcial</span>
+              ) : (
+                <span className="text-red-700 font-bold">Pendiente</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Productos y servicios */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+          <h3 className="font-semibold text-lg mb-2 text-gray-900">
             Productos y Servicios
           </h3>
-          
+
           {/* Usar productos si existe, sino usar items */}
           {(venta.productos || venta.items) && (
             <div className="overflow-x-auto">
@@ -483,8 +590,8 @@ const VentaDetalle = () => {
                 <tbody>
                   {(venta.productos || venta.items || []).map(
                     (producto, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">
+                      <tr key={idx} className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-medium">
                           {producto.descripcion ||
                             producto.nombre ||
                             "Producto sin nombre"}
@@ -500,16 +607,16 @@ const VentaDetalle = () => {
                         </td>
                         <td className="p-3 text-right">
                           {(producto.descuento || 0).toFixed(2)}%
-                      </td>
-                      <td className="p-3 text-right font-medium">
+                        </td>
+                        <td className="p-3 text-right font-medium">
                           $
                           {(
                             (producto.precio || 0) *
                             (producto.cantidad || 0) *
                             (1 - (producto.descuento || 0) / 100)
                           ).toFixed(2)}
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
                     )
                   )}
                 </tbody>
@@ -519,15 +626,25 @@ const VentaDetalle = () => {
 
           {/* Totales */}
           <div className="mt-6 flex justify-end">
-            <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+            <div className="bg-gray-50 rounded-lg p-4 min-w-[300px] flex flex-col gap-2">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${(venta.subtotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                  <span>
+                    $
+                    {(venta.subtotal || 0).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Descuento total:</span>
-                  <span>${(venta.descuentoTotal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                  <span>
+                    $
+                    {(venta.descuentoTotal || 0).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
                 </div>
                 {/* Mostrar costo de envío si existe y es >= 0 */}
                 {venta.costoEnvio !== undefined &&
@@ -535,13 +652,19 @@ const VentaDetalle = () => {
                   !isNaN(Number(venta.costoEnvio)) && (
                     <div className="flex justify-between">
                       <span>Costo de envío:</span>
-                      <span>${Number(venta.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                      <span>
+                        $
+                        {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
                   )}
                 <div className="border-t pt-2 flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span className="text-primary">
-                    ${(
+                    $
+                    {(
                       (venta.subtotal || 0) -
                       (venta.descuentoTotal || 0) +
                       (venta.costoEnvio !== undefined &&
@@ -549,7 +672,7 @@ const VentaDetalle = () => {
                       !isNaN(Number(venta.costoEnvio))
                         ? Number(venta.costoEnvio)
                         : 0)
-                    ).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -557,10 +680,10 @@ const VentaDetalle = () => {
           </div>
         </div>
 
-        {/* Observaciones */}
+        {/* 5. Observaciones */}
         {venta.observaciones && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+            <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Observaciones
             </h3>
             <p className="text-gray-700 whitespace-pre-wrap">
@@ -569,218 +692,172 @@ const VentaDetalle = () => {
           </div>
         )}
 
-        {/* 1. Visualización del historial de pagos */}
-        {venta.pagos && venta.pagos.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">Historial de Pagos</h3>
-            <table className="w-full text-sm mb-2">
-              <thead>
-                <tr className="bg-gray-100 border-b">
-                  <th className="p-2 text-left">Fecha</th>
-                  <th className="p-2 text-left">Método</th>
-                  <th className="p-2 text-right">Monto</th>
-                  <th className="p-2 text-left">Usuario</th>
-                </tr>
-              </thead>
-              <tbody>
-                {venta.pagos.map((pago, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
-                    <td className="p-2">{pago.metodo}</td>
-                    <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
-                    <td className="p-2">{pago.usuario || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex justify-between font-semibold mt-2">
-              <span>Total abonado:</span>
-              <span>${venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between mt-1">
-              <span>Saldo pendiente:</span>
-              <span>${((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
-            </div>
-            <div className="mt-2">
-              <span className="font-medium">Estado de pago: </span>
-              {((venta.total || 0) - venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)) <= 0 ? (
-                <span className="text-green-700 font-bold">Pagado</span>
-              ) : venta.pagos.length > 0 ? (
-                <span className="text-yellow-700 font-bold">Parcial</span>
-              ) : (
-                <span className="text-red-700 font-bold">Pendiente</span>
-              )}
-            </div>
-          </div>
-        )}
+        {/* 7. Acciones */}
+        <div className="flex gap-3 mt-6 no-print">
+          <Button onClick={() => router.back()}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+          <Button onClick={handlePrint}>
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir
+          </Button>
+          {!editando && (
+            <Button onClick={() => setEditando(true)}>Editar</Button>
+          )}
+        </div>
 
-        {/* 1. Visualización: aviso destacado si hay pago parcial */}
-        {venta.pagoParcial && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded">
-            <strong>Pago parcial:</strong> Monto abonado: <b>${venta.montoAbonado || 0}</b> / Total: <b>${venta.total || 0}</b> — Saldo pendiente: <b>${((venta.total || 0) - (venta.montoAbonado || 0)).toFixed(2)}</b>
-          </div>
-        )}
-
-        {!editando && <Button onClick={() => setEditando(true)}>Editar</Button>}
-        {/* 2. Edición: lógica mejorada de pago parcial */}
+        {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
         {editando && ventaEdit && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-8">
-            {/* Condiciones de pago y entrega */}
-            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Condiciones de pago y entrega</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-medium">Forma de pago</span>
-                  <select
-                    className="border rounded px-2 py-2 w-full mt-1"
-                    value={ventaEdit.formaPago || ""}
-                    onChange={e => setVentaEdit({ ...ventaEdit, formaPago: e.target.value })}
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="tarjeta">Tarjeta</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                </label>
-                <div className="flex items-center gap-2 mt-6 md:mt-0">
-                  <input
-                    type="checkbox"
-                    id="pagoParcialEdit"
-                    checked={!!ventaEdit.pagoParcial}
-                    onChange={e => setVentaEdit({ ...ventaEdit, pagoParcial: e.target.checked, montoAbonado: e.target.checked ? (ventaEdit.montoAbonado || 0) : 0 })}
-                  />
-                  <label htmlFor="pagoParcialEdit" className="text-sm">¿Pago parcial?</label>
-                </div>
-                {ventaEdit.pagoParcial && (
-                  <div className="col-span-2 flex flex-col md:flex-row gap-4 items-center mt-2">
-                    <label className="flex-1">
-                      <span className="text-sm font-medium">Monto abonado</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={ventaEdit.total || 0}
-                        className="border rounded px-2 py-2 w-full mt-1"
-                        value={ventaEdit.montoAbonado || ""}
-                        onChange={e => {
-                          let val = Number(e.target.value);
-                          if (val > (ventaEdit.total || 0)) val = ventaEdit.total || 0;
-                          setVentaEdit({ ...ventaEdit, montoAbonado: val });
-                        }}
-                      />
-                    </label>
-                    <div className="text-sm text-gray-600 mt-4 md:mt-8">
-                      Saldo pendiente: $
-                      {((ventaEdit.total || 0) - (Number(ventaEdit.montoAbonado) || 0)).toFixed(2)}
-                    </div>
-                    {Number(ventaEdit.montoAbonado) >= (ventaEdit.total || 0) && (
-                      <div className="text-green-700 font-semibold ml-4">Pago completo</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-
+          <div className="flex flex-col gap-8 mt-8">
             {/* Información de envío */}
             <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Información de envío</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Información de envío
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-sm font-medium">Tipo de envío</span>
                   <select
                     className="border rounded px-2 py-2 w-full mt-1"
                     value={ventaEdit.tipoEnvio || ""}
-                    onChange={e => setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })
+                    }
                   >
                     <option value="">Selecciona...</option>
                     <option value="retiro_local">Retiro en local</option>
                     <option value="envio_domicilio">Envío a domicilio</option>
                     <option value="envio_obra">Envío a obra</option>
-                    <option value="transporte_propio">Transporte propio del cliente</option>
+                    <option value="transporte_propio">
+                      Transporte propio del cliente
+                    </option>
                   </select>
                 </label>
-                {ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" && (
-                  <>
-                    <label className="block col-span-2">
-                      <span className="text-sm font-medium">¿Usar dirección del cliente?</span>
+                {ventaEdit.tipoEnvio &&
+                  ventaEdit.tipoEnvio !== "retiro_local" && (
+                    <>
+                      <label className="block col-span-2">
+                        <span className="text-sm font-medium">
+                          ¿Usar dirección del cliente?
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="ml-2"
+                          checked={ventaEdit.usarDireccionCliente !== false}
+                          onChange={(e) =>
+                            setVentaEdit({
+                              ...ventaEdit,
+                              usarDireccionCliente: e.target.checked,
+                            })
+                          }
+                        />
+                      </label>
+                      {ventaEdit.usarDireccionCliente === false ? (
+                        <>
+                          <input
+                            className="border rounded px-2 py-2 w-full"
+                            value={ventaEdit.direccionEnvio || ""}
+                            onChange={(e) =>
+                              setVentaEdit({
+                                ...ventaEdit,
+                                direccionEnvio: e.target.value,
+                              })
+                            }
+                            placeholder="Dirección de envío"
+                          />
+                          <input
+                            className="border rounded px-2 py-2 w-full"
+                            value={ventaEdit.localidadEnvio || ""}
+                            onChange={(e) =>
+                              setVentaEdit({
+                                ...ventaEdit,
+                                localidadEnvio: e.target.value,
+                              })
+                            }
+                            placeholder="Localidad/Ciudad"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            className="border rounded px-2 py-2 w-full"
+                            value={ventaEdit.cliente?.direccion || ""}
+                            readOnly
+                            placeholder="Dirección del cliente"
+                          />
+                          <input
+                            className="border rounded px-2 py-2 w-full"
+                            value={ventaEdit.cliente?.localidad || ""}
+                            readOnly
+                            placeholder="Localidad del cliente"
+                          />
+                        </>
+                      )}
+                      <select
+                        className="border rounded px-2 py-2 w-full"
+                        value={ventaEdit.transportista || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            transportista: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Transportista...</option>
+                        <option value="camion">camion</option>
+                        <option value="camioneta 1">camioneta 1</option>
+                        <option value="camioneta 2">camioneta 2</option>
+                      </select>
                       <input
-                        type="checkbox"
-                        className="ml-2"
-                        checked={ventaEdit.usarDireccionCliente !== false}
-                        onChange={e => setVentaEdit({ ...ventaEdit, usarDireccionCliente: e.target.checked })}
+                        className="border rounded px-2 py-2 w-full"
+                        value={ventaEdit.costoEnvio || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            costoEnvio: e.target.value,
+                          })
+                        }
+                        placeholder="Costo de envío"
+                        type="number"
                       />
-                    </label>
-                    {ventaEdit.usarDireccionCliente === false ? (
-                      <>
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.direccionEnvio || ""}
-                          onChange={e => setVentaEdit({ ...ventaEdit, direccionEnvio: e.target.value })}
-                          placeholder="Dirección de envío"
-                        />
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.localidadEnvio || ""}
-                          onChange={e => setVentaEdit({ ...ventaEdit, localidadEnvio: e.target.value })}
-                          placeholder="Localidad/Ciudad"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.cliente?.direccion || ""}
-                          readOnly
-                          placeholder="Dirección del cliente"
-                        />
-                        <input
-                          className="border rounded px-2 py-2 w-full"
-                          value={ventaEdit.cliente?.localidad || ""}
-                          readOnly
-                          placeholder="Localidad del cliente"
-                        />
-                      </>
-                    )}
-                    <select
-                      className="border rounded px-2 py-2 w-full"
-                      value={ventaEdit.transportista || ""}
-                      onChange={e => setVentaEdit({ ...ventaEdit, transportista: e.target.value })}
-                    >
-                      <option value="">Transportista...</option>
-                      <option value="camion">camion</option>
-                      <option value="camioneta 1">camioneta 1</option>
-                      <option value="camioneta 2">camioneta 2</option>
-                    </select>
-                    <input
-                      className="border rounded px-2 py-2 w-full"
-                      value={ventaEdit.costoEnvio || ""}
-                      onChange={e => setVentaEdit({ ...ventaEdit, costoEnvio: e.target.value })}
-                      placeholder="Costo de envío"
-                      type="number"
-                    />
-                    <input
-                      className="border rounded px-2 py-2 w-full"
-                      type="date"
-                      value={ventaEdit.fechaEntrega || ""}
-                      onChange={e => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
-                      placeholder="Fecha de entrega"
-                    />
-                    <input
-                      className="border rounded px-2 py-2 w-full"
-                      value={ventaEdit.rangoHorario || ""}
-                      onChange={e => setVentaEdit({ ...ventaEdit, rangoHorario: e.target.value })}
-                      placeholder="Rango horario (ej: 8-12, 14-18)"
-                    />
-                  </>
-                )}
+                      <input
+                        className="border rounded px-2 py-2 w-full"
+                        type="date"
+                        value={ventaEdit.fechaEntrega || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            fechaEntrega: e.target.value,
+                          })
+                        }
+                        placeholder="Fecha de entrega"
+                      />
+                      <input
+                        className="border rounded px-2 py-2 w-full"
+                        value={ventaEdit.rangoHorario || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            rangoHorario: e.target.value,
+                          })
+                        }
+                        placeholder="Rango horario (ej: 8-12, 14-18)"
+                      />
+                    </>
+                  )}
                 {ventaEdit.tipoEnvio === "retiro_local" && (
                   <>
                     <input
                       className="border rounded px-2 py-2 w-full"
                       type="date"
                       value={ventaEdit.fechaEntrega || ""}
-                      onChange={e => setVentaEdit({ ...ventaEdit, fechaEntrega: e.target.value })}
+                      onChange={(e) =>
+                        setVentaEdit({
+                          ...ventaEdit,
+                          fechaEntrega: e.target.value,
+                        })
+                      }
                       placeholder="Fecha de retiro"
                     />
                   </>
@@ -790,14 +867,20 @@ const VentaDetalle = () => {
 
             {/* Información adicional */}
             <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Información adicional</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Información adicional
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
-                  <span className="text-sm font-medium">Vendedor responsable</span>
+                  <span className="text-sm font-medium">
+                    Vendedor responsable
+                  </span>
                   <select
                     className="border rounded px-2 py-2 w-full mt-1"
                     value={ventaEdit.vendedor || ""}
-                    onChange={e => setVentaEdit({ ...ventaEdit, vendedor: e.target.value })}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, vendedor: e.target.value })
+                    }
                   >
                     <option value="">Selecciona...</option>
                     <option value="coco">coco</option>
@@ -811,7 +894,9 @@ const VentaDetalle = () => {
                   <select
                     className="border rounded px-2 py-2 w-full mt-1"
                     value={ventaEdit.prioridad || ""}
-                    onChange={e => setVentaEdit({ ...ventaEdit, prioridad: e.target.value })}
+                    onChange={(e) =>
+                      setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
+                    }
                   >
                     <option value="">Selecciona...</option>
                     <option value="alta">Alta</option>
@@ -824,7 +909,12 @@ const VentaDetalle = () => {
                   <textarea
                     className="border rounded px-2 py-2 w-full mt-1"
                     value={ventaEdit.observaciones || ""}
-                    onChange={e => setVentaEdit({ ...ventaEdit, observaciones: e.target.value })}
+                    onChange={(e) =>
+                      setVentaEdit({
+                        ...ventaEdit,
+                        observaciones: e.target.value,
+                      })
+                    }
                     placeholder="Observaciones"
                   />
                 </label>
@@ -834,15 +924,15 @@ const VentaDetalle = () => {
             {/* Productos/items: puedes reutilizar SelectorProductosPresupuesto aquí si lo deseas */}
             <SelectorProductosPresupuesto
               productosSeleccionados={ventaEdit.productos || []}
-              setProductosSeleccionados={nuevos =>
-                setVentaEdit(prev => ({
+              setProductosSeleccionados={(nuevos) =>
+                setVentaEdit((prev) => ({
                   ...prev,
                   productos: nuevos,
                   items: nuevos,
                 }))
               }
               productosState={productos}
-              categoriasState={[...new Set(productos.map(p => p.categoria))]}
+              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
               productosPorCategoria={productos.reduce((acc, p) => {
                 acc[p.categoria] = acc[p.categoria] || [];
                 acc[p.categoria].push(p);
@@ -869,19 +959,35 @@ const VentaDetalle = () => {
                       <tr key={idx} className="border-b">
                         <td className="p-2">{formatFechaLocal(pago.fecha)}</td>
                         <td className="p-2">{pago.metodo}</td>
-                        <td className="p-2 text-right">${Number(pago.monto).toFixed(2)}</td>
-                        <td className="p-2">{pago.usuario || '-'}</td>
+                        <td className="p-2 text-right">
+                          ${Number(pago.monto).toFixed(2)}
+                        </td>
+                        <td className="p-2">{pago.usuario || "-"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <div className="flex justify-between font-semibold mt-2">
                   <span>Total abonado:</span>
-                  <span>${ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0).toFixed(2)}</span>
+                  <span>
+                    $
+                    {ventaEdit.pagos
+                      .reduce((acc, p) => acc + Number(p.monto), 0)
+                      .toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between mt-1">
                   <span>Saldo pendiente:</span>
-                  <span>${((ventaEdit.total || 0) - ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)).toFixed(2)}</span>
+                  <span>
+                    $
+                    {(
+                      (ventaEdit.total || 0) -
+                      ventaEdit.pagos.reduce(
+                        (acc, p) => acc + Number(p.monto),
+                        0
+                      )
+                    ).toFixed(2)}
+                  </span>
                 </div>
               </div>
             )}
@@ -893,15 +999,33 @@ const VentaDetalle = () => {
                   className="border rounded px-2 py-2 w-full md:w-40"
                   type="number"
                   min={1}
-                  max={(ventaEdit.total || 0) - (ventaEdit.pagos ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0) : 0)}
+                  max={
+                    (ventaEdit.total || 0) -
+                    (ventaEdit.pagos
+                      ? ventaEdit.pagos.reduce(
+                          (acc, p) => acc + Number(p.monto),
+                          0
+                        )
+                      : 0)
+                  }
                   placeholder="Monto"
                   value={ventaEdit.nuevoPagoMonto || ""}
-                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoMonto: e.target.value })}
+                  onChange={(e) =>
+                    setVentaEdit({
+                      ...ventaEdit,
+                      nuevoPagoMonto: e.target.value,
+                    })
+                  }
                 />
                 <select
                   className="border rounded px-2 py-2 w-full md:w-40"
                   value={ventaEdit.nuevoPagoMetodo || ""}
-                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoMetodo: e.target.value })}
+                  onChange={(e) =>
+                    setVentaEdit({
+                      ...ventaEdit,
+                      nuevoPagoMetodo: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Método...</option>
                   <option value="efectivo">Efectivo</option>
@@ -913,40 +1037,63 @@ const VentaDetalle = () => {
                 <input
                   className="border rounded px-2 py-2 w-full md:w-40"
                   type="date"
-                  value={ventaEdit.nuevoPagoFecha || new Date().toISOString().split('T')[0]}
-                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoFecha: e.target.value })}
+                  value={
+                    ventaEdit.nuevoPagoFecha ||
+                    new Date().toISOString().split("T")[0]
+                  }
+                  onChange={(e) =>
+                    setVentaEdit({
+                      ...ventaEdit,
+                      nuevoPagoFecha: e.target.value,
+                    })
+                  }
                 />
                 <input
                   className="border rounded px-2 py-2 w-full md:w-40"
                   type="text"
                   placeholder="Usuario (opcional)"
                   value={ventaEdit.nuevoPagoUsuario || ""}
-                  onChange={e => setVentaEdit({ ...ventaEdit, nuevoPagoUsuario: e.target.value })}
+                  onChange={(e) =>
+                    setVentaEdit({
+                      ...ventaEdit,
+                      nuevoPagoUsuario: e.target.value,
+                    })
+                  }
                 />
                 <Button
                   variant="default"
                   onClick={() => {
-                    if (!ventaEdit.nuevoPagoMonto || !ventaEdit.nuevoPagoMetodo) return;
+                    if (!ventaEdit.nuevoPagoMonto || !ventaEdit.nuevoPagoMetodo)
+                      return;
                     const nuevoPago = {
-                      fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split('T')[0],
+                      fecha:
+                        ventaEdit.nuevoPagoFecha ||
+                        new Date().toISOString().split("T")[0],
                       monto: Number(ventaEdit.nuevoPagoMonto),
                       metodo: ventaEdit.nuevoPagoMetodo,
-                      usuario: ventaEdit.nuevoPagoUsuario || "-"
+                      usuario: ventaEdit.nuevoPagoUsuario || "-",
                     };
-                    setVentaEdit(prev => ({
+                    setVentaEdit((prev) => ({
                       ...prev,
                       pagos: [...(prev.pagos || []), nuevoPago],
                       nuevoPagoMonto: "",
                       nuevoPagoMetodo: "",
-                      nuevoPagoFecha: new Date().toISOString().split('T')[0],
-                      nuevoPagoUsuario: ""
+                      nuevoPagoFecha: new Date().toISOString().split("T")[0],
+                      nuevoPagoUsuario: "",
                     }));
                   }}
                   disabled={
                     !ventaEdit.nuevoPagoMonto ||
                     !ventaEdit.nuevoPagoMetodo ||
                     Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                    Number(ventaEdit.nuevoPagoMonto) > ((ventaEdit.total || 0) - (ventaEdit.pagos ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0) : 0))
+                    Number(ventaEdit.nuevoPagoMonto) >
+                      (ventaEdit.total || 0) -
+                        (ventaEdit.pagos
+                          ? ventaEdit.pagos.reduce(
+                              (acc, p) => acc + Number(p.monto),
+                              0
+                            )
+                          : 0)
                   }
                 >
                   Agregar pago
@@ -972,7 +1119,10 @@ const VentaDetalle = () => {
                     0
                   );
                   const total = subtotal - descuentoTotal;
-                  const totalAbonado = (ventaEdit.pagos || []).reduce((acc, p) => acc + Number(p.monto), 0);
+                  const totalAbonado = (ventaEdit.pagos || []).reduce(
+                    (acc, p) => acc + Number(p.monto),
+                    0
+                  );
                   if (totalAbonado >= total) {
                     ventaEdit.estadoPago = "pagado";
                   } else if (totalAbonado > 0) {
@@ -1019,4 +1169,4 @@ const VentaDetalle = () => {
   );
 };
 
-export default VentaDetalle; 
+export default VentaDetalle;
