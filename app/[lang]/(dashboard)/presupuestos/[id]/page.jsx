@@ -867,17 +867,16 @@ const PresupuestoDetalle = () => {
                       <span className="font-medium text-gray-600">Saldo pendiente:</span>
                       <span className="font-medium text-red-600">
                         ${(() => {
-                          const total = (() => {
-                            const subtotal = safeNumber(presupuesto.subtotal);
-                            const descuento = safeNumber(presupuesto.descuentoTotal);
-                            const envio = presupuesto.costoEnvio !== undefined && 
-                                         presupuesto.costoEnvio !== "" && 
-                                         !isNaN(Number(presupuesto.costoEnvio)) && 
-                                         Number(presupuesto.costoEnvio) > 0 
-                                           ? Number(presupuesto.costoEnvio) 
-                                           : 0;
-                            return subtotal - descuento + envio;
-                          })();
+                          // Calcular el total completo incluyendo envío
+                          const subtotal = safeNumber(presupuesto.subtotal);
+                          const descuento = safeNumber(presupuesto.descuentoTotal);
+                          const envio = presupuesto.costoEnvio !== undefined && 
+                                       presupuesto.costoEnvio !== "" && 
+                                       !isNaN(Number(presupuesto.costoEnvio)) && 
+                                       Number(presupuesto.costoEnvio) > 0 
+                                         ? Number(presupuesto.costoEnvio) 
+                                         : 0;
+                          const total = subtotal - descuento + envio;
                           return total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
                         })()}
                       </span>
@@ -925,7 +924,18 @@ const PresupuestoDetalle = () => {
                     items: presupuesto.productos || presupuesto.items,
                     subtotal: presupuesto.subtotal,
                     descuentoTotal: presupuesto.descuentoTotal,
-                    total: presupuesto.total,
+                    // Calcular el total correcto incluyendo envío
+                    total: (() => {
+                      const subtotal = safeNumber(presupuesto.subtotal);
+                      const descuento = safeNumber(presupuesto.descuentoTotal);
+                      const envio = presupuesto.costoEnvio !== undefined && 
+                                   presupuesto.costoEnvio !== "" && 
+                                   !isNaN(Number(presupuesto.costoEnvio)) && 
+                                   Number(presupuesto.costoEnvio) > 0 
+                                     ? Number(presupuesto.costoEnvio) 
+                                     : 0;
+                      return subtotal - descuento + envio;
+                    })(),
                     observaciones: presupuesto.observaciones,
                     
                     // Datos específicos de venta
@@ -1169,7 +1179,27 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           s
             .typeError("Debe ingresar un monto")
             .min(1, "Debe ingresar un monto")
-            .max(presupuesto.total || 0, `No puede exceder el total de $${presupuesto.total || 0}`)
+            .max((() => {
+              const subtotal = presupuesto.subtotal || 0;
+              const descuento = presupuesto.descuentoTotal || 0;
+              const envio = presupuesto.costoEnvio !== undefined && 
+                           presupuesto.costoEnvio !== "" && 
+                           !isNaN(Number(presupuesto.costoEnvio)) && 
+                           Number(presupuesto.costoEnvio) > 0 
+                             ? Number(presupuesto.costoEnvio) 
+                             : 0;
+              return subtotal - descuento + envio;
+            })(), `No puede exceder el total de $${(() => {
+              const subtotal = presupuesto.subtotal || 0;
+              const descuento = presupuesto.descuentoTotal || 0;
+              const envio = presupuesto.costoEnvio !== undefined && 
+                           presupuesto.costoEnvio !== "" && 
+                           !isNaN(Number(presupuesto.costoEnvio)) && 
+                           Number(presupuesto.costoEnvio) > 0 
+                             ? Number(presupuesto.costoEnvio) 
+                             : 0;
+              return (subtotal - descuento + envio).toFixed(2);
+            })()}`)
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
@@ -1503,9 +1533,28 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               <Input
                 type="number"
                 min={0}
-                max={presupuesto.total || 0}
+                max={(() => {
+                  const subtotal = presupuesto.subtotal || 0;
+                  const descuento = presupuesto.descuentoTotal || 0;
+                  const envio = presupuesto.costoEnvio !== undefined && 
+                               presupuesto.costoEnvio !== "" && 
+                               !isNaN(Number(presupuesto.costoEnvio)) && 
+                               Number(presupuesto.costoEnvio) > 0 
+                                 ? Number(presupuesto.costoEnvio) 
+                                 : 0;
+                  return subtotal - descuento + envio;
+                })()}
                 placeholder={`Saldo pendiente: $${(() => {
-                  const total = presupuesto.total || 0;
+                  // Calcular el total completo incluyendo envío
+                  const subtotal = presupuesto.subtotal || 0;
+                  const descuento = presupuesto.descuentoTotal || 0;
+                  const envio = presupuesto.costoEnvio !== undefined && 
+                               presupuesto.costoEnvio !== "" && 
+                               !isNaN(Number(presupuesto.costoEnvio)) && 
+                               Number(presupuesto.costoEnvio) > 0 
+                                 ? Number(presupuesto.costoEnvio) 
+                                 : 0;
+                  const total = subtotal - descuento + envio;
                   const montoAbonado = watch("montoAbonado") ? Number(watch("montoAbonado")) : 0;
                   return (total - montoAbonado).toFixed(2);
                 })()}`}
