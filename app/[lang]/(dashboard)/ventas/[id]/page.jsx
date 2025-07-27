@@ -107,18 +107,24 @@ const VentaDetalle = () => {
     if (editando && venta) {
       console.log("=== DEBUG Clonando venta para edición ===");
       console.log("venta original:", venta);
+      console.log("venta.clienteId:", venta.clienteId);
+      console.log("venta.cliente:", venta.cliente);
       
       const ventaClonada = JSON.parse(JSON.stringify(venta));
       
-      // Asegurar que la información del cliente se preserve
-      if (venta.cliente && !ventaClonada.cliente) {
-        ventaClonada.cliente = venta.cliente;
-      }
-      if (venta.clienteId && !ventaClonada.clienteId) {
+      // Asegurar que TODA la información del cliente se preserve
+      if (venta.clienteId) {
         ventaClonada.clienteId = venta.clienteId;
       }
+      if (venta.cliente) {
+        ventaClonada.cliente = venta.cliente;
+      }
       
+      // Verificar que los datos se copiaron correctamente
       console.log("venta clonada:", ventaClonada);
+      console.log("ventaClonada.clienteId:", ventaClonada.clienteId);
+      console.log("ventaClonada.cliente:", ventaClonada.cliente);
+      
       setVentaEdit(ventaClonada);
     }
   }, [editando, venta]);
@@ -181,18 +187,37 @@ const VentaDetalle = () => {
     console.log("ventaEdit.clienteId:", ventaEdit.clienteId);
     console.log("ventaEdit.cliente:", ventaEdit.cliente);
     console.log("ventaEdit.cliente?.nombre:", ventaEdit.cliente?.nombre);
+    console.log("venta original:", venta);
+    console.log("venta.clienteId:", venta.clienteId);
+    console.log("venta.cliente:", venta.cliente);
     
     // Validación más robusta del cliente
     if (!ventaEdit.clienteId) {
-      console.log("Error: No hay clienteId");
-      setErrorForm("Error: No se encontró ID del cliente.");
-      return;
+      console.log("Error: No hay clienteId en ventaEdit");
+      console.log("Intentando restaurar desde venta original...");
+      
+      // Intentar restaurar desde la venta original
+      if (venta.clienteId) {
+        ventaEdit.clienteId = venta.clienteId;
+        console.log("clienteId restaurado:", ventaEdit.clienteId);
+      } else {
+        setErrorForm("Error: No se encontró ID del cliente en la venta original.");
+        return;
+      }
     }
     
     if (!ventaEdit.cliente) {
-      console.log("Error: No hay objeto cliente");
-      setErrorForm("Error: No se encontró información del cliente.");
-      return;
+      console.log("Error: No hay objeto cliente en ventaEdit");
+      console.log("Intentando restaurar desde venta original...");
+      
+      // Intentar restaurar desde la venta original
+      if (venta.cliente) {
+        ventaEdit.cliente = venta.cliente;
+        console.log("cliente restaurado:", ventaEdit.cliente);
+      } else {
+        setErrorForm("Error: No se encontró información del cliente en la venta original.");
+        return;
+      }
     }
     
     if (!ventaEdit.cliente.nombre) {
@@ -200,6 +225,10 @@ const VentaDetalle = () => {
       setErrorForm("Error: No se encontró nombre del cliente.");
       return;
     }
+    
+    console.log("✅ Validación del cliente exitosa");
+    console.log("clienteId final:", ventaEdit.clienteId);
+    console.log("cliente final:", ventaEdit.cliente);
     
     if (!ventaEdit.productos?.length && !ventaEdit.items?.length) {
       setErrorForm("Agrega al menos un producto.");
