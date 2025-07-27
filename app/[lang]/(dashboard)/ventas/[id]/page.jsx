@@ -201,8 +201,17 @@ const VentaDetalle = () => {
         ventaEdit.clienteId = venta.clienteId;
         console.log("clienteId restaurado:", ventaEdit.clienteId);
       } else {
-        setErrorForm("Error: No se encontró ID del cliente en la venta original.");
-        return;
+        // Si no hay clienteId, usar el CUIT como identificador alternativo
+        if (ventaEdit.cliente?.cuit) {
+          ventaEdit.clienteId = ventaEdit.cliente.cuit;
+          console.log("Usando CUIT como clienteId:", ventaEdit.clienteId);
+        } else if (venta.cliente?.cuit) {
+          ventaEdit.clienteId = venta.cliente.cuit;
+          console.log("Usando CUIT de venta original como clienteId:", ventaEdit.clienteId);
+        } else {
+          setErrorForm("Error: No se encontró ID del cliente ni CUIT en la venta.");
+          return;
+        }
       }
     }
     
@@ -215,15 +224,29 @@ const VentaDetalle = () => {
         ventaEdit.cliente = venta.cliente;
         console.log("cliente restaurado:", ventaEdit.cliente);
       } else {
-        setErrorForm("Error: No se encontró información del cliente en la venta original.");
-        return;
+        // Si no hay objeto cliente, crear uno básico con los datos disponibles
+        const clienteBasico = {
+          nombre: ventaEdit.clienteId || "Cliente sin nombre",
+          cuit: ventaEdit.clienteId || "",
+          direccion: "",
+          telefono: "",
+          email: ""
+        };
+        ventaEdit.cliente = clienteBasico;
+        console.log("Cliente básico creado:", ventaEdit.cliente);
       }
     }
     
     if (!ventaEdit.cliente.nombre) {
       console.log("Error: No hay nombre del cliente");
-      setErrorForm("Error: No se encontró nombre del cliente.");
-      return;
+      // Intentar usar CUIT como nombre si no hay nombre
+      if (ventaEdit.cliente.cuit) {
+        ventaEdit.cliente.nombre = `Cliente ${ventaEdit.cliente.cuit}`;
+        console.log("Nombre generado desde CUIT:", ventaEdit.cliente.nombre);
+      } else {
+        ventaEdit.cliente.nombre = "Cliente sin nombre";
+        console.log("Nombre por defecto asignado:", ventaEdit.cliente.nombre);
+      }
     }
     
     console.log("✅ Validación del cliente exitosa");
