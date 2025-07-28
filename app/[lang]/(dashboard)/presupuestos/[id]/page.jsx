@@ -702,25 +702,57 @@ const PresupuestoDetalle = () => {
             </div>
 
             {/* Selector de productos */}
-            <SelectorProductosPresupuesto
-              productosSeleccionados={presupuestoEdit.productos || []}
-              setProductosSeleccionados={(nuevos) =>
-                setPresupuestoEdit((prev) => ({
-                  ...prev,
-                  productos: nuevos,
-                  items: nuevos,
-                }))
-              }
-              productosState={productos}
-              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
-              productosPorCategoria={productos.reduce((acc, p) => {
-                acc[p.categoria] = acc[p.categoria] || [];
-                acc[p.categoria].push(p);
-                return acc;
-              }, {})}
-              isSubmitting={loadingPrecios}
-              modoSoloProductos={true}
-            />
+            {editando && presupuestoEdit && (
+              <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h3 className="font-semibold text-lg mb-4 text-gray-900">
+                  Editar productos del presupuesto
+                </h3>
+                {/* Copio el layout de selección de productos de la pantalla principal */}
+                <SelectorProductosPresupuesto
+                  productosSeleccionados={presupuestoEdit.productos || []}
+                  setProductosSeleccionados={(nuevos) =>
+                    setPresupuestoEdit((prev) => ({
+                      ...prev,
+                      productos: nuevos,
+                      items: nuevos,
+                    }))
+                  }
+                  productosState={productos}
+                  categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+                  productosPorCategoria={productos.reduce((acc, p) => {
+                    acc[p.categoria] = acc[p.categoria] || [];
+                    acc[p.categoria].push(p);
+                    return acc;
+                  }, {})}
+                  isSubmitting={loadingPrecios}
+                  modoSoloProductos={true}
+                />
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    variant="default"
+                    onClick={handleGuardarCambios}
+                    disabled={loadingPrecios}
+                  >
+                    Guardar cambios
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditando(false)}
+                    disabled={loadingPrecios}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleActualizarPrecios}
+                    disabled={loadingPrecios}
+                  >
+                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+                  </Button>
+                </div>
+                {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
+              </div>
+            )}
             
             <div className="flex gap-2 mt-6">
               <Button

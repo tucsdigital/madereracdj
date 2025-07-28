@@ -1142,252 +1142,49 @@ const VentaDetalle = () => {
               </div>
             </section>
 
-            {/* Productos/items: puedes reutilizar SelectorProductosPresupuesto aquí si lo deseas */}
-            <SelectorProductosPresupuesto
-              productosSeleccionados={ventaEdit.productos || []}
-              setProductosSeleccionados={(nuevos) =>
-                setVentaEdit((prev) => ({
-                  ...prev,
-                  productos: nuevos,
-                  items: nuevos,
-                }))
-              }
-              productosState={productos}
-              categoriasState={[...new Set(productos.map((p) => p.categoria))]}
-              productosPorCategoria={productos.reduce((acc, p) => {
-                acc[p.categoria] = acc[p.categoria] || [];
-                acc[p.categoria].push(p);
-                return acc;
-              }, {})}
-              isSubmitting={loadingPrecios}
-              modoSoloProductos={true}
-            />
-            {/* En edición: mejorar bloque de completar pago cuando solo existe montoAbonado */}
-            {editando && ventaEdit && (
-              <div className="bg-white dark:bg-default-900 border border-default-300 rounded-md shadow-lg p-6 mb-8">
-                <h4 className="font-semibold text-lg mb-4 text-default-900 flex items-center gap-2">
-                  <svg
-                    className="w-6 h-6 text-default-600"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 8v4l3 3"
-                    />
-                  </svg>
-                  Agregar nuevo pago
-                </h4>
-                <form
-                  className="flex flex-col md:flex-row md:items-end gap-4"
-                  onSubmit={(e) => e.preventDefault()}
+            {/* Editar productos de la venta */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <h3 className="font-semibold text-lg mb-4 text-gray-900">
+                Editar productos de la venta
+              </h3>
+              {/* Copio el layout de selección de productos de la pantalla principal */}
+              <SelectorProductosPresupuesto
+                productosSeleccionados={ventaEdit.productos || []}
+                setProductosSeleccionados={(nuevos) =>
+                  setVentaEdit((prev) => ({
+                    ...prev,
+                    productos: nuevos,
+                    items: nuevos,
+                  }))
+                }
+                productosState={productos}
+                categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+                productosPorCategoria={productos.reduce((acc, p) => {
+                  acc[p.categoria] = acc[p.categoria] || [];
+                  acc[p.categoria].push(p);
+                  return acc;
+                }, {})}
+                isSubmitting={loadingPrecios}
+                modoSoloProductos={true}
+              />
+              <div className="flex gap-2 mt-6">
+                <Button
+                  variant="default"
+                  onClick={handleGuardarCambios}
+                  disabled={loadingPrecios}
                 >
-                  <div className="flex flex-col w-full md:w-32">
-                    <label className="text-xs font-medium text-default-800 mb-1">
-                      Monto
-                    </label>
-                    <input
-                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
-                      type="number"
-                      min={1}
-                      max={
-                        (ventaEdit.total || 0) -
-                        (Array.isArray(ventaEdit.pagos) 
-                          ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                          : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
-                      }
-                      placeholder={`$${(
-                        (ventaEdit.total || 0) -
-                        (Array.isArray(ventaEdit.pagos) 
-                          ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                          : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
-                      ).toFixed(2)}`}
-                      value={ventaEdit.nuevoPagoMonto || ""}
-                      onChange={(e) =>
-                        setVentaEdit({
-                          ...ventaEdit,
-                          nuevoPagoMonto: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col w-full md:w-40">
-                    <label className="text-xs font-medium text-default-800 mb-1">
-                      Método
-                    </label>
-                    <select
-                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
-                      value={ventaEdit.nuevoPagoMetodo || ""}
-                      onChange={(e) =>
-                        setVentaEdit({
-                          ...ventaEdit,
-                          nuevoPagoMetodo: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Método...</option>
-                      <option value="efectivo">Efectivo</option>
-                      <option value="transferencia">Transferencia</option>
-                      <option value="tarjeta">Tarjeta</option>
-                      <option value="cheque">Cheque</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col w-full md:w-44">
-                    <label className="text-xs font-medium text-default-800 mb-1">
-                      Fecha
-                    </label>
-                    <input
-                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
-                      type="date"
-                      value={
-                        ventaEdit.nuevoPagoFecha ||
-                        new Date().toISOString().split("T")[0]
-                      }
-                      onChange={(e) =>
-                        setVentaEdit({
-                          ...ventaEdit,
-                          nuevoPagoFecha: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-col w-full md:w-48">
-                    <label className="text-xs font-medium text-default-800 mb-1">
-                      Usuario (opcional)
-                    </label>
-                    <input
-                      className="border border-default-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-200 focus:border-primary-400 transition w-full text-base bg-white dark:bg-default-900 text-default-900 shadow-sm"
-                      type="text"
-                      placeholder="Usuario (opcional)"
-                      value={ventaEdit.nuevoPagoUsuario || ""}
-                      onChange={(e) =>
-                        setVentaEdit({
-                          ...ventaEdit,
-                          nuevoPagoUsuario: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <Button
-                    variant="default"
-                    className="bg-primary-500 hover:bg-primary-600 text-white font-semibold px-6 py-2 rounded-md shadow transition disabled:opacity-60 disabled:cursor-not-allowed mt-4 md:mt-0 text-sm"
-                    onClick={() => {
-                      if (
-                        !ventaEdit.nuevoPagoMonto ||
-                        !ventaEdit.nuevoPagoMetodo
-                      )
-                        return;
-                      const abono = Number(ventaEdit.nuevoPagoMonto);
-                      
-                      // Si ya existe array pagos, agregar a ese array
-                      if (Array.isArray(ventaEdit.pagos)) {
-                        const nuevoPago = {
-                          fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
-                          monto: abono,
-                          metodo: ventaEdit.nuevoPagoMetodo,
-                          usuario: ventaEdit.nuevoPagoUsuario || "-",
-                        };
-                        setVentaEdit({
-                          ...ventaEdit,
-                          pagos: [...ventaEdit.pagos, nuevoPago],
-                          nuevoPagoMonto: "",
-                          nuevoPagoMetodo: "",
-                          nuevoPagoFecha: new Date().toISOString().split("T")[0],
-                          nuevoPagoUsuario: "",
-                        });
-                      } else {
-                        // Si no existe array pagos, usar pagosSimples
-                        setPagosSimples((prev) => [
-                          ...prev,
-                          {
-                            fecha: ventaEdit.nuevoPagoFecha || new Date().toISOString().split("T")[0],
-                            monto: abono,
-                            metodo: ventaEdit.nuevoPagoMetodo,
-                            usuario: ventaEdit.nuevoPagoUsuario || "-",
-                          },
-                        ]);
-                        setVentaEdit({
-                          ...ventaEdit,
-                          nuevoPagoMonto: "",
-                          nuevoPagoMetodo: "",
-                          nuevoPagoFecha: new Date().toISOString().split("T")[0],
-                          nuevoPagoUsuario: "",
-                        });
-                      }
-                    }}
-                    disabled={
-                      !ventaEdit.nuevoPagoMonto ||
-                      !ventaEdit.nuevoPagoMetodo ||
-                      Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                      Number(ventaEdit.nuevoPagoMonto) >
-                        (ventaEdit.total || 0) -
-                          (Array.isArray(ventaEdit.pagos) 
-                            ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                            : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0))
-                    }
-                  >
-                    <span className="flex items-center gap-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                      Agregar pago
-                    </span>
-                  </Button>
-                </form>
-                {(Array.isArray(ventaEdit.pagos) 
-                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                  : pagosSimples.reduce((acc, p) => acc + Number(p.monto), 0)) >=
-                  (ventaEdit.total || 0) && (
-                  <div className="mt-4 text-green-700 dark:text-green-400 font-semibold flex items-center gap-2">
-                    <svg
-                      className="w-5 h-5 text-green-600 dark:text-green-400"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    ¡Venta pagada en su totalidad!
-                  </div>
-                )}
+                  Guardar cambios
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditando(false)}
+                  disabled={loadingPrecios}
+                >
+                  Cancelar
+                </Button>
               </div>
-            )}
-            <div className="flex gap-2 mt-6">
-              <Button
-                variant="default"
-                onClick={handleGuardarCambios}
-                disabled={loadingPrecios}
-              >
-                Guardar cambios
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setEditando(false)}
-                disabled={loadingPrecios}
-              >
-                Cancelar
-              </Button>
+              {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
             </div>
-            {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
           </div>
         )}
       </div>
