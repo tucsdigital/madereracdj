@@ -84,9 +84,13 @@ const GastosPage = () => {
           const data = doc.data();
           return {
             id: doc.id,
-            ...data,
-            fecha: formatFechaSegura(data.fecha),
+            concepto: data.concepto || "",
+            responsable: data.responsable || "",
             monto: Number(data.monto) || 0,
+            fecha: formatFechaSegura(data.fecha),
+            observaciones: data.observaciones || "",
+            fechaCreacion: data.fechaCreacion,
+            fechaActualizacion: data.fechaActualizacion,
           };
         });
         
@@ -183,7 +187,13 @@ const GastosPage = () => {
 
   // Función para ver detalles
   const handleVer = (gasto) => {
-    alert(`Detalles del gasto:\n\nConcepto: ${gasto.concepto}\nMonto: $${gasto.monto}\nResponsable: ${gasto.responsable}\nFecha: ${gasto.fecha}\nObservaciones: ${gasto.observaciones || "Sin observaciones"}`);
+    const concepto = gasto.concepto || "Sin concepto";
+    const monto = gasto.monto || 0;
+    const responsable = gasto.responsable || "Sin responsable";
+    const fecha = gasto.fecha || "Sin fecha";
+    const observaciones = gasto.observaciones || "Sin observaciones";
+    
+    alert(`Detalles del gasto:\n\nConcepto: ${concepto}\nMonto: $${monto.toLocaleString("es-AR")}\nResponsable: ${responsable}\nFecha: ${fecha}\nObservaciones: ${observaciones}`);
   };
 
   // Función para cerrar modal
@@ -194,10 +204,13 @@ const GastosPage = () => {
   };
 
   // Filtrar gastos
-  const gastosFiltrados = gastos.filter(g => 
-    g.concepto.toLowerCase().includes(filtro.toLowerCase()) || 
-    g.responsable.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const gastosFiltrados = gastos.filter(g => {
+    const concepto = (g.concepto || "").toLowerCase();
+    const responsable = (g.responsable || "").toLowerCase();
+    const filtroLower = filtro.toLowerCase();
+    
+    return concepto.includes(filtroLower) || responsable.includes(filtroLower);
+  });
 
   // Calcular total de gastos
   const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto), 0);
