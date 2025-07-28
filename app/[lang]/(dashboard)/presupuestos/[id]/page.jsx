@@ -708,7 +708,23 @@ const PresupuestoDetalle = () => {
                   Editar productos del presupuesto
                 </h3>
                 {/* Copio el layout de selección de productos de la pantalla principal */}
-                <SelectorProductosPresupuesto
+                <FormularioVentaPresupuesto
+                  tipo="presupuesto"
+                  onClose={() => setEditando(false)}
+                  onSubmit={async (formData) => {
+                    setPresupuestoEdit((prev) => ({
+                      ...prev,
+                      productos: formData.items,
+                      items: formData.items,
+                    }));
+                  }}
+                  productosState={productos}
+                  categoriasState={[...new Set(productos.map((p) => p.categoria))]}
+                  productosPorCategoria={productos.reduce((acc, p) => {
+                    acc[p.categoria] = acc[p.categoria] || [];
+                    acc[p.categoria].push(p);
+                    return acc;
+                  }, {})}
                   productosSeleccionados={presupuestoEdit.productos || []}
                   setProductosSeleccionados={(nuevos) =>
                     setPresupuestoEdit((prev) => ({
@@ -717,13 +733,6 @@ const PresupuestoDetalle = () => {
                       items: nuevos,
                     }))
                   }
-                  productosState={productos}
-                  categoriasState={[...new Set(productos.map((p) => p.categoria))]}
-                  productosPorCategoria={productos.reduce((acc, p) => {
-                    acc[p.categoria] = acc[p.categoria] || [];
-                    acc[p.categoria].push(p);
-                    return acc;
-                  }, {})}
                   isSubmitting={loadingPrecios}
                   modoSoloProductos={true}
                 />
