@@ -487,7 +487,7 @@ const PresupuestoDetalle = () => {
           </div>
         </div>
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
