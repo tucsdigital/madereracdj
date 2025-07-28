@@ -141,14 +141,16 @@ const PresupuestoDetalle = () => {
   useEffect(() => {
     if (editando && presupuesto) {
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
-      
+
       // Si hay costo de envío pero no tipo de envío, establecer automáticamente como envío a domicilio
-      if (presupuestoClonado.costoEnvio && 
-          presupuestoClonado.costoEnvio > 0 && 
-          !presupuestoClonado.tipoEnvio) {
+      if (
+        presupuestoClonado.costoEnvio &&
+        presupuestoClonado.costoEnvio > 0 &&
+        !presupuestoClonado.tipoEnvio
+      ) {
         presupuestoClonado.tipoEnvio = "envio_domicilio";
       }
-      
+
       setPresupuestoEdit(presupuestoClonado);
     }
   }, [editando, presupuesto]);
@@ -165,7 +167,7 @@ const PresupuestoDetalle = () => {
         const prod = productos.find((p) => p.id === item.id);
         if (prod) {
           let precio;
-          
+
           // Para productos de madera, usar precioPorPie
           if (prod.categoria === "Maderas") {
             precio = prod.precioPorPie || 0;
@@ -181,7 +183,7 @@ const PresupuestoDetalle = () => {
               prod.precioUnidadHerramienta ||
               0;
           }
-          
+
           return {
             ...item,
             precio,
@@ -221,7 +223,7 @@ const PresupuestoDetalle = () => {
         return;
       }
     }
-    
+
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
@@ -238,22 +240,22 @@ const PresupuestoDetalle = () => {
         0
       );
       // Calcular costo de envío solo si no es retiro local
-      const costoEnvioCalculado = 
-        presupuestoEdit.tipoEnvio && 
-        presupuestoEdit.tipoEnvio !== "retiro_local" && 
-        presupuestoEdit.costoEnvio !== undefined && 
-        presupuestoEdit.costoEnvio !== "" && 
-        !isNaN(Number(presupuestoEdit.costoEnvio)) 
-          ? Number(presupuestoEdit.costoEnvio) 
+      const costoEnvioCalculado =
+        presupuestoEdit.tipoEnvio &&
+        presupuestoEdit.tipoEnvio !== "retiro_local" &&
+        presupuestoEdit.costoEnvio !== undefined &&
+        presupuestoEdit.costoEnvio !== "" &&
+        !isNaN(Number(presupuestoEdit.costoEnvio))
+          ? Number(presupuestoEdit.costoEnvio)
           : 0;
       const total = subtotal - descuentoTotal + costoEnvioCalculado;
-      
+
       // Generar número de pedido si no existe
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
       }
-      
+
       const docRef = doc(db, "presupuestos", presupuestoEdit.id);
       await updateDoc(docRef, {
         ...presupuestoEdit,
@@ -265,7 +267,7 @@ const PresupuestoDetalle = () => {
         numeroPedido,
         fechaActualizacion: new Date().toISOString(),
       });
-      
+
       setPresupuesto({
         ...presupuestoEdit,
         subtotal,
@@ -481,7 +483,8 @@ const PresupuestoDetalle = () => {
               {/* Mostrar fecha de actualización si existe */}
               {presupuesto.fechaActualizacion && (
                 <div className="mt-1 text-xs text-gray-500">
-                  Última actualización: {formatFechaLocal(presupuesto.fechaActualizacion)}
+                  Última actualización:{" "}
+                  {formatFechaLocal(presupuesto.fechaActualizacion)}
                 </div>
               )}
             </div>
@@ -504,7 +507,10 @@ const PresupuestoDetalle = () => {
                 </Button>
               )}
               {!editando && !convirtiendoVenta && (
-                <Button onClick={() => setConvirtiendoVenta(true)} className="no-print">
+                <Button
+                  onClick={() => setConvirtiendoVenta(true)}
+                  className="no-print"
+                >
                   Convertir a Venta
                 </Button>
               )}
@@ -585,8 +591,7 @@ const PresupuestoDetalle = () => {
                 </div>
                 {/* Eliminar el cálculo de fecha de vencimiento automática */}
                 <div>
-                  <span className="font-medium">Fecha de vencimiento:</span>{" "}
-                  -
+                  <span className="font-medium">Fecha de vencimiento:</span> -
                 </div>
                 <div>
                   <span className="font-medium">Tipo:</span>{" "}
@@ -621,18 +626,17 @@ const PresupuestoDetalle = () => {
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               Editar Presupuesto
             </h3>
-            
+
             {/* Mensaje de error */}
             {errorForm && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-800 text-sm font-medium">{errorForm}</p>
               </div>
             )}
-            
+
             {/* Información editable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-4">
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de envío
@@ -644,7 +648,10 @@ const PresupuestoDetalle = () => {
                         ...presupuestoEdit,
                         tipoEnvio: e.target.value,
                         // Si se selecciona retiro local, limpiar costo de envío
-                        costoEnvio: e.target.value === "retiro_local" ? "" : presupuestoEdit.costoEnvio,
+                        costoEnvio:
+                          e.target.value === "retiro_local"
+                            ? ""
+                            : presupuestoEdit.costoEnvio,
                       })
                     }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -658,28 +665,29 @@ const PresupuestoDetalle = () => {
                     </option>
                   </select>
                 </div>
-                
-                {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Costo de envío
-                    </label>
-                    <Input
-                      type="number"
-                      value={presupuestoEdit.costoEnvio || ""}
-                      onChange={(e) =>
-                        setPresupuestoEdit({
-                          ...presupuestoEdit,
-                          costoEnvio: e.target.value,
-                        })
-                      }
-                      placeholder="Costo de envío"
-                      className="w-full"
-                    />
-                  </div>
-                )}
+
+                {presupuestoEdit.tipoEnvio &&
+                  presupuestoEdit.tipoEnvio !== "retiro_local" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Costo de envío
+                      </label>
+                      <Input
+                        type="number"
+                        value={presupuestoEdit.costoEnvio || ""}
+                        onChange={(e) =>
+                          setPresupuestoEdit({
+                            ...presupuestoEdit,
+                            costoEnvio: e.target.value,
+                          })
+                        }
+                        placeholder="Costo de envío"
+                        className="w-full"
+                      />
+                    </div>
+                  )}
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -707,35 +715,616 @@ const PresupuestoDetalle = () => {
                 <h3 className="font-semibold text-lg mb-4 text-gray-900">
                   Editar productos del presupuesto
                 </h3>
-                {/* Copio el layout de selección de productos de la pantalla principal */}
-                <FormularioVentaPresupuesto
-                  tipo="presupuesto"
-                  onClose={() => setEditando(false)}
-                  onSubmit={async (formData) => {
-                    setPresupuestoEdit((prev) => ({
-                      ...prev,
-                      productos: formData.items,
-                      items: formData.items,
-                    }));
-                  }}
-                  productosState={productos}
-                  categoriasState={[...new Set(productos.map((p) => p.categoria))]}
-                  productosPorCategoria={productos.reduce((acc, p) => {
-                    acc[p.categoria] = acc[p.categoria] || [];
-                    acc[p.categoria].push(p);
-                    return acc;
-                  }, {})}
-                  productosSeleccionados={presupuestoEdit.productos || []}
-                  setProductosSeleccionados={(nuevos) =>
-                    setPresupuestoEdit((prev) => ({
-                      ...prev,
-                      productos: nuevos,
-                      items: nuevos,
-                    }))
-                  }
-                  isSubmitting={loadingPrecios}
-                  modoSoloProductos={true}
-                />
+                {/* Sección Productos - Diseño Mejorado */}
+                <section className="bg-white rounded-xl border border-default-200 shadow-sm overflow-hidden">
+                  {/* Header con estadísticas */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <svg
+                            className="w-6 h-6 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Productos
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Selecciona los productos para tu presupuesto
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {(presupuestoEdit.productos || []).length}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          productos agregados
+                        </div>
+                      </div>
+                    </div>
+                    {/* Filtros mejorados */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {/* Filtro de categorías */}
+                      <div className="flex-1">
+                        <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                          {[...new Set(productos.map((p) => p.categoria))].map(
+                            (categoria) => (
+                              <button
+                                key={categoria}
+                                type="button"
+                                className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                  presupuestoEdit.categoriaId === categoria
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                                onClick={() =>
+                                  setPresupuestoEdit((prev) => ({
+                                    ...prev,
+                                    categoriaId: categoria,
+                                  }))
+                                }
+                                disabled={loadingPrecios}
+                              >
+                                {categoria}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </div>
+                      {/* Buscador mejorado */}
+                      <div className="flex-1 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg
+                            className="h-5 w-5 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar productos..."
+                          value={presupuestoEdit.busquedaProducto || ""}
+                          onChange={(e) =>
+                            setPresupuestoEdit((prev) => ({
+                              ...prev,
+                              busquedaProducto: e.target.value,
+                            }))
+                          }
+                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lista de productos */}
+                  <div className="max-h-96 overflow-y-auto">
+                    {(() => {
+                      const categoriaId = presupuestoEdit.categoriaId;
+                      const busquedaProducto =
+                        presupuestoEdit.busquedaProducto || "";
+                      const productosPorCategoria = productos.reduce(
+                        (acc, p) => {
+                          acc[p.categoria] = acc[p.categoria] || [];
+                          acc[p.categoria].push(p);
+                          return acc;
+                        },
+                        {}
+                      );
+                      const productosSeleccionados =
+                        presupuestoEdit.productos || [];
+                      const setProductosSeleccionados = (nuevos) =>
+                        setPresupuestoEdit((prev) => ({
+                          ...prev,
+                          productos: nuevos,
+                          items: nuevos,
+                        }));
+
+                      // Handlers idénticos a los de ventas/page.jsx
+                      const handleAgregarProducto = (producto) => {
+                        const real = productos.find(
+                          (p) => p.id === producto.id
+                        );
+                        if (!real) return;
+                        if (
+                          !productosSeleccionados.some((p) => p.id === real.id)
+                        ) {
+                          let precio;
+                          if (real.categoria === "Maderas") {
+                            let alto = Number(real.alto) || 0;
+                            let ancho = Number(real.ancho) || 0;
+                            let largo = Number(real.largo) || 0;
+                            let precioPorPie = Number(real.precioPorPie) || 0;
+                            if (
+                              alto > 0 &&
+                              ancho > 0 &&
+                              largo > 0 &&
+                              precioPorPie > 0
+                            ) {
+                              precio =
+                                0.2734 * alto * ancho * largo * precioPorPie;
+                              precio = Math.round(precio * 100) / 100;
+                            } else {
+                              return;
+                            }
+                          } else if (real.categoria === "Ferretería") {
+                            precio = real.valorVenta || 0;
+                          } else {
+                            precio =
+                              real.precioUnidad ||
+                              real.precioUnidadVenta ||
+                              real.precioUnidadHerraje ||
+                              real.precioUnidadQuimico ||
+                              real.precioUnidadHerramienta ||
+                              0;
+                          }
+                          setProductosSeleccionados([
+                            ...productosSeleccionados,
+                            {
+                              id: real.id,
+                              nombre: real.nombre,
+                              precio,
+                              unidad:
+                                real.unidadMedida ||
+                                real.unidadVenta ||
+                                real.unidadVentaHerraje ||
+                                real.unidadVentaQuimico ||
+                                real.unidadVentaHerramienta,
+                              stock: real.stock,
+                              cantidad: 1,
+                              descuento: 0,
+                              categoria: real.categoria,
+                              alto: Number(real.alto) || 0,
+                              ancho: Number(real.ancho) || 0,
+                              largo: Number(real.largo) || 0,
+                              precioPorPie: Number(real.precioPorPie) || 0,
+                            },
+                          ]);
+                        }
+                      };
+                      const handleQuitarProducto = (id) => {
+                        setProductosSeleccionados(
+                          productosSeleccionados.filter((p) => p.id !== id)
+                        );
+                      };
+                      const handleCantidadChange = (id, cantidad) => {
+                        setProductosSeleccionados(
+                          productosSeleccionados.map((p) =>
+                            p.id === id
+                              ? { ...p, cantidad: Number(cantidad) }
+                              : p
+                          )
+                        );
+                      };
+                      const handleIncrementarCantidad = (id) => {
+                        setProductosSeleccionados(
+                          productosSeleccionados.map((p) =>
+                            p.id === id
+                              ? { ...p, cantidad: Number(p.cantidad) + 1 }
+                              : p
+                          )
+                        );
+                      };
+                      const handleDecrementarCantidad = (id) => {
+                        setProductosSeleccionados(
+                          productosSeleccionados.map((p) =>
+                            p.id === id
+                              ? {
+                                  ...p,
+                                  cantidad: Math.max(1, Number(p.cantidad) - 1),
+                                }
+                              : p
+                          )
+                        );
+                      };
+                      const handleDescuentoChange = (id, descuento) => {
+                        setProductosSeleccionados(
+                          productosSeleccionados.map((p) =>
+                            p.id === id
+                              ? { ...p, descuento: Number(descuento) }
+                              : p
+                          )
+                        );
+                      };
+
+                      if (!categoriaId) {
+                        return (
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-8 h-8 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                              Selecciona una categoría
+                            </h3>
+                            <p className="text-gray-500">
+                              Elige una categoría para ver los productos
+                              disponibles
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      const productosFiltrados =
+                        productosPorCategoria[categoriaId]?.filter(
+                          (prod) =>
+                            prod.nombre
+                              .toLowerCase()
+                              .includes(busquedaProducto.toLowerCase()) ||
+                            (prod.unidadMedida || "")
+                              .toLowerCase()
+                              .includes(busquedaProducto.toLowerCase())
+                        ) || [];
+
+                      if (productosFiltrados.length === 0) {
+                        return (
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-8 h-8 text-yellow-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                              No se encontraron productos
+                            </h3>
+                            <p className="text-gray-500">
+                              Intenta cambiar los filtros o la búsqueda
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid gap-3 p-4">
+                          {productosFiltrados.map((prod) => {
+                            const yaAgregado = productosSeleccionados.some(
+                              (p) => p.id === prod.id
+                            );
+                            const precio = (() => {
+                              if (prod.categoria === "Maderas") {
+                                return prod.precioPorPie || 0;
+                              } else if (prod.categoria === "Ferretería") {
+                                return prod.valorVenta || 0;
+                              } else {
+                                return (
+                                  prod.precioUnidad ||
+                                  prod.precioUnidadVenta ||
+                                  prod.precioUnidadHerraje ||
+                                  prod.precioUnidadQuimico ||
+                                  prod.precioUnidadHerramienta ||
+                                  0
+                                );
+                              }
+                            })();
+
+                            return (
+                              <div
+                                key={prod.id}
+                                className={`group relative bg-white rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                                  yaAgregado
+                                    ? "border-green-200 bg-green-50"
+                                    : "border-gray-200 hover:border-blue-300"
+                                }`}
+                              >
+                                <div className="p-4">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <div
+                                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                            prod.categoria === "Maderas"
+                                              ? "bg-orange-100 text-orange-700"
+                                              : "bg-blue-100 text-blue-700"
+                                          }`}
+                                        >
+                                          {prod.categoria === "Maderas"
+                                            ? "🌲"
+                                            : "🔧"}
+                                        </div>
+                                        <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                          {prod.nombre}
+                                        </h4>
+                                        {yaAgregado && (
+                                          <div className="flex items-center gap-1 text-green-600">
+                                            <svg
+                                              className="w-4 h-4"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                            <span className="text-xs font-medium">
+                                              Agregado
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {/* ... puedes seguir pegando el resto del bloque de ventas/page.jsx aquí ... */}
+                                    </div>
+                                    {/* Incrementador y botones */}
+                                    <div className="flex flex-col items-end gap-2 ml-4">
+                                      {yaAgregado ? (
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleDecrementarCantidad(prod.id)
+                                            }
+                                            disabled={
+                                              productosSeleccionados.find(
+                                                (p) => p.id === prod.id
+                                              )?.cantidad <= 1
+                                            }
+                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                          >
+                                            -
+                                          </button>
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            value={
+                                              productosSeleccionados.find(
+                                                (p) => p.id === prod.id
+                                              )?.cantidad || 1
+                                            }
+                                            onChange={(e) =>
+                                              handleCantidadChange(
+                                                prod.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-12 text-center border rounded"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleIncrementarCantidad(prod.id)
+                                            }
+                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                          >
+                                            +
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleQuitarProducto(prod.id)
+                                            }
+                                            className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                          >
+                                            Quitar
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleAgregarProducto(prod)
+                                          }
+                                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                        >
+                                          Agregar
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Tabla de productos seleccionados */}
+                  {(presupuestoEdit.productos || []).length > 0 && (
+                    <div className="overflow-x-auto mt-4">
+                      <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
+                        <thead>
+                          <tr className="bg-primary/10 text-primary font-semibold">
+                            <th className="p-2 text-left">Categoría</th>
+                            <th className="p-2 text-left">Producto</th>
+                            <th className="p-2 text-center">Cant.</th>
+                            <th className="p-2 text-center">Precio unit.</th>
+                            <th className="p-2 text-center">Desc.</th>
+                            <th className="p-2 text-center">Subtotal</th>
+                            <th className="p-2 text-center">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(presupuestoEdit.productos || []).map((p, idx) => (
+                            <tr
+                              key={p.id}
+                              className="border-b hover:bg-primary/5 transition-all"
+                            >
+                              <td className="p-2 text-xs font-medium text-gray-600">
+                                {p.categoria}
+                              </td>
+                              <td className="p-2">
+                                <div className="font-semibold text-default-900">
+                                  {p.nombre}
+                                </div>
+                                {p.categoria === "Maderas" && (
+                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                    <span className="font-medium text-gray-500">
+                                      Dimensiones:
+                                    </span>
+                                    <span>
+                                      Alto:{" "}
+                                      <span className="font-bold">
+                                        {p.alto}
+                                      </span>{" "}
+                                      cm
+                                    </span>
+                                    <span>
+                                      Ancho:{" "}
+                                      <span className="font-bold">
+                                        {p.ancho}
+                                      </span>{" "}
+                                      cm
+                                    </span>
+                                    <span>
+                                      Largo:{" "}
+                                      <span className="font-bold">
+                                        {p.largo}
+                                      </span>{" "}
+                                      cm
+                                    </span>
+                                    <span>
+                                      $/pie:{" "}
+                                      <span className="font-bold">
+                                        {p.precioPorPie}
+                                      </span>
+                                    </span>
+                                    <span className="ml-2 text-primary font-semibold">
+                                      Precio calculado: ${p.precio}
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="text-center">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDecrementarCantidad(p.id)
+                                      }
+                                      disabled={p.cantidad <= 1}
+                                      className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M20 12H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={p.cantidad}
+                                      onChange={(e) =>
+                                        handleCantidadChange(
+                                          p.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleIncrementarCantidad(p.id)
+                                      }
+                                      className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-150"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 4v16m8-8H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="text-center">${p.precio}</td>
+                              <td className="text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={p.descuento}
+                                  onChange={(e) =>
+                                    handleDescuentoChange(p.id, e.target.value)
+                                  }
+                                  className="w-20 mx-auto text-center"
+                                />
+                              </td>
+                              <td className="text-center font-semibold text-primary">
+                                $
+                                {(
+                                  Number(p.precio) *
+                                  Number(p.cantidad) *
+                                  (1 - Number(p.descuento) / 100)
+                                ).toFixed(2)}
+                              </td>
+                              <td className="text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuitarProducto(p.id)}
+                                  className="text-lg font-bold text-red-500"
+                                  title="Quitar producto"
+                                >
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
                 <div className="flex gap-2 mt-6">
                   <Button
                     variant="default"
@@ -759,10 +1348,12 @@ const PresupuestoDetalle = () => {
                     {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
                   </Button>
                 </div>
-                {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
+                {errorForm && (
+                  <div className="text-red-500 mt-2">{errorForm}</div>
+                )}
               </div>
             )}
-            
+
             <div className="flex gap-2 mt-6">
               <Button
                 variant="default"
@@ -883,11 +1474,23 @@ const PresupuestoDetalle = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>${safeNumber(presupuesto.subtotal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                    <span>
+                      $
+                      {safeNumber(presupuesto.subtotal).toLocaleString(
+                        "es-AR",
+                        { minimumFractionDigits: 2 }
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
-                    <span>${safeNumber(presupuesto.descuentoTotal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                    <span>
+                      $
+                      {safeNumber(presupuesto.descuentoTotal).toLocaleString(
+                        "es-AR",
+                        { minimumFractionDigits: 2 }
+                      )}
+                    </span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
                   {presupuesto.costoEnvio !== undefined &&
@@ -896,22 +1499,35 @@ const PresupuestoDetalle = () => {
                     Number(presupuesto.costoEnvio) > 0 && (
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
-                        <span>${safeNumber(presupuesto.costoEnvio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                        <span>
+                          $
+                          {safeNumber(presupuesto.costoEnvio).toLocaleString(
+                            "es-AR",
+                            { minimumFractionDigits: 2 }
+                          )}
+                        </span>
                       </div>
                     )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${(() => {
+                      $
+                      {(() => {
                         const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(presupuesto.descuentoTotal);
-                        const envio = presupuesto.costoEnvio !== undefined && 
-                                     presupuesto.costoEnvio !== "" && 
-                                     !isNaN(Number(presupuesto.costoEnvio)) && 
-                                     Number(presupuesto.costoEnvio) > 0 
-                                       ? Number(presupuesto.costoEnvio) 
-                                       : 0;
-                        return (subtotal - descuento + envio).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                        const descuento = safeNumber(
+                          presupuesto.descuentoTotal
+                        );
+                        const envio =
+                          presupuesto.costoEnvio !== undefined &&
+                          presupuesto.costoEnvio !== "" &&
+                          !isNaN(Number(presupuesto.costoEnvio)) &&
+                          Number(presupuesto.costoEnvio) > 0
+                            ? Number(presupuesto.costoEnvio)
+                            : 0;
+                        return (subtotal - descuento + envio).toLocaleString(
+                          "es-AR",
+                          { minimumFractionDigits: 2 }
+                        );
                       })()}
                     </span>
                   </div>
@@ -940,7 +1556,8 @@ const PresupuestoDetalle = () => {
               Convertir Presupuesto a Venta
             </h3>
             <p className="text-gray-600 mb-4">
-              Complete los campos adicionales necesarios para convertir este presupuesto en una venta.
+              Complete los campos adicionales necesarios para convertir este
+              presupuesto en una venta.
             </p>
             <FormularioConvertirVenta
               presupuesto={presupuesto}
@@ -961,26 +1578,27 @@ const PresupuestoDetalle = () => {
                     total: (() => {
                       const subtotal = safeNumber(presupuesto.subtotal);
                       const descuento = safeNumber(presupuesto.descuentoTotal);
-                      const envio = presupuesto.costoEnvio !== undefined && 
-                                   presupuesto.costoEnvio !== "" && 
-                                   !isNaN(Number(presupuesto.costoEnvio)) && 
-                                   Number(presupuesto.costoEnvio) > 0 
-                                     ? Number(presupuesto.costoEnvio) 
-                                     : 0;
+                      const envio =
+                        presupuesto.costoEnvio !== undefined &&
+                        presupuesto.costoEnvio !== "" &&
+                        !isNaN(Number(presupuesto.costoEnvio)) &&
+                        Number(presupuesto.costoEnvio) > 0
+                          ? Number(presupuesto.costoEnvio)
+                          : 0;
                       return subtotal - descuento + envio;
                     })(),
                     observaciones: presupuesto.observaciones,
-                    
+
                     // Datos específicos de venta
                     tipo: "venta",
                     fechaCreacion: new Date().toISOString(),
                     numeroPedido: await getNextVentaNumber(),
-                    
+
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     montoAbonado: ventaCampos.montoAbonado || 0,
-                    
+
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
@@ -989,13 +1607,14 @@ const PresupuestoDetalle = () => {
                     costoEnvio: ventaCampos.costoEnvio,
                     direccionEnvio: ventaCampos.direccionEnvio,
                     localidadEnvio: ventaCampos.localidadEnvio,
-                    usarDireccionCliente: ventaCampos.usarDireccionCliente || true,
-                    
+                    usarDireccionCliente:
+                      ventaCampos.usarDireccionCliente || true,
+
                     // Campos adicionales
                     vendedor: ventaCampos.vendedor,
                     prioridad: ventaCampos.prioridad,
                   };
-                  
+
                   // Limpiar datos antes de guardar (igual que en ventas/page.jsx)
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
@@ -1003,20 +1622,35 @@ const PresupuestoDetalle = () => {
                       return value;
                     })
                   );
-                  
-                  console.log("[DEBUG] Datos limpios para guardar venta desde presupuesto:", cleanVentaData);
-                  
+
+                  console.log(
+                    "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
+                    cleanVentaData
+                  );
+
                   // Guardar venta en Firestore
-                  const docRef = await addDoc(collection(db, "ventas"), cleanVentaData);
-                  
+                  const docRef = await addDoc(
+                    collection(db, "ventas"),
+                    cleanVentaData
+                  );
+
                   // Descontar stock y registrar movimientos (igual que en ventas/page.jsx)
                   for (const prod of cleanVentaData.productos) {
-                    console.log("[DEBUG] Intentando descontar stock para producto:", prod.id);
+                    console.log(
+                      "[DEBUG] Intentando descontar stock para producto:",
+                      prod.id
+                    );
                     const productoRef = doc(db, "productos", prod.id);
-                    const productoSnap = await getDocs(collection(db, "productos"));
-                    const existe = productoSnap.docs.find((d) => d.id === prod.id);
+                    const productoSnap = await getDocs(
+                      collection(db, "productos")
+                    );
+                    const existe = productoSnap.docs.find(
+                      (d) => d.id === prod.id
+                    );
                     if (!existe) {
-                      alert(`El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`);
+                      alert(
+                        `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
+                      );
                       return;
                     }
                     await updateDoc(productoRef, {
@@ -1030,13 +1664,18 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${presupuesto.cliente?.nombre || ""})`,
+                      observaciones: `Salida por venta (${
+                        presupuesto.cliente?.nombre || ""
+                      })`,
                       productoNombre: prod.nombre,
                     });
                   }
-                  
+
                   // Crear envío si corresponde (igual que en ventas/page.jsx)
-                  if (cleanVentaData.tipoEnvio && cleanVentaData.tipoEnvio !== "retiro_local") {
+                  if (
+                    cleanVentaData.tipoEnvio &&
+                    cleanVentaData.tipoEnvio !== "retiro_local"
+                  ) {
                     const envioData = {
                       ventaId: docRef.id,
                       clienteId: cleanVentaData.clienteId,
@@ -1054,12 +1693,16 @@ const PresupuestoDetalle = () => {
                       numeroPedido: cleanVentaData.numeroPedido,
                       totalVenta: cleanVentaData.total,
                       productos: cleanVentaData.productos,
-                      cantidadTotal: cleanVentaData.productos.reduce((acc, p) => acc + p.cantidad, 0),
+                      cantidadTotal: cleanVentaData.productos.reduce(
+                        (acc, p) => acc + p.cantidad,
+                        0
+                      ),
                       historialEstados: [
                         {
                           estado: "pendiente",
                           fecha: new Date().toISOString(),
-                          comentario: "Envío creado automáticamente desde la venta",
+                          comentario:
+                            "Envío creado automáticamente desde la venta",
                         },
                       ],
                       observaciones: cleanVentaData.observaciones,
@@ -1068,16 +1711,24 @@ const PresupuestoDetalle = () => {
                       creadoPor: "sistema",
                     };
                     const cleanEnvioData = Object.fromEntries(
-                      Object.entries(envioData).filter(([_, v]) => v !== undefined)
+                      Object.entries(envioData).filter(
+                        ([_, v]) => v !== undefined
+                      )
                     );
                     await addDoc(collection(db, "envios"), cleanEnvioData);
-                    console.log("Envío creado automáticamente para la venta:", docRef.id);
+                    console.log(
+                      "Envío creado automáticamente para la venta:",
+                      docRef.id
+                    );
                   }
-                  
+
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
-                  console.error("Error al guardar venta desde presupuesto:", error);
+                  console.error(
+                    "Error al guardar venta desde presupuesto:",
+                    error
+                  );
                   alert("Error al guardar venta: " + error.message);
                 }
               }}
@@ -1212,27 +1863,32 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           s
             .typeError("Debe ingresar un monto")
             .min(1, "Debe ingresar un monto")
-            .max((() => {
-              const subtotal = presupuesto.subtotal || 0;
-              const descuento = presupuesto.descuentoTotal || 0;
-              const envio = presupuesto.costoEnvio !== undefined && 
-                           presupuesto.costoEnvio !== "" && 
-                           !isNaN(Number(presupuesto.costoEnvio)) && 
-                           Number(presupuesto.costoEnvio) > 0 
-                             ? Number(presupuesto.costoEnvio) 
-                             : 0;
-              return subtotal - descuento + envio;
-            })(), `No puede exceder el total de $${(() => {
-              const subtotal = presupuesto.subtotal || 0;
-              const descuento = presupuesto.descuentoTotal || 0;
-              const envio = presupuesto.costoEnvio !== undefined && 
-                           presupuesto.costoEnvio !== "" && 
-                           !isNaN(Number(presupuesto.costoEnvio)) && 
-                           Number(presupuesto.costoEnvio) > 0 
-                             ? Number(presupuesto.costoEnvio) 
-                             : 0;
-              return (subtotal - descuento + envio).toFixed(2);
-            })()}`)
+            .max(
+              (() => {
+                const subtotal = presupuesto.subtotal || 0;
+                const descuento = presupuesto.descuentoTotal || 0;
+                const envio =
+                  presupuesto.costoEnvio !== undefined &&
+                  presupuesto.costoEnvio !== "" &&
+                  !isNaN(Number(presupuesto.costoEnvio)) &&
+                  Number(presupuesto.costoEnvio) > 0
+                    ? Number(presupuesto.costoEnvio)
+                    : 0;
+                return subtotal - descuento + envio;
+              })(),
+              `No puede exceder el total de $${(() => {
+                const subtotal = presupuesto.subtotal || 0;
+                const descuento = presupuesto.descuentoTotal || 0;
+                const envio =
+                  presupuesto.costoEnvio !== undefined &&
+                  presupuesto.costoEnvio !== "" &&
+                  !isNaN(Number(presupuesto.costoEnvio)) &&
+                  Number(presupuesto.costoEnvio) > 0
+                    ? Number(presupuesto.costoEnvio)
+                    : 0;
+                return (subtotal - descuento + envio).toFixed(2);
+              })()}`
+            )
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
@@ -1277,7 +1933,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       otherwise: (s) => s.notRequired(),
     }),
   });
-  
+
   // Determinar valores por defecto inteligentes
   const getDefaultValues = () => {
     const defaults = {
@@ -1304,7 +1960,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 
     return defaults;
   };
-  
+
   const {
     register,
     handleSubmit,
@@ -1321,7 +1977,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
-  
+
   // Limpiar montoAbonado si se desmarca pagoParcial
   React.useEffect(() => {
     if (!watch("pagoParcial")) {
@@ -1350,13 +2006,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* Información de envío */}
         <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información de envío
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tipo de envío *
@@ -1371,153 +2026,176 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               <option value="retiro_local">Retiro en local</option>
               <option value="envio_domicilio">Envío a domicilio</option>
               <option value="envio_obra">Envío a obra</option>
-              <option value="transporte_propio">Transporte propio del cliente</option>
+              <option value="transporte_propio">
+                Transporte propio del cliente
+              </option>
             </select>
             {errors.tipoEnvio && (
-              <span className="text-red-500 text-xs">{errors.tipoEnvio.message}</span>
+              <span className="text-red-500 text-xs">
+                {errors.tipoEnvio.message}
+              </span>
             )}
           </div>
-          
-          {tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local" && (
-            <>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="usarDireccionCliente"
-                  {...register("usarDireccionCliente")}
-                />
-                <label htmlFor="usarDireccionCliente" className="text-sm">
-                  Usar dirección del cliente
-                </label>
-              </div>
-              
-              {!usarDireccionCliente && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dirección de envío *
-                    </label>
-                    <Input
-                      {...register("direccionEnvio")}
-                      placeholder="Dirección de envío"
-                      className={`w-full ${
-                        errors.direccionEnvio ? "border-red-500" : ""
-                      }`}
-                    />
-                    {errors.direccionEnvio && (
-                      <span className="text-red-500 text-xs">{errors.direccionEnvio.message}</span>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Localidad *
-                    </label>
-                    <Input
-                      {...register("localidadEnvio")}
-                      placeholder="Localidad/Ciudad"
-                      className={`w-full ${
-                        errors.localidadEnvio ? "border-red-500" : ""
-                      }`}
-                    />
-                    {errors.localidadEnvio && (
-                      <span className="text-red-500 text-xs">{errors.localidadEnvio.message}</span>
-                    )}
-                  </div>
-                </>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Transportista *
-                </label>
-                <select
-                  {...register("transportista")}
-                  className={`w-full border rounded-md px-3 py-2 ${
-                    errors.transportista ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Seleccionar transportista...</option>
-                  {transportistas.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-                {errors.transportista && (
-                  <span className="text-red-500 text-xs">{errors.transportista.message}</span>
+
+          {tipoEnvioSeleccionado &&
+            tipoEnvioSeleccionado !== "retiro_local" && (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="usarDireccionCliente"
+                    {...register("usarDireccionCliente")}
+                  />
+                  <label htmlFor="usarDireccionCliente" className="text-sm">
+                    Usar dirección del cliente
+                  </label>
+                </div>
+
+                {!usarDireccionCliente && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dirección de envío *
+                      </label>
+                      <Input
+                        {...register("direccionEnvio")}
+                        placeholder="Dirección de envío"
+                        className={`w-full ${
+                          errors.direccionEnvio ? "border-red-500" : ""
+                        }`}
+                      />
+                      {errors.direccionEnvio && (
+                        <span className="text-red-500 text-xs">
+                          {errors.direccionEnvio.message}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Localidad *
+                      </label>
+                      <Input
+                        {...register("localidadEnvio")}
+                        placeholder="Localidad/Ciudad"
+                        className={`w-full ${
+                          errors.localidadEnvio ? "border-red-500" : ""
+                        }`}
+                      />
+                      {errors.localidadEnvio && (
+                        <span className="text-red-500 text-xs">
+                          {errors.localidadEnvio.message}
+                        </span>
+                      )}
+                    </div>
+                  </>
                 )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Costo de envío
-                </label>
-                <Input
-                  {...register("costoEnvio")}
-                  placeholder="Costo de envío"
-                  type="number"
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de entrega *
-                </label>
-                <Input
-                  {...register("fechaEntrega")}
-                  placeholder="Fecha de entrega"
-                  type="date"
-                  className={`w-full ${
-                    errors.fechaEntrega ? "border-red-500" : ""
-                  }`}
-                  value={
-                    watch("fechaEntrega")
-                      ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
-                      : ""
-                  }
-                />
-                {errors.fechaEntrega && (
-                  <span className="text-red-500 text-xs">{errors.fechaEntrega.message}</span>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rango horario *
-                </label>
-                <Input
-                  {...register("rangoHorario")}
-                  placeholder="Rango horario (ej: 8-12, 14-18)"
-                  className={`w-full ${
-                    errors.rangoHorario ? "border-red-500" : ""
-                  }`}
-                />
-                {errors.rangoHorario && (
-                  <span className="text-red-500 text-xs">{errors.rangoHorario.message}</span>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prioridad *
-                </label>
-                <select
-                  {...register("prioridad")}
-                  className={`w-full border rounded-md px-3 py-2 ${
-                    errors.prioridad ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Seleccionar prioridad...</option>
-                  {prioridades.map((p) => (
-                    <option key={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                  ))}
-                </select>
-                {errors.prioridad && (
-                  <span className="text-red-500 text-xs">{errors.prioridad.message}</span>
-                )}
-              </div>
-            </>
-          )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transportista *
+                  </label>
+                  <select
+                    {...register("transportista")}
+                    className={`w-full border rounded-md px-3 py-2 ${
+                      errors.transportista
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Seleccionar transportista...</option>
+                    {transportistas.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                  {errors.transportista && (
+                    <span className="text-red-500 text-xs">
+                      {errors.transportista.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Costo de envío
+                  </label>
+                  <Input
+                    {...register("costoEnvio")}
+                    placeholder="Costo de envío"
+                    type="number"
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de entrega *
+                  </label>
+                  <Input
+                    {...register("fechaEntrega")}
+                    placeholder="Fecha de entrega"
+                    type="date"
+                    className={`w-full ${
+                      errors.fechaEntrega ? "border-red-500" : ""
+                    }`}
+                    value={
+                      watch("fechaEntrega")
+                        ? new Date(watch("fechaEntrega"))
+                            .toISOString()
+                            .split("T")[0]
+                        : ""
+                    }
+                  />
+                  {errors.fechaEntrega && (
+                    <span className="text-red-500 text-xs">
+                      {errors.fechaEntrega.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rango horario *
+                  </label>
+                  <Input
+                    {...register("rangoHorario")}
+                    placeholder="Rango horario (ej: 8-12, 14-18)"
+                    className={`w-full ${
+                      errors.rangoHorario ? "border-red-500" : ""
+                    }`}
+                  />
+                  {errors.rangoHorario && (
+                    <span className="text-red-500 text-xs">
+                      {errors.rangoHorario.message}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prioridad *
+                  </label>
+                  <select
+                    {...register("prioridad")}
+                    className={`w-full border rounded-md px-3 py-2 ${
+                      errors.prioridad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Seleccionar prioridad...</option>
+                    {prioridades.map((p) => (
+                      <option key={p}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.prioridad && (
+                    <span className="text-red-500 text-xs">
+                      {errors.prioridad.message}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
         </div>
 
         {/* Condiciones de pago y entrega */}
@@ -1543,10 +2221,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               <option value="otro">Otro</option>
             </select>
             {errors.formaPago && (
-              <span className="text-red-500 text-xs">{errors.formaPago.message}</span>
+              <span className="text-red-500 text-xs">
+                {errors.formaPago.message}
+              </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -1557,7 +2237,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               ¿Pago parcial?
             </label>
           </div>
-          
+
           {watch("pagoParcial") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1569,26 +2249,30 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 max={(() => {
                   const subtotal = presupuesto.subtotal || 0;
                   const descuento = presupuesto.descuentoTotal || 0;
-                  const envio = presupuesto.costoEnvio !== undefined && 
-                               presupuesto.costoEnvio !== "" && 
-                               !isNaN(Number(presupuesto.costoEnvio)) && 
-                               Number(presupuesto.costoEnvio) > 0 
-                                 ? Number(presupuesto.costoEnvio) 
-                                 : 0;
+                  const envio =
+                    presupuesto.costoEnvio !== undefined &&
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    Number(presupuesto.costoEnvio) > 0
+                      ? Number(presupuesto.costoEnvio)
+                      : 0;
                   return subtotal - descuento + envio;
                 })()}
                 placeholder={`Saldo pendiente: $${(() => {
                   // Calcular el total completo incluyendo envío
                   const subtotal = presupuesto.subtotal || 0;
                   const descuento = presupuesto.descuentoTotal || 0;
-                  const envio = presupuesto.costoEnvio !== undefined && 
-                               presupuesto.costoEnvio !== "" && 
-                               !isNaN(Number(presupuesto.costoEnvio)) && 
-                               Number(presupuesto.costoEnvio) > 0 
-                                 ? Number(presupuesto.costoEnvio) 
-                                 : 0;
+                  const envio =
+                    presupuesto.costoEnvio !== undefined &&
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    Number(presupuesto.costoEnvio) > 0
+                      ? Number(presupuesto.costoEnvio)
+                      : 0;
                   const total = subtotal - descuento + envio;
-                  const montoAbonado = watch("montoAbonado") ? Number(watch("montoAbonado")) : 0;
+                  const montoAbonado = watch("montoAbonado")
+                    ? Number(watch("montoAbonado"))
+                    : 0;
                   return (total - montoAbonado).toFixed(2);
                 })()}`}
                 {...register("montoAbonado")}
@@ -1597,7 +2281,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 }`}
               />
               {errors.montoAbonado && (
-                <span className="text-red-500 text-xs">{errors.montoAbonado.message}</span>
+                <span className="text-red-500 text-xs">
+                  {errors.montoAbonado.message}
+                </span>
               )}
             </div>
           )}
@@ -1608,7 +2294,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Vendedor responsable *
@@ -1625,12 +2311,14 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               ))}
             </select>
             {errors.vendedor && (
-              <span className="text-red-500 text-xs">{errors.vendedor.message}</span>
+              <span className="text-red-500 text-xs">
+                {errors.vendedor.message}
+              </span>
             )}
           </div>
         </div>
       </div>
-      
+
       <div className="flex gap-3 justify-end">
         <Button
           variant="outline"
