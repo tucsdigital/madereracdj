@@ -245,14 +245,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     }
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
       let precio;
-      
+
       // Para productos de madera, usar cálculo especial
       if (real.categoria === "Maderas") {
         let alto = Number(real.alto) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
         let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
-        
+
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
             alto,
@@ -282,7 +282,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             0;
         }
       }
-      
+
       setProductosSeleccionados([
         ...productosSeleccionados,
         {
@@ -316,6 +316,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
         p.id === id ? { ...p, cantidad: Number(cantidad) } : p
+      )
+    );
+  };
+  const handleIncrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p
+      )
+    );
+  };
+  const handleDecrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) } : p
       )
     );
   };
@@ -814,21 +828,39 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      <svg
+                        className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                        />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Productos</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Selecciona los productos para tu venta</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Productos
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Selecciona los productos para tu venta
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{productosSeleccionados.length}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">productos agregados</div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {productosSeleccionados.length}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      productos agregados
+                    </div>
                   </div>
                 </div>
-                
+
                 {/* Filtros mejorados */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Filtro de categorías */}
@@ -837,24 +869,39 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       {categoriasState.map((categoria) => (
                         <button
                           key={categoria}
-                          onClick={() => setCategoriaId(categoria)}
-                          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                            categoriaId === categoria
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-                          }`}
+                          type="button"
+                          variant={categoriaId === categoria ? "default" : "soft"}
+                          size="sm"
+                          color={categoriaId === categoria ? "primary" : "secondary"}
+                          className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCategoriaId(categoria);
+                          }}
+                          disabled={isSubmitting}
                         >
-                          {categoria === "Maderas" ? "🌲 Maderas" : "🔧 Ferretería"}
+                          {categoria}
                         </button>
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Buscador mejorado */}
                   <div className="flex-1 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      <svg
+                        className="h-5 w-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
                       </svg>
                     </div>
                     <input
@@ -873,62 +920,116 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 {categoriasState.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay categorías disponibles</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Agrega productos a las categorías para comenzar</p>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      No hay categorías disponibles
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Agrega productos a las categorías para comenzar
+                    </p>
                   </div>
                 ) : !categoriaId ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-8 h-8 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Selecciona una categoría</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Elige una categoría para ver los productos disponibles</p>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      Selecciona una categoría
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Elige una categoría para ver los productos disponibles
+                    </p>
                   </div>
                 ) : productosPorCategoria[categoriaId]?.filter(
-                  (prod) =>
-                    prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                    (prod.unidadMedida || "").toLowerCase().includes(busquedaProducto.toLowerCase())
-                ).length === 0 ? (
+                    (prod) =>
+                      prod.nombre
+                        .toLowerCase()
+                        .includes(busquedaProducto.toLowerCase()) ||
+                      (prod.unidadMedida || "")
+                        .toLowerCase()
+                        .includes(busquedaProducto.toLowerCase())
+                  ).length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      <svg
+                        className="w-8 h-8 text-yellow-600 dark:text-yellow-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No se encontraron productos</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Intenta cambiar los filtros o la búsqueda</p>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      No se encontraron productos
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Intenta cambiar los filtros o la búsqueda
+                    </p>
                   </div>
                 ) : (
                   <div className="grid gap-3 p-4">
                     {productosPorCategoria[categoriaId]
                       ?.filter(
                         (prod) =>
-                          prod.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
-                          (prod.unidadMedida || "").toLowerCase().includes(busquedaProducto.toLowerCase())
+                          prod.nombre
+                            .toLowerCase()
+                            .includes(busquedaProducto.toLowerCase()) ||
+                          (prod.unidadMedida || "")
+                            .toLowerCase()
+                            .includes(busquedaProducto.toLowerCase())
                       )
                       .map((prod) => {
-                        const yaAgregado = productosSeleccionados.some((p) => p.id === prod.id);
+                        const yaAgregado = productosSeleccionados.some(
+                          (p) => p.id === prod.id
+                        );
                         const precio = (() => {
                           if (prod.categoria === "Maderas") {
                             return prod.precioPorPie || 0;
                           } else if (prod.categoria === "Ferretería") {
                             return prod.valorVenta || 0;
                           } else {
-                            return prod.precioUnidad ||
+                            return (
+                              prod.precioUnidad ||
                               prod.precioUnidadVenta ||
                               prod.precioUnidadHerraje ||
                               prod.precioUnidadQuimico ||
                               prod.precioUnidadHerramienta ||
-                              0;
+                              0
+                            );
                           }
                         })();
-                        
+
                         return (
                           <div
                             key={prod.id}
@@ -942,92 +1043,179 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                      prod.categoria === "Maderas" 
-                                        ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" 
-                                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                    }`}>
-                                      {prod.categoria === "Maderas" ? "🌲" : "🔧"}
+                                    <div
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                        prod.categoria === "Maderas"
+                                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                      }`}
+                                    >
+                                      {prod.categoria === "Maderas"
+                                        ? "🌲"
+                                        : "🔧"}
                                     </div>
                                     <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {prod.nombre}
                                     </h4>
                                     {yaAgregado && (
                                       <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clipRule="evenodd"
+                                          />
                                         </svg>
-                                        <span className="text-xs font-medium">Agregado</span>
+                                        <span className="text-xs font-medium">
+                                          Agregado
+                                        </span>
                                       </div>
                                     )}
                                   </div>
-                                  
+
                                   <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
                                     <div>
-                                      <span className="font-medium">Precio:</span>
-                                      <span className="ml-1 font-bold text-blue-600 dark:text-blue-400">${precio.toLocaleString()}</span>
+                                      <span className="font-medium">
+                                        Precio:
+                                      </span>
+                                      <span className="ml-1 font-bold text-blue-600 dark:text-blue-400">
+                                        ${precio.toLocaleString()}
+                                      </span>
                                     </div>
                                     <div>
-                                      <span className="font-medium">Unidad:</span>
-                                      <span className="ml-1">{prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta}</span>
+                                      <span className="font-medium">
+                                        Unidad:
+                                      </span>
+                                      <span className="ml-1">
+                                        {prod.unidadMedida ||
+                                          prod.unidadVenta ||
+                                          prod.unidadVentaHerraje ||
+                                          prod.unidadVentaQuimico ||
+                                          prod.unidadVentaHerramienta}
+                                      </span>
                                     </div>
                                     <div>
-                                      <span className="font-medium">Stock:</span>
-                                      <span className={`ml-1 font-bold ${
-                                        prod.stock > 10 ? "text-green-600 dark:text-green-400" : 
-                                        prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"
-                                      }`}>
+                                      <span className="font-medium">
+                                        Stock:
+                                      </span>
+                                      <span
+                                        className={`ml-1 font-bold ${
+                                          prod.stock > 10
+                                            ? "text-green-600 dark:text-green-400"
+                                            : prod.stock > 0
+                                            ? "text-yellow-600 dark:text-yellow-400"
+                                            : "text-red-600 dark:text-red-400"
+                                        }`}
+                                      >
                                         {prod.stock}
                                       </span>
                                     </div>
                                     {prod.categoria === "Maderas" && (
                                       <div>
-                                        <span className="font-medium">$/pie:</span>
-                                        <span className="ml-1 font-bold text-orange-600 dark:text-orange-400">{prod.precioPorPie}</span>
+                                        <span className="font-medium">
+                                          $/pie:
+                                        </span>
+                                        <span className="ml-1 font-bold text-orange-600 dark:text-orange-400">
+                                          {prod.precioPorPie}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Dimensiones para maderas */}
                                   {prod.categoria === "Maderas" && (
                                     <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
                                       <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
-                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
+                                        <svg
+                                          className="w-3 h-3"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                                            clipRule="evenodd"
+                                          />
                                         </svg>
-                                        <span className="font-medium">Dimensiones</span>
+                                        <span className="font-medium">
+                                          Dimensiones
+                                        </span>
                                       </div>
                                       <div className="flex gap-3 text-xs">
-                                        <span>Alto: <span className="font-bold">{prod.alto || 0}</span> cm</span>
-                                        <span>Ancho: <span className="font-bold">{prod.ancho || 0}</span> cm</span>
-                                        <span>Largo: <span className="font-bold">{prod.largo || 0}</span> cm</span>
+                                        <span>
+                                          Alto:{" "}
+                                          <span className="font-bold">
+                                            {prod.alto || 0}
+                                          </span>{" "}
+                                          cm
+                                        </span>
+                                        <span>
+                                          Ancho:{" "}
+                                          <span className="font-bold">
+                                            {prod.ancho || 0}
+                                          </span>{" "}
+                                          cm
+                                        </span>
+                                        <span>
+                                          Largo:{" "}
+                                          <span className="font-bold">
+                                            {prod.largo || 0}
+                                          </span>{" "}
+                                          cm
+                                        </span>
                                       </div>
                                     </div>
                                   )}
-                                  
+
                                   {/* Alertas de stock */}
                                   {prod.stock <= 0 && (
                                     <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700">
                                       <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
-                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        <svg
+                                          className="w-3 h-3"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                            clipRule="evenodd"
+                                          />
                                         </svg>
-                                        <span className="font-medium">¡Sin stock! Se permitirá avanzar igual.</span>
+                                        <span className="font-medium">
+                                          ¡Sin stock! Se permitirá avanzar
+                                          igual.
+                                        </span>
                                       </div>
                                     </div>
                                   )}
                                   {prod.stock > 0 && prod.stock <= 3 && (
                                     <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
                                       <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
-                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        <svg
+                                          className="w-3 h-3"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                            clipRule="evenodd"
+                                          />
                                         </svg>
-                                        <span className="font-medium">Stock bajo: quedan {prod.stock} unidades.</span>
+                                        <span className="font-medium">
+                                          Stock bajo: quedan {prod.stock}{" "}
+                                          unidades.
+                                        </span>
                                       </div>
                                     </div>
                                   )}
                                 </div>
-                                
+
                                 <div className="flex flex-col items-end gap-2 ml-4">
                                   <button
                                     onClick={() => {
@@ -1038,15 +1226,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;
                                           const largo = Number(prod.largo) || 0;
-                                          const precioPorPie = Number(prod.precioPorPie) || 0;
-                                          
-                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                            const precio = calcularPrecioCorteMadera({
-                                              alto,
-                                              ancho,
-                                              largo,
-                                              precioPorPie,
-                                            });
+                                          const precioPorPie =
+                                            Number(prod.precioPorPie) || 0;
+
+                                          if (
+                                            alto > 0 &&
+                                            ancho > 0 &&
+                                            largo > 0 &&
+                                            precioPorPie > 0
+                                          ) {
+                                            const precio =
+                                              calcularPrecioCorteMadera({
+                                                alto,
+                                                ancho,
+                                                largo,
+                                                precioPorPie,
+                                              });
                                             handleAgregarProducto({
                                               id: prod.id,
                                               nombre: prod.nombre,
@@ -1060,7 +1255,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             });
                                           } else {
                                             setSubmitStatus("error");
-                                            setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+                                            setSubmitMessage(
+                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                            );
                                             return;
                                           }
                                         } else {
@@ -1068,7 +1265,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             id: prod.id,
                                             nombre: prod.nombre,
                                             precio: precio,
-                                            unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+                                            unidad:
+                                              prod.unidadMedida ||
+                                              prod.unidadVenta ||
+                                              prod.unidadVentaHerraje ||
+                                              prod.unidadVentaQuimico ||
+                                              prod.unidadVentaHerramienta,
                                             stock: prod.stock,
                                           });
                                         }
@@ -1083,15 +1285,35 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   >
                                     {yaAgregado ? (
                                       <>
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M6 18L18 6M6 6l12 12"
+                                          />
                                         </svg>
                                         Quitar
                                       </>
                                     ) : (
                                       <>
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M12 4v16m8-8H4"
+                                          />
                                         </svg>
                                         Agregar
                                       </>
@@ -1680,14 +1902,14 @@ export function SelectorProductosPresupuesto({
     if (!real) return;
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
       let precio;
-      
+
       // Para productos de madera, usar cálculo especial
       if (real.categoria === "Maderas") {
         let alto = Number(real.alto) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
         let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
-        
+
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
             alto,
@@ -1717,7 +1939,7 @@ export function SelectorProductosPresupuesto({
             0;
         }
       }
-      
+
       setProductosSeleccionados([
         ...productosSeleccionados,
         {
@@ -1751,6 +1973,20 @@ export function SelectorProductosPresupuesto({
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
         p.id === id ? { ...p, cantidad: Number(cantidad) } : p
+      )
+    );
+  };
+  const handleIncrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p
+      )
+    );
+  };
+  const handleDecrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) } : p
       )
     );
   };
@@ -1797,7 +2033,11 @@ export function SelectorProductosPresupuesto({
             size="sm"
             color={categoriaId === cat ? "primary" : "secondary"}
             className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
-            onClick={() => setCategoriaId(cat)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setCategoriaId(cat);
+            }}
             disabled={isSubmitting}
           >
             {cat}
@@ -1841,18 +2081,21 @@ export function SelectorProductosPresupuesto({
                         {prod.unidadMedida}
                       </div>
                       <div className="col-span-2 font-bold text-primary">
-                        ${(() => {
+                        $
+                        {(() => {
                           if (prod.categoria === "Maderas") {
                             return prod.precioPorPie || 0; // Corregido: usar solo precioPorPie
                           } else if (prod.categoria === "Ferretería") {
                             return prod.valorVenta || 0;
                           } else {
-                            return prod.precioUnidad ||
+                            return (
+                              prod.precioUnidad ||
                               prod.precioUnidadVenta ||
                               prod.precioUnidadHerraje ||
                               prod.precioUnidadQuimico ||
                               prod.precioUnidadHerramienta ||
-                              0;
+                              0
+                            );
                           }
                         })()}
                       </div>
@@ -1927,12 +2170,14 @@ export function SelectorProductosPresupuesto({
                                   if (prod.categoria === "Ferretería") {
                                     return prod.valorVenta || 0;
                                   } else {
-                                    return prod.precioUnidad ||
+                                    return (
+                                      prod.precioUnidad ||
                                       prod.precioUnidadVenta ||
                                       prod.precioUnidadHerraje ||
                                       prod.precioUnidadQuimico ||
                                       prod.precioUnidadHerramienta ||
-                                      0;
+                                      0
+                                    );
                                   }
                                 })(),
                                 unidad:
@@ -1997,18 +2242,21 @@ export function SelectorProductosPresupuesto({
                           prod.unidadVentaHerramienta}
                       </div>
                       <div className="col-span-2 font-bold text-primary">
-                        ${(() => {
+                        $
+                        {(() => {
                           if (prod.categoria === "Maderas") {
                             return prod.precioUnidad || prod.precioPorPie || 0;
                           } else if (prod.categoria === "Ferretería") {
                             return prod.valorVenta || 0;
                           } else {
-                            return prod.precioUnidad ||
+                            return (
+                              prod.precioUnidad ||
                               prod.precioUnidadVenta ||
                               prod.precioUnidadHerraje ||
                               prod.precioUnidadQuimico ||
                               prod.precioUnidadHerramienta ||
-                              0;
+                              0
+                            );
                           }
                         })()}
                       </div>
@@ -2040,12 +2288,14 @@ export function SelectorProductosPresupuesto({
                                 } else if (prod.categoria === "Ferretería") {
                                   return prod.valorVenta || 0;
                                 } else {
-                                  return prod.precioUnidad ||
+                                  return (
+                                    prod.precioUnidad ||
                                     prod.precioUnidadVenta ||
                                     prod.precioUnidadHerraje ||
                                     prod.precioUnidadQuimico ||
                                     prod.precioUnidadHerramienta ||
-                                    0;
+                                    0
+                                  );
                                 }
                               })(),
                               unidad:
@@ -2137,16 +2387,40 @@ export function SelectorProductosPresupuesto({
                     )}
                   </td>
                   <td className="text-center">
-                    <Input
-                      type="number"
-                      min={1}
-                      value={p.cantidad}
-                      onChange={(e) =>
-                        handleCantidadChange(p.id, e.target.value)
-                      }
-                      className="w-28 mx-auto text-center text-lg font-bold"
-                      disabled={isSubmitting}
-                    />
+                    <div className="flex items-center justify-center">
+                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                        <button
+                          type="button"
+                          onClick={() => handleDecrementarCantidad(p.id)}
+                          disabled={isSubmitting || p.cantidad <= 1}
+                          className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                          </svg>
+                        </button>
+                        
+                        <input
+                          type="number"
+                          min={1}
+                          value={p.cantidad}
+                          onChange={(e) => handleCantidadChange(p.id, e.target.value)}
+                          className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                          disabled={isSubmitting}
+                        />
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleIncrementarCantidad(p.id)}
+                          disabled={isSubmitting}
+                          className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </td>
                   <td className="text-center">${p.precio}</td>
                   <td className="text-center">
