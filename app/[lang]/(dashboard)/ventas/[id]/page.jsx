@@ -544,10 +544,10 @@ const VentaDetalle = () => {
               className="text-2xl font-bold text-gray-900"
               style={{ letterSpacing: 1 }}
             >
-              Maderera CJ&D
+              Maderera Caballero
             </h1>
             <div className="text-gray-600 text-sm">Venta / Comprobante</div>
-            <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
+            <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
           </div>
           <div className="ml-auto text-right">
             <div className="text-xs text-gray-500">

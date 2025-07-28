@@ -468,12 +468,12 @@ const PresupuestoDetalle = () => {
               className="text-2xl font-bold text-gray-900"
               style={{ letterSpacing: 1 }}
             >
-              Maderera CJ&D
+              Maderera Caballero
             </h1>
             <div className="text-gray-600 text-sm">
               Presupuesto / Cotización
             </div>
-            <div className="text-gray-500 text-xs">www.madereracjd.com.ar</div>
+            <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
           </div>
           {/* Header profesional: solo mostrar número de pedido */}
           <div className="ml-auto text-right">
