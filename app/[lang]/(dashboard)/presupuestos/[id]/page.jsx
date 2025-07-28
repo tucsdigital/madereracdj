@@ -141,19 +141,17 @@ const PresupuestoDetalle = () => {
   useEffect(() => {
     if (editando && presupuesto) {
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
-
-      // Si hay costo de envío pero no tipo de envío, establecer automáticamente como envío a domicilio
-      if (
-        presupuestoClonado.costoEnvio &&
-        presupuestoClonado.costoEnvio > 0 &&
-        !presupuestoClonado.tipoEnvio
-      ) {
-        presupuestoClonado.tipoEnvio = "envio_domicilio";
+      // Asegurar que clienteId y cliente estén presentes
+      if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
+        presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
       }
-
+      if (!presupuestoClonado.cliente && presupuestoClonado.clienteId) {
+        const clienteObj = clientes.find(c => c.id === presupuestoClonado.clienteId || c.cuit === presupuestoClonado.clienteId);
+        if (clienteObj) presupuestoClonado.cliente = clienteObj;
+      }
       setPresupuestoEdit(presupuestoClonado);
     }
-  }, [editando, presupuesto]);
+  }, [editando, presupuesto, clientes]);
 
   // 5. Función para actualizar precios
   const handleActualizarPrecios = async () => {
@@ -204,8 +202,12 @@ const PresupuestoDetalle = () => {
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
-    // Validaciones básicas
-    if (!presupuestoEdit.clienteId || !presupuestoEdit.cliente?.nombre) {
+    // Validaciones mejoradas de cliente
+    if (
+      !presupuestoEdit.cliente ||
+      !presupuestoEdit.cliente.nombre ||
+      presupuestoEdit.cliente.nombre.trim() === ""
+    ) {
       setErrorForm("Selecciona un cliente válido.");
       return;
     }
@@ -223,7 +225,6 @@ const PresupuestoDetalle = () => {
         return;
       }
     }
-
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
@@ -239,7 +240,6 @@ const PresupuestoDetalle = () => {
             (Number(p.descuento || 0) / 100),
         0
       );
-      // Calcular costo de envío solo si no es retiro local
       const costoEnvioCalculado =
         presupuestoEdit.tipoEnvio &&
         presupuestoEdit.tipoEnvio !== "retiro_local" &&
@@ -249,13 +249,10 @@ const PresupuestoDetalle = () => {
           ? Number(presupuestoEdit.costoEnvio)
           : 0;
       const total = subtotal - descuentoTotal + costoEnvioCalculado;
-
-      // Generar número de pedido si no existe
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
       }
-
       const docRef = doc(db, "presupuestos", presupuestoEdit.id);
       await updateDoc(docRef, {
         ...presupuestoEdit,
@@ -267,7 +264,6 @@ const PresupuestoDetalle = () => {
         numeroPedido,
         fechaActualizacion: new Date().toISOString(),
       });
-
       setPresupuesto({
         ...presupuestoEdit,
         subtotal,
@@ -648,10 +644,7 @@ const PresupuestoDetalle = () => {
                         ...presupuestoEdit,
                         tipoEnvio: e.target.value,
                         // Si se selecciona retiro local, limpiar costo de envío
-                        costoEnvio:
-                          e.target.value === "retiro_local"
-                            ? ""
-                            : presupuestoEdit.costoEnvio,
+                        costoEnvio: e.target.value === "retiro_local" ? "" : presupuestoEdit.costoEnvio,
                       })
                     }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -665,27 +658,25 @@ const PresupuestoDetalle = () => {
                     </option>
                   </select>
                 </div>
-
-                {presupuestoEdit.tipoEnvio &&
-                  presupuestoEdit.tipoEnvio !== "retiro_local" && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Costo de envío
-                      </label>
-                      <Input
-                        type="number"
-                        value={presupuestoEdit.costoEnvio || ""}
-                        onChange={(e) =>
-                          setPresupuestoEdit({
-                            ...presupuestoEdit,
-                            costoEnvio: e.target.value,
-                          })
-                        }
-                        placeholder="Costo de envío"
-                        className="w-full"
-                      />
-                    </div>
-                  )}
+                {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Costo de envío
+                    </label>
+                    <Input
+                      type="number"
+                      value={presupuestoEdit.costoEnvio || ""}
+                      onChange={(e) =>
+                        setPresupuestoEdit({
+                          ...presupuestoEdit,
+                          costoEnvio: e.target.value,
+                        })
+                      }
+                      placeholder="Costo de envío"
+                      className="w-full"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -1160,6 +1151,101 @@ const PresupuestoDetalle = () => {
                 {errorForm && (
                   <div className="text-red-500 mt-2">{errorForm}</div>
                 )}
+                {(presupuestoEdit.productos || []).length > 0 && (
+                  <div className="flex flex-col items-end gap-2 mt-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                      <div>
+                        Subtotal: <span className="font-bold">
+                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        Descuento: <span className="font-bold">
+                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
+                        </span>
+                      </div>
+                      {presupuestoEdit.costoEnvio && Number(presupuestoEdit.costoEnvio) > 0 && (
+                        <div>
+                          Costo de envío: <span className="font-bold">
+                            ${Number(presupuestoEdit.costoEnvio).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        Total: <span className="font-bold text-primary">
+                          ${(
+                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
+                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
+                            (Number(presupuestoEdit.costoEnvio) || 0)
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(() => {
+                  const subtotal = (presupuestoEdit.productos || []).reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0);
+                  const descuento = (presupuestoEdit.productos || []).reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0);
+                  const envio = Number(presupuestoEdit.costoEnvio) || 0;
+                  const total = subtotal - descuento + envio;
+                  const abonado = Number(presupuestoEdit.montoAbonado || 0);
+                  const saldo = total - abonado;
+                  if (saldo > 0) {
+                    return (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
+                        <h4 className="font-semibold text-yellow-800 mb-2">Saldo pendiente: ${saldo.toFixed(2)}</h4>
+                        <div className="flex flex-col md:flex-row gap-2 items-end">
+                          <input
+                            type="number"
+                            min={1}
+                            max={saldo}
+                            placeholder="Monto a abonar"
+                            className="border rounded px-2 py-1"
+                            value={presupuestoEdit.nuevoPagoMonto || ""}
+                            onChange={e =>
+                              setPresupuestoEdit(prev => ({ ...prev, nuevoPagoMonto: e.target.value }))
+                            }
+                          />
+                          <select
+                            className="border rounded px-2 py-1"
+                            value={presupuestoEdit.nuevoPagoMetodo || ""}
+                            onChange={e =>
+                              setPresupuestoEdit(prev => ({ ...prev, nuevoPagoMetodo: e.target.value }))
+                            }
+                          >
+                            <option value="">Método de pago</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="otro">Otro</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="bg-green-600 text-white px-4 py-1 rounded"
+                            onClick={() => {
+                              setPresupuestoEdit(prev => ({
+                                ...prev,
+                                montoAbonado: Number(prev.montoAbonado || 0) + Number(prev.nuevoPagoMonto),
+                                nuevoPagoMonto: "",
+                                nuevoPagoMetodo: "",
+                              }));
+                            }}
+                            disabled={
+                              !presupuestoEdit.nuevoPagoMonto ||
+                              !presupuestoEdit.nuevoPagoMetodo ||
+                              Number(presupuestoEdit.nuevoPagoMonto) <= 0 ||
+                              Number(presupuestoEdit.nuevoPagoMonto) > saldo
+                            }
+                          >
+                            Registrar pago
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>
