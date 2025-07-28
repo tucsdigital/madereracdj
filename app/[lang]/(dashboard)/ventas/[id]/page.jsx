@@ -828,8 +828,104 @@ const VentaDetalle = () => {
           )}
         </div>
 
-        {/* 4. Productos y servicios */}
-        {/* BLOQUE ELIMINADO: Tabla antigua de productos y servicios y totales. Ahora solo se usa el bloque moderno en modo edición. */}
+        {/* Productos y Servicios */}
+        {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
+        (Array.isArray(venta.items) && venta.items.length > 0) ? (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+              Productos y Servicios
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-100 border-b">
+                    <th className="text-left p-3 font-medium">Producto</th>
+                    <th className="text-center p-3 font-medium">Cantidad</th>
+                    <th className="text-center p-3 font-medium">Unidad</th>
+                    <th className="text-right p-3 font-medium">Precio Unit.</th>
+                    <th className="text-right p-3 font-medium">Descuento</th>
+                    <th className="text-right p-3 font-medium">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(venta.productos || venta.items).map((producto, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">
+                        {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                      </td>
+                      <td className="p-3 text-center">{Number(producto.cantidad)}</td>
+                      <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                      <td className="p-3 text-right">
+                        ${Number(producto.precio).toFixed(2)}
+                      </td>
+                      <td className="p-3 text-right">
+                        {Number(producto.descuento || 0).toFixed(2)}%
+                      </td>
+                      <td className="p-3 text-right font-medium">
+                        $
+                        {(
+                          Number(producto.precio) *
+                          Number(producto.cantidad) *
+                          (1 - Number(producto.descuento || 0) / 100)
+                        ).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Totales */}
+            <div className="mt-6 flex justify-end">
+              <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>
+                      $
+                      {Number(venta.subtotal || 0).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Descuento total:</span>
+                    <span>
+                      $
+                      {Number(venta.descuentoTotal || 0).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                  {venta.costoEnvio !== undefined &&
+                    venta.costoEnvio !== "" &&
+                    !isNaN(Number(venta.costoEnvio)) &&
+                    Number(venta.costoEnvio) > 0 && (
+                      <div className="flex justify-between">
+                        <span>Cotización de envío:</span>
+                        <span>
+                          $
+                          {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span className="text-primary">
+                      $
+                      {(
+                        Number(venta.subtotal || 0) -
+                        Number(venta.descuentoTotal || 0) +
+                        (Number(venta.costoEnvio) || 0)
+                      ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* 5. Observaciones */}
         {venta.observaciones && (
