@@ -289,6 +289,44 @@ export const columnsVentas = [
     }
   },
   {
+    accessorKey: "estadoPago",
+    header: "Estado Pago",
+    cell: ({ row }) => {
+      const venta = row.original;
+      const total = venta.total || 0;
+      
+      // Calcular monto abonado correctamente: priorizar array pagos, sino usar montoAbonado
+      const montoAbonado = Array.isArray(venta.pagos) && venta.pagos.length > 0
+        ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+        : Number(venta.montoAbonado || 0);
+      
+      const saldoPendiente = total - montoAbonado;
+      
+      // Determinar estado de pago
+      let estadoPago, color, texto;
+      
+      if (montoAbonado >= total) {
+        estadoPago = "completo";
+        color = "bg-green-100 text-green-800 border-green-200";
+        texto = "Completo";
+      } else if (montoAbonado > 0) {
+        estadoPago = "parcial";
+        color = "bg-yellow-100 text-yellow-800 border-yellow-200";
+        texto = `Parcial (Falta $${saldoPendiente.toFixed(2)})`;
+      } else {
+        estadoPago = "pendiente";
+        color = "bg-red-100 text-red-800 border-red-200";
+        texto = `Pendiente ($${total.toFixed(2)})`;
+      }
+      
+      return (
+        <span className={`inline-block px-2 py-1 rounded border ${color} font-medium text-xs`}>
+          {texto}
+        </span>
+      );
+    }
+  },
+  {
     accessorKey: "tipoEnvio",
     header: "Tipo Envío",
     cell: ({ row }) => {
