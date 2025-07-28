@@ -851,10 +851,16 @@ const VentaDetalle = () => {
                   {(venta.productos || venta.items).map((producto, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="p-3 font-medium">
-                        {producto.descripcion || producto.nombre || "Producto sin nombre"}
+                        {producto.descripcion ||
+                          producto.nombre ||
+                          "Producto sin nombre"}
                       </td>
-                      <td className="p-3 text-center">{Number(producto.cantidad)}</td>
-                      <td className="p-3 text-center">{producto.unidad || "-"}</td>
+                      <td className="p-3 text-center">
+                        {Number(producto.cantidad)}
+                      </td>
+                      <td className="p-3 text-center">
+                        {producto.unidad || "-"}
+                      </td>
                       <td className="p-3 text-right">
                         ${Number(producto.precio).toFixed(2)}
                       </td>
@@ -891,9 +897,12 @@ const VentaDetalle = () => {
                     <span>Descuento total:</span>
                     <span>
                       $
-                      {Number(venta.descuentoTotal || 0).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
+                      {Number(venta.descuentoTotal || 0).toLocaleString(
+                        "es-AR",
+                        {
+                          minimumFractionDigits: 2,
+                        }
+                      )}
                     </span>
                   </div>
                   {venta.costoEnvio !== undefined &&
@@ -1566,210 +1575,54 @@ const VentaDetalle = () => {
                     );
                   })()}
                 </div>
-                {/* Tabla de productos seleccionados */}
-                {(ventaEdit.productos || []).length > 0 && (
-                  <div className="overflow-x-auto mt-4">
-                    <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
-                      <thead>
-                        <tr className="bg-primary/10 text-primary font-semibold">
-                          <th className="p-2 text-left">Categoría</th>
-                          <th className="p-2 text-left">Producto</th>
-                          <th className="p-2 text-center">Cant.</th>
-                          <th className="p-2 text-center">Precio unit.</th>
-                          <th className="p-2 text-center">Desc.</th>
-                          <th className="p-2 text-center">Subtotal</th>
-                          <th className="p-2 text-center">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(ventaEdit.productos || []).map((p, idx) => (
-                          <tr
-                            key={p.id}
-                            className="border-b hover:bg-primary/5 transition-all"
-                          >
-                            <td className="p-2 text-xs font-medium text-gray-600">
-                              {p.categoria}
-                            </td>
-                            <td className="p-2">
-                              <div className="font-semibold text-default-900">
-                                {p.nombre}
-                              </div>
-                              {p.categoria === "Maderas" && (
-                                <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                  <span className="font-medium text-gray-500">
-                                    Dimensiones:
-                                  </span>
-                                  <span>
-                                    Alto:{" "}
-                                    <span className="font-bold">{p.alto}</span>{" "}
-                                    cm
-                                  </span>
-                                  <span>
-                                    Ancho:{" "}
-                                    <span className="font-bold">{p.ancho}</span>{" "}
-                                    cm
-                                  </span>
-                                  <span>
-                                    Largo:{" "}
-                                    <span className="font-bold">{p.largo}</span>{" "}
-                                    cm
-                                  </span>
-                                  <span>
-                                    $/pie:{" "}
-                                    <span className="font-bold">
-                                      {p.precioPorPie}
-                                    </span>
-                                  </span>
-                                  <span className="ml-2 text-primary font-semibold">
-                                    Precio calculado: ${p.precio}
-                                  </span>
-                                  {p.stock <= 0 && (
-                                    <span className="text-red-600 font-semibold ml-2">
-                                      ¡Sin stock! Se permitirá avanzar igual.
-                                    </span>
-                                  )}
-                                  {p.stock > 0 && p.stock <= 3 && (
-                                    <span className="text-yellow-600 font-semibold ml-2">
-                                      Stock bajo: quedan {p.stock} unidades.
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td className="text-center">
-                              <div className="flex items-center justify-center">
-                                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setVentaEdit((prev) => ({
-                                        ...prev,
-                                        productos: prev.productos.map((x) =>
-                                          x.id === p.id
-                                            ? {
-                                                ...x,
-                                                cantidad: Math.max(
-                                                  1,
-                                                  x.cantidad - 1
-                                                ),
-                                              }
-                                            : x
-                                        ),
-                                      }))
-                                    }
-                                    disabled={p.cantidad <= 1}
-                                    className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-                                  >
-                                    -
-                                  </button>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={p.cantidad}
-                                    onChange={(e) =>
-                                      setVentaEdit((prev) => ({
-                                        ...prev,
-                                        productos: prev.productos.map((x) =>
-                                          x.id === p.id
-                                            ? {
-                                                ...x,
-                                                cantidad: Number(
-                                                  e.target.value
-                                                ),
-                                              }
-                                            : x
-                                        ),
-                                      }))
-                                    }
-                                    className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setVentaEdit((prev) => ({
-                                        ...prev,
-                                        productos: prev.productos.map((x) =>
-                                          x.id === p.id
-                                            ? { ...x, cantidad: x.cantidad + 1 }
-                                            : x
-                                        ),
-                                      }))
-                                    }
-                                    className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-150"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="text-center">${p.precio}</td>
-                            <td className="text-center">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={p.descuento}
-                                onChange={(e) =>
-                                  setVentaEdit((prev) => ({
-                                    ...prev,
-                                    productos: prev.productos.map((x) =>
-                                      x.id === p.id
-                                        ? {
-                                            ...x,
-                                            descuento: Number(e.target.value),
-                                          }
-                                        : x
-                                    ),
-                                  }))
-                                }
-                                className="w-20 mx-auto text-center"
-                              />
-                            </td>
-                            <td className="text-center font-semibold text-primary">
-                              $
-                              {(
-                                Number(p.precio) *
-                                Number(p.cantidad) *
-                                (1 - Number(p.descuento) / 100)
-                              ).toFixed(2)}
-                            </td>
-                            <td className="text-center">
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() =>
-                                  setVentaEdit((prev) => ({
-                                    ...prev,
-                                    productos: prev.productos.filter(
-                                      (x) => x.id !== p.id
-                                    ),
-                                  }))
-                                }
-                                title="Quitar producto"
-                              >
-                                <span className="text-lg font-bold text-red-500">
-                                  ×
-                                </span>
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </section>
-              {/* --- FIN BLOQUE COPIADO --- */}
 
-              {/* Bloque para registrar pagos adicionales si hay saldo pendiente */}
+              {(ventaEdit.productos || []).length > 0 && (
+                <div className="flex flex-col items-end gap-2 mt-4">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                    <div>
+                      Subtotal:{" "}
+                      <span className="font-bold">
+                        ${ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      Descuento:{" "}
+                      <span className="font-bold">
+                        ${ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
+                      </span>
+                    </div>
+                    {ventaEdit.costoEnvio && Number(ventaEdit.costoEnvio) > 0 && (
+                      <div>
+                        Costo de envío: <span className="font-bold">${Number(ventaEdit.costoEnvio).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div>
+                      Total: <span className="font-bold text-primary">
+                        ${(
+                          ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
+                          ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
+                          (Number(ventaEdit.costoEnvio) || 0)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(() => {
                 // Calcula el saldo pendiente en modo edición
                 const subtotal = (ventaEdit.productos || []).reduce(
-                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0
+                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                  0
                 );
                 const descuento = (ventaEdit.productos || []).reduce(
-                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0
+                  (acc, p) =>
+                    acc +
+                    Number(p.precio) *
+                      Number(p.cantidad) *
+                      (Number(p.descuento || 0) / 100),
+                  0
                 );
                 const envio = Number(ventaEdit.costoEnvio) || 0;
                 const total = subtotal - descuento + envio;
@@ -1780,7 +1633,9 @@ const VentaDetalle = () => {
                 if (saldo > 0) {
                   return (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">Saldo pendiente: ${saldo.toFixed(2)}</h4>
+                      <h4 className="font-semibold text-yellow-800 mb-2">
+                        Saldo pendiente: ${saldo.toFixed(2)}
+                      </h4>
                       <div className="flex flex-col md:flex-row gap-2 items-end">
                         <input
                           type="number"
@@ -1789,15 +1644,21 @@ const VentaDetalle = () => {
                           placeholder="Monto a abonar"
                           className="border rounded px-2 py-1"
                           value={ventaEdit.nuevoPagoMonto || ""}
-                          onChange={e =>
-                            setVentaEdit(prev => ({ ...prev, nuevoPagoMonto: e.target.value }))
+                          onChange={(e) =>
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              nuevoPagoMonto: e.target.value,
+                            }))
                           }
                         />
                         <select
                           className="border rounded px-2 py-1"
                           value={ventaEdit.nuevoPagoMetodo || ""}
-                          onChange={e =>
-                            setVentaEdit(prev => ({ ...prev, nuevoPagoMetodo: e.target.value }))
+                          onChange={(e) =>
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              nuevoPagoMetodo: e.target.value,
+                            }))
                           }
                         >
                           <option value="">Método de pago</option>
@@ -1812,24 +1673,28 @@ const VentaDetalle = () => {
                           className="bg-green-600 text-white px-4 py-1 rounded"
                           onClick={() => {
                             if (Array.isArray(ventaEdit.pagos)) {
-                              setVentaEdit(prev => ({
+                              setVentaEdit((prev) => ({
                                 ...prev,
                                 pagos: [
                                   ...prev.pagos,
                                   {
-                                    fecha: new Date().toISOString().split('T')[0],
+                                    fecha: new Date()
+                                      .toISOString()
+                                      .split("T")[0],
                                     monto: Number(prev.nuevoPagoMonto),
                                     metodo: prev.nuevoPagoMetodo,
                                     usuario: "usuario", // puedes poner el usuario real si lo tienes
-                                  }
+                                  },
                                 ],
                                 nuevoPagoMonto: "",
                                 nuevoPagoMetodo: "",
                               }));
                             } else {
-                              setVentaEdit(prev => ({
+                              setVentaEdit((prev) => ({
                                 ...prev,
-                                montoAbonado: Number(prev.montoAbonado || 0) + Number(prev.nuevoPagoMonto),
+                                montoAbonado:
+                                  Number(prev.montoAbonado || 0) +
+                                  Number(prev.nuevoPagoMonto),
                                 nuevoPagoMonto: "",
                                 nuevoPagoMetodo: "",
                               }));

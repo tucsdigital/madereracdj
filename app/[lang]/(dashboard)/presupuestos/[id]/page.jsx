@@ -1183,69 +1183,6 @@ const PresupuestoDetalle = () => {
                     </div>
                   </div>
                 )}
-                {(() => {
-                  const subtotal = (presupuestoEdit.productos || []).reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0);
-                  const descuento = (presupuestoEdit.productos || []).reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0);
-                  const envio = Number(presupuestoEdit.costoEnvio) || 0;
-                  const total = subtotal - descuento + envio;
-                  const abonado = Number(presupuestoEdit.montoAbonado || 0);
-                  const saldo = total - abonado;
-                  if (saldo > 0) {
-                    return (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
-                        <h4 className="font-semibold text-yellow-800 mb-2">Saldo pendiente: ${saldo.toFixed(2)}</h4>
-                        <div className="flex flex-col md:flex-row gap-2 items-end">
-                          <input
-                            type="number"
-                            min={1}
-                            max={saldo}
-                            placeholder="Monto a abonar"
-                            className="border rounded px-2 py-1"
-                            value={presupuestoEdit.nuevoPagoMonto || ""}
-                            onChange={e =>
-                              setPresupuestoEdit(prev => ({ ...prev, nuevoPagoMonto: e.target.value }))
-                            }
-                          />
-                          <select
-                            className="border rounded px-2 py-1"
-                            value={presupuestoEdit.nuevoPagoMetodo || ""}
-                            onChange={e =>
-                              setPresupuestoEdit(prev => ({ ...prev, nuevoPagoMetodo: e.target.value }))
-                            }
-                          >
-                            <option value="">Método de pago</option>
-                            <option value="efectivo">Efectivo</option>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="tarjeta">Tarjeta</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="otro">Otro</option>
-                          </select>
-                          <button
-                            type="button"
-                            className="bg-green-600 text-white px-4 py-1 rounded"
-                            onClick={() => {
-                              setPresupuestoEdit(prev => ({
-                                ...prev,
-                                montoAbonado: Number(prev.montoAbonado || 0) + Number(prev.nuevoPagoMonto),
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
-                            }}
-                            disabled={
-                              !presupuestoEdit.nuevoPagoMonto ||
-                              !presupuestoEdit.nuevoPagoMetodo ||
-                              Number(presupuestoEdit.nuevoPagoMonto) <= 0 ||
-                              Number(presupuestoEdit.nuevoPagoMonto) > saldo
-                            }
-                          >
-                            Registrar pago
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
             )}
           </div>
