@@ -319,13 +319,21 @@ const VentaDetalle = () => {
     } else {
       ventaEdit.estadoPago = "pendiente";
     }
-    // Eliminar montoAbonado si hay array pagos
+    // Guardar correctamente los pagos del saldo pendiente
     if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
       delete ventaEdit.montoAbonado;
-    }
-    // Si no existe array pagos, guardar pagosSimples como pagos y eliminar montoAbonado
-    if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+    } else if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
       ventaEdit.pagos = pagosSimples;
+      delete ventaEdit.montoAbonado;
+    } else if (!Array.isArray(ventaEdit.pagos) && ventaEdit.montoAbonado > 0) {
+      ventaEdit.pagos = [
+        {
+          fecha: new Date().toISOString().split("T")[0],
+          monto: Number(ventaEdit.montoAbonado),
+          metodo: ventaEdit.formaPago || "-",
+          usuario: "-",
+        },
+      ];
       delete ventaEdit.montoAbonado;
     }
 
@@ -1583,25 +1591,59 @@ const VentaDetalle = () => {
                     <div>
                       Subtotal:{" "}
                       <span className="font-bold">
-                        ${ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
+                        $
+                        {ventaEdit.productos
+                          .reduce(
+                            (acc, p) =>
+                              acc + Number(p.precio) * Number(p.cantidad),
+                            0
+                          )
+                          .toFixed(2)}
                       </span>
                     </div>
                     <div>
                       Descuento:{" "}
                       <span className="font-bold">
-                        ${ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
+                        $
+                        {ventaEdit.productos
+                          .reduce(
+                            (acc, p) =>
+                              acc +
+                              Number(p.precio) *
+                                Number(p.cantidad) *
+                                (Number(p.descuento || 0) / 100),
+                            0
+                          )
+                          .toFixed(2)}
                       </span>
                     </div>
-                    {ventaEdit.costoEnvio && Number(ventaEdit.costoEnvio) > 0 && (
-                      <div>
-                        Costo de envío: <span className="font-bold">${Number(ventaEdit.costoEnvio).toFixed(2)}</span>
-                      </div>
-                    )}
+                    {ventaEdit.costoEnvio &&
+                      Number(ventaEdit.costoEnvio) > 0 && (
+                        <div>
+                          Costo de envío:{" "}
+                          <span className="font-bold">
+                            ${Number(ventaEdit.costoEnvio).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     <div>
-                      Total: <span className="font-bold text-primary">
-                        ${(
-                          ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
-                          ventaEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
+                      Total:{" "}
+                      <span className="font-bold text-primary">
+                        $
+                        {(
+                          ventaEdit.productos.reduce(
+                            (acc, p) =>
+                              acc + Number(p.precio) * Number(p.cantidad),
+                            0
+                          ) -
+                          ventaEdit.productos.reduce(
+                            (acc, p) =>
+                              acc +
+                              Number(p.precio) *
+                                Number(p.cantidad) *
+                                (Number(p.descuento || 0) / 100),
+                            0
+                          ) +
                           (Number(ventaEdit.costoEnvio) || 0)
                         ).toFixed(2)}
                       </span>
