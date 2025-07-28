@@ -758,27 +758,27 @@ const PresupuestoDetalle = () => {
                       {/* Filtro de categorías */}
                       <div className="flex-1">
                         <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
-                          {Array.from(new Set(productos.map((p) => p.categoria))).map(
-                            (categoria) => (
-                              <button
-                                key={categoria}
-                                type="button"
-                                className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                  presupuestoEdit.categoriaId === categoria
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                                onClick={() =>
-                                  setPresupuestoEdit((prev) => ({
-                                    ...prev,
-                                    categoriaId: categoria,
-                                  }))
-                                }
-                              >
-                                {categoria}
-                              </button>
-                            )
-                          )}
+                          {Array.from(
+                            new Set(productos.map((p) => p.categoria))
+                          ).map((categoria) => (
+                            <button
+                              key={categoria}
+                              type="button"
+                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                presupuestoEdit.categoriaId === categoria
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() =>
+                                setPresupuestoEdit((prev) => ({
+                                  ...prev,
+                                  categoriaId: categoria,
+                                }))
+                              }
+                            >
+                              {categoria}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       {/* Buscador mejorado */}
@@ -894,10 +894,9 @@ const PresupuestoDetalle = () => {
                       return (
                         <div className="grid gap-3 p-4">
                           {productosFiltrados.map((prod) => {
-                            const yaAgregado =
-                              (presupuestoEdit.productos || []).some(
-                                (p) => p.id === prod.id
-                              );
+                            const yaAgregado = (
+                              presupuestoEdit.productos || []
+                            ).some((p) => p.id === prod.id);
                             return (
                               <div
                                 key={prod.id}
@@ -995,16 +994,17 @@ const PresupuestoDetalle = () => {
                                             onClick={() =>
                                               setPresupuestoEdit((prev) => ({
                                                 ...prev,
-                                                productos: prev.productos.map((p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Math.max(
-                                                          1,
-                                                          p.cantidad - 1
-                                                        ),
-                                                      }
-                                                    : p
+                                                productos: prev.productos.map(
+                                                  (p) =>
+                                                    p.id === prod.id
+                                                      ? {
+                                                          ...p,
+                                                          cantidad: Math.max(
+                                                            1,
+                                                            p.cantidad - 1
+                                                          ),
+                                                        }
+                                                      : p
                                                 ),
                                               }))
                                             }
@@ -1028,13 +1028,16 @@ const PresupuestoDetalle = () => {
                                             onChange={(e) =>
                                               setPresupuestoEdit((prev) => ({
                                                 ...prev,
-                                                productos: prev.productos.map((p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Number(e.target.value),
-                                                      }
-                                                    : p
+                                                productos: prev.productos.map(
+                                                  (p) =>
+                                                    p.id === prod.id
+                                                      ? {
+                                                          ...p,
+                                                          cantidad: Number(
+                                                            e.target.value
+                                                          ),
+                                                        }
+                                                      : p
                                                 ),
                                               }))
                                             }
@@ -1045,13 +1048,15 @@ const PresupuestoDetalle = () => {
                                             onClick={() =>
                                               setPresupuestoEdit((prev) => ({
                                                 ...prev,
-                                                productos: prev.productos.map((p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: p.cantidad + 1,
-                                                      }
-                                                    : p
+                                                productos: prev.productos.map(
+                                                  (p) =>
+                                                    p.id === prod.id
+                                                      ? {
+                                                          ...p,
+                                                          cantidad:
+                                                            p.cantidad + 1,
+                                                        }
+                                                      : p
                                                 ),
                                               }))
                                             }
@@ -1064,9 +1069,10 @@ const PresupuestoDetalle = () => {
                                             onClick={() =>
                                               setPresupuestoEdit((prev) => ({
                                                 ...prev,
-                                                productos: prev.productos.filter(
-                                                  (p) => p.id !== prod.id
-                                                ),
+                                                productos:
+                                                  prev.productos.filter(
+                                                    (p) => p.id !== prod.id
+                                                  ),
                                               }))
                                             }
                                             className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
@@ -1101,9 +1107,13 @@ const PresupuestoDetalle = () => {
                                                   descuento: 0,
                                                   categoria: prod.categoria,
                                                   alto: Number(prod.alto) || 0,
-                                                  ancho: Number(prod.ancho) || 0,
-                                                  largo: Number(prod.largo) || 0,
-                                                  precioPorPie: Number(prod.precioPorPie) || 0,
+                                                  ancho:
+                                                    Number(prod.ancho) || 0,
+                                                  largo:
+                                                    Number(prod.largo) || 0,
+                                                  precioPorPie:
+                                                    Number(prod.precioPorPie) ||
+                                                    0,
                                                 },
                                               ],
                                             }))
@@ -1125,7 +1135,7 @@ const PresupuestoDetalle = () => {
                   </div>
 
                   {/* Tabla de productos seleccionados */}
-                  {(presupuestoEdit.productos || []).length > 0 && (
+                  {/* {(presupuestoEdit.productos || []).length > 0 && (
                     <div className="overflow-x-auto mt-4">
                       <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white">
                         <thead>
@@ -1212,7 +1222,10 @@ const PresupuestoDetalle = () => {
                                             x.id === p.id
                                               ? {
                                                   ...x,
-                                                  cantidad: Math.max(1, x.cantidad - 1),
+                                                  cantidad: Math.max(
+                                                    1,
+                                                    x.cantidad - 1
+                                                  ),
                                                 }
                                               : x
                                           ),
@@ -1234,7 +1247,9 @@ const PresupuestoDetalle = () => {
                                             x.id === p.id
                                               ? {
                                                   ...x,
-                                                  cantidad: Number(e.target.value),
+                                                  cantidad: Number(
+                                                    e.target.value
+                                                  ),
                                                 }
                                               : x
                                           ),
@@ -1249,7 +1264,10 @@ const PresupuestoDetalle = () => {
                                           ...prev,
                                           productos: prev.productos.map((x) =>
                                             x.id === p.id
-                                              ? { ...x, cantidad: x.cantidad + 1 }
+                                              ? {
+                                                  ...x,
+                                                  cantidad: x.cantidad + 1,
+                                                }
                                               : x
                                           ),
                                         }))
@@ -1273,7 +1291,10 @@ const PresupuestoDetalle = () => {
                                       ...prev,
                                       productos: prev.productos.map((x) =>
                                         x.id === p.id
-                                          ? { ...x, descuento: Number(e.target.value) }
+                                          ? {
+                                              ...x,
+                                              descuento: Number(e.target.value),
+                                            }
                                           : x
                                       ),
                                     }))
@@ -1297,7 +1318,9 @@ const PresupuestoDetalle = () => {
                                   onClick={() =>
                                     setPresupuestoEdit((prev) => ({
                                       ...prev,
-                                      productos: prev.productos.filter((x) => x.id !== p.id),
+                                      productos: prev.productos.filter(
+                                        (x) => x.id !== p.id
+                                      ),
                                     }))
                                   }
                                   title="Quitar producto"
@@ -1312,7 +1335,7 @@ const PresupuestoDetalle = () => {
                         </tbody>
                       </table>
                     </div>
-                  )}
+                  )} */}
                 </section>
                 <div className="flex gap-2 mt-6">
                   <Button
@@ -1342,30 +1365,6 @@ const PresupuestoDetalle = () => {
                 )}
               </div>
             )}
-
-            <div className="flex gap-2 mt-6">
-              <Button
-                variant="default"
-                onClick={handleGuardarCambios}
-                disabled={loadingPrecios}
-              >
-                Guardar cambios
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setEditando(false)}
-                disabled={loadingPrecios}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleActualizarPrecios}
-                disabled={loadingPrecios}
-              >
-                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-              </Button>
-            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
