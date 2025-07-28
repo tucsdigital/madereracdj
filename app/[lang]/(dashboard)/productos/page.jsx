@@ -56,7 +56,7 @@ const maderasSchema = yup.object().shape({
   ancho: yup.number().positive().required("Ancho obligatorio"),
   espesor: yup.number().positive().required("Espesor obligatorio"),
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
-  valorPie: yup.number().positive().required("Valor del pie obligatorio"),
+  precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
   ubicacion: yup.string().required("Ubicación obligatoria"),
 });
 
@@ -369,7 +369,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     </div>
                     <div>
                       <Input
-                        {...register("valorPie")}
+                        {...register("precioPorPie")}
                         type="number"
                         step="0.01"
                         placeholder="Valor del pie"

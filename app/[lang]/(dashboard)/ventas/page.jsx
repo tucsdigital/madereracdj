@@ -244,17 +244,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       return;
     }
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
-      let precio =
-        real.precioUnidad ||
-        real.precioUnidadVenta ||
-        real.precioUnidadHerraje ||
-        real.precioUnidadQuimico ||
-        real.precioUnidadHerramienta;
-      let alto = Number(real.espesor) || 0;
-      let ancho = Number(real.ancho) || 0;
-      let largo = Number(real.largo) || 0;
-      let precioPorPie = Number(real.precioUnidad) || 0;
+      let precio;
+      
+      // Para productos de madera, usar cálculo especial
       if (real.categoria === "Maderas") {
+        let alto = Number(real.espesor) || 0;
+        let ancho = Number(real.ancho) || 0;
+        let largo = Number(real.largo) || 0;
+        let precioPorPie = Number(real.precioUnidad) || 0;
+        
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
             alto,
@@ -269,7 +267,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           );
           return;
         }
+      } else {
+        // Para productos NO maderas, usar el campo correspondiente según categoría
+        if (real.categoria === "Ferretería") {
+          precio = real.valorVenta || 0; // Usar valorVenta para Ferretería
+        } else {
+          // Para otras categorías (futuras), usar los campos específicos
+          precio =
+            real.precioUnidad ||
+            real.precioUnidadVenta ||
+            real.precioUnidadHerraje ||
+            real.precioUnidadQuimico ||
+            real.precioUnidadHerramienta ||
+            0;
+        }
       }
+      
       setProductosSeleccionados([
         ...productosSeleccionados,
         {
@@ -286,10 +299,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           cantidad: 1,
           descuento: 0,
           categoria: real.categoria,
-          alto,
-          ancho,
-          largo,
-          precioPorPie,
+          alto: Number(real.espesor) || 0,
+          ancho: Number(real.ancho) || 0,
+          largo: Number(real.largo) || 0,
+          precioPorPie: Number(real.precioUnidad) || 0,
         },
       ]);
     }
@@ -323,13 +336,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     0
   );
   // Calcular costo de envío solo si no es retiro local
-  const costoEnvioCalculado = 
-    tipoEnvio && 
-    tipoEnvio !== "retiro_local" && 
-    costoEnvio !== undefined && 
-    costoEnvio !== "" && 
-    !isNaN(Number(costoEnvio)) 
-      ? Number(costoEnvio) 
+  const costoEnvioCalculado =
+    tipoEnvio &&
+    tipoEnvio !== "retiro_local" &&
+    costoEnvio !== undefined &&
+    costoEnvio !== "" &&
+    !isNaN(Number(costoEnvio))
+      ? Number(costoEnvio)
       : 0;
   const total = subtotal - descuentoTotal + costoEnvioCalculado;
 
@@ -481,7 +494,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               tipoEnvio: cleanData.tipoEnvio || "",
               costoEnvio:
                 cleanData.tipoEnvio && cleanData.tipoEnvio !== "retiro_local"
-                  ? cleanData.costoEnvio !== undefined && cleanData.costoEnvio !== ""
+                  ? cleanData.costoEnvio !== undefined &&
+                    cleanData.costoEnvio !== ""
                     ? Number(cleanData.costoEnvio)
                     : undefined
                   : undefined,
@@ -595,11 +609,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     <>
       <DialogHeader className="mb-2">
         <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
-          <Icon icon={tipo === "presupuesto" ? "heroicons:document-plus" : "heroicons:shopping-cart"} className="w-6 h-6" />
+          <Icon
+            icon={
+              tipo === "presupuesto"
+                ? "heroicons:document-plus"
+                : "heroicons:shopping-cart"
+            }
+            className="w-6 h-6"
+          />
           {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Venta"}
         </DialogTitle>
         <DialogDescription className="text-base text-default-600">
-          Complete todos los campos requeridos para crear un nuevo {tipo === "presupuesto" ? "presupuesto" : "venta"}.
+          Complete todos los campos requeridos para crear un nuevo{" "}
+          {tipo === "presupuesto" ? "presupuesto" : "venta"}.
         </DialogDescription>
       </DialogHeader>
 
@@ -636,7 +658,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             {/* Sección Cliente */}
             <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
               <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
-                <Icon icon="heroicons:user" className="w-5 h-5 text-primary dark:text-primary-300" /> Cliente
+                <Icon
+                  icon="heroicons:user"
+                  className="w-5 h-5 text-primary dark:text-primary-300"
+                />{" "}
+                Cliente
               </label>
               <div className="relative w-full">
                 <div
@@ -659,7 +685,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     }}
                     disabled={isSubmitting}
                   >
-                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" /> Nuevo
+                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />{" "}
+                    Nuevo
                   </Button>
                 </div>
                 {dropdownClientesOpen && (
@@ -676,7 +703,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       />
                       <div className="divide-y divide-gray-100">
                         {clientesFiltrados.length === 0 && (
-                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">No hay clientes</div>
+                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
+                            No hay clientes
+                          </div>
                         )}
                         {clientesFiltrados.map((c) => (
                           <div
@@ -702,7 +731,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               )}
               <div className="space-y-2 bg-default-50 dark:bg-default-800 rounded-lg p-4 border border-default-100 shadow-sm">
                 <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1 flex items-center gap-2">
-                  <Icon icon="heroicons:identification" className="w-4 h-4 text-primary dark:text-primary-300" /> Datos del cliente
+                  <Icon
+                    icon="heroicons:identification"
+                    className="w-4 h-4 text-primary dark:text-primary-300"
+                  />{" "}
+                  Datos del cliente
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -777,11 +810,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             {/* Sección Productos */}
             <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
               <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
-                <Icon icon="heroicons:cube" className="w-5 h-5 text-primary dark:text-primary-300" /> Productos
+                <Icon
+                  icon="heroicons:cube"
+                  className="w-5 h-5 text-primary dark:text-primary-300"
+                />{" "}
+                Productos
               </label>
               <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
                 {categoriasState.length === 0 && (
-                  <span className="text-gray-400 dark:text-default-500">No hay categorías con productos</span>
+                  <span className="text-gray-400 dark:text-default-500">
+                    No hay categorías con productos
+                  </span>
                 )}
                 {categoriasState.map((cat) => (
                   <Button
@@ -835,7 +874,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 {prod.unidadMedida}
                               </div>
                               <div className="col-span-2 font-bold text-primary">
-                                ${prod.precioUnidad || prod.precioPorPie || 0}
+                                ${(() => {
+                                  if (prod.categoria === "Maderas") {
+                                    return prod.precioUnidad || prod.precioPorPie || 0;
+                                  } else if (prod.categoria === "Ferretería") {
+                                    return prod.valorVenta || 0;
+                                  } else {
+                                    return prod.precioUnidad ||
+                                      prod.precioUnidadVenta ||
+                                      prod.precioUnidadHerraje ||
+                                      prod.precioUnidadQuimico ||
+                                      prod.precioUnidadHerramienta ||
+                                      0;
+                                  }
+                                })()}
                               </div>
                               <div className="col-span-2 font-mono text-xs">
                                 Stock: {prod.stock}
@@ -909,12 +961,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       handleAgregarProducto({
                                         id: prod.id,
                                         nombre: prod.nombre,
-                                        precio:
-                                          prod.precioUnidad ||
-                                          prod.precioUnidadVenta ||
-                                          prod.precioUnidadHerraje ||
-                                          prod.precioUnidadQuimico ||
-                                          prod.precioUnidadHerramienta,
+                                        precio: (() => {
+                                          if (prod.categoria === "Ferretería") {
+                                            return prod.valorVenta || 0;
+                                          } else {
+                                            return prod.precioUnidad ||
+                                              prod.precioUnidadVenta ||
+                                              prod.precioUnidadHerraje ||
+                                              prod.precioUnidadQuimico ||
+                                              prod.precioUnidadHerramienta ||
+                                              0;
+                                          }
+                                        })(),
                                         unidad:
                                           prod.unidadMedida ||
                                           prod.unidadVenta ||
@@ -979,12 +1037,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   prod.unidadVentaHerramienta}
                               </div>
                               <div className="col-span-2 font-bold text-primary">
-                                $
-                                {prod.precioUnidad ||
-                                  prod.precioUnidadVenta ||
-                                  prod.precioUnidadHerraje ||
-                                  prod.precioUnidadQuimico ||
-                                  prod.precioUnidadHerramienta}
+                                ${(() => {
+                                  if (prod.categoria === "Maderas") {
+                                    return prod.precioUnidad || prod.precioPorPie || 0;
+                                  } else if (prod.categoria === "Ferretería") {
+                                    return prod.valorVenta || 0;
+                                  } else {
+                                    return prod.precioUnidad ||
+                                      prod.precioUnidadVenta ||
+                                      prod.precioUnidadHerraje ||
+                                      prod.precioUnidadQuimico ||
+                                      prod.precioUnidadHerramienta ||
+                                      0;
+                                  }
+                                })()}
                               </div>
                               <div className="col-span-2 font-mono text-xs">
                                 {prod.stock}
@@ -994,13 +1060,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   type="button"
                                   size="sm"
                                   variant={
-                                    productosSeleccionados.some((p) => p.id === prod.id)
+                                    productosSeleccionados.some(
+                                      (p) => p.id === prod.id
+                                    )
                                       ? "soft"
                                       : "default"
                                   }
                                   color="primary"
                                   className={
-                                    productosSeleccionados.some((p) => p.id === prod.id)
+                                    productosSeleccionados.some(
+                                      (p) => p.id === prod.id
+                                    )
                                       ? "bg-yellow-200 text-yellow-700 cursor-default"
                                       : ""
                                   }
@@ -1008,12 +1078,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     handleAgregarProducto({
                                       id: prod.id,
                                       nombre: prod.nombre,
-                                      precio:
-                                        prod.precioUnidad ||
-                                        prod.precioUnidadVenta ||
-                                        prod.precioUnidadHerraje ||
-                                        prod.precioUnidadQuimico ||
-                                        prod.precioUnidadHerramienta,
+                                      precio: (() => {
+                                        if (prod.categoria === "Ferretería") {
+                                          return prod.valorVenta || 0;
+                                        } else {
+                                          return prod.precioUnidad ||
+                                            prod.precioUnidadVenta ||
+                                            prod.precioUnidadHerraje ||
+                                            prod.precioUnidadQuimico ||
+                                            prod.precioUnidadHerramienta ||
+                                            0;
+                                        }
+                                      })(),
                                       unidad:
                                         prod.unidadMedida ||
                                         prod.unidadVenta ||
@@ -1153,7 +1229,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               disabled={isSubmitting}
                               title="Quitar producto"
                             >
-                              <span className="text-lg font-bold text-red-500">×</span>
+                              <span className="text-lg font-bold text-red-500">
+                                ×
+                              </span>
                             </Button>
                           </td>
                         </tr>
@@ -1427,7 +1505,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             {tipo === "venta" && (
               <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
                 <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
-                  <Icon icon="heroicons:credit-card" className="w-5 h-5 text-primary dark:text-primary-300" /> Condiciones de pago y entrega
+                  <Icon
+                    icon="heroicons:credit-card"
+                    className="w-5 h-5 text-primary dark:text-primary-300"
+                  />{" "}
+                  Condiciones de pago y entrega
                 </label>
                 <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
                   <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
@@ -1492,18 +1574,26 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
-                Subtotal: <span className="font-bold">${subtotal.toFixed(2)}</span>
+                Subtotal:{" "}
+                <span className="font-bold">${subtotal.toFixed(2)}</span>
               </div>
               <div>
-                Descuento: <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
+                Descuento:{" "}
+                <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
               </div>
               {costoEnvioCalculado > 0 && (
                 <div>
-                  Costo de envío: <span className="font-bold">${costoEnvioCalculado.toFixed(2)}</span>
+                  Costo de envío:{" "}
+                  <span className="font-bold">
+                    ${costoEnvioCalculado.toFixed(2)}
+                  </span>
                 </div>
               )}
               <div>
-                Total: <span className="font-bold text-primary">${total.toFixed(2)}</span>
+                Total:{" "}
+                <span className="font-bold text-primary">
+                  ${total.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -1541,7 +1631,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-white dark:bg-default-900 dark:border-default-700">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar Cliente
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar
+              Cliente
             </DialogTitle>
             <DialogDescription className="text-base text-default-600 dark:text-default-300">
               Complete los datos del nuevo cliente para agregarlo al sistema.
@@ -1552,70 +1643,95 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               placeholder="Nombre *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.nombre}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+              }
               required
             />
             <Input
               placeholder="CUIT / DNI"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.cuit || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
+              }
             />
             <Input
               placeholder="Dirección *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.direccion}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
+              }
               required
             />
             <Input
               placeholder="Teléfono *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.telefono}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
+              }
               required
             />
             <Input
               placeholder="Email"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.email}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, email: e.target.value })
+              }
             />
             <Input
               placeholder="Localidad"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.localidad || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
+              }
             />
             <Input
               placeholder="Partido"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.partido || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
+              }
             />
             <Input
               placeholder="Barrio"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.barrio || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
+              }
             />
             <Input
               placeholder="Área"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.area || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, area: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, area: e.target.value })
+              }
             />
             <Input
               placeholder="Lote"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.lote || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
+              }
             />
             <Textarea
               placeholder="Descripción"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2 min-h-[60px]"
               value={nuevoCliente.descripcion || ""}
-              onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })}
+              onChange={(e) =>
+                setNuevoCliente({
+                  ...nuevoCliente,
+                  descripcion: e.target.value,
+                })
+              }
             />
           </div>
           <DialogFooter className="flex flex-row gap-4 justify-end pt-2">
@@ -1630,7 +1746,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               variant="default"
               className="shadow-md min-w-[120px] rounded-md px-6 py-2 text-base font-semibold"
               onClick={async () => {
-                if (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono) {
+                if (
+                  !nuevoCliente.nombre ||
+                  !nuevoCliente.direccion ||
+                  !nuevoCliente.telefono
+                ) {
                   alert("Nombre, dirección y teléfono son obligatorios");
                   return;
                 }
@@ -1647,8 +1767,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   lote: nuevoCliente.lote || "",
                   descripcion: nuevoCliente.descripcion || "",
                 };
-                const docRef = await addDoc(collection(db, "clientes"), clienteObj);
-                setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
+                const docRef = await addDoc(
+                  collection(db, "clientes"),
+                  clienteObj
+                );
+                setClientesState([
+                  ...clientesState,
+                  { ...clienteObj, id: docRef.id },
+                ]);
                 setClienteId(docRef.id);
                 setNuevoCliente({
                   nombre: "",
@@ -1692,17 +1818,15 @@ export function SelectorProductosPresupuesto({
     const real = productosState.find((p) => p.id === producto.id);
     if (!real) return;
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
-      let precio =
-        real.precioUnidad ||
-        real.precioUnidadVenta ||
-        real.precioUnidadHerraje ||
-        real.precioUnidadQuimico ||
-        real.precioUnidadHerramienta;
-      let alto = Number(real.espesor) || 0;
-      let ancho = Number(real.ancho) || 0;
-      let largo = Number(real.largo) || 0;
-      let precioPorPie = Number(real.precioUnidad) || 0;
+      let precio;
+      
+      // Para productos de madera, usar cálculo especial
       if (real.categoria === "Maderas") {
+        let alto = Number(real.espesor) || 0;
+        let ancho = Number(real.ancho) || 0;
+        let largo = Number(real.largo) || 0;
+        let precioPorPie = Number(real.precioUnidad) || 0;
+        
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
             alto,
@@ -1711,9 +1835,28 @@ export function SelectorProductosPresupuesto({
             precioPorPie,
           });
         } else {
+          setSubmitStatus("error");
+          setSubmitMessage(
+            "El producto de madera no tiene dimensiones válidas en la base de datos."
+          );
           return;
         }
+      } else {
+        // Para productos NO maderas, usar el campo correspondiente según categoría
+        if (real.categoria === "Ferretería") {
+          precio = real.valorVenta || 0; // Usar valorVenta para Ferretería
+        } else {
+          // Para otras categorías (futuras), usar los campos específicos
+          precio =
+            real.precioUnidad ||
+            real.precioUnidadVenta ||
+            real.precioUnidadHerraje ||
+            real.precioUnidadQuimico ||
+            real.precioUnidadHerramienta ||
+            0;
+        }
       }
+      
       setProductosSeleccionados([
         ...productosSeleccionados,
         {
@@ -1730,10 +1873,10 @@ export function SelectorProductosPresupuesto({
           cantidad: 1,
           descuento: 0,
           categoria: real.categoria,
-          alto,
-          ancho,
-          largo,
-          precioPorPie,
+          alto: Number(real.espesor) || 0,
+          ancho: Number(real.ancho) || 0,
+          largo: Number(real.largo) || 0,
+          precioPorPie: Number(real.precioUnidad) || 0,
         },
       ]);
     }
@@ -1781,7 +1924,9 @@ export function SelectorProductosPresupuesto({
       <label className="font-semibold">Productos</label>
       <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
         {categoriasState.length === 0 && (
-          <span className="text-gray-400 dark:text-default-500">No hay categorías con productos</span>
+          <span className="text-gray-400 dark:text-default-500">
+            No hay categorías con productos
+          </span>
         )}
         {categoriasState.map((cat) => (
           <Button
@@ -1835,7 +1980,20 @@ export function SelectorProductosPresupuesto({
                         {prod.unidadMedida}
                       </div>
                       <div className="col-span-2 font-bold text-primary">
-                        ${prod.precioUnidad || prod.precioPorPie || 0}
+                        ${(() => {
+                          if (prod.categoria === "Maderas") {
+                            return prod.precioUnidad || prod.precioPorPie || 0;
+                          } else if (prod.categoria === "Ferretería") {
+                            return prod.valorVenta || 0;
+                          } else {
+                            return prod.precioUnidad ||
+                              prod.precioUnidadVenta ||
+                              prod.precioUnidadHerraje ||
+                              prod.precioUnidadQuimico ||
+                              prod.precioUnidadHerramienta ||
+                              0;
+                          }
+                        })()}
                       </div>
                       <div className="col-span-2 font-mono text-xs">
                         Stock: {prod.stock}
@@ -1904,12 +2062,18 @@ export function SelectorProductosPresupuesto({
                               handleAgregarProducto({
                                 id: prod.id,
                                 nombre: prod.nombre,
-                                precio:
-                                  prod.precioUnidad ||
-                                  prod.precioUnidadVenta ||
-                                  prod.precioUnidadHerraje ||
-                                  prod.precioUnidadQuimico ||
-                                  prod.precioUnidadHerramienta,
+                                precio: (() => {
+                                  if (prod.categoria === "Ferretería") {
+                                    return prod.valorVenta || 0;
+                                  } else {
+                                    return prod.precioUnidad ||
+                                      prod.precioUnidadVenta ||
+                                      prod.precioUnidadHerraje ||
+                                      prod.precioUnidadQuimico ||
+                                      prod.precioUnidadHerramienta ||
+                                      0;
+                                  }
+                                })(),
                                 unidad:
                                   prod.unidadMedida ||
                                   prod.unidadVenta ||
@@ -1972,12 +2136,20 @@ export function SelectorProductosPresupuesto({
                           prod.unidadVentaHerramienta}
                       </div>
                       <div className="col-span-2 font-bold text-primary">
-                        $
-                        {prod.precioUnidad ||
-                          prod.precioUnidadVenta ||
-                          prod.precioUnidadHerraje ||
-                          prod.precioUnidadQuimico ||
-                          prod.precioUnidadHerramienta}
+                        ${(() => {
+                          if (prod.categoria === "Maderas") {
+                            return prod.precioUnidad || prod.precioPorPie || 0;
+                          } else if (prod.categoria === "Ferretería") {
+                            return prod.valorVenta || 0;
+                          } else {
+                            return prod.precioUnidad ||
+                              prod.precioUnidadVenta ||
+                              prod.precioUnidadHerraje ||
+                              prod.precioUnidadQuimico ||
+                              prod.precioUnidadHerramienta ||
+                              0;
+                          }
+                        })()}
                       </div>
                       <div className="col-span-2 font-mono text-xs">
                         {prod.stock}
@@ -2001,12 +2173,18 @@ export function SelectorProductosPresupuesto({
                             handleAgregarProducto({
                               id: prod.id,
                               nombre: prod.nombre,
-                              precio:
-                                prod.precioUnidad ||
-                                prod.precioUnidadVenta ||
-                                prod.precioUnidadHerraje ||
-                                prod.precioUnidadQuimico ||
-                                prod.precioUnidadHerramienta,
+                              precio: (() => {
+                                if (prod.categoria === "Ferretería") {
+                                  return prod.valorVenta || 0;
+                                } else {
+                                  return prod.precioUnidad ||
+                                    prod.precioUnidadVenta ||
+                                    prod.precioUnidadHerraje ||
+                                    prod.precioUnidadQuimico ||
+                                    prod.precioUnidadHerramienta ||
+                                    0;
+                                }
+                              })(),
                               unidad:
                                 prod.unidadMedida ||
                                 prod.unidadVenta ||
@@ -2286,12 +2464,12 @@ const VentasPage = () => {
           const productosLimpios = (formData.items || []).map((p) => ({
             ...p,
           }));
-          
+
           console.log("[DEBUG] Campos de envío recibidos:", {
             tipoEnvio: formData.tipoEnvio,
-            costoEnvio: formData.costoEnvio
+            costoEnvio: formData.costoEnvio,
           });
-          
+
           let costoEnvioFinal = undefined;
           if (
             formData.tipoEnvio &&
@@ -2302,9 +2480,9 @@ const VentasPage = () => {
             costoEnvioFinal = Number(formData.costoEnvio);
             if (isNaN(costoEnvioFinal)) costoEnvioFinal = undefined;
           }
-          
+
           console.log("[DEBUG] Costo de envío procesado:", costoEnvioFinal);
-          
+
           // Obtener el próximo número correlativo de presupuesto
           const nextNumeroPedido = await getNextPresupuestoNumber();
           const cleanFormData = {
@@ -2400,7 +2578,10 @@ const VentasPage = () => {
         <Card className="rounded-xl shadow-lg border border-default-200">
           <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
             <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
-              <Icon icon="heroicons:document-text" className="w-6 h-6 text-primary" />
+              <Icon
+                icon="heroicons:document-text"
+                className="w-6 h-6 text-primary"
+              />
               Presupuestos
             </CardTitle>
           </CardHeader>
@@ -2411,7 +2592,10 @@ const VentasPage = () => {
         <Card className="rounded-xl shadow-lg border border-default-200">
           <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
             <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
-              <Icon icon="heroicons:shopping-cart" className="w-6 h-6 text-green-600" />
+              <Icon
+                icon="heroicons:shopping-cart"
+                className="w-6 h-6 text-green-600"
+              />
               Ventas
             </CardTitle>
           </CardHeader>
