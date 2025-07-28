@@ -14,10 +14,7 @@ import * as yup from "yup";
 
 const categorias = [
   "Maderas",
-  "Fijaciones",
-  "Herrajes",
-  "Adhesivos",
-  "Herramientas"
+  "Ferretería"
 ];
 
 // Esquemas de validación por categoría
@@ -30,7 +27,8 @@ const baseSchema = {
   estado: yup.string().oneOf(["Activo", "Inactivo", "Descontinuado"]).required(),
   costo: yup.number().positive().required("El costo es obligatorio"),
 };
-// Ajusto los esquemas de validación:
+
+// Esquema para Maderas
 const maderasSchema = yup.object().shape({
   ...baseSchema,
   tipoMadera: yup.string().required("Tipo de madera obligatorio"),
@@ -38,9 +36,22 @@ const maderasSchema = yup.object().shape({
   ancho: yup.number().positive().required("Ancho obligatorio"),
   espesor: yup.number().positive().required("Espesor obligatorio"),
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
+  valorPie: yup.number().positive().required("Valor del pie obligatorio"),
   ubicacion: yup.string().required("Ubicación obligatoria"),
   dimensionesEspeciales: yup.boolean(),
 });
+
+// Esquema para Ferretería
+const ferreteriaSchema = yup.object().shape({
+  ...baseSchema,
+  stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
+  medida: yup.string().required("Medida obligatoria"),
+  valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
+  valorVenta: yup.number().positive().required("Valor de venta obligatorio"),
+});
+
+// Esquemas comentados para uso futuro
+/*
 const fijacionesSchema = yup.object().shape({
   ...baseSchema,
   tipoFijacion: yup.string().required("Tipo de fijación obligatorio"),
@@ -90,12 +101,11 @@ const herramientasSchema = yup.object().shape({
   precioUnidadHerramienta: yup.number().positive().required("Precio obligatorio"),
   ubicacionHerramienta: yup.string().required("Ubicación obligatoria"),
 });
+*/
+
 const esquemasPorCategoria = {
   Maderas: maderasSchema,
-  Fijaciones: fijacionesSchema,
-  Herrajes: herrajesSchema,
-  Adhesivos: adhesivosSchema,
-  Herramientas: herramientasSchema,
+  Ferretería: ferreteriaSchema,
 };
 
 function FormularioProducto({ onClose, onSuccess }) {
@@ -213,9 +223,21 @@ function FormularioProducto({ onClose, onSuccess }) {
                   </select>
                   {errors.unidadMedida && <span className="text-red-500 text-xs">{errors.unidadMedida.message}</span>}
                 </div>
+                <div><Input {...register("valorPie")} type="number" step="0.01" placeholder="Valor del pie" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><label className="flex items-center gap-2 text-xs"><input type="checkbox" {...register("dimensionesEspeciales")} disabled={isSubmitting} />Dimensiones especiales</label></div>
               </>)}
+              {categoria === "Ferretería" && (<>
+                <div><Input {...register("stockMinimo")} type="number" step="1" placeholder="Stock mínimo" disabled={isSubmitting} /></div>
+                {errors.stockMinimo && <span className="text-red-500 text-xs">{errors.stockMinimo.message}</span>}
+                <div><Input {...register("medida")} placeholder="Medida (ej: m, cm, pulgadas)" disabled={isSubmitting} /></div>
+                {errors.medida && <span className="text-red-500 text-xs">{errors.medida.message}</span>}
+                <div><Input {...register("valorCompra")} type="number" step="0.01" placeholder="Valor de compra" disabled={isSubmitting} /></div>
+                {errors.valorCompra && <span className="text-red-500 text-xs">{errors.valorCompra.message}</span>}
+                <div><Input {...register("valorVenta")} type="number" step="0.01" placeholder="Valor de venta" disabled={isSubmitting} /></div>
+                {errors.valorVenta && <span className="text-red-500 text-xs">{errors.valorVenta.message}</span>}
+              </>)}
+              {/*
               {categoria === "Fijaciones" && (<>
                 <div><Input {...register("tipoFijacion")} placeholder="Tipo de fijación" disabled={isSubmitting} /></div>
                 <div><Input {...register("material")} placeholder="Material" disabled={isSubmitting} /></div>
@@ -261,6 +283,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 <div><Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
                 <div className="md:col-span-2"><Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
               </>)}
+              */}
             </div>
           </div>
         </div>
