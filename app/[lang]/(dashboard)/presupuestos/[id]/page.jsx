@@ -164,14 +164,27 @@ const PresupuestoDetalle = () => {
       ).map((item) => {
         const prod = productos.find((p) => p.id === item.id);
         if (prod) {
-          return {
-            ...item,
-            precio:
+          let precio;
+          
+          // Para productos de madera, usar precioPorPie
+          if (prod.categoria === "Maderas") {
+            precio = prod.precioPorPie || 0;
+          } else if (prod.categoria === "Ferretería") {
+            precio = prod.valorVenta || 0;
+          } else {
+            // Para otras categorías (futuras)
+            precio =
               prod.precioUnidad ||
               prod.precioUnidadVenta ||
               prod.precioUnidadHerraje ||
               prod.precioUnidadQuimico ||
-              prod.precioUnidadHerramienta,
+              prod.precioUnidadHerramienta ||
+              0;
+          }
+          
+          return {
+            ...item,
+            precio,
           };
         }
         return item;

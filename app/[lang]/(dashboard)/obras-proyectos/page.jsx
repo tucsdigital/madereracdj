@@ -121,21 +121,34 @@ function PresupuestoObra({ obra, onChange }) {
   const handleAgregarMaterial = () => {
     if (!material.productoId || material.cantidad <= 0) return;
     const prod = productos.find(p => p.id === material.productoId);
-    if (!prod) return;
-    setNuevoItem(item => ({
-      ...item,
-      materiales: [
-        ...item.materiales,
-        {
-          productoId: prod.id,
-          nombre: prod.nombre,
-          cantidad: material.cantidad,
-          unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
-          costoUnitario: prod.costo || prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta,
-          costoTotal: (prod.costo || prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta) * material.cantidad
-        }
-      ]
-    }));
+    if (prod) {
+      let costoUnitario;
+      
+      // Para productos de madera, usar precioPorPie
+      if (prod.categoria === "Maderas") {
+        costoUnitario = prod.precioPorPie || 0;
+      } else if (prod.categoria === "Ferretería") {
+        costoUnitario = prod.valorVenta || 0;
+      } else {
+        // Para otras categorías (futuras)
+        costoUnitario = prod.costo || prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0;
+      }
+      
+      setNuevoItem(i => ({
+        ...i,
+        materiales: [
+          ...i.materiales,
+          {
+            productoId: prod.id,
+            nombre: prod.nombre,
+            cantidad: material.cantidad,
+            unidad: prod.unidadMedida || prod.unidadVenta || prod.unidadVentaHerraje || prod.unidadVentaQuimico || prod.unidadVentaHerramienta,
+            costoUnitario,
+            costoTotal: costoUnitario * material.cantidad
+          }
+        ]
+      }));
+    }
     setMaterial({ productoId: "", cantidad: 1 });
   };
 
