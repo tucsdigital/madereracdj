@@ -715,7 +715,6 @@ const PresupuestoDetalle = () => {
                 <h3 className="font-semibold text-lg mb-4 text-gray-900">
                   Editar productos del presupuesto
                 </h3>
-                {/* Sección Productos - Diseño Mejorado */}
                 <section className="bg-white rounded-xl border border-default-200 shadow-sm overflow-hidden">
                   {/* Header con estadísticas */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -759,7 +758,7 @@ const PresupuestoDetalle = () => {
                       {/* Filtro de categorías */}
                       <div className="flex-1">
                         <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
-                          {[...new Set(productos.map((p) => p.categoria))].map(
+                          {Array.from(new Set(productos.map((p) => p.categoria))).map(
                             (categoria) => (
                               <button
                                 key={categoria}
@@ -775,7 +774,6 @@ const PresupuestoDetalle = () => {
                                     categoriaId: categoria,
                                   }))
                                 }
-                                disabled={loadingPrecios}
                               >
                                 {categoria}
                               </button>
@@ -810,142 +808,24 @@ const PresupuestoDetalle = () => {
                               busquedaProducto: e.target.value,
                             }))
                           }
-                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 transition-all duration-200"
+                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Lista de productos */}
+                  {/* Lista de productos mejorada */}
                   <div className="max-h-96 overflow-y-auto">
                     {(() => {
                       const categoriaId = presupuestoEdit.categoriaId;
                       const busquedaProducto =
                         presupuestoEdit.busquedaProducto || "";
-                      const productosPorCategoria = productos.reduce(
-                        (acc, p) => {
-                          acc[p.categoria] = acc[p.categoria] || [];
-                          acc[p.categoria].push(p);
-                          return acc;
-                        },
-                        {}
-                      );
-                      const productosSeleccionados =
-                        presupuestoEdit.productos || [];
-                      const setProductosSeleccionados = (nuevos) =>
-                        setPresupuestoEdit((prev) => ({
-                          ...prev,
-                          productos: nuevos,
-                          items: nuevos,
-                        }));
-
-                      // Handlers idénticos a los de ventas/page.jsx
-                      const handleAgregarProducto = (producto) => {
-                        const real = productos.find(
-                          (p) => p.id === producto.id
-                        );
-                        if (!real) return;
-                        if (
-                          !productosSeleccionados.some((p) => p.id === real.id)
-                        ) {
-                          let precio;
-                          if (real.categoria === "Maderas") {
-                            let alto = Number(real.alto) || 0;
-                            let ancho = Number(real.ancho) || 0;
-                            let largo = Number(real.largo) || 0;
-                            let precioPorPie = Number(real.precioPorPie) || 0;
-                            if (
-                              alto > 0 &&
-                              ancho > 0 &&
-                              largo > 0 &&
-                              precioPorPie > 0
-                            ) {
-                              precio =
-                                0.2734 * alto * ancho * largo * precioPorPie;
-                              precio = Math.round(precio * 100) / 100;
-                            } else {
-                              return;
-                            }
-                          } else if (real.categoria === "Ferretería") {
-                            precio = real.valorVenta || 0;
-                          } else {
-                            precio =
-                              real.precioUnidad ||
-                              real.precioUnidadVenta ||
-                              real.precioUnidadHerraje ||
-                              real.precioUnidadQuimico ||
-                              real.precioUnidadHerramienta ||
-                              0;
-                          }
-                          setProductosSeleccionados([
-                            ...productosSeleccionados,
-                            {
-                              id: real.id,
-                              nombre: real.nombre,
-                              precio,
-                              unidad:
-                                real.unidadMedida ||
-                                real.unidadVenta ||
-                                real.unidadVentaHerraje ||
-                                real.unidadVentaQuimico ||
-                                real.unidadVentaHerramienta,
-                              stock: real.stock,
-                              cantidad: 1,
-                              descuento: 0,
-                              categoria: real.categoria,
-                              alto: Number(real.alto) || 0,
-                              ancho: Number(real.ancho) || 0,
-                              largo: Number(real.largo) || 0,
-                              precioPorPie: Number(real.precioPorPie) || 0,
-                            },
-                          ]);
-                        }
-                      };
-                      const handleQuitarProducto = (id) => {
-                        setProductosSeleccionados(
-                          productosSeleccionados.filter((p) => p.id !== id)
-                        );
-                      };
-                      const handleCantidadChange = (id, cantidad) => {
-                        setProductosSeleccionados(
-                          productosSeleccionados.map((p) =>
-                            p.id === id
-                              ? { ...p, cantidad: Number(cantidad) }
-                              : p
-                          )
-                        );
-                      };
-                      const handleIncrementarCantidad = (id) => {
-                        setProductosSeleccionados(
-                          productosSeleccionados.map((p) =>
-                            p.id === id
-                              ? { ...p, cantidad: Number(p.cantidad) + 1 }
-                              : p
-                          )
-                        );
-                      };
-                      const handleDecrementarCantidad = (id) => {
-                        setProductosSeleccionados(
-                          productosSeleccionados.map((p) =>
-                            p.id === id
-                              ? {
-                                  ...p,
-                                  cantidad: Math.max(1, Number(p.cantidad) - 1),
-                                }
-                              : p
-                          )
-                        );
-                      };
-                      const handleDescuentoChange = (id, descuento) => {
-                        setProductosSeleccionados(
-                          productosSeleccionados.map((p) =>
-                            p.id === id
-                              ? { ...p, descuento: Number(descuento) }
-                              : p
-                          )
-                        );
-                      };
-
+                      const productosPorCategoria = {};
+                      productos.forEach((p) => {
+                        if (!productosPorCategoria[p.categoria])
+                          productosPorCategoria[p.categoria] = [];
+                        productosPorCategoria[p.categoria].push(p);
+                      });
                       if (!categoriaId) {
                         return (
                           <div className="p-8 text-center">
@@ -974,7 +854,6 @@ const PresupuestoDetalle = () => {
                           </div>
                         );
                       }
-
                       const productosFiltrados =
                         productosPorCategoria[categoriaId]?.filter(
                           (prod) =>
@@ -985,7 +864,6 @@ const PresupuestoDetalle = () => {
                               .toLowerCase()
                               .includes(busquedaProducto.toLowerCase())
                         ) || [];
-
                       if (productosFiltrados.length === 0) {
                         return (
                           <div className="p-8 text-center">
@@ -1013,30 +891,13 @@ const PresupuestoDetalle = () => {
                           </div>
                         );
                       }
-
                       return (
                         <div className="grid gap-3 p-4">
                           {productosFiltrados.map((prod) => {
-                            const yaAgregado = productosSeleccionados.some(
-                              (p) => p.id === prod.id
-                            );
-                            const precio = (() => {
-                              if (prod.categoria === "Maderas") {
-                                return prod.precioPorPie || 0;
-                              } else if (prod.categoria === "Ferretería") {
-                                return prod.valorVenta || 0;
-                              } else {
-                                return (
-                                  prod.precioUnidad ||
-                                  prod.precioUnidadVenta ||
-                                  prod.precioUnidadHerraje ||
-                                  prod.precioUnidadQuimico ||
-                                  prod.precioUnidadHerramienta ||
-                                  0
-                                );
-                              }
-                            })();
-
+                            const yaAgregado =
+                              (presupuestoEdit.productos || []).some(
+                                (p) => p.id === prod.id
+                              );
                             return (
                               <div
                                 key={prod.id}
@@ -1083,19 +944,72 @@ const PresupuestoDetalle = () => {
                                           </div>
                                         )}
                                       </div>
-                                      {/* ... puedes seguir pegando el resto del bloque de ventas/page.jsx aquí ... */}
+                                      <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                                        <div>
+                                          <span className="font-medium">
+                                            Precio:
+                                          </span>
+                                          <span className="ml-1 font-bold text-blue-600">
+                                            $
+                                            {prod.precioPorPie ||
+                                              prod.valorVenta ||
+                                              prod.precioUnidad ||
+                                              0}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                            Unidad:
+                                          </span>
+                                          <span className="ml-1">
+                                            {prod.unidadMedida ||
+                                              prod.unidadVenta ||
+                                              prod.unidadVentaHerraje ||
+                                              prod.unidadVentaQuimico ||
+                                              prod.unidadVentaHerramienta}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                            Stock:
+                                          </span>
+                                          <span
+                                            className={`ml-1 font-bold ${
+                                              prod.stock > 10
+                                                ? "text-green-600"
+                                                : prod.stock > 0
+                                                ? "text-yellow-600"
+                                                : "text-red-600"
+                                            }`}
+                                          >
+                                            {prod.stock}
+                                          </span>
+                                        </div>
+                                      </div>
                                     </div>
-                                    {/* Incrementador y botones */}
                                     <div className="flex flex-col items-end gap-2 ml-4">
                                       {yaAgregado ? (
                                         <div className="flex items-center gap-2">
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              handleDecrementarCantidad(prod.id)
+                                              setPresupuestoEdit((prev) => ({
+                                                ...prev,
+                                                productos: prev.productos.map((p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Math.max(
+                                                          1,
+                                                          p.cantidad - 1
+                                                        ),
+                                                      }
+                                                    : p
+                                                ),
+                                              }))
                                             }
                                             disabled={
-                                              productosSeleccionados.find(
+                                              presupuestoEdit.productos.find(
                                                 (p) => p.id === prod.id
                                               )?.cantidad <= 1
                                             }
@@ -1107,22 +1021,39 @@ const PresupuestoDetalle = () => {
                                             type="number"
                                             min={1}
                                             value={
-                                              productosSeleccionados.find(
+                                              presupuestoEdit.productos.find(
                                                 (p) => p.id === prod.id
                                               )?.cantidad || 1
                                             }
                                             onChange={(e) =>
-                                              handleCantidadChange(
-                                                prod.id,
-                                                e.target.value
-                                              )
+                                              setPresupuestoEdit((prev) => ({
+                                                ...prev,
+                                                productos: prev.productos.map((p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Number(e.target.value),
+                                                      }
+                                                    : p
+                                                ),
+                                              }))
                                             }
                                             className="w-12 text-center border rounded"
                                           />
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              handleIncrementarCantidad(prod.id)
+                                              setPresupuestoEdit((prev) => ({
+                                                ...prev,
+                                                productos: prev.productos.map((p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: p.cantidad + 1,
+                                                      }
+                                                    : p
+                                                ),
+                                              }))
                                             }
                                             className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
                                           >
@@ -1131,7 +1062,12 @@ const PresupuestoDetalle = () => {
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              handleQuitarProducto(prod.id)
+                                              setPresupuestoEdit((prev) => ({
+                                                ...prev,
+                                                productos: prev.productos.filter(
+                                                  (p) => p.id !== prod.id
+                                                ),
+                                              }))
                                             }
                                             className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                                           >
@@ -1142,7 +1078,35 @@ const PresupuestoDetalle = () => {
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            handleAgregarProducto(prod)
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: [
+                                                ...(prev.productos || []),
+                                                {
+                                                  id: prod.id,
+                                                  nombre: prod.nombre,
+                                                  precio:
+                                                    prod.precioPorPie ||
+                                                    prod.valorVenta ||
+                                                    prod.precioUnidad ||
+                                                    0,
+                                                  unidad:
+                                                    prod.unidadMedida ||
+                                                    prod.unidadVenta ||
+                                                    prod.unidadVentaHerraje ||
+                                                    prod.unidadVentaQuimico ||
+                                                    prod.unidadVentaHerramienta,
+                                                  stock: prod.stock,
+                                                  cantidad: 1,
+                                                  descuento: 0,
+                                                  categoria: prod.categoria,
+                                                  alto: Number(prod.alto) || 0,
+                                                  ancho: Number(prod.ancho) || 0,
+                                                  largo: Number(prod.largo) || 0,
+                                                  precioPorPie: Number(prod.precioPorPie) || 0,
+                                                },
+                                              ],
+                                            }))
                                           }
                                           className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                                         >
@@ -1223,6 +1187,16 @@ const PresupuestoDetalle = () => {
                                     <span className="ml-2 text-primary font-semibold">
                                       Precio calculado: ${p.precio}
                                     </span>
+                                    {p.stock <= 0 && (
+                                      <span className="text-red-600 font-semibold ml-2">
+                                        ¡Sin stock! Se permitirá avanzar igual.
+                                      </span>
+                                    )}
+                                    {p.stock > 0 && p.stock <= 3 && (
+                                      <span className="text-yellow-600 font-semibold ml-2">
+                                        Stock bajo: quedan {p.stock} unidades.
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </td>
@@ -1232,57 +1206,57 @@ const PresupuestoDetalle = () => {
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        handleDecrementarCantidad(p.id)
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((x) =>
+                                            x.id === p.id
+                                              ? {
+                                                  ...x,
+                                                  cantidad: Math.max(1, x.cantidad - 1),
+                                                }
+                                              : x
+                                          ),
+                                        }))
                                       }
                                       disabled={p.cantidad <= 1}
                                       className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                     >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth="2"
-                                          d="M20 12H4"
-                                        />
-                                      </svg>
+                                      -
                                     </button>
                                     <input
                                       type="number"
                                       min={1}
                                       value={p.cantidad}
                                       onChange={(e) =>
-                                        handleCantidadChange(
-                                          p.id,
-                                          e.target.value
-                                        )
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((x) =>
+                                            x.id === p.id
+                                              ? {
+                                                  ...x,
+                                                  cantidad: Number(e.target.value),
+                                                }
+                                              : x
+                                          ),
+                                        }))
                                       }
                                       className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900"
                                     />
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        handleIncrementarCantidad(p.id)
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((x) =>
+                                            x.id === p.id
+                                              ? { ...x, cantidad: x.cantidad + 1 }
+                                              : x
+                                          ),
+                                        }))
                                       }
                                       className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-150"
                                     >
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth="2"
-                                          d="M12 4v16m8-8H4"
-                                        />
-                                      </svg>
+                                      +
                                     </button>
                                   </div>
                                 </div>
@@ -1295,7 +1269,14 @@ const PresupuestoDetalle = () => {
                                   max={100}
                                   value={p.descuento}
                                   onChange={(e) =>
-                                    handleDescuentoChange(p.id, e.target.value)
+                                    setPresupuestoEdit((prev) => ({
+                                      ...prev,
+                                      productos: prev.productos.map((x) =>
+                                        x.id === p.id
+                                          ? { ...x, descuento: Number(e.target.value) }
+                                          : x
+                                      ),
+                                    }))
                                   }
                                   className="w-20 mx-auto text-center"
                                 />
@@ -1309,14 +1290,22 @@ const PresupuestoDetalle = () => {
                                 ).toFixed(2)}
                               </td>
                               <td className="text-center">
-                                <button
+                                <Button
                                   type="button"
-                                  onClick={() => handleQuitarProducto(p.id)}
-                                  className="text-lg font-bold text-red-500"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setPresupuestoEdit((prev) => ({
+                                      ...prev,
+                                      productos: prev.productos.filter((x) => x.id !== p.id),
+                                    }))
+                                  }
                                   title="Quitar producto"
                                 >
-                                  ×
-                                </button>
+                                  <span className="text-lg font-bold text-red-500">
+                                    ×
+                                  </span>
+                                </Button>
                               </td>
                             </tr>
                           ))}
