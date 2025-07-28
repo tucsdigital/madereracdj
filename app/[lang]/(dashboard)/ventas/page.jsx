@@ -251,7 +251,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let alto = Number(real.espesor) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioUnidad) || 0;
+        let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
         
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
@@ -302,7 +302,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           alto: Number(real.espesor) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioUnidad) || 0,
+          precioPorPie: Number(real.precioPorPie) || 0, // Corregido: usar precioPorPie en lugar de precioUnidad
         },
       ]);
     }
@@ -876,7 +876,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <div className="col-span-2 font-bold text-primary">
                                 ${(() => {
                                   if (prod.categoria === "Maderas") {
-                                    return prod.precioUnidad || prod.precioPorPie || 0;
+                                    return prod.precioPorPie || 0; // Corregido: usar precioPorPie
                                   } else if (prod.categoria === "Ferretería") {
                                     return prod.valorVenta || 0;
                                   } else {
@@ -932,7 +932,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     const ancho = Number(prod.ancho) || 0;
                                     const largo = Number(prod.largo) || 0;
                                     const precioPorPie =
-                                      Number(prod.precioUnidad) || 0;
+                                      Number(prod.precioPorPie) || 0;
                                     if (
                                       prod.categoria === "Maderas" &&
                                       alto > 0 &&
@@ -1060,17 +1060,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   type="button"
                                   size="sm"
                                   variant={
-                                    productosSeleccionados.some(
-                                      (p) => p.id === prod.id
-                                    )
+                                    productosSeleccionados.some((p) => p.id === prod.id)
                                       ? "soft"
                                       : "default"
                                   }
                                   color="primary"
                                   className={
-                                    productosSeleccionados.some(
-                                      (p) => p.id === prod.id
-                                    )
+                                    productosSeleccionados.some((p) => p.id === prod.id)
                                       ? "bg-yellow-200 text-yellow-700 cursor-default"
                                       : ""
                                   }
@@ -1825,7 +1821,7 @@ export function SelectorProductosPresupuesto({
         let alto = Number(real.espesor) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioUnidad) || 0;
+        let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
         
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
@@ -1876,7 +1872,7 @@ export function SelectorProductosPresupuesto({
           alto: Number(real.espesor) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioUnidad) || 0,
+          precioPorPie: Number(real.precioPorPie) || 0, // Corregido: usar precioPorPie en lugar de precioUnidad
         },
       ]);
     }
@@ -1982,7 +1978,7 @@ export function SelectorProductosPresupuesto({
                       <div className="col-span-2 font-bold text-primary">
                         ${(() => {
                           if (prod.categoria === "Maderas") {
-                            return prod.precioUnidad || prod.precioPorPie || 0;
+                            return prod.precioPorPie || 0; // Corregido: usar precioPorPie
                           } else if (prod.categoria === "Ferretería") {
                             return prod.valorVenta || 0;
                           } else {
@@ -2033,7 +2029,7 @@ export function SelectorProductosPresupuesto({
                             const alto = Number(prod.espesor) || 0;
                             const ancho = Number(prod.ancho) || 0;
                             const largo = Number(prod.largo) || 0;
-                            const precioPorPie = Number(prod.precioUnidad) || 0;
+                            const precioPorPie = Number(prod.precioPorPie) || 0;
                             if (
                               prod.categoria === "Maderas" &&
                               alto > 0 &&
