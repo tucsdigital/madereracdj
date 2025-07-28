@@ -1217,31 +1217,52 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 </div>
 
                                 <div className="flex flex-col items-end gap-2 ml-4">
-                                  <button
-                                    onClick={() => {
-                                      if (yaAgregado) {
-                                        handleQuitarProducto(prod.id);
-                                      } else {
+                                  {yaAgregado ? (
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDecrementarCantidad(prod.id)}
+                                        disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
+                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                      >
+                                        -
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
+                                        onChange={e => handleCantidadChange(prod.id, e.target.value)}
+                                        className="w-12 text-center border rounded"
+                                        disabled={isSubmitting}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleIncrementarCantidad(prod.id)}
+                                        disabled={isSubmitting}
+                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                      >
+                                        +
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleQuitarProducto(prod.id)}
+                                        disabled={isSubmitting}
+                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
                                         if (prod.categoria === "Maderas") {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;
                                           const largo = Number(prod.largo) || 0;
-                                          const precioPorPie =
-                                            Number(prod.precioPorPie) || 0;
-
-                                          if (
-                                            alto > 0 &&
-                                            ancho > 0 &&
-                                            largo > 0 &&
-                                            precioPorPie > 0
-                                          ) {
-                                            const precio =
-                                              calcularPrecioCorteMadera({
-                                                alto,
-                                                ancho,
-                                                largo,
-                                                precioPorPie,
-                                              });
+                                          const precioPorPie = Number(prod.precioPorPie) || 0;
+                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                            const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                                             handleAgregarProducto({
                                               id: prod.id,
                                               nombre: prod.nombre,
@@ -1255,9 +1276,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             });
                                           } else {
                                             setSubmitStatus("error");
-                                            setSubmitMessage(
-                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                            );
+                                            setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
                                             return;
                                           }
                                         } else {
@@ -1274,51 +1293,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             stock: prod.stock,
                                           });
                                         }
-                                      }
-                                    }}
-                                    disabled={isSubmitting}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                                      yaAgregado
-                                        ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-                                        : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    }`}
-                                  >
-                                    {yaAgregado ? (
-                                      <>
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M6 18L18 6M6 6l12 12"
-                                          />
-                                        </svg>
-                                        Quitar
-                                      </>
-                                    ) : (
-                                      <>
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
-                                        Agregar
-                                      </>
-                                    )}
-                                  </button>
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                    >
+                                      Agregar
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2113,93 +2094,89 @@ export function SelectorProductosPresupuesto({
                         )}
                       </div>
                       <div className="col-span-1 flex justify-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={
-                            productosSeleccionados.some((p) => p.id === prod.id)
-                              ? "soft"
-                              : "default"
-                          }
-                          color="primary"
-                          className={
-                            productosSeleccionados.some((p) => p.id === prod.id)
-                              ? "bg-yellow-200 text-yellow-700 cursor-default"
-                              : ""
-                          }
-                          onClick={() => {
-                            if (
-                              productosSeleccionados.some(
-                                (p) => p.id === prod.id
-                              )
-                            )
-                              return;
-                            const alto = Number(prod.alto) || 0;
-                            const ancho = Number(prod.ancho) || 0;
-                            const largo = Number(prod.largo) || 0;
-                            const precioPorPie = Number(prod.precioPorPie) || 0;
-                            if (
-                              prod.categoria === "Maderas" &&
-                              alto > 0 &&
-                              ancho > 0 &&
-                              largo > 0 &&
-                              precioPorPie > 0
-                            ) {
-                              const precio = calcularPrecioCorteMadera({
-                                alto,
-                                ancho,
-                                largo,
-                                precioPorPie,
-                              });
-                              handleAgregarProducto({
-                                id: prod.id,
-                                nombre: prod.nombre,
-                                precio,
-                                unidad: prod.unidadMedida,
-                                stock: prod.stock,
-                                alto,
-                                ancho,
-                                largo,
-                                precioPorPie,
-                              });
-                            } else if (prod.categoria !== "Maderas") {
-                              handleAgregarProducto({
-                                id: prod.id,
-                                nombre: prod.nombre,
-                                precio: (() => {
-                                  if (prod.categoria === "Ferretería") {
-                                    return prod.valorVenta || 0;
-                                  } else {
-                                    return (
-                                      prod.precioUnidad ||
-                                      prod.precioUnidadVenta ||
-                                      prod.precioUnidadHerraje ||
-                                      prod.precioUnidadQuimico ||
-                                      prod.precioUnidadHerramienta ||
-                                      0
-                                    );
-                                  }
-                                })(),
-                                unidad:
-                                  prod.unidadMedida ||
-                                  prod.unidadVenta ||
-                                  prod.unidadVentaHerraje ||
-                                  prod.unidadVentaQuimico ||
-                                  prod.unidadVentaHerramienta,
-                                stock: prod.stock,
-                              });
-                            }
-                          }}
-                          disabled={
-                            productosSeleccionados.some(
-                              (p) => p.id === prod.id
-                            ) || isSubmitting
-                          }
-                        >
-                          {productosSeleccionados.some((p) => p.id === prod.id)
-                            ? "Agregado"
-                            : "Agregar"}
-                        </Button>
+                        {yaAgregado ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDecrementarCantidad(prod.id)}
+                              disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
+                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
+                              onChange={e => handleCantidadChange(prod.id, e.target.value)}
+                              className="w-12 text-center border rounded"
+                              disabled={isSubmitting}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleIncrementarCantidad(prod.id)}
+                              disabled={isSubmitting}
+                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuitarProducto(prod.id)}
+                              disabled={isSubmitting}
+                              className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (prod.categoria === "Maderas") {
+                                const alto = Number(prod.alto) || 0;
+                                const ancho = Number(prod.ancho) || 0;
+                                const largo = Number(prod.largo) || 0;
+                                const precioPorPie = Number(prod.precioPorPie) || 0;
+                                if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                  const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                  handleAgregarProducto({
+                                    id: prod.id,
+                                    nombre: prod.nombre,
+                                    precio,
+                                    unidad: prod.unidadMedida,
+                                    stock: prod.stock,
+                                    alto,
+                                    ancho,
+                                    largo,
+                                    precioPorPie,
+                                  });
+                                } else {
+                                  setSubmitStatus("error");
+                                  setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+                                  return;
+                                }
+                              } else {
+                                handleAgregarProducto({
+                                  id: prod.id,
+                                  nombre: prod.nombre,
+                                  precio: precio,
+                                  unidad:
+                                    prod.unidadMedida ||
+                                    prod.unidadVenta ||
+                                    prod.unidadVentaHerraje ||
+                                    prod.unidadVentaQuimico ||
+                                    prod.unidadVentaHerramienta,
+                                  stock: prod.stock,
+                                });
+                              }
+                            }}
+                            disabled={isSubmitting}
+                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                          >
+                            Agregar
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2264,59 +2241,79 @@ export function SelectorProductosPresupuesto({
                         {prod.stock}
                       </div>
                       <div className="col-span-1 flex justify-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={
-                            productosSeleccionados.some((p) => p.id === prod.id)
-                              ? "soft"
-                              : "default"
-                          }
-                          color="primary"
-                          className={
-                            productosSeleccionados.some((p) => p.id === prod.id)
-                              ? "bg-yellow-200 text-yellow-700 cursor-default"
-                              : ""
-                          }
-                          onClick={() => {
-                            handleAgregarProducto({
-                              id: prod.id,
-                              nombre: prod.nombre,
-                              precio: (() => {
-                                if (prod.categoria === "Maderas") {
-                                  return prod.precioPorPie || 0; // Corregido: usar precioPorPie para maderas
-                                } else if (prod.categoria === "Ferretería") {
-                                  return prod.valorVenta || 0;
-                                } else {
-                                  return (
-                                    prod.precioUnidad ||
-                                    prod.precioUnidadVenta ||
-                                    prod.precioUnidadHerraje ||
-                                    prod.precioUnidadQuimico ||
-                                    prod.precioUnidadHerramienta ||
-                                    0
-                                  );
-                                }
-                              })(),
-                              unidad:
-                                prod.unidadMedida ||
-                                prod.unidadVenta ||
-                                prod.unidadVentaHerraje ||
-                                prod.unidadVentaQuimico ||
-                                prod.unidadVentaHerramienta,
-                              stock: prod.stock,
-                            });
-                          }}
-                          disabled={
-                            productosSeleccionados.some(
-                              (p) => p.id === prod.id
-                            ) || isSubmitting
-                          }
-                        >
-                          {productosSeleccionados.some((p) => p.id === prod.id)
-                            ? "Agregado"
-                            : "Agregar"}
-                        </Button>
+                        {yaAgregado ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDecrementarCantidad(prod.id)}
+                              disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
+                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
+                              onChange={e => handleCantidadChange(prod.id, e.target.value)}
+                              className="w-12 text-center border rounded"
+                              disabled={isSubmitting}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleIncrementarCantidad(prod.id)}
+                              disabled={isSubmitting}
+                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleQuitarProducto(prod.id)}
+                              disabled={isSubmitting}
+                              className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleAgregarProducto({
+                                id: prod.id,
+                                nombre: prod.nombre,
+                                precio: (() => {
+                                  if (prod.categoria === "Maderas") {
+                                    return prod.precioPorPie || 0; // Corregido: usar precioPorPie para maderas
+                                  } else if (prod.categoria === "Ferretería") {
+                                    return prod.valorVenta || 0;
+                                  } else {
+                                    return (
+                                      prod.precioUnidad ||
+                                      prod.precioUnidadVenta ||
+                                      prod.precioUnidadHerraje ||
+                                      prod.precioUnidadQuimico ||
+                                      prod.precioUnidadHerramienta ||
+                                      0
+                                    );
+                                  }
+                                })(),
+                                unidad:
+                                  prod.unidadMedida ||
+                                  prod.unidadVenta ||
+                                  prod.unidadVentaHerraje ||
+                                  prod.unidadVentaQuimico ||
+                                  prod.unidadVentaHerramienta,
+                                stock: prod.stock,
+                              });
+                            }}
+                            disabled={isSubmitting}
+                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                          >
+                            Agregar
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
