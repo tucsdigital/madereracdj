@@ -407,26 +407,49 @@ const PresupuestoDetalle = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <style>{`
         @media print {
+          @page { 
+            margin: 20px !important; 
+            size: A4;
+          }
+          body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+          }
           body * { visibility: hidden !important; }
           #presupuesto-print, #presupuesto-print * { visibility: visible !important; }
-          #presupuesto-print {
-            position: absolute !important;
-            left: 0; top: 0; width: 100vw; min-height: 100vh;
-            background: white !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            font-family: 'Segoe UI', Arial, sans-serif !important;
-          }
           #presupuesto-print .no-print, #presupuesto-print .no-print * { display: none !important; }
-          #presupuesto-print .bg-white { box-shadow: none !important; border: none !important; }
-          #presupuesto-print .rounded-lg { border-radius: 0 !important; }
-          #presupuesto-print .shadow-sm { box-shadow: none !important; }
-          #presupuesto-print .mb-6, #presupuesto-print .mt-6, #presupuesto-print .py-8, #presupuesto-print .px-4, #presupuesto-print .p-6 { margin: 0 !important; padding: 0 !important; }
-          #presupuesto-print table { width: 100% !important; font-size: 13px; border-collapse: collapse; }
-          #presupuesto-print th, #presupuesto-print td { border: 1px solid #ddd !important; padding: 6px 8px !important; }
-          #presupuesto-print th { background: #f3f3f3 !important; }
-          #presupuesto-print h1, #presupuesto-print h2, #presupuesto-print h3 { margin: 0 0 8px 0 !important; }
+          #presupuesto-print { 
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            margin: 0 !important; 
+            padding: 0 !important;
+            width: 100% !important;
+            background: white !important;
+          }
+          /* Layout de 2 columnas para impresión */
+          #presupuesto-print .grid { 
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 20px !important;
+            margin-bottom: 20px !important;
+          }
+          #presupuesto-print .bg-gray-50 {
+            background: #f9fafb !important;
+            padding: 15px !important;
+            border-radius: 8px !important;
+          }
+          /* Reducir tamaños de fuente para que quepa todo */
+          #presupuesto-print h3 {
+            font-size: 14px !important;
+            margin-bottom: 8px !important;
+          }
+          #presupuesto-print .text-sm {
+            font-size: 11px !important;
+          }
+          #presupuesto-print .space-y-2 > div {
+            margin-bottom: 4px !important;
+          }
         }
       `}</style>
       <div id="presupuesto-print" className="max-w-4xl mx-auto px-4">

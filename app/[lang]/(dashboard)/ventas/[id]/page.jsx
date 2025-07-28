@@ -46,6 +46,10 @@ const VentaDetalle = () => {
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
 
+  // 1. Agregar estado para loader y mensaje de éxito
+  const [registrandoPago, setRegistrandoPago] = useState(false);
+  const [pagoExitoso, setPagoExitoso] = useState(false);
+
   useEffect(() => {
     const fetchVenta = async () => {
       try {
@@ -403,13 +407,14 @@ const VentaDetalle = () => {
             </p>
           </div>
           <div className="flex gap-3 justify-center">
-            <Button onClick={() => router.back()}>
+            <Button onClick={() => router.back()} className="no-print">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Volver
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push(`/${lang}/ventas`)}
+              className="no-print"
             >
               Ver todas las ventas
             </Button>
@@ -470,27 +475,57 @@ const VentaDetalle = () => {
       border: 1.5px solid #2563eb !important;
       box-shadow: 0 0 0 2px #2563eb22 !important;
     }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.5s;
+    }
     @media print {
+      @page { 
+        margin: 20px !important; 
+        size: A4;
+      }
+      body { 
+        margin: 0 !important; 
+        padding: 0 !important; 
+      }
       body * { visibility: hidden !important; }
       #venta-print, #venta-print * { visibility: visible !important; }
-      #venta-print {
-        position: absolute !important;
-        left: 0; top: 0; width: 100vw; min-height: 100vh;
-        background: white !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-      }
       #venta-print .no-print, #venta-print .no-print * { display: none !important; }
-      #venta-print .bg-white { box-shadow: none !important; border: none !important; }
-      #venta-print .rounded-lg { border-radius: 0 !important; }
-      #venta-print .shadow-sm { box-shadow: none !important; }
-      #venta-print .mb-6, #venta-print .mt-6, #venta-print .py-8, #venta-print .px-4, #venta-print .p-6 { margin: 0 !important; padding: 0 !important; }
-      #venta-print table { width: 100% !important; font-size: 13px; border-collapse: collapse; }
-      #venta-print th, #venta-print td { border: 1px solid #ddd !important; padding: 6px 8px !important; }
-      #venta-print th { background: #f3f3f3 !important; }
-      #venta-print h1, #venta-print h2, #venta-print h3 { margin: 0 0 8px 0 !important; }
+      #venta-print { 
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin: 0 !important; 
+        padding: 0 !important;
+        width: 100% !important;
+        background: white !important;
+      }
+      /* Layout de 2 columnas para impresión */
+      #venta-print .grid { 
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+        margin-bottom: 20px !important;
+      }
+      #venta-print .bg-gray-50 {
+        background: #f9fafb !important;
+        padding: 15px !important;
+        border-radius: 8px !important;
+      }
+      /* Reducir tamaños de fuente para que quepa todo */
+      #venta-print h3 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      #venta-print .text-sm {
+        font-size: 11px !important;
+      }
+      #venta-print .space-y-2 > div {
+        margin-bottom: 4px !important;
+      }
     }
   `}</style>
       <div id="venta-print" className="max-w-4xl mx-auto px-4">
@@ -567,7 +602,7 @@ const VentaDetalle = () => {
         </div>
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-gray-50 rounded-lg p-6 shadow-sm flex flex-col gap-2">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información del Cliente
             </h3>
@@ -624,52 +659,7 @@ const VentaDetalle = () => {
               </div>
             </div>
           </div>
-          <div className="bg-gray-50 rounded-lg p-6 shadow-sm flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
-              Información de la Venta
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Fecha de emisión:</span>{" "}
-                {formatFechaLocal(venta.fecha)}
-              </div>
-              {/* Estado de la venta */}
-              <div>
-                <span className="font-medium">Estado de la venta:</span>{" "}
-                {(() => {
-                  const total = venta.total || 0;
-                  const montoAbonadoCalculado =
-                    Array.isArray(venta.pagos) && venta.pagos.length > 0
-                      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                      : Number(venta.montoAbonado || 0);
-
-                  if (montoAbonadoCalculado >= total) {
-                    return (
-                      <span className="text-green-700 font-bold ml-2">
-                        Pagado
-                      </span>
-                    );
-                  } else if (montoAbonadoCalculado > 0) {
-                    return (
-                      <span className="text-yellow-700 font-bold ml-2">
-                        Parcial
-                      </span>
-                    );
-                  } else {
-                    return (
-                      <span className="text-red-700 font-bold ml-2">
-                        Pendiente
-                      </span>
-                    );
-                  }
-                })()}
-              </div>
-            </div>
-            {/* aqui ubicar el estado de la venta */}
-          </div>
-        </div>
-        {/* 2. Información de Envío y Pago */}
-        {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
+          {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de Envío y Pago
@@ -720,6 +710,37 @@ const VentaDetalle = () => {
                     </div>
                   )}
               </div>
+              {/* Estado de la venta */}
+              <div>
+                <span className="font-medium">Estado de la venta:</span>{" "}
+                {(() => {
+                  const total = venta.total || 0;
+                  const montoAbonadoCalculado =
+                    Array.isArray(venta.pagos) && venta.pagos.length > 0
+                      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                      : Number(venta.montoAbonado || 0);
+
+                  if (montoAbonadoCalculado >= total) {
+                    return (
+                      <span className="text-green-700 font-bold ml-2">
+                        Pagado
+                      </span>
+                    );
+                  } else if (montoAbonadoCalculado > 0) {
+                    return (
+                      <span className="text-yellow-700 font-bold ml-2">
+                        Parcial
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span className="text-red-700 font-bold ml-2">
+                        Pendiente
+                      </span>
+                    );
+                  }
+                })()}
+              </div>
             </div>
           </div>
         ) : (
@@ -744,12 +765,45 @@ const VentaDetalle = () => {
                 <span className="font-medium">Forma de pago:</span>{" "}
                 {venta.formaPago || "-"}
               </div>
+              {/* Estado de la venta */}
+              <div>
+                <span className="font-medium">Estado de la venta:</span>{" "}
+                {(() => {
+                  const total = venta.total || 0;
+                  const montoAbonadoCalculado =
+                    Array.isArray(venta.pagos) && venta.pagos.length > 0
+                      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                      : Number(venta.montoAbonado || 0);
+
+                  if (montoAbonadoCalculado >= total) {
+                    return (
+                      <span className="text-green-700 font-bold ml-2">
+                        Pagado
+                      </span>
+                    );
+                  } else if (montoAbonadoCalculado > 0) {
+                    return (
+                      <span className="text-yellow-700 font-bold ml-2">
+                        Parcial
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span className="text-red-700 font-bold ml-2">
+                        Pendiente
+                      </span>
+                    );
+                  }
+                })()}
+              </div>
             </div>
           </div>
         )}
+        </div>
+       
 
         {/* 3. Información de Pagos */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
           <h3 className="font-semibold text-lg mb-4 text-gray-900">
             Información de Pagos
           </h3>
@@ -826,7 +880,6 @@ const VentaDetalle = () => {
                         <td className="py-1 text-right">
                           ${Number(pago.monto).toFixed(2)}
                         </td>
-                        <td className="py-1">{pago.usuario || "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1692,6 +1745,7 @@ const VentaDetalle = () => {
                               nuevoPagoMonto: e.target.value,
                             }))
                           }
+                          disabled={registrandoPago}
                         />
                         <select
                           className="border rounded px-2 py-1"
@@ -1702,6 +1756,7 @@ const VentaDetalle = () => {
                               nuevoPagoMetodo: e.target.value,
                             }))
                           }
+                          disabled={registrandoPago}
                         >
                           <option value="">Método de pago</option>
                           <option value="efectivo">Efectivo</option>
@@ -1712,8 +1767,15 @@ const VentaDetalle = () => {
                         </select>
                         <button
                           type="button"
-                          className="bg-green-600 text-white px-4 py-1 rounded"
-                          onClick={() => {
+                          className={`bg-green-600 text-white px-4 py-1 rounded flex items-center gap-2 ${
+                            registrandoPago
+                              ? "opacity-70 cursor-not-allowed"
+                              : ""
+                          }`}
+                          onClick={async () => {
+                            setRegistrandoPago(true);
+                            // Simular un pequeño delay para UX
+                            await new Promise((res) => setTimeout(res, 600));
                             if (Array.isArray(ventaEdit.pagos)) {
                               setVentaEdit((prev) => ({
                                 ...prev,
@@ -1741,17 +1803,49 @@ const VentaDetalle = () => {
                                 nuevoPagoMetodo: "",
                               }));
                             }
+                            setPagoExitoso(true);
+                            setRegistrandoPago(false);
+                            setTimeout(() => setPagoExitoso(false), 2200);
                           }}
                           disabled={
+                            registrandoPago ||
                             !ventaEdit.nuevoPagoMonto ||
                             !ventaEdit.nuevoPagoMetodo ||
                             Number(ventaEdit.nuevoPagoMonto) <= 0 ||
                             Number(ventaEdit.nuevoPagoMonto) > saldo
                           }
                         >
-                          Registrar pago
+                          {registrandoPago && (
+                            <svg
+                              className="animate-spin h-5 w-5 mr-1 text-white"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v8z"
+                              />
+                            </svg>
+                          )}
+                          {registrandoPago
+                            ? "Registrando..."
+                            : "Registrar pago"}
                         </button>
                       </div>
+                      {pagoExitoso && (
+                        <div className="mt-3 px-4 py-2 rounded bg-green-100 text-green-800 font-semibold shadow text-center animate-fade-in">
+                          ¡Pago registrado exitosamente!
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -1762,6 +1856,7 @@ const VentaDetalle = () => {
                   variant="default"
                   onClick={handleGuardarCambios}
                   disabled={loadingPrecios}
+                  className="no-print"
                 >
                   Guardar cambios
                 </Button>
@@ -1769,6 +1864,7 @@ const VentaDetalle = () => {
                   variant="outline"
                   onClick={() => setEditando(false)}
                   disabled={loadingPrecios}
+                  className="no-print"
                 >
                   Cancelar
                 </Button>
