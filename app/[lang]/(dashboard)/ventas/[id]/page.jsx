@@ -1665,6 +1665,95 @@ const VentaDetalle = () => {
                 )}
               </section>
               {/* --- FIN BLOQUE COPIADO --- */}
+
+              {/* Bloque para registrar pagos adicionales si hay saldo pendiente */}
+              {(() => {
+                // Calcula el saldo pendiente en modo edición
+                const subtotal = (ventaEdit.productos || []).reduce(
+                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0
+                );
+                const descuento = (ventaEdit.productos || []).reduce(
+                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0
+                );
+                const envio = Number(ventaEdit.costoEnvio) || 0;
+                const total = subtotal - descuento + envio;
+                const abonado = Array.isArray(ventaEdit.pagos)
+                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                  : Number(ventaEdit.montoAbonado || 0);
+                const saldo = total - abonado;
+                if (saldo > 0) {
+                  return (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
+                      <h4 className="font-semibold text-yellow-800 mb-2">Saldo pendiente: ${saldo.toFixed(2)}</h4>
+                      <div className="flex flex-col md:flex-row gap-2 items-end">
+                        <input
+                          type="number"
+                          min={1}
+                          max={saldo}
+                          placeholder="Monto a abonar"
+                          className="border rounded px-2 py-1"
+                          value={ventaEdit.nuevoPagoMonto || ""}
+                          onChange={e =>
+                            setVentaEdit(prev => ({ ...prev, nuevoPagoMonto: e.target.value }))
+                          }
+                        />
+                        <select
+                          className="border rounded px-2 py-1"
+                          value={ventaEdit.nuevoPagoMetodo || ""}
+                          onChange={e =>
+                            setVentaEdit(prev => ({ ...prev, nuevoPagoMetodo: e.target.value }))
+                          }
+                        >
+                          <option value="">Método de pago</option>
+                          <option value="efectivo">Efectivo</option>
+                          <option value="transferencia">Transferencia</option>
+                          <option value="tarjeta">Tarjeta</option>
+                          <option value="cheque">Cheque</option>
+                          <option value="otro">Otro</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="bg-green-600 text-white px-4 py-1 rounded"
+                          onClick={() => {
+                            if (Array.isArray(ventaEdit.pagos)) {
+                              setVentaEdit(prev => ({
+                                ...prev,
+                                pagos: [
+                                  ...prev.pagos,
+                                  {
+                                    fecha: new Date().toISOString().split('T')[0],
+                                    monto: Number(prev.nuevoPagoMonto),
+                                    metodo: prev.nuevoPagoMetodo,
+                                    usuario: "usuario", // puedes poner el usuario real si lo tienes
+                                  }
+                                ],
+                                nuevoPagoMonto: "",
+                                nuevoPagoMetodo: "",
+                              }));
+                            } else {
+                              setVentaEdit(prev => ({
+                                ...prev,
+                                montoAbonado: Number(prev.montoAbonado || 0) + Number(prev.nuevoPagoMonto),
+                                nuevoPagoMonto: "",
+                                nuevoPagoMetodo: "",
+                              }));
+                            }
+                          }}
+                          disabled={
+                            !ventaEdit.nuevoPagoMonto ||
+                            !ventaEdit.nuevoPagoMetodo ||
+                            Number(ventaEdit.nuevoPagoMonto) <= 0 ||
+                            Number(ventaEdit.nuevoPagoMonto) > saldo
+                          }
+                        >
+                          Registrar pago
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div className="flex gap-2 mt-6">
                 <Button
                   variant="default"
