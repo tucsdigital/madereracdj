@@ -22,6 +22,34 @@ const schema = yup.object().shape({
   observaciones: yup.string().optional(),
 });
 
+// Función helper para formatear fechas de manera segura
+const formatFechaSegura = (fecha) => {
+  if (!fecha) return "";
+  
+  try {
+    // Si ya es un string en formato YYYY-MM-DD, devolverlo tal como está
+    if (typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return fecha;
+    }
+    
+    // Si es un timestamp de Firestore
+    if (fecha && typeof fecha === "object" && fecha.toDate) {
+      return fecha.toDate().toISOString().split("T")[0];
+    }
+    
+    // Si es un string de fecha válido
+    const dateObj = new Date(fecha);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toISOString().split("T")[0];
+    }
+    
+    return "";
+  } catch (error) {
+    console.warn("Error al formatear fecha:", fecha, error);
+    return "";
+  }
+};
+
 const GastosPage = () => {
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -52,12 +80,22 @@ const GastosPage = () => {
     const cargarGastos = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "gastos"));
-        const gastosData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          fecha: doc.data().fecha ? new Date(doc.data().fecha).toISOString().split("T")[0] : "",
-        }));
-        setGastos(gastosData.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+        const gastosData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            fecha: formatFechaSegura(data.fecha),
+            monto: Number(data.monto) || 0,
+          };
+        });
+        
+        // Filtrar gastos con fechas válidas y ordenar
+        const gastosValidos = gastosData
+          .filter(g => g.fecha) // Solo gastos con fecha válida
+          .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        
+        setGastos(gastosValidos);
       } catch (error) {
         console.error("Error al cargar gastos:", error);
       } finally {
@@ -72,8 +110,12 @@ const GastosPage = () => {
   const onSubmit = async (data) => {
     setGuardando(true);
     try {
+      // Asegurar que la fecha esté en formato correcto
+      const fechaFormateada = formatFechaSegura(data.fecha) || new Date().toISOString().split("T")[0];
+      
       const gastoData = {
         ...data,
+        fecha: fechaFormateada,
         monto: Number(data.monto),
         fechaCreacion: serverTimestamp(),
         fechaActualizacion: serverTimestamp(),
@@ -88,7 +130,7 @@ const GastosPage = () => {
         
         setGastos(prev => prev.map(g => 
           g.id === editando.id 
-            ? { ...g, ...data, monto: Number(data.monto) }
+            ? { ...g, ...data, fecha: fechaFormateada, monto: Number(data.monto) }
             : g
         ));
       } else {
@@ -97,6 +139,7 @@ const GastosPage = () => {
         const nuevoGasto = {
           id: docRef.id,
           ...data,
+          fecha: fechaFormateada,
           monto: Number(data.monto),
           fechaCreacion: new Date().toISOString(),
         };
