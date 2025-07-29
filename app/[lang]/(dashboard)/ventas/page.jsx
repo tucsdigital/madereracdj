@@ -214,6 +214,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     localidad: "",
   });
 
+  const [productosSeleccionados, setProductosSeleccionados] = useState([]);
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(true); // Checkbox para cepillado automático
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
@@ -238,7 +240,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, []);
 
   const [categoriaId, setCategoriaId] = useState("");
-  const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [busquedaProducto, setBusquedaProducto] = useState("");
 
   const handleAgregarProducto = (producto) => {
@@ -258,7 +259,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let alto = Number(real.alto) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
+        let precioPorPie = Number(real.precioPorPie) || 0;
 
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
@@ -267,6 +268,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             largo,
             precioPorPie,
           });
+          
+          // Aplicar cepillado automático si está habilitado
+          if (cepilladoAutomatico) {
+            const cepillado = precio * 0.066; // 6.6% del precio calculado
+            precio += cepillado;
+          }
         } else {
           setSubmitStatus("error");
           setSubmitMessage(
@@ -277,9 +284,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       } else {
         // Para productos NO maderas, usar el campo correspondiente según categoría
         if (real.categoria === "Ferretería") {
-          precio = real.valorVenta || 0; // Usar valorVenta para Ferretería
+          precio = real.valorVenta || 0;
         } else {
-          // Para otras categorías (futuras), usar los campos específicos
           precio =
             real.precioUnidad ||
             real.precioUnidadVenta ||
@@ -309,7 +315,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           alto: Number(real.alto) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioPorPie) || 0, // Corregido: usar precioPorPie en lugar de precioUnidad
+          precioPorPie: Number(real.precioPorPie) || 0,
+          cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
         },
       ]);
     }
@@ -871,6 +878,23 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       productos agregados
                     </div>
+                  </div>
+                </div>
+
+                {/* Checkbox de cepillado automático para maderas */}
+                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
+                  <input
+                    type="checkbox"
+                    id="cepilladoAutomatico"
+                    checked={cepilladoAutomatico}
+                    onChange={(e) => setCepilladoAutomatico(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <label htmlFor="cepilladoAutomatico" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    Aplicar cepillado automático (6.6%) en productos de madera
+                  </label>
+                  <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                    El cepillado se aplica automáticamente al precio calculado de productos de madera
                   </div>
                 </div>
 
@@ -1886,6 +1910,7 @@ export function SelectorProductosPresupuesto({
 }) {
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(true); // Checkbox para cepillado automático
 
   const handleAgregarProducto = (producto) => {
     const real = productosState.find((p) => p.id === producto.id);
@@ -1898,7 +1923,7 @@ export function SelectorProductosPresupuesto({
         let alto = Number(real.alto) || 0;
         let ancho = Number(real.ancho) || 0;
         let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioPorPie) || 0; // Corregido: usar precioPorPie en lugar de precioUnidad
+        let precioPorPie = Number(real.precioPorPie) || 0;
 
         if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
           precio = calcularPrecioCorteMadera({
@@ -1907,19 +1932,20 @@ export function SelectorProductosPresupuesto({
             largo,
             precioPorPie,
           });
+          
+          // Aplicar cepillado automático si está habilitado
+          if (cepilladoAutomatico) {
+            const cepillado = precio * 0.066; // 6.6% del precio calculado
+            precio += cepillado;
+          }
         } else {
-          setSubmitStatus("error");
-          setSubmitMessage(
-            "El producto de madera no tiene dimensiones válidas en la base de datos."
-          );
           return;
         }
       } else {
         // Para productos NO maderas, usar el campo correspondiente según categoría
         if (real.categoria === "Ferretería") {
-          precio = real.valorVenta || 0; // Usar valorVenta para Ferretería
+          precio = real.valorVenta || 0;
         } else {
-          // Para otras categorías (futuras), usar los campos específicos
           precio =
             real.precioUnidad ||
             real.precioUnidadVenta ||
@@ -1949,7 +1975,8 @@ export function SelectorProductosPresupuesto({
           alto: Number(real.alto) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioPorPie) || 0, // Corregido: usar precioPorPie en lugar de precioUnidad
+          precioPorPie: Number(real.precioPorPie) || 0,
+          cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
         },
       ]);
     }
@@ -2009,6 +2036,24 @@ export function SelectorProductosPresupuesto({
   return (
     <section className="bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
       <label className="font-semibold">Productos</label>
+      
+      {/* Checkbox de cepillado automático para maderas */}
+      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
+        <input
+          type="checkbox"
+          id="cepilladoAutomaticoPresupuesto"
+          checked={cepilladoAutomatico}
+          onChange={(e) => setCepilladoAutomatico(e.target.checked)}
+          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+        />
+        <label htmlFor="cepilladoAutomaticoPresupuesto" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+          Aplicar cepillado automático (6.6%) en productos de madera
+        </label>
+        <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+          El cepillado se aplica automáticamente al precio calculado de productos de madera
+        </div>
+      </div>
+      
       <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
         {categoriasState.length === 0 && (
           <span className="text-gray-400 dark:text-default-500">
