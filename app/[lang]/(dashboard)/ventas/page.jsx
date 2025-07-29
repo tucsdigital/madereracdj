@@ -922,11 +922,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <label htmlFor="cepilladoAutomatico" className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Aplicar cepillado automático (6.6%) en productos de madera
+                      Cepillado?
                     </label>
-                    <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                      El cepillado se aplica automáticamente al precio calculado de productos de madera
-                    </div>
                   </div>
                 )}
 

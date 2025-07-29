@@ -42,6 +42,7 @@ const VentaDetalle = () => {
   const [productos, setProductos] = useState([]);
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Checkbox para cepillado automático
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -153,47 +154,90 @@ const VentaDetalle = () => {
   const handleActualizarPrecios = async () => {
     setLoadingPrecios(true);
     try {
-      const nuevosProductos = (
-        ventaEdit.productos ||
-        ventaEdit.items ||
-        []
-      ).map((item) => {
-        const prod = productos.find((p) => p.id === item.id);
-        if (prod) {
-          let precio;
+      // Obtener productos actualizados desde Firebase
+      const productosSnap = await getDocs(collection(db, "productos"));
+      const productosActualizados = productosSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-          // Para productos de madera, usar precioPorPie
-          if (prod.categoria === "Maderas") {
-            precio = prod.precioPorPie || 0;
-          } else if (prod.categoria === "Ferretería") {
-            precio = prod.valorVenta || 0;
-          } else {
-            // Para otras categorías (futuras)
-            precio =
-              prod.precioUnidad ||
-              prod.precioUnidadVenta ||
-              prod.precioUnidadHerraje ||
-              prod.precioUnidadQuimico ||
-              prod.precioUnidadHerramienta ||
-              0;
+      // Actualizar precios de productos en ventaEdit
+      const productosConPreciosActualizados = (ventaEdit.productos || []).map(
+        (productoVenta) => {
+          const productoActualizado = productosActualizados.find(
+            (p) => p.id === productoVenta.id
+          );
+          if (productoActualizado) {
+            let nuevoPrecio = 0;
+            if (productoActualizado.categoria === "Maderas") {
+              // Calcular precio para maderas
+              const alto = Number(productoActualizado.alto) || 0;
+              const ancho = Number(productoActualizado.ancho) || 0;
+              const largo = Number(productoActualizado.largo) || 0;
+              const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
+
+              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
+                nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
+              }
+            } else if (productoActualizado.categoria === "Ferretería") {
+              nuevoPrecio = productoActualizado.valorVenta || 0;
+            } else {
+              nuevoPrecio =
+                productoActualizado.precioUnidad ||
+                productoActualizado.precioUnidadVenta ||
+                productoActualizado.precioUnidadHerraje ||
+                productoActualizado.precioUnidadQuimico ||
+                productoActualizado.precioUnidadHerramienta ||
+                0;
+            }
+
+            return {
+              ...productoVenta,
+              precio: nuevoPrecio,
+            };
           }
-
-          return {
-            ...item,
-            precio,
-          };
+          return productoVenta;
         }
-        return item;
-      });
+      );
+
       setVentaEdit((prev) => ({
         ...prev,
-        productos: nuevosProductos,
-        items: nuevosProductos,
+        productos: productosConPreciosActualizados,
       }));
+
+      setProductos(productosActualizados);
+    } catch (error) {
+      console.error("Error al actualizar precios:", error);
     } finally {
       setLoadingPrecios(false);
     }
   };
+
+  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  const recalcularPreciosMadera = (aplicarCepillado) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.categoria === "Maderas") {
+          // Recalcular precio base sin cepillado
+          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = aplicarCepillado ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
+          
+          return {
+            ...p,
+            precio: precioFinal,
+            cepilladoAplicado: aplicarCepillado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
   // Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
@@ -1267,6 +1311,26 @@ const VentaDetalle = () => {
                   </div>
                   {/* Filtros mejorados */}
                   <div className="flex flex-col sm:flex-row gap-3">
+                    
+                    {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
+                    {(ventaEdit.productos || []).some(p => p.categoria === "Maderas") && (
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
+                        <input
+                          type="checkbox"
+                          id="cepilladoAutomaticoEdicion"
+                          checked={cepilladoAutomatico}
+                          onChange={(e) => {
+                            setCepilladoAutomatico(e.target.checked);
+                            recalcularPreciosMadera(e.target.checked);
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <label htmlFor="cepilladoAutomaticoEdicion" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          Cepillado?
+                        </label>
+                      </div>
+                    )}
+                    
                     {/* Filtro de categorías */}
                     <div className="flex-1">
                       <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
