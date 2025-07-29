@@ -75,15 +75,15 @@ export function DataTable({ columns, data }) {
   };
 
   return (
-    <div className="w-full bg-card border border-card">
-      <div className="p-4 border-b border-card bg-card">
+    <div className="w-full bg-card">
+      <div className="p-4 bg-card">
         <DataTableToolbar table={table} />
       </div>
       <div className="overflow-x-auto">
         <Table className="w-full bg-card">
-          <TableHeader className="bg-gray-100 bg-card border-b border-card">
+          <TableHeader className="bg-gray-100 bg-card">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b border-card bg-gray-100 bg-card">
+              <TableRow key={headerGroup.id} className="bg-gray-100 bg-card">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
@@ -101,7 +101,7 @@ export function DataTable({ columns, data }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-card hover:bg-gray-50 bg-card"
+                  className="border-b border-default-300 hover:bg-gray-50 bg-card"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
@@ -123,8 +123,8 @@ export function DataTable({ columns, data }) {
           </TableBody>
         </Table>
       </div>
-      {/* Paginador adaptado a dark/light */}
-      <div className="p-4 border-t border-card bg-card">
+      {/* Paginador sin borde */}
+      <div className="p-4 bg-card">
         <DataTablePagination table={table} />
       </div>
     </div>
