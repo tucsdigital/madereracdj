@@ -582,6 +582,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
@@ -685,15 +686,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 Cliente
               </label>
               <div className="relative w-full">
-                <Select
-                  value={clienteSeleccionado?.id || ""}
-                  onValueChange={handleClienteChange}
-                  disabled={isSubmitting}
+                <div
+                  className="w-full flex items-center cursor-pointer bg-card border border-default-300 rounded-lg h-10 px-3 text-sm justify-between items-center transition duration-300 focus-within:border-default-500/50 focus-within:outline-none disabled:bg-default-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setDropdownClientesOpen(true)}
+                  tabIndex={0}
+                  role="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={dropdownClientesOpen}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar cliente..." />
-                  </SelectTrigger>
-                  <SelectContent>
+                  <span className="flex-1 text-default-700 dark:text-default-100 text-base truncate">
+                    {clienteSeleccionado
+                      ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
+                      : "Seleccionar cliente..."}
+                  </span>
+                  <Icon icon="heroicons:chevron-down" className="w-5 h-5 ml-2 text-default-600" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary dark:text-primary-300 font-semibold ml-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenNuevoCliente(true);
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" /> Nuevo
+                  </Button>
+                </div>
+                {dropdownClientesOpen && (
+                  <div className="absolute z-50 min-w-[8rem] overflow-hidden rounded-md border border-solid border-default-300 bg-card text-default-900 shadow-md mt-1 max-h-72 w-full animate-fade-in">
                     <div className="p-2">
                       <Input
                         type="text"
@@ -704,34 +726,30 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         autoFocus
                         disabled={clientesLoading || isSubmitting}
                       />
-                    </div>
-                    {clientesFiltrados.length === 0 ? (
-                      <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
-                        No hay clientes
+                      <div className="divide-y divide-gray-100">
+                        {clientesFiltrados.length === 0 && (
+                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
+                            No hay clientes
+                          </div>
+                        )}
+                        {clientesFiltrados.map((c) => (
+                          <div
+                            key={c.id}
+                            className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => {
+                              handleClienteChange(c.id);
+                              setDropdownClientesOpen(false);
+                            }}
+                            role="option"
+                            tabIndex={0}
+                          >
+                            {c.nombre} - {c.cuit} - {c.localidad}
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      clientesFiltrados.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nombre} - {c.cuit} - {c.localidad}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-primary dark:text-primary-300 font-semibold"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenNuevoCliente(true);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />
-                  Nuevo
-                </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               {errors.clienteId && (
                 <span className="text-red-500 dark:text-red-400 text-xs mt-1">
@@ -1848,6 +1866,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   descripcion: "",
                 });
                 setOpenNuevoCliente(false);
+                setDropdownClientesOpen(false);
               }}
             >
               Guardar
