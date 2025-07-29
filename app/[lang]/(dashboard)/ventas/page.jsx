@@ -1436,7 +1436,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         )}
                         <select
                           {...register("transportista")}
-                          className="border rounded px-2 py-2 w-full"
+                          className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                           disabled={isSubmitting}
                         >
                           <option value="">Transportista...</option>
@@ -1502,13 +1502,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     )}
                   </div>
 
-                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
+                  <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold pb-1">
                       Información adicional
                     </div>
                     <select
                       {...register("vendedor")}
-                      className="border rounded px-2 py-2 w-full"
+                      className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                       disabled={isSubmitting}
                     >
                       <option value="">Vendedor responsable...</option>
@@ -1542,7 +1542,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <select
                     {...register("tipoEnvio")}
-                    className="border rounded px-2 py-2 w-full"
+                    className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     disabled={isSubmitting}
                   >
                     <option value="">Tipo de envío...</option>
@@ -1580,21 +1580,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             {/* Sección Condiciones de pago y entrega - ÚLTIMA */}
             {tipo === "venta" && (
-              <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
-                <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
+              <section className="bg-card rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+                <label className="font-semibold text-base flex items-center gap-2">
                   <Icon
                     icon="heroicons:credit-card"
                     className="w-5 h-5 text-primary dark:text-primary-300"
                   />{" "}
                   Condiciones de pago y entrega
                 </label>
-                <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
-                  <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
-                    Condiciones de pago y entrega
-                  </div>
+                <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
                   <select
                     {...register("formaPago")}
-                    className="border rounded px-2 py-2 w-full"
+                    className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     disabled={isSubmitting}
                   >
                     <option value="">Forma de pago...</option>
