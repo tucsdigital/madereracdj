@@ -2534,18 +2534,28 @@ export function SelectorProductosPresupuesto({
                         </span>
                         <span>
                           $/pie:{" "}
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={p.precioPorPie}
-                            onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
-                            className="w-16 text-center border border-gray-300 rounded px-1 py-0.5 text-xs font-bold bg-white"
-                            disabled={isSubmitting}
-                          />
+                          <div className="inline-flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={p.precioPorPie}
+                              onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                              className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              disabled={isSubmitting}
+                              placeholder="0.00"
+                              title="Editar precio por pie"
+                            />
+                            <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </div>
                         </span>
                         <span className="ml-2 text-primary font-semibold">
                           Precio calculado: ${p.precio}
+                        </span>
+                        <span className="text-xs text-blue-600 font-medium">
+                          (Edita el $/pie para recalcular)
                         </span>
                         {p.stock <= 0 && (
                           <span className="text-red-600 font-semibold ml-2">
