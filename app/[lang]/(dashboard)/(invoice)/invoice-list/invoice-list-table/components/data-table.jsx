@@ -101,7 +101,8 @@ export function DataTable({ columns, data }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-default-300 hover:bg-gray-50 bg-card"
+                  className="border-b border-default-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 bg-card transition-colors"
+                  onClick={() => handleRowClick(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
