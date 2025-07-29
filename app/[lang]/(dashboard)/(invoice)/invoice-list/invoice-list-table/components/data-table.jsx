@@ -9,7 +9,6 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  getGlobalRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -61,7 +60,6 @@ export function DataTable({ columns, data }) {
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    getGlobalRowModel: getGlobalRowModel(),
   });
 
   // Función para manejar el click en la fila
