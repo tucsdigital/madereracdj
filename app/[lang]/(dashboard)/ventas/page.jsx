@@ -1672,12 +1672,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-row gap-4 justify-end pt-4 bg-card">
+          <DialogFooter className="flex flex-col sm:flex-row gap-4 justify-end pt-4 bg-card">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-6 py-2 text-base"
+              className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base"
               disabled={isSubmitting}
             >
               Cancelar
@@ -1685,7 +1685,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <Button
               type="submit"
               variant="default"
-              className="shadow-md min-w-[160px] rounded-md px-6 py-2 text-base font-semibold"
+              className="w-full sm:w-auto shadow-md min-w-[160px] rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -1807,17 +1807,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               }
             />
           </div>
-          <DialogFooter className="flex flex-row gap-4 justify-end pt-2 bg-card">
+          <DialogFooter className="flex flex-col sm:flex-row gap-4 justify-end pt-2 bg-card">
             <Button
               variant="outline"
-              className="hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-6 py-2 text-base"
+              className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base"
               onClick={() => setOpenNuevoCliente(false)}
             >
               Cancelar
             </Button>
             <Button
               variant="default"
-              className="shadow-md min-w-[120px] rounded-md px-6 py-2 text-base font-semibold"
+              className="w-full sm:w-auto shadow-md min-w-[120px] rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold"
               onClick={async () => {
                 if (
                   !nuevoCliente.nombre ||
@@ -2695,25 +2695,27 @@ const VentasPage = () => {
 
   return (
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 px-2">
-        <div className="flex-1 flex justify-start">
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 px-2">
+        <div className="flex-1">
           <Button
             variant="default"
-            className="flex items-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
             onClick={() => setOpen("presupuesto")}
           >
-            <Icon icon="heroicons:document-plus" className="w-5 h-5" />
-            Agregar Presupuesto
+            <Icon icon="heroicons:document-plus" className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Agregar Presupuesto</span>
+            <span className="sm:hidden">Presupuesto</span>
           </Button>
         </div>
-        <div className="flex-1 flex justify-end">
+        <div className="flex-1">
           <Button
             variant="default"
-            className="flex items-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
             onClick={() => setOpen("venta")}
           >
-            <Icon icon="heroicons:shopping-cart" className="w-5 h-5" />
-            Agregar Venta
+            <Icon icon="heroicons:shopping-cart" className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">Agregar Venta</span>
+            <span className="sm:hidden">Venta</span>
           </Button>
         </div>
       </div>

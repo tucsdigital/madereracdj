@@ -540,14 +540,13 @@ const VentaDetalle = () => {
             style={{ height: 60, width: "auto" }}
           />
           <div>
-            <h1
-              className="text-2xl font-bold "
-              style={{ letterSpacing: 1 }}
-            >
+            <h1 className="text-2xl font-bold " style={{ letterSpacing: 1 }}>
               Maderera Caballero
             </h1>
             <div className=" text-sm">Venta / Comprobante</div>
-            <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
+            <div className="text-gray-500 text-xs">
+              www.caballeromaderera.com
+            </div>
           </div>
           <div className="ml-auto text-right">
             <div className="text-xs text-gray-500">
@@ -660,158 +659,161 @@ const VentaDetalle = () => {
             </div>
           </div>
           {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 ">
-              Información de Envío y Pago
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+              <h3 className="font-semibold text-lg mb-2 ">
+                Información de Envío y Pago
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div>
+                    <span className="font-medium">Tipo de envío:</span>{" "}
+                    {venta.tipoEnvio}
+                  </div>
+                  <div>
+                    <span className="font-medium">Transportista:</span>{" "}
+                    {venta.transportista || "-"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Dirección:</span>{" "}
+                    {venta.cliente?.direccion || "-"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Fecha de entrega:</span>{" "}
+                    {formatFechaLocal(venta.fechaEntrega)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Rango horario:</span>{" "}
+                    {venta.rangoHorario || "-"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Prioridad:</span>{" "}
+                    {venta.prioridad || "-"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Vendedor:</span>{" "}
+                    {venta.vendedor || "-"}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <span className="font-medium">Forma de pago:</span>{" "}
+                    {venta.formaPago || "-"}
+                  </div>
+                  {venta.costoEnvio !== undefined &&
+                    Number(venta.costoEnvio) > 0 && (
+                      <div>
+                        <span className="font-medium">Costo de envío:</span> $
+                        {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </div>
+                    )}
+                </div>
+                {/* Estado de la venta */}
                 <div>
-                  <span className="font-medium">Tipo de envío:</span>{" "}
-                  {venta.tipoEnvio}
+                  <span className="font-medium">Estado de la venta:</span>{" "}
+                  {(() => {
+                    const total = venta.total || 0;
+                    const montoAbonadoCalculado =
+                      Array.isArray(venta.pagos) && venta.pagos.length > 0
+                        ? venta.pagos.reduce(
+                            (acc, p) => acc + Number(p.monto),
+                            0
+                          )
+                        : Number(venta.montoAbonado || 0);
+
+                    if (montoAbonadoCalculado >= total) {
+                      return (
+                        <span className="text-green-700 font-bold ml-2">
+                          Pagado
+                        </span>
+                      );
+                    } else if (montoAbonadoCalculado > 0) {
+                      return (
+                        <span className="text-yellow-700 font-bold ml-2">
+                          Parcial
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="text-red-700 font-bold ml-2">
+                          Pendiente
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+              <h3 className="font-semibold text-lg mb-2 ">
+                Información de Envío y Pago
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium">Tipo de entrega:</span> Retiro
+                  en local
                 </div>
                 <div>
-                  <span className="font-medium">Transportista:</span>{" "}
-                  {venta.transportista || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Dirección:</span>{" "}
-                  {venta.cliente?.direccion || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Fecha de entrega:</span>{" "}
+                  <span className="font-medium">Fecha de retiro:</span>{" "}
                   {formatFechaLocal(venta.fechaEntrega)}
-                </div>
-                <div>
-                  <span className="font-medium">Rango horario:</span>{" "}
-                  {venta.rangoHorario || "-"}
-                </div>
-                <div>
-                  <span className="font-medium">Prioridad:</span>{" "}
-                  {venta.prioridad || "-"}
                 </div>
                 <div>
                   <span className="font-medium">Vendedor:</span>{" "}
                   {venta.vendedor || "-"}
                 </div>
-              </div>
-              <div className="space-y-3">
                 <div>
                   <span className="font-medium">Forma de pago:</span>{" "}
                   {venta.formaPago || "-"}
                 </div>
-                {venta.costoEnvio !== undefined &&
-                  Number(venta.costoEnvio) > 0 && (
-                    <div>
-                      <span className="font-medium">Costo de envío:</span> $
-                      {Number(venta.costoEnvio).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </div>
-                  )}
-              </div>
-              {/* Estado de la venta */}
-              <div>
-                <span className="font-medium">Estado de la venta:</span>{" "}
-                {(() => {
-                  const total = venta.total || 0;
-                  const montoAbonadoCalculado =
-                    Array.isArray(venta.pagos) && venta.pagos.length > 0
-                      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                      : Number(venta.montoAbonado || 0);
+                {/* Estado de la venta */}
+                <div>
+                  <span className="font-medium">Estado de la venta:</span>{" "}
+                  {(() => {
+                    const total = venta.total || 0;
+                    const montoAbonadoCalculado =
+                      Array.isArray(venta.pagos) && venta.pagos.length > 0
+                        ? venta.pagos.reduce(
+                            (acc, p) => acc + Number(p.monto),
+                            0
+                          )
+                        : Number(venta.montoAbonado || 0);
 
-                  if (montoAbonadoCalculado >= total) {
-                    return (
-                      <span className="text-green-700 font-bold ml-2">
-                        Pagado
-                      </span>
-                    );
-                  } else if (montoAbonadoCalculado > 0) {
-                    return (
-                      <span className="text-yellow-700 font-bold ml-2">
-                        Parcial
-                      </span>
-                    );
-                  } else {
-                    return (
-                      <span className="text-red-700 font-bold ml-2">
-                        Pendiente
-                      </span>
-                    );
-                  }
-                })()}
+                    if (montoAbonadoCalculado >= total) {
+                      return (
+                        <span className="text-green-700 font-bold ml-2">
+                          Pagado
+                        </span>
+                      );
+                    } else if (montoAbonadoCalculado > 0) {
+                      return (
+                        <span className="text-yellow-700 font-bold ml-2">
+                          Parcial
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="text-red-700 font-bold ml-2">
+                          Pendiente
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 ">
-              Información de Envío y Pago
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Tipo de entrega:</span> Retiro en
-                local
-              </div>
-              <div>
-                <span className="font-medium">Fecha de retiro:</span>{" "}
-                {formatFechaLocal(venta.fechaEntrega)}
-              </div>
-              <div>
-                <span className="font-medium">Vendedor:</span>{" "}
-                {venta.vendedor || "-"}
-              </div>
-              <div>
-                <span className="font-medium">Forma de pago:</span>{" "}
-                {venta.formaPago || "-"}
-              </div>
-              {/* Estado de la venta */}
-              <div>
-                <span className="font-medium">Estado de la venta:</span>{" "}
-                {(() => {
-                  const total = venta.total || 0;
-                  const montoAbonadoCalculado =
-                    Array.isArray(venta.pagos) && venta.pagos.length > 0
-                      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                      : Number(venta.montoAbonado || 0);
-
-                  if (montoAbonadoCalculado >= total) {
-                    return (
-                      <span className="text-green-700 font-bold ml-2">
-                        Pagado
-                      </span>
-                    );
-                  } else if (montoAbonadoCalculado > 0) {
-                    return (
-                      <span className="text-yellow-700 font-bold ml-2">
-                        Parcial
-                      </span>
-                    );
-                  } else {
-                    return (
-                      <span className="text-red-700 font-bold ml-2">
-                        Pendiente
-                      </span>
-                    );
-                  }
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
+          )}
         </div>
-       
 
         {/* 3. Información de Pagos */}
         <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
-          <h3 className="font-semibold text-lg mb-4 ">
-            Información de Pagos
-          </h3>
+          <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
 
           {/* Estado de pago */}
           <div className="mb-4 p-3 bg-card rounded-lg">
             <div className="flex justify-between items-center">
-              <span className="font-medium text-gray-700">Estado de pago:</span>
+              <span className="font-medium">Estado de pago:</span>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
                   estadoPagoCalculado === "pagado"
@@ -859,7 +861,7 @@ const VentaDetalle = () => {
           {/* Historial de pagos si existe */}
           {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
             <div className="mt-4">
-              <h4 className="font-medium text-gray-700 mb-2">
+              <h4 className="font-medium mb-2">
                 Historial de pagos:
               </h4>
               <div className="bg-card rounded-lg p-3">
@@ -1000,9 +1002,7 @@ const VentaDetalle = () => {
         {/* 5. Observaciones */}
         {venta.observaciones && (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 ">
-              Observaciones
-            </h3>
+            <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
             <p className="text-gray-700 whitespace-pre-wrap">
               {venta.observaciones}
             </p>
@@ -1250,9 +1250,7 @@ const VentaDetalle = () => {
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold ">
-                          Productos
-                        </h3>
+                        <h3 className="text-lg font-semibold ">Productos</h3>
                         <p className="text-sm ">
                           Selecciona los productos para tu venta
                         </p>
