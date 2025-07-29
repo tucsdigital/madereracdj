@@ -268,7 +268,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             largo,
             precioPorPie,
           });
-          
+
           // Aplicar cepillado automático si está habilitado
           if (cepilladoAutomatico) {
             const cepillado = precio * 0.066; // 6.6% del precio calculado
@@ -316,7 +316,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
-          cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
+          cepilladoAplicado:
+            real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
         },
       ]);
     }
@@ -343,7 +344,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const handleDecrementarCantidad = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) } : p
+        p.id === id
+          ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) }
+          : p
       )
     );
   };
@@ -367,10 +370,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             largo: p.largo,
             precioPorPie: p.precioPorPie,
           });
-          
+
           // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
-          
+          const precioFinal = aplicarCepillado
+            ? precioBase * 1.066
+            : precioBase;
+
           return {
             ...p,
             precio: precioFinal,
@@ -394,10 +399,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             largo: p.largo,
             precioPorPie: Number(nuevoPrecioPorPie),
           });
-          
+
           // Aplicar cepillado si está habilitado
-          const precioFinal = cepilladoAutomatico ? precioBase * 1.066 : precioBase;
-          
+          const precioFinal = cepilladoAutomatico
+            ? precioBase * 1.066
+            : precioBase;
+
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
@@ -760,7 +767,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
                       : "Seleccionar cliente..."}
                   </span>
-                  <Icon icon="heroicons:chevron-down" className="w-5 h-5 ml-2 text-default-600" />
+                  <Icon
+                    icon="heroicons:chevron-down"
+                    className="w-5 h-5 ml-2 text-default-600"
+                  />
                   <Button
                     type="button"
                     variant="ghost"
@@ -772,7 +782,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     }}
                     disabled={isSubmitting}
                   >
-                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" /> Nuevo
+                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />{" "}
+                    Nuevo
                   </Button>
                 </div>
                 {dropdownClientesOpen && (
@@ -935,25 +946,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                 </div>
 
-                {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
-                {productosSeleccionados.some(p => p.categoria === "Maderas") && (
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
-                    <input
-                      type="checkbox"
-                      id="cepilladoAutomatico"
-                      checked={cepilladoAutomatico}
-                      onChange={(e) => {
-                        setCepilladoAutomatico(e.target.checked);
-                        recalcularPreciosMadera(e.target.checked);
-                      }}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label htmlFor="cepilladoAutomatico" className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Cepillado?
-                    </label>
-                  </div>
-                )}
-
                 {/* Filtros mejorados */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Filtro de categorías */}
@@ -963,9 +955,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         <button
                           key={categoria}
                           type="button"
-                          variant={categoriaId === categoria ? "default" : "soft"}
+                          variant={
+                            categoriaId === categoria ? "default" : "soft"
+                          }
                           size="sm"
-                          color={categoriaId === categoria ? "primary" : "secondary"}
+                          color={
+                            categoriaId === categoria ? "primary" : "secondary"
+                          }
                           className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
                           onClick={(e) => {
                             e.preventDefault();
@@ -1314,8 +1310,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => handleDecrementarCantidad(prod.id)}
-                                        disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
+                                        onClick={() =>
+                                          handleDecrementarCantidad(prod.id)
+                                        }
+                                        disabled={
+                                          isSubmitting ||
+                                          productosSeleccionados.find(
+                                            (p) => p.id === prod.id
+                                          )?.cantidad <= 1
+                                        }
                                         className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                                       >
                                         -
@@ -1323,14 +1326,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       <input
                                         type="number"
                                         min={1}
-                                        value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
-                                        onChange={e => handleCantidadChange(prod.id, e.target.value)}
+                                        value={
+                                          productosSeleccionados.find(
+                                            (p) => p.id === prod.id
+                                          )?.cantidad || 1
+                                        }
+                                        onChange={(e) =>
+                                          handleCantidadChange(
+                                            prod.id,
+                                            e.target.value
+                                          )
+                                        }
                                         className="w-12 text-center border rounded"
                                         disabled={isSubmitting}
                                       />
                                       <button
                                         type="button"
-                                        onClick={() => handleIncrementarCantidad(prod.id)}
+                                        onClick={() =>
+                                          handleIncrementarCantidad(prod.id)
+                                        }
                                         disabled={isSubmitting}
                                         className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
                                       >
@@ -1338,7 +1352,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleQuitarProducto(prod.id)}
+                                        onClick={() =>
+                                          handleQuitarProducto(prod.id)
+                                        }
                                         disabled={isSubmitting}
                                         className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                                       >
@@ -1353,9 +1369,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;
                                           const largo = Number(prod.largo) || 0;
-                                          const precioPorPie = Number(prod.precioPorPie) || 0;
-                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                            const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                          const precioPorPie =
+                                            Number(prod.precioPorPie) || 0;
+                                          if (
+                                            alto > 0 &&
+                                            ancho > 0 &&
+                                            largo > 0 &&
+                                            precioPorPie > 0
+                                          ) {
+                                            const precio =
+                                              calcularPrecioCorteMadera({
+                                                alto,
+                                                ancho,
+                                                largo,
+                                                precioPorPie,
+                                              });
                                             handleAgregarProducto({
                                               id: prod.id,
                                               nombre: prod.nombre,
@@ -1369,7 +1397,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             });
                                           } else {
                                             setSubmitStatus("error");
-                                            setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
+                                            setSubmitMessage(
+                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                            );
                                             return;
                                           }
                                         } else {
@@ -1403,6 +1433,248 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 )}
               </div>
             </section>
+
+            {/* Tabla de productos seleccionados */}
+            {productosSeleccionados.length > 0 && (
+              <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-default-900">
+                    Productos Seleccionados
+                  </h3>
+                  <span className="text-sm text-default-600">
+                    {productosSeleccionados.length} producto
+                    {productosSeleccionados.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Checkbox de cepillado automático para maderas */}
+                {productosSeleccionados.some(
+                  (p) => p.categoria === "Maderas"
+                ) && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                    <input
+                      type="checkbox"
+                      id="cepilladoAutomatico"
+                      checked={cepilladoAutomatico}
+                      onChange={(e) => {
+                        setCepilladoAutomatico(e.target.checked);
+                        recalcularPreciosMadera(e.target.checked);
+                      }}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <label
+                      htmlFor="cepilladoAutomatico"
+                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
+                    >
+                      Cepillado?
+                    </label>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
+                    <thead>
+                      <tr className="bg-primary/10 text-primary font-semibold">
+                        <th className="p-2 text-left">Categoría</th>
+                        <th className="p-2 text-left">Producto</th>
+                        <th className="p-2 text-center">Cant.</th>
+                        <th className="p-2 text-center">Precio unit.</th>
+                        <th className="p-2 text-center">Desc.</th>
+                        <th className="p-2 text-center">Subtotal</th>
+                        <th className="p-2 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productosSeleccionados.map((p, idx) => (
+                        <tr
+                          key={p.id}
+                          className="border-b hover:bg-primary/5 transition-all"
+                        >
+                          <td className="p-2 text-xs font-medium text-gray-600">
+                            {p.categoria}
+                          </td>
+                          <td className="p-2">
+                            <div className="font-semibold text-default-900">
+                              {p.nombre}
+                            </div>
+                            {p.categoria === "Maderas" && (
+                              <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                <span className="font-medium text-gray-500">
+                                  Dimensiones:
+                                </span>
+                                <span>
+                                  Alto:{" "}
+                                  <span className="font-bold">{p.alto}</span> cm
+                                </span>
+                                <span>
+                                  Ancho:{" "}
+                                  <span className="font-bold">{p.ancho}</span>{" "}
+                                  cm
+                                </span>
+                                <span>
+                                  Largo:{" "}
+                                  <span className="font-bold">{p.largo}</span>{" "}
+                                  cm
+                                </span>
+                                <span>
+                                  $/pie:{" "}
+                                  <div className="inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={p.precioPorPie}
+                                      onChange={(e) =>
+                                        handlePrecioPorPieChange(
+                                          p.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                      disabled={isSubmitting}
+                                      placeholder="0.00"
+                                      title="Editar precio por pie"
+                                    />
+                                    <svg
+                                      className="w-3 h-3 text-blue-500"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
+                                    </svg>
+                                  </div>
+                                </span>
+                                <span className="ml-2 text-primary font-semibold">
+                                  Precio calculado: ${p.precio}
+                                </span>
+                                <span className="text-xs text-blue-600 font-medium">
+                                  (Edita el $/pie para recalcular)
+                                </span>
+                                {p.stock <= 0 && (
+                                  <span className="text-red-600 font-semibold ml-2">
+                                    ¡Sin stock! Se permitirá avanzar igual.
+                                  </span>
+                                )}
+                                {p.stock > 0 && p.stock <= 3 && (
+                                  <span className="text-yellow-600 font-semibold ml-2">
+                                    Stock bajo: quedan {p.stock} unidades.
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="text-center">
+                            <div className="flex items-center justify-center">
+                              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDecrementarCantidad(p.id)
+                                  }
+                                  disabled={isSubmitting || p.cantidad <= 1}
+                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M20 12H4"
+                                    />
+                                  </svg>
+                                </button>
+
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={p.cantidad}
+                                  onChange={(e) =>
+                                    handleCantidadChange(p.id, e.target.value)
+                                  }
+                                  className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                  disabled={isSubmitting}
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleIncrementarCantidad(p.id)
+                                  }
+                                  disabled={isSubmitting}
+                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="text-center">${p.precio}</td>
+                          <td className="text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={p.descuento}
+                              onChange={(e) =>
+                                handleDescuentoChange(p.id, e.target.value)
+                              }
+                              className="w-20 mx-auto text-center"
+                              disabled={isSubmitting}
+                              suffix="%"
+                            />
+                          </td>
+                          <td className="text-center font-semibold text-primary">
+                            $
+                            {(
+                              Number(p.precio) *
+                              Number(p.cantidad) *
+                              (1 - Number(p.descuento) / 100)
+                            ).toFixed(2)}
+                          </td>
+                          <td className="text-center">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleQuitarProducto(p.id)}
+                              disabled={isSubmitting}
+                              title="Quitar producto"
+                            >
+                              <span className="text-lg font-bold text-red-500">
+                                ×
+                              </span>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
             {/* Sección condiciones y envío */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1785,7 +2057,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-card border-default-700">
           <DialogHeader className="bg-card">
             <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2 bg-card">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar Cliente
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar
+              Cliente
             </DialogTitle>
             <DialogDescription className="text-base text-default-600 dark:text-default-300 bg-card">
               Complete los datos del nuevo cliente para agregarlo al sistema.
@@ -1952,702 +2225,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-export function SelectorProductosPresupuesto({
-  productosSeleccionados,
-  setProductosSeleccionados,
-  productosState,
-  categoriasState,
-  productosPorCategoria,
-  isSubmitting,
-  modoSoloProductos,
-}) {
-  const [categoriaId, setCategoriaId] = useState("");
-  const [busquedaProducto, setBusquedaProducto] = useState("");
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Cambiar a false por defecto
-
-  const handleAgregarProducto = (producto) => {
-    const real = productosState.find((p) => p.id === producto.id);
-    if (!real) return;
-    if (!productosSeleccionados.some((p) => p.id === real.id)) {
-      let precio;
-
-      // Para productos de madera, usar cálculo especial
-      if (real.categoria === "Maderas") {
-        let alto = Number(real.alto) || 0;
-        let ancho = Number(real.ancho) || 0;
-        let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioPorPie) || 0;
-
-        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-          precio = calcularPrecioCorteMadera({
-            alto,
-            ancho,
-            largo,
-            precioPorPie,
-          });
-          
-          // Aplicar cepillado automático si está habilitado
-          if (cepilladoAutomatico) {
-            const cepillado = precio * 0.066; // 6.6% del precio calculado
-            precio += cepillado;
-          }
-        } else {
-          return;
-        }
-      } else {
-        // Para productos NO maderas, usar el campo correspondiente según categoría
-        if (real.categoria === "Ferretería") {
-          precio = real.valorVenta || 0;
-        } else {
-          precio =
-            real.precioUnidad ||
-            real.precioUnidadVenta ||
-            real.precioUnidadHerraje ||
-            real.precioUnidadQuimico ||
-            real.precioUnidadHerramienta ||
-            0;
-        }
-      }
-
-      setProductosSeleccionados([
-        ...productosSeleccionados,
-        {
-          id: real.id,
-          nombre: real.nombre,
-          precio,
-          unidad:
-            real.unidadMedida ||
-            real.unidadVenta ||
-            real.unidadVentaHerraje ||
-            real.unidadVentaQuimico ||
-            real.unidadVentaHerramienta,
-          stock: real.stock,
-          cantidad: 1,
-          descuento: 0,
-          categoria: real.categoria,
-          alto: Number(real.alto) || 0,
-          ancho: Number(real.ancho) || 0,
-          largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioPorPie) || 0,
-          cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
-        },
-      ]);
-    }
-  };
-  const handleQuitarProducto = (id) => {
-    setProductosSeleccionados(
-      productosSeleccionados.filter((p) => p.id !== id)
-    );
-  };
-  const handleCantidadChange = (id, cantidad) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Number(cantidad) } : p
-      )
-    );
-  };
-  const handleIncrementarCantidad = (id) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p
-      )
-    );
-  };
-  const handleDecrementarCantidad = (id) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) } : p
-      )
-    );
-  };
-  const handleDescuentoChange = (id, descuento) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, descuento: Number(descuento) } : p
-      )
-    );
-  };
-
-  // Función para recalcular precio cuando se cambia el precio por pie
-  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas") {
-          // Recalcular precio base con el nuevo precio por pie
-          const precioBase = calcularPrecioCorteMadera({
-            alto: p.alto,
-            ancho: p.ancho,
-            largo: p.largo,
-            precioPorPie: Number(nuevoPrecioPorPie),
-          });
-          
-          // Aplicar cepillado si está habilitado
-          const precioFinal = cepilladoAutomatico ? precioBase * 1.066 : precioBase;
-          
-          return {
-            ...p,
-            precioPorPie: Number(nuevoPrecioPorPie),
-            precio: precioFinal,
-          };
-        }
-        return p;
-      })
-    );
-  };
-
-  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
-  const recalcularPreciosMadera = (aplicarCepillado) => {
-    setProductosSeleccionados(
-      productosSeleccionados.map((p) => {
-        if (p.categoria === "Maderas") {
-          // Recalcular precio base sin cepillado
-          const precioBase = calcularPrecioCorteMadera({
-            alto: p.alto,
-            ancho: p.ancho,
-            largo: p.largo,
-            precioPorPie: p.precioPorPie,
-          });
-          
-          // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
-          
-          return {
-            ...p,
-            precio: precioFinal,
-            cepilladoAplicado: aplicarCepillado,
-          };
-        }
-        return p;
-      })
-    );
-  };
-
-  function calcularPrecioCorteMadera({
-    alto,
-    ancho,
-    largo,
-    precioPorPie,
-    factor = 0.2734,
-  }) {
-    if (
-      [alto, ancho, largo, precioPorPie].some(
-        (v) => typeof v !== "number" || v <= 0
-      )
-    ) {
-      return 0;
-    }
-    const precio = factor * alto * ancho * largo * precioPorPie;
-    return Math.round(precio * 100) / 100;
-  }
-
-  return (
-    <section className="bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
-      <label className="font-semibold">Productos</label>
-      
-      {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
-      {productosSeleccionados.some(p => p.categoria === "Maderas") && (
-        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-          <input
-            type="checkbox"
-            id="cepilladoAutomaticoPresupuesto"
-            checked={cepilladoAutomatico}
-            onChange={(e) => {
-              setCepilladoAutomatico(e.target.checked);
-              recalcularPreciosMadera(e.target.checked);
-            }}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-          />
-          <label htmlFor="cepilladoAutomaticoPresupuesto" className="text-sm font-medium text-blue-800 dark:text-blue-200">
-            Aplicar cepillado automático (6.6%) en productos de madera
-          </label>
-          <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-            El cepillado se aplica automáticamente al precio calculado de productos de madera
-          </div>
-        </div>
-      )}
-      
-      <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
-        {categoriasState.length === 0 && (
-          <span className="text-gray-400 dark:text-default-500">
-            No hay categorías con productos
-          </span>
-        )}
-        {categoriasState.map((cat) => (
-          <Button
-            key={cat}
-            type="button"
-            variant={categoriaId === cat ? "default" : "soft"}
-            size="sm"
-            color={categoriaId === cat ? "primary" : "secondary"}
-            className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setCategoriaId(cat);
-            }}
-            disabled={isSubmitting}
-          >
-            {cat}
-          </Button>
-        ))}
-      </div>
-      {categoriaId && (
-        <div className="w-full mb-2 animate-fade-in">
-          <div className="mb-2 flex justify-end">
-            <Input
-              type="text"
-              placeholder="Buscar producto..."
-              value={busquedaProducto}
-              onChange={(e) => setBusquedaProducto(e.target.value)}
-              className="w-full md:w-80"
-              disabled={isSubmitting}
-            />
-          </div>
-          {categoriaId === "Maderas" && (
-            <div className="w-full mb-2 animate-fade-in">
-              <div className="divide-y divide-gray-200 bg-white dark:bg-default-900 rounded-b">
-                {productosPorCategoria[categoriaId]
-                  ?.filter(
-                    (prod) =>
-                      prod.nombre
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase()) ||
-                      (prod.unidadMedida || "")
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase())
-                  )
-                  .map((prod) => (
-                    <div
-                      key={prod.id}
-                      className="grid grid-cols-12 gap-2 items-center px-4 py-2"
-                    >
-                      <div className="col-span-5 font-medium">
-                        {prod.nombre}
-                      </div>
-                      <div className="col-span-2 text-xs text-default-500">
-                        {prod.unidadMedida}
-                      </div>
-                      <div className="col-span-2 font-bold text-primary">
-                        $
-                        {(() => {
-                          if (prod.categoria === "Maderas") {
-                            return prod.precioPorPie || 0; // Corregido: usar solo precioPorPie
-                          } else if (prod.categoria === "Ferretería") {
-                            return prod.valorVenta || 0;
-                          } else {
-                            return (
-                              prod.precioUnidad ||
-                              prod.precioUnidadVenta ||
-                              prod.precioUnidadHerraje ||
-                              prod.precioUnidadQuimico ||
-                              prod.precioUnidadHerramienta ||
-                              0
-                            );
-                          }
-                        })()}
-                      </div>
-                      <div className="col-span-2 font-mono text-xs">
-                        Stock: {prod.stock}
-                        {prod.stock <= 0 && (
-                          <div className="text-red-600 font-semibold text-xs mt-1">
-                            ¡Sin stock! Se permitirá avanzar igual.
-                          </div>
-                        )}
-                        {prod.stock > 0 && prod.stock <= 3 && (
-                          <div className="text-yellow-600 font-semibold text-xs mt-1">
-                            Stock bajo: quedan {prod.stock} unidades.
-                          </div>
-                        )}
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        {yaAgregado ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleDecrementarCantidad(prod.id)}
-                              disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
-                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
-                              onChange={e => handleCantidadChange(prod.id, e.target.value)}
-                              className="w-12 text-center border rounded"
-                              disabled={isSubmitting}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleIncrementarCantidad(prod.id)}
-                              disabled={isSubmitting}
-                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            >
-                              +
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuitarProducto(prod.id)}
-                              disabled={isSubmitting}
-                              className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (prod.categoria === "Maderas") {
-                                const alto = Number(prod.alto) || 0;
-                                const ancho = Number(prod.ancho) || 0;
-                                const largo = Number(prod.largo) || 0;
-                                const precioPorPie = Number(prod.precioPorPie) || 0;
-                                if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                  const precio = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
-                                  handleAgregarProducto({
-                                    id: prod.id,
-                                    nombre: prod.nombre,
-                                    precio,
-                                    unidad: prod.unidadMedida,
-                                    stock: prod.stock,
-                                    alto,
-                                    ancho,
-                                    largo,
-                                    precioPorPie,
-                                  });
-                                } else {
-                                  setSubmitStatus("error");
-                                  setSubmitMessage("El producto de madera no tiene dimensiones válidas en la base de datos.");
-                                  return;
-                                }
-                              } else {
-                                handleAgregarProducto({
-                                  id: prod.id,
-                                  nombre: prod.nombre,
-                                  precio: precio,
-                                  unidad:
-                                    prod.unidadMedida ||
-                                    prod.unidadVenta ||
-                                    prod.unidadVentaHerraje ||
-                                    prod.unidadVentaQuimico ||
-                                    prod.unidadVentaHerramienta,
-                                  stock: prod.stock,
-                                });
-                              }
-                            }}
-                            disabled={isSubmitting}
-                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                          >
-                            Agregar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-          {categoriaId !== "Maderas" && (
-            <div className="bg-gray-100 dark:bg-default-800 rounded-b">
-              <div className="divide-y divide-gray-200">
-                {productosPorCategoria[categoriaId]
-                  ?.filter(
-                    (prod) =>
-                      prod.nombre
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase()) ||
-                      (
-                        prod.unidadMedida ||
-                        prod.unidadVenta ||
-                        prod.unidadVentaHerraje ||
-                        prod.unidadVentaQuimico ||
-                        prod.unidadVentaHerramienta ||
-                        ""
-                      )
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase())
-                  )
-                  .map((prod) => (
-                    <div
-                      key={prod.id}
-                      className="grid grid-cols-12 gap-2 items-center px-4 py-2"
-                    >
-                      <div className="col-span-5 font-medium">
-                        {prod.nombre}
-                      </div>
-                      <div className="col-span-2 text-xs text-default-500">
-                        {prod.unidadMedida ||
-                          prod.unidadVenta ||
-                          prod.unidadVentaHerraje ||
-                          prod.unidadVentaQuimico ||
-                          prod.unidadVentaHerramienta}
-                      </div>
-                      <div className="col-span-2 font-bold text-primary">
-                        $
-                        {(() => {
-                          if (prod.categoria === "Maderas") {
-                            return prod.precioUnidad || prod.precioPorPie || 0;
-                          } else if (prod.categoria === "Ferretería") {
-                            return prod.valorVenta || 0;
-                          } else {
-                            return (
-                              prod.precioUnidad ||
-                              prod.precioUnidadVenta ||
-                              prod.precioUnidadHerraje ||
-                              prod.precioUnidadQuimico ||
-                              prod.precioUnidadHerramienta ||
-                              0
-                            );
-                          }
-                        })()}
-                      </div>
-                      <div className="col-span-2 font-mono text-xs">
-                        {prod.stock}
-                      </div>
-                      <div className="col-span-1 flex justify-end">
-                        {yaAgregado ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleDecrementarCantidad(prod.id)}
-                              disabled={isSubmitting || productosSeleccionados.find(p => p.id === prod.id)?.cantidad <= 1}
-                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={productosSeleccionados.find(p => p.id === prod.id)?.cantidad || 1}
-                              onChange={e => handleCantidadChange(prod.id, e.target.value)}
-                              className="w-12 text-center border rounded"
-                              disabled={isSubmitting}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleIncrementarCantidad(prod.id)}
-                              disabled={isSubmitting}
-                              className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                            >
-                              +
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuitarProducto(prod.id)}
-                              disabled={isSubmitting}
-                              className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleAgregarProducto({
-                                id: prod.id,
-                                nombre: prod.nombre,
-                                precio: (() => {
-                                  if (prod.categoria === "Maderas") {
-                                    return prod.precioPorPie || 0; // Corregido: usar precioPorPie para maderas
-                                  } else if (prod.categoria === "Ferretería") {
-                                    return prod.valorVenta || 0;
-                                  } else {
-                                    return (
-                                      prod.precioUnidad ||
-                                      prod.precioUnidadVenta ||
-                                      prod.precioUnidadHerraje ||
-                                      prod.precioUnidadQuimico ||
-                                      prod.precioUnidadHerramienta ||
-                                      0
-                                    );
-                                  }
-                                })(),
-                                unidad:
-                                  prod.unidadMedida ||
-                                  prod.unidadVenta ||
-                                  prod.unidadVentaHerraje ||
-                                  prod.unidadVentaQuimico ||
-                                  prod.unidadVentaHerramienta,
-                                stock: prod.stock,
-                              });
-                            }}
-                            disabled={isSubmitting}
-                            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                          >
-                            Agregar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-      {productosSeleccionados.length > 0 && (
-        <div className="overflow-x-auto mt-4">
-          <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
-            <thead>
-              <tr className="bg-primary/10 text-primary font-semibold">
-                <th className="p-2 text-left">Categoría</th>
-                <th className="p-2 text-left">Producto</th>
-                <th className="p-2 text-center">Cant.</th>
-                <th className="p-2 text-center">Precio unit.</th>
-                <th className="p-2 text-center">Desc.</th>
-                <th className="p-2 text-center">Subtotal</th>
-                <th className="p-2 text-center">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productosSeleccionados.map((p, idx) => (
-                <tr
-                  key={p.id}
-                  className="border-b hover:bg-primary/5 transition-all"
-                >
-                  <td className="p-2 text-xs font-medium text-gray-600">
-                    {p.categoria}
-                  </td>
-                  <td className="p-2">
-                    <div className="font-semibold text-default-900">
-                      {p.nombre}
-                    </div>
-                    {p.categoria === "Maderas" && (
-                      <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                        <span className="font-medium text-gray-500">
-                          Dimensiones:
-                        </span>
-                        <span>
-                          Alto: <span className="font-bold">{p.alto}</span> cm
-                        </span>
-                        <span>
-                          Ancho: <span className="font-bold">{p.ancho}</span> cm
-                        </span>
-                        <span>
-                          Largo: <span className="font-bold">{p.largo}</span> cm
-                        </span>
-                        <span>
-                          $/pie:{" "}
-                          <div className="inline-flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={p.precioPorPie}
-                              onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
-                              className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              disabled={isSubmitting}
-                              placeholder="0.00"
-                              title="Editar precio por pie"
-                            />
-                            <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </div>
-                        </span>
-                        <span className="ml-2 text-primary font-semibold">
-                          Precio calculado: ${p.precio}
-                        </span>
-                        <span className="text-xs text-blue-600 font-medium">
-                          (Edita el $/pie para recalcular)
-                        </span>
-                        {p.stock <= 0 && (
-                          <span className="text-red-600 font-semibold ml-2">
-                            ¡Sin stock! Se permitirá avanzar igual.
-                          </span>
-                        )}
-                        {p.stock > 0 && p.stock <= 3 && (
-                          <span className="text-yellow-600 font-semibold ml-2">
-                            Stock bajo: quedan {p.stock} unidades.
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
-                        <button
-                          type="button"
-                          onClick={() => handleDecrementarCantidad(p.id)}
-                          disabled={isSubmitting || p.cantidad <= 1}
-                          className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
-                          </svg>
-                        </button>
-                        
-                        <input
-                          type="number"
-                          min={1}
-                          value={p.cantidad}
-                          onChange={(e) => handleCantidadChange(p.id, e.target.value)}
-                          className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
-                          disabled={isSubmitting}
-                        />
-                        
-                        <button
-                          type="button"
-                          onClick={() => handleIncrementarCantidad(p.id)}
-                          disabled={isSubmitting}
-                          className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="text-center">${p.precio}</td>
-                  <td className="text-center">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={p.descuento}
-                      onChange={(e) =>
-                        handleDescuentoChange(p.id, e.target.value)
-                      }
-                      className="w-20 mx-auto text-center"
-                      disabled={isSubmitting}
-                      suffix="%"
-                    />
-                  </td>
-                  <td className="text-center font-semibold text-primary">
-                    $
-                    {(
-                      Number(p.precio) *
-                      Number(p.cantidad) *
-                      (1 - Number(p.descuento) / 100)
-                    ).toFixed(2)}
-                  </td>
-                  <td className="text-center">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleQuitarProducto(p.id)}
-                      disabled={isSubmitting}
-                      title="Quitar producto"
-                    >
-                      <span className="text-lg font-bold text-red-500">×</span>
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -2880,7 +2457,10 @@ const VentasPage = () => {
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
             onClick={() => setOpen("presupuesto")}
           >
-            <Icon icon="heroicons:document-plus" className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Icon
+              icon="heroicons:document-plus"
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            />
             <span className="hidden sm:inline">Agregar Presupuesto</span>
             <span className="sm:hidden">Presupuesto</span>
           </Button>
@@ -2891,7 +2471,10 @@ const VentasPage = () => {
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
             onClick={() => setOpen("venta")}
           >
-            <Icon icon="heroicons:shopping-cart" className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Icon
+              icon="heroicons:shopping-cart"
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            />
             <span className="hidden sm:inline">Agregar Venta</span>
             <span className="sm:hidden">Venta</span>
           </Button>

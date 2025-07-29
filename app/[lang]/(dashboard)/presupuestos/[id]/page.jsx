@@ -1293,6 +1293,244 @@ const PresupuestoDetalle = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Tabla de productos seleccionados en modo edición */}
+                {(presupuestoEdit.productos || []).length > 0 && (
+                  <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-default-900">
+                        Productos Seleccionados
+                      </h3>
+                      <span className="text-sm text-default-600">
+                        {(presupuestoEdit.productos || []).length} producto{(presupuestoEdit.productos || []).length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
+                        <thead>
+                          <tr className="bg-primary/10 text-primary font-semibold">
+                            <th className="p-2 text-left">Categoría</th>
+                            <th className="p-2 text-left">Producto</th>
+                            <th className="p-2 text-center">Cant.</th>
+                            <th className="p-2 text-center">Precio unit.</th>
+                            <th className="p-2 text-center">Desc.</th>
+                            <th className="p-2 text-center">Subtotal</th>
+                            <th className="p-2 text-center">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(presupuestoEdit.productos || []).map((p, idx) => (
+                            <tr
+                              key={p.id}
+                              className="border-b hover:bg-primary/5 transition-all"
+                            >
+                              <td className="p-2 text-xs font-medium text-gray-600">
+                                {p.categoria}
+                              </td>
+                              <td className="p-2">
+                                <div className="font-semibold text-default-900">
+                                  {p.nombre}
+                                </div>
+                                {p.categoria === "Maderas" && (
+                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                    <span className="font-medium text-gray-500">
+                                      Dimensiones:
+                                    </span>
+                                    <span>
+                                      Alto: <span className="font-bold">{p.alto}</span> cm
+                                    </span>
+                                    <span>
+                                      Ancho: <span className="font-bold">{p.ancho}</span> cm
+                                    </span>
+                                    <span>
+                                      Largo: <span className="font-bold">{p.largo}</span> cm
+                                    </span>
+                                    <span>
+                                      $/pie:{" "}
+                                      <div className="inline-flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.precioPorPie}
+                                          onChange={(e) =>
+                                            handlePrecioPorPieChange(p.id, e.target.value)
+                                          }
+                                          className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                          disabled={loadingPrecios}
+                                          placeholder="0.00"
+                                          title="Editar precio por pie"
+                                        />
+                                        <svg
+                                          className="w-3 h-3 text-blue-500"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          />
+                                        </svg>
+                                      </div>
+                                    </span>
+                                    <span className="ml-2 text-primary font-semibold">
+                                      Precio calculado: ${p.precio}
+                                    </span>
+                                    <span className="text-xs text-blue-600 font-medium">
+                                      (Edita el $/pie para recalcular)
+                                    </span>
+                                    {p.stock <= 0 && (
+                                      <span className="text-red-600 font-semibold ml-2">
+                                        ¡Sin stock! Se permitirá avanzar igual.
+                                      </span>
+                                    )}
+                                    {p.stock > 0 && p.stock <= 3 && (
+                                      <span className="text-yellow-600 font-semibold ml-2">
+                                        Stock bajo: quedan {p.stock} unidades.
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="text-center">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((prod) =>
+                                            prod.id === p.id
+                                              ? { ...prod, cantidad: Math.max(1, prod.cantidad - 1) }
+                                              : prod
+                                          ),
+                                        }))
+                                      }
+                                      disabled={loadingPrecios || p.cantidad <= 1}
+                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M20 12H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                    
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={p.cantidad}
+                                      onChange={(e) =>
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((prod) =>
+                                            prod.id === p.id
+                                              ? { ...prod, cantidad: Number(e.target.value) }
+                                              : prod
+                                          ),
+                                        }))
+                                      }
+                                      className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                      disabled={loadingPrecios}
+                                    />
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((prod) =>
+                                            prod.id === p.id
+                                              ? { ...prod, cantidad: prod.cantidad + 1 }
+                                              : prod
+                                          ),
+                                        }))
+                                      }
+                                      disabled={loadingPrecios}
+                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                                    >
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 4v16m8-8H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="text-center">${p.precio}</td>
+                              <td className="text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={p.descuento || 0}
+                                  onChange={(e) =>
+                                    setPresupuestoEdit((prev) => ({
+                                      ...prev,
+                                      productos: prev.productos.map((prod) =>
+                                        prod.id === p.id
+                                          ? { ...prod, descuento: Number(e.target.value) }
+                                          : prod
+                                      ),
+                                    }))
+                                  }
+                                  className="w-20 mx-auto text-center border rounded px-2 py-1"
+                                  disabled={loadingPrecios}
+                                />
+                              </td>
+                              <td className="text-center font-semibold text-primary">
+                                $
+                                {(
+                                  Number(p.precio) *
+                                  Number(p.cantidad) *
+                                  (1 - Number(p.descuento || 0) / 100)
+                                ).toFixed(2)}
+                              </td>
+                              <td className="text-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPresupuestoEdit((prev) => ({
+                                      ...prev,
+                                      productos: prev.productos.filter((prod) => prod.id !== p.id),
+                                    }))
+                                  }
+                                  disabled={loadingPrecios}
+                                  className="text-lg font-bold text-red-500 hover:text-red-700"
+                                  title="Quitar producto"
+                                >
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
               </div>
             )}
           </div>
