@@ -2033,6 +2033,74 @@ const VentaDetalle = () => {
                 </section>
               )}
 
+              {/* Totales y botones por debajo de la tabla */}
+              {(ventaEdit.productos || []).length > 0 && (
+                <div className="flex flex-col items-end gap-2 mt-4">
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                    <div>
+                      Subtotal:{" "}
+                      <span className="font-bold">
+                        $
+                        {ventaEdit.productos
+                          .reduce(
+                            (acc, p) =>
+                              acc + Number(p.precio) * Number(p.cantidad),
+                            0
+                          )
+                          .toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      Descuento:{" "}
+                      <span className="font-bold">
+                        $
+                        {ventaEdit.productos
+                          .reduce(
+                            (acc, p) =>
+                              acc +
+                              Number(p.precio) *
+                                Number(p.cantidad) *
+                                (Number(p.descuento || 0) / 100),
+                            0
+                          )
+                          .toFixed(2)}
+                      </span>
+                    </div>
+                    {ventaEdit.costoEnvio &&
+                      Number(ventaEdit.costoEnvio) > 0 && (
+                        <div>
+                          Costo de envío:{" "}
+                          <span className="font-bold">
+                            ${Number(ventaEdit.costoEnvio).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    <div>
+                      Total:{" "}
+                      <span className="font-bold text-primary">
+                        $
+                        {(
+                          ventaEdit.productos.reduce(
+                            (acc, p) =>
+                              acc + Number(p.precio) * Number(p.cantidad),
+                            0
+                          ) -
+                          ventaEdit.productos.reduce(
+                            (acc, p) =>
+                              acc +
+                              Number(p.precio) *
+                                Number(p.cantidad) *
+                                (Number(p.descuento || 0) / 100),
+                            0
+                          ) +
+                          (Number(ventaEdit.costoEnvio) || 0)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(() => {
                 // Calcula el saldo pendiente en modo edición
                 const subtotal = (ventaEdit.productos || []).reduce(
