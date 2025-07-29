@@ -1571,9 +1571,10 @@ const PresupuestoDetalle = () => {
         <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
           <DialogContent className="w-[95vw] max-w-[420px] bg-card">
             <DialogHeader className="bg-card">
-              <DialogTitle>Agregar Cliente</DialogTitle>
+              <DialogTitle className="bg-card">Agregar Cliente</DialogTitle>
+              <DialogDescription className="bg-card">Complete los datos del nuevo cliente para agregarlo al sistema.</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleNuevoClienteSubmit} className="space-y-2">
+            <form onSubmit={handleNuevoClienteSubmit} className="space-y-2 bg-card">
               <Input
                 label="Nombre *"
                 value={nuevoCliente.nombre}

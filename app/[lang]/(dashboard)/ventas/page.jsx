@@ -1694,15 +1694,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
         <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-card border-default-700">
           <DialogHeader className="bg-card">
-            <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar
-              Cliente
+            <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2 bg-card">
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar Cliente
             </DialogTitle>
-            <DialogDescription className="text-base text-default-600 dark:text-default-300">
+            <DialogDescription className="text-base text-default-600 dark:text-default-300 bg-card">
               Complete los datos del nuevo cliente para agregarlo al sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-4 py-2 bg-card">
             <Input
               placeholder="Nombre *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
@@ -2739,7 +2738,7 @@ const VentasPage = () => {
         </Card>
       </div>
       <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20">
+        <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20 bg-card">
           <FormularioVentaPresupuesto
             tipo={open}
             onClose={handleClose}
