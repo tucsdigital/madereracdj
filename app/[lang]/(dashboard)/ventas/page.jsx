@@ -382,6 +382,33 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
+  // Función para recalcular precio cuando se cambia el precio por pie
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          // Recalcular precio base con el nuevo precio por pie
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: Number(nuevoPrecioPorPie),
+          });
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = cepilladoAutomatico ? precioBase * 1.066 : precioBase;
+          
+          return {
+            ...p,
+            precioPorPie: Number(nuevoPrecioPorPie),
+            precio: precioFinal,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
     0
@@ -2044,6 +2071,60 @@ export function SelectorProductosPresupuesto({
     );
   };
 
+  // Función para recalcular precio cuando se cambia el precio por pie
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          // Recalcular precio base con el nuevo precio por pie
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: Number(nuevoPrecioPorPie),
+          });
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = cepilladoAutomatico ? precioBase * 1.066 : precioBase;
+          
+          return {
+            ...p,
+            precioPorPie: Number(nuevoPrecioPorPie),
+            precio: precioFinal,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  const recalcularPreciosMadera = (aplicarCepillado) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.categoria === "Maderas") {
+          // Recalcular precio base sin cepillado
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
+          
+          return {
+            ...p,
+            precio: precioFinal,
+            cepilladoAplicado: aplicarCepillado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
   function calcularPrecioCorteMadera({
     alto,
     ancho,
@@ -2453,7 +2534,15 @@ export function SelectorProductosPresupuesto({
                         </span>
                         <span>
                           $/pie:{" "}
-                          <span className="font-bold">{p.precioPorPie}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={p.precioPorPie}
+                            onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                            className="w-16 text-center border border-gray-300 rounded px-1 py-0.5 text-xs font-bold bg-white"
+                            disabled={isSubmitting}
+                          />
                         </span>
                         <span className="ml-2 text-primary font-semibold">
                           Precio calculado: ${p.precio}

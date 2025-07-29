@@ -242,6 +242,30 @@ const PresupuestoDetalle = () => {
     }));
   };
 
+  // Función para recalcular precio cuando se cambia el precio por pie
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          // Recalcular precio base con el nuevo precio por pie
+          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = cepilladoAutomatico ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
+          
+          return {
+            ...p,
+            precioPorPie: Number(nuevoPrecioPorPie),
+            precio: precioFinal,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
@@ -1304,6 +1328,17 @@ const PresupuestoDetalle = () => {
                                 {producto.descripcion ||
                                   producto.nombre ||
                                   "Producto sin nombre"}
+                                {/* Mostrar dimensiones y precio por pie para productos de madera */}
+                                {producto.categoria === "Maderas" && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    <div className="flex flex-wrap gap-2">
+                                      <span>Alto: {producto.alto || 0} cm</span>
+                                      <span>Ancho: {producto.ancho || 0} cm</span>
+                                      <span>Largo: {producto.largo || 0} cm</span>
+                                      <span>$/pie: {producto.precioPorPie || 0}</span>
+                                    </div>
+                                  </div>
+                                )}
                               </td>
                               <td className="p-3 text-center">
                                 {safeNumber(producto.cantidad)}
