@@ -670,7 +670,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
 
             {/* Sección Cliente */}
-            <section className="bg-white dark:bg-default-900 rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+            <section className="bg-card rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
               <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
                 <Icon
                   icon="heroicons:user"
@@ -680,7 +680,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </label>
               <div className="relative w-full">
                 <div
-                  className="border border-default-200 dark:border-default-700 rounded-lg px-3 py-3 w-full flex items-center cursor-pointer bg-white hover:bg-gray-100 dark:bg-default-800 transition-all"
+                  className="w-full flex items-center cursor-pointer bg-card hover:bg-gray-100 transition-all"
                   onClick={() => setDropdownClientesOpen(true)}
                 >
                   <span className="flex-1 text-default-700 dark:text-default-100 text-base">
@@ -704,7 +704,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </Button>
                 </div>
                 {dropdownClientesOpen && (
-                  <div className="absolute z-50 bg-white dark:bg-default-900 border border-default-200 dark:border-default-700 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
+                  <div className="absolute z-50 bg-card border border-default-200 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
                     <div className="p-2">
                       <Input
                         type="text"
@@ -822,12 +822,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </section>
 
             {/* Sección Productos - Diseño Mejorado */}
-            <section className="bg-white dark:bg-default-900 rounded-xl border border-default-200 dark:border-default-700 shadow-sm overflow-hidden">
+            <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
               {/* Header con estadísticas */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <svg
                         className="w-6 h-6 text-blue-600 dark:text-blue-400"
                         fill="none"
@@ -909,7 +909,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       placeholder="Buscar productos..."
                       value={busquedaProducto}
                       onChange={(e) => setBusquedaProducto(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-gray-100 transition-all duration-200"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                     />
                   </div>
                 </div>

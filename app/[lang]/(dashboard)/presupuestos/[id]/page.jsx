@@ -487,7 +487,7 @@ const PresupuestoDetalle = () => {
           </div>
         </div>
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -538,7 +538,7 @@ const PresupuestoDetalle = () => {
 
           {/* Información del cliente */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-card rounded-lg p-4">
               <h3 className="font-semibold text-lg mb-3 text-gray-900">
                 Información del Cliente
               </h3>
@@ -596,7 +596,7 @@ const PresupuestoDetalle = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-card rounded-lg p-4">
               <h3 className="font-semibold text-lg mb-3 text-gray-900">
                 Información del Presupuesto
               </h3>
@@ -641,7 +641,7 @@ const PresupuestoDetalle = () => {
 
         {/* Productos */}
         {editando && presupuestoEdit ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               Editar Presupuesto
             </h3>
@@ -725,11 +725,11 @@ const PresupuestoDetalle = () => {
 
             {/* Selector de productos */}
             {editando && presupuestoEdit && (
-              <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
                 <h3 className="font-semibold text-lg mb-4 text-gray-900">
                   Editar productos del presupuesto
                 </h3>
-                <section className="bg-white rounded-xl border border-default-200 shadow-sm overflow-hidden">
+                <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
                   {/* Header con estadísticas */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
                     <div className="flex items-center justify-between mb-4">
@@ -771,7 +771,7 @@ const PresupuestoDetalle = () => {
                     <div className="flex flex-col sm:flex-row gap-3">
                       {/* Filtro de categorías */}
                       <div className="flex-1">
-                        <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                        <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
                           {Array.from(
                             new Set(productos.map((p) => p.categoria))
                           ).map((categoria) => (
@@ -822,7 +822,7 @@ const PresupuestoDetalle = () => {
                               busquedaProducto: e.target.value,
                             }))
                           }
-                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                         />
                       </div>
                     </div>
@@ -914,7 +914,7 @@ const PresupuestoDetalle = () => {
                             return (
                               <div
                                 key={prod.id}
-                                className={`group relative bg-white rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                                className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
                                   yaAgregado
                                     ? "border-green-200 bg-green-50"
                                     : "border-gray-200 hover:border-blue-300"
@@ -1210,7 +1210,7 @@ const PresupuestoDetalle = () => {
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               Productos y Servicios
             </h3>
@@ -1221,7 +1221,7 @@ const PresupuestoDetalle = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-100 border-b">
+                    <tr className="bg-card border-b">
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
                       <th className="text-center p-3 font-medium">Unidad</th>
@@ -1301,7 +1301,7 @@ const PresupuestoDetalle = () => {
 
             {/* Totales */}
             <div className="mt-6 flex justify-end">
-              <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+              <div className="bg-card rounded-lg p-4 min-w-[300px]">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
@@ -1370,7 +1370,7 @@ const PresupuestoDetalle = () => {
 
         {/* Observaciones */}
         {presupuesto.observaciones && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-3 text-gray-900">
               Observaciones
             </h3>
@@ -1382,7 +1382,7 @@ const PresupuestoDetalle = () => {
 
         {/* Modal de venta */}
         {convirtiendoVenta ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               Convertir Presupuesto a Venta
             </h3>
@@ -1839,7 +1839,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Información de envío */}
-        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información de envío
           </div>
@@ -2031,7 +2031,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         </div>
 
         {/* Condiciones de pago y entrega */}
-        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Condiciones de pago y entrega
           </div>
@@ -2122,7 +2122,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         </div>
 
         {/* Información adicional */}
-        <div className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
           </div>

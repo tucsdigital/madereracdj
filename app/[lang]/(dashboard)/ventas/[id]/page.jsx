@@ -559,7 +559,7 @@ const VentaDetalle = () => {
           </div>
         </div>
         {/* Header con botones */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -602,7 +602,7 @@ const VentaDetalle = () => {
         </div>
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información del Cliente
             </h3>
@@ -660,7 +660,7 @@ const VentaDetalle = () => {
             </div>
           </div>
           {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de Envío y Pago
             </h3>
@@ -744,7 +744,7 @@ const VentaDetalle = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Información de Envío y Pago
             </h3>
@@ -803,7 +803,7 @@ const VentaDetalle = () => {
        
 
         {/* 3. Información de Pagos */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 no-print">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
           <h3 className="font-semibold text-lg mb-4 text-gray-900">
             Información de Pagos
           </h3>
@@ -865,7 +865,7 @@ const VentaDetalle = () => {
               <div className="bg-gray-50 rounded-lg p-3">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b">
+                    <tr className="bg-card border-b">
                       <th className="text-left py-1">Fecha</th>
                       <th className="text-left py-1">Método</th>
                       <th className="text-right py-1">Monto</th>
@@ -892,14 +892,14 @@ const VentaDetalle = () => {
         {/* Productos y Servicios */}
         {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
         (Array.isArray(venta.items) && venta.items.length > 0) ? (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               Productos y Servicios
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-100 border-b">
+                  <tr className="bg-card border-b">
                     <th className="text-left p-3 font-medium">Producto</th>
                     <th className="text-center p-3 font-medium">Cantidad</th>
                     <th className="text-center p-3 font-medium">Unidad</th>
@@ -999,7 +999,7 @@ const VentaDetalle = () => {
 
         {/* 5. Observaciones */}
         {venta.observaciones && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
             <h3 className="font-semibold text-lg mb-2 text-gray-900">
               Observaciones
             </h3>
@@ -1013,7 +1013,7 @@ const VentaDetalle = () => {
         {editando && ventaEdit && (
           <div className="flex flex-col gap-8 mt-8">
             {/* Información de envío */}
-            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Información de envío
               </h3>
@@ -1168,7 +1168,7 @@ const VentaDetalle = () => {
             </section>
 
             {/* Información adicional */}
-            <section className="space-y-4 bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Información adicional
               </h3>
@@ -1224,12 +1224,12 @@ const VentaDetalle = () => {
             </section>
 
             {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
               <h3 className="font-semibold text-lg mb-4 text-gray-900">
                 Editar productos de la venta
               </h3>
               {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
-              <section className="bg-white rounded-xl border border-default-200 shadow-sm overflow-hidden">
+              <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
                 {/* Header con estadísticas */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-4">
@@ -1271,7 +1271,7 @@ const VentaDetalle = () => {
                   <div className="flex flex-col sm:flex-row gap-3">
                     {/* Filtro de categorías */}
                     <div className="flex-1">
-                      <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                      <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
                         {Array.from(
                           new Set(productos.map((p) => p.categoria))
                         ).map((categoria) => (
@@ -1412,7 +1412,7 @@ const VentaDetalle = () => {
                           return (
                             <div
                               key={prod.id}
-                              className={`group relative bg-white rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                              className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
                                 yaAgregado
                                   ? "border-green-200 bg-green-50"
                                   : "border-gray-200 hover:border-blue-300"
