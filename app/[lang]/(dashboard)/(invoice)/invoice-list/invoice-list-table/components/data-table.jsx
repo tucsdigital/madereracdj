@@ -75,85 +75,56 @@ export function DataTable({ columns, data }) {
   };
 
   return (
-    <div className="rounded-xl border border-default-200 shadow-lg bg-white dark:bg-default-900 overflow-hidden">
-      <div className="p-4 border-b bg-default-50 dark:bg-default-800 sticky top-0 z-10">
+    <div className="w-full bg-card border border-card">
+      <div className="p-4 border-b border-card bg-card">
         <DataTableToolbar table={table} />
       </div>
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
+        <Table className="w-full bg-card">
+          <TableHeader className="bg-gray-100 bg-card border-b border-card">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      className="last:ltr:text-end last:rtl:text-left whitespace-nowrap"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    </TableHead>
-                  );
-                })}
+              <TableRow key={headerGroup.id} className="border-b border-card bg-gray-100 bg-card">
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className="px-4 py-2 text-left text-gray-700 dark:text-gray-200 font-semibold"
+                  >
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="[&_tr:last-child]:border-1">
+          <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, idx) => (
+              table.getRowModel().rows.map((row) => (
                 <TableRow
-                  key={row.original.id ? String(row.original.id) : String(idx)}
+                  key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors group relative"
-                  onClick={() => handleRowClick(row)}
-                  title="Click para ver detalles"
+                  className="border-b border-card hover:bg-gray-50 bg-card"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="text-sm text-default-600 last:text-end"
-                      onClick={(e) => {
-                        // Prevenir la navegación si se hace click en botones de acción
-                        if (cell.column.id === 'actions' || cell.column.id === 'select') {
-                          e.stopPropagation();
-                        }
-                      }}
+                      className="px-4 py-2 text-gray-700 dark:text-gray-200"
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
-                  {/* Indicador visual de que la fila es clickeable */}
-                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Icon icon="heroicons:arrow-right" className="w-4 h-4 text-gray-400" />
-                  </div>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <Icon icon="heroicons:document-text" className="w-8 h-8 text-gray-400" />
-                    <p className="text-gray-500">No hay documentos para mostrar</p>
-                    <p className="text-sm text-gray-400">Haz click en "Agregar Presupuesto" o "Agregar Venta" para comenzar</p>
-                  </div>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400 dark:text-gray-500">
+                  No hay resultados.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="p-2 border-t bg-default-50 dark:bg-default-800">
+      {/* Paginador adaptado a dark/light */}
+      <div className="p-4 border-t border-card bg-card">
         <DataTablePagination table={table} />
       </div>
     </div>

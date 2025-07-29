@@ -193,7 +193,7 @@ export const columnsPresupuestos = [
     accessorKey: "cliente",
     header: "Cliente",
     cell: ({ row }) => (
-      <span className="font-semibold text-default-800 dark:text-default-200">
+      <span className="font-semibold text-gray-800 dark:text-gray-200">
         {row.original.cliente?.nombre || "-"}
       </span>
     )
@@ -203,11 +203,11 @@ export const columnsPresupuestos = [
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
+      if (!fecha) return <span className="text-gray-400 dark:text-gray-500">-</span>;
       // Corregir el cálculo de la fecha para evitar el problema de zona horaria
       const dateObj = new Date(fecha + 'T00:00:00');
       return (
-        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
+        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
           {dateObj.toLocaleDateString('es-AR')}
         </span>
       );
@@ -235,7 +235,7 @@ export const columnsPresupuestos = [
           ${Number(costo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
         </span>
       ) : (
-        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-400 dark:text-default-500">-</span>
+        <span className="inline-block px-2 py-1 rounded bg-card text-gray-400 dark:text-gray-500">-</span>
       );
     }
   },
@@ -256,7 +256,7 @@ export const columnsVentas = [
     accessorKey: "cliente.nombre",
     header: "Cliente",
     cell: ({ row }) => (
-      <span className="font-semibold text-default-800 dark:text-default-200">
+      <span className="font-semibold text-gray-800 dark:text-gray-200">
         {row.original.cliente?.nombre || "-"}
       </span>
     )
@@ -266,11 +266,11 @@ export const columnsVentas = [
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return <span className="text-default-400 dark:text-default-500">-</span>;
+      if (!fecha) return <span className="text-gray-400 dark:text-gray-500">-</span>;
       // Corregir el cálculo de la fecha para evitar el problema de zona horaria
       const dateObj = new Date(fecha + 'T00:00:00');
       return (
-        <span className="inline-block px-2 py-1 rounded bg-gray-100 dark:bg-default-800 text-default-700 dark:text-default-200 font-semibold text-xs">
+        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
           {dateObj.toLocaleDateString('es-AR')}
         </span>
       );
@@ -282,7 +282,7 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const total = row.original.total ?? 0;
       return (
-        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white font-semibold text-base">
+        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
           {total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-"}
         </span>
       );
@@ -303,20 +303,17 @@ export const columnsVentas = [
       const saldoPendiente = total - montoAbonado;
       
       // Determinar estado de pago
-      let estadoPago, color, texto;
+      let color = "", texto = "";
       
       if (montoAbonado >= total) {
-        estadoPago = "completo";
-        color = "bg-green-100 text-green-800 border-green-200";
+        color = "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700";
         texto = "Completo";
       } else if (montoAbonado > 0) {
-        estadoPago = "parcial";
-        color = "bg-yellow-100 text-yellow-800 border-yellow-200";
-        texto = `Parcial (Falta $${saldoPendiente.toFixed(2)})`;
+        color = "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-700";
+        texto = `Parcial (Falta $${saldoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })})`;
       } else {
-        estadoPago = "pendiente";
-        color = "bg-red-100 text-red-800 border-red-200";
-        texto = `Pendiente ($${total.toFixed(2)})`;
+        color = "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
+        texto = `Pendiente ($${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })})`;
       }
       
       return (
@@ -338,7 +335,7 @@ export const columnsVentas = [
         transporte_propio: "Transporte Propio",
       };
       return (
-        <span className="inline-block px-2 py-1 rounded bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
+        <span className="inline-block px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
           {tipos[tipo] || tipo}
         </span>
       );
@@ -348,7 +345,7 @@ export const columnsVentas = [
     accessorKey: "vendedor",
     header: "Vendedor",
     cell: ({ row }) => (
-      <span className="text-default-700 dark:text-default-300">{row.getValue("vendedor") || "-"}</span>
+      <span className="text-gray-700 dark:text-gray-300">{row.getValue("vendedor") || "-"}</span>
     )
   },
   {
@@ -364,7 +361,7 @@ export const columnsVentas = [
     accessorKey: "estado",
     header: "Estado",
     cell: ({ row }) => (
-      <span className="inline-block px-2 py-1 rounded bg-gray-200 dark:bg-default-700 text-default-700 dark:text-default-200 font-medium">
+      <span className="inline-block px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium">
         {row.getValue("estado") || "-"}
       </span>
     )
