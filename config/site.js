@@ -1,8 +1,8 @@
 export const siteConfig = {
-  name: "Maderas CJD | Panel Administrativo",
-  description: "Sistema interno para la gestión de ventas, stock, clientes y proyectos de Maderas CJD. Administra, organiza y haz crecer tu maderera con tecnología.",
-  keywords: "maderera, Maderas CJD, gestión de ventas, stock, clientes, proyectos, administración, POS, panel administrativo, comercio de maderas",
-  author: "Maderas CJD",
+  name: "Maderas Caballero | Panel Administrativo",
+  description: "Sistema interno para la gestión de ventas, stock, clientes y proyectos de Maderas Caballero. Administra, organiza y haz crecer tu maderera con tecnología.",
+  keywords: "maderera, Maderas Caballero, gestión de ventas, stock, clientes, proyectos, administración, POS, panel administrativo, comercio de maderas",
+  author: "Maderas Caballero",
   theme: "violet",
   layout: "vertical",
   // semi-box, horizontal, vertical

@@ -43,7 +43,7 @@ const LoginPage = () => {
                   <span className="text-default-600 dark:text-default-300 ">
                     Bienvenido al <br />
                     sistema interno<br />
-                    de Maderas CJD
+                    de Maderas Caballero
                   </span>
                 </div>
                 <div className="mt-2 2xl:mt-4 text-default-900 dark:text-default-50 text-2xl font-medium">
