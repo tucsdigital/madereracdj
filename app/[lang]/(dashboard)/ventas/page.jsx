@@ -40,6 +40,13 @@ import {
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -575,7 +582,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
-  const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
@@ -679,64 +685,53 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 Cliente
               </label>
               <div className="relative w-full">
-                <div
-                  className="w-full flex items-center cursor-pointer bg-card hover:bg-gray-100 transition-all"
-                  onClick={() => setDropdownClientesOpen(true)}
+                <Select
+                  value={clienteSeleccionado?.id || ""}
+                  onValueChange={handleClienteChange}
+                  disabled={isSubmitting}
                 >
-                  <span className="flex-1 text-default-700 dark:text-default-100 text-base">
-                    {clienteSeleccionado
-                      ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
-                      : "Seleccionar cliente..."}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-primary dark:text-primary-300 font-semibold"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenNuevoCliente(true);
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />{" "}
-                    Nuevo
-                  </Button>
-                </div>
-                {dropdownClientesOpen && (
-                  <div className="absolute z-50 bg-card border border-default-200 rounded-lg shadow-lg w-full mt-1 max-h-72 overflow-y-auto animate-fade-in">
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleccionar cliente..." />
+                  </SelectTrigger>
+                  <SelectContent>
                     <div className="p-2">
                       <Input
                         type="text"
                         placeholder="Buscar cliente..."
                         value={busquedaCliente}
                         onChange={(e) => setBusquedaCliente(e.target.value)}
-                        className="w-full mb-2 rounded-md border-default-200 dark:border-default-700 focus:border-primary dark:focus:border-primary-400"
+                        className="w-full mb-2"
                         autoFocus
                         disabled={clientesLoading || isSubmitting}
                       />
-                      <div className="divide-y divide-gray-100">
-                        {clientesFiltrados.length === 0 && (
-                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
-                            No hay clientes
-                          </div>
-                        )}
-                        {clientesFiltrados.map((c) => (
-                          <div
-                            key={c.id}
-                            className="p-2 hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer rounded text-base"
-                            onClick={() => {
-                              handleClienteChange(c.id);
-                              setDropdownClientesOpen(false);
-                            }}
-                          >
-                            {c.nombre} - {c.cuit} - {c.localidad}
-                          </div>
-                        ))}
-                      </div>
                     </div>
-                  </div>
-                )}
+                    {clientesFiltrados.length === 0 ? (
+                      <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
+                        No hay clientes
+                      </div>
+                    ) : (
+                      clientesFiltrados.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nombre} - {c.cuit} - {c.localidad}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-primary dark:text-primary-300 font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenNuevoCliente(true);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />
+                  Nuevo
+                </Button>
               </div>
               {errors.clienteId && (
                 <span className="text-red-500 dark:text-red-400 text-xs mt-1">
@@ -1853,7 +1848,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   descripcion: "",
                 });
                 setOpenNuevoCliente(false);
-                setDropdownClientesOpen(false);
               }}
             >
               Guardar
