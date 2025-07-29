@@ -678,7 +678,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             {/* Sección Cliente */}
             <section className="bg-card rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
-              <label className="font-semibold text-lg text-default-800 dark:text-default-200 flex items-center gap-2">
+              <label className="font-semibold text-lg flex items-center gap-2">
                 <Icon
                   icon="heroicons:user"
                   className="w-5 h-5 text-primary dark:text-primary-300"
@@ -694,7 +694,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   aria-haspopup="listbox"
                   aria-expanded={dropdownClientesOpen}
                 >
-                  <span className="flex-1 text-default-700 dark:text-default-100 text-base truncate">
+                  <span className="flex-1 truncate">
                     {clienteSeleccionado
                       ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
                       : "Seleccionar cliente..."}
@@ -1328,8 +1328,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {tipo === "venta" && (
                 <>
-                  <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
-                    <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
+                  <div className="space-y-2 rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold pb-1">
                       Información de envío
                     </div>
                     <select
@@ -1341,7 +1341,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           shouldValidate: true,
                         });
                       }}
-                      className="border rounded px-2 py-2 w-full"
+                      className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                       disabled={isSubmitting}
                     >
                       <option value="">Tipo de envío...</option>
@@ -1647,7 +1647,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
 
         {/* Totales y acciones */}
-        <div className="bg-white space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100">
+        <div className="bg-card space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100">
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
