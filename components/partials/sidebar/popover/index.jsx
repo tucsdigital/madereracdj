@@ -12,7 +12,6 @@ import { useSidebar, useThemeStore } from "@/store";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePathname } from "next/navigation";
-import AddBlock from "../common/add-block";
 
 const PopoverSidebar = ({ trans }) => {
   const { collapsed, sidebarBg } = useSidebar();
@@ -139,11 +138,6 @@ const PopoverSidebar = ({ trans }) => {
             </li>
           ))}
         </ul>
-        {!collapsed && (
-          <div className="-mx-2 ">
-            {/* <AddBlock /> */}
-          </div>
-        )}
       </ScrollArea>
     </div>
   );
