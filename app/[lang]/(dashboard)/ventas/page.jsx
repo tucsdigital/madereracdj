@@ -1662,7 +1662,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-row gap-4 justify-end pt-4">
+          <DialogFooter className="flex flex-row gap-4 justify-end pt-4 bg-card">
             <Button
               type="button"
               variant="outline"
@@ -1692,8 +1692,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       </form>
 
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-white dark:bg-default-900 dark:border-default-700">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-card border-default-700">
+          <DialogHeader className="bg-card">
             <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2">
               <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar
               Cliente
@@ -1798,7 +1798,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               }
             />
           </div>
-          <DialogFooter className="flex flex-row gap-4 justify-end pt-2">
+          <DialogFooter className="flex flex-row gap-4 justify-end pt-2 bg-card">
             <Button
               variant="outline"
               className="hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-6 py-2 text-base"

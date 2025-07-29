@@ -1569,12 +1569,9 @@ const PresupuestoDetalle = () => {
 
         {/* Modal para nuevo cliente en presupuestos */}
         <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-          <DialogContent className="w-[95vw] max-w-[420px]">
-            <DialogHeader>
+          <DialogContent className="w-[95vw] max-w-[420px] bg-card">
+            <DialogHeader className="bg-card">
               <DialogTitle>Agregar Cliente</DialogTitle>
-              <DialogDescription>
-                Complete los datos del nuevo cliente para agregarlo al sistema.
-              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleNuevoClienteSubmit} className="space-y-2">
               <Input
@@ -1663,6 +1660,9 @@ const PresupuestoDetalle = () => {
                 </Button>
               </div>
             </form>
+            <DialogFooter className="bg-card">
+              {/* ...botones... */}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
