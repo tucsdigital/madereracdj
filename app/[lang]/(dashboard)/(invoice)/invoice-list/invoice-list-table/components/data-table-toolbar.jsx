@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,12 @@ import {
 import Link from "next/link";
 
 export function DataTableToolbar({ table }) {
+  const [globalFilter, setGlobalFilter] = React.useState("");
+
+  React.useEffect(() => {
+    table.setGlobalFilter(globalFilter);
+  }, [globalFilter, table]);
+
   const isFiltered = table.getState().columnFilters.length > 0;
 
   return (

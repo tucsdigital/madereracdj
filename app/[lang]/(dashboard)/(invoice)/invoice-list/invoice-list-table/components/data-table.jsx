@@ -9,6 +9,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  getGlobalRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -31,6 +32,7 @@ export function DataTable({ columns, data }) {
   const [columnVisibility, setColumnVisibility] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState([]);
   const [sorting, setSorting] = React.useState([]);
+  const [globalFilter, setGlobalFilter] = React.useState("");
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
@@ -45,18 +47,21 @@ export function DataTable({ columns, data }) {
       columnVisibility,
       rowSelection,
       columnFilters,
+      globalFilter,
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getGlobalRowModel: getGlobalRowModel(),
   });
 
   // Función para manejar el click en la fila
@@ -72,12 +77,11 @@ export function DataTable({ columns, data }) {
   };
 
   return (
-    <div>
-      <div className="p-6">
+    <div className="rounded-xl border border-default-200 shadow-lg bg-white dark:bg-default-900 overflow-hidden">
+      <div className="p-4 border-b bg-default-50 dark:bg-default-800 sticky top-0 z-10">
         <DataTableToolbar table={table} />
       </div>
-
-      <div>
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -151,8 +155,9 @@ export function DataTable({ columns, data }) {
           </TableBody>
         </Table>
       </div>
-      
-      <DataTablePagination table={table} /> 
+      <div className="p-2 border-t bg-default-50 dark:bg-default-800">
+        <DataTablePagination table={table} />
+      </div>
     </div>
   );
 }

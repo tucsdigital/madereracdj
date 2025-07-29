@@ -219,7 +219,7 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const total = row.original.total ?? 0;
       return (
-        <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
+        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
           {`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
         </span>
       );
@@ -282,7 +282,7 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const total = row.original.total ?? 0;
       return (
-        <span className="inline-block px-2 py-1 rounded bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400 font-semibold text-base">
+        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white font-semibold text-base">
           {total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-"}
         </span>
       );
@@ -355,7 +355,7 @@ export const columnsVentas = [
     accessorKey: "prioridad",
     header: "Prioridad",
     cell: ({ row }) => (
-      <span className="inline-block px-2 py-1 rounded bg-yellow-50 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300 font-medium">
+      <span className="inline-block px-2 py-1 rounded bg-yellow-600 text-white dark:bg-yellow-400 dark:text-yellow-900 font-medium">
         {row.getValue("prioridad") || "-"}
       </span>
     )
