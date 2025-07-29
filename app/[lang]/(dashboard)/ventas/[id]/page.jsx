@@ -374,7 +374,7 @@ const VentaDetalle = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando venta...</p>
+          <p className="">Cargando venta...</p>
           <p className="text-sm text-gray-500 mt-2">ID: {id}</p>
           <p className="text-sm text-gray-500">Lang: {lang}</p>
         </div>
@@ -389,7 +389,7 @@ const VentaDetalle = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             Venta no encontrada
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className=" mb-4">
             {error || "La venta que buscas no existe o ha sido eliminada."}
           </p>
           <div className="bg-gray-100 rounded-lg p-4 mb-6 text-left">
@@ -458,7 +458,7 @@ const VentaDetalle = () => {
       : "pendiente";
 
   return (
-    <div className="min-h-screen bg-card py-8">
+    <div className="min-h-screen py-8">
       <style>{`
     select {
       background: #fff !important;
@@ -546,7 +546,7 @@ const VentaDetalle = () => {
             >
               Maderera Caballero
             </h1>
-            <div className="text-gray-600 text-sm">Venta / Comprobante</div>
+            <div className=" text-sm">Venta / Comprobante</div>
             <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
           </div>
           <div className="ml-auto text-right">
@@ -567,7 +567,7 @@ const VentaDetalle = () => {
               </h1>
               {/* Mostrar observaciones si existen */}
               {venta.observaciones && (
-                <p className="text-gray-600 mt-1 whitespace-pre-line">
+                <p className=" mt-1 whitespace-pre-line">
                   {venta.observaciones}
                 </p>
               )}
@@ -833,14 +833,14 @@ const VentaDetalle = () => {
           {/* Detalles de pagos */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Total de la venta:</span>
+              <span className="">Total de la venta:</span>
               <span className="font-semibold">
                 ${(venta.total || 0).toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-gray-600">Monto abonado:</span>
+              <span className="">Monto abonado:</span>
               <span className="font-semibold text-green-600">
                 ${montoAbonado.toFixed(2)}
               </span>
@@ -848,7 +848,7 @@ const VentaDetalle = () => {
 
             {saldoPendiente > 0 && (
               <div className="flex justify-between border-t pt-2">
-                <span className="text-gray-600">Saldo pendiente:</span>
+                <span className="">Saldo pendiente:</span>
                 <span className="font-semibold text-red-600">
                   ${saldoPendiente.toFixed(2)}
                 </span>
@@ -1021,7 +1021,7 @@ const VentaDetalle = () => {
                 <label className="block">
                   <span className="text-sm font-medium">Tipo de envío</span>
                   <select
-                    className="border rounded px-2 py-2 w-full mt-1"
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     value={ventaEdit.tipoEnvio || ""}
                     onChange={(e) =>
                       setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })
@@ -1178,7 +1178,7 @@ const VentaDetalle = () => {
                     Vendedor responsable
                   </span>
                   <select
-                    className="border rounded px-2 py-2 w-full mt-1"
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     value={ventaEdit.vendedor || ""}
                     onChange={(e) =>
                       setVentaEdit({ ...ventaEdit, vendedor: e.target.value })
@@ -1194,7 +1194,7 @@ const VentaDetalle = () => {
                 <label className="block">
                   <span className="text-sm font-medium">Prioridad</span>
                   <select
-                    className="border rounded px-2 py-2 w-full mt-1"
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     value={ventaEdit.prioridad || ""}
                     onChange={(e) =>
                       setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
@@ -1209,7 +1209,7 @@ const VentaDetalle = () => {
                 <label className="block col-span-2">
                   <span className="text-sm font-medium">Observaciones</span>
                   <textarea
-                    className="border rounded px-2 py-2 w-full mt-1"
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     value={ventaEdit.observaciones || ""}
                     onChange={(e) =>
                       setVentaEdit({
@@ -1231,7 +1231,7 @@ const VentaDetalle = () => {
               {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
               <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
                 {/* Header con estadísticas */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -1253,7 +1253,7 @@ const VentaDetalle = () => {
                         <h3 className="text-lg font-semibold ">
                           Productos
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm ">
                           Selecciona los productos para tu venta
                         </p>
                       </div>
@@ -1449,7 +1449,7 @@ const VentaDetalle = () => {
                                         </div>
                                       )}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                                    <div className="grid grid-cols-2 gap-4 text-xs ">
                                       <div>
                                         <span className="font-medium">
                                           Precio:

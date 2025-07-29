@@ -404,7 +404,7 @@ const PresupuestoDetalle = () => {
   }
 
   return (
-    <div className="min-h-screen bg-card py-8">
+    <div className="min-h-screen py-8">
       <style>{`
         @media print {
           @page { 
