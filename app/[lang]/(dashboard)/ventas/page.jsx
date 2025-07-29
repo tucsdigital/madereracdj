@@ -756,8 +756,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   {errors.clienteId.message}
                 </span>
               )}
-              <div className="space-y-2 bg-default-50 dark:bg-default-800 rounded-lg p-4 border border-default-100 shadow-sm">
-                <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1 flex items-center gap-2">
+              <div className="space-y-2 bg-card p-4 border border-default-100 shadow-sm">
+                <div className="text-base font-semibold pb-1 flex items-center gap-2">
                   <Icon
                     icon="heroicons:identification"
                     className="w-4 h-4 text-primary dark:text-primary-300"
@@ -1536,8 +1536,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </>
               )}
               {tipo === "presupuesto" && (
-                <div className="space-y-2 bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm">
-                  <div className="text-base font-semibold text-default-800 dark:text-default-200 pb-1">
+                <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="text-base font-semibold pb-1">
                     Información de envío
                   </div>
                   <select
