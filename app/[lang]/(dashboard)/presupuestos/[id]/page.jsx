@@ -147,7 +147,11 @@ const PresupuestoDetalle = () => {
         presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
       }
       if (!presupuestoClonado.cliente && presupuestoClonado.clienteId) {
-        const clienteObj = clientes.find(c => c.id === presupuestoClonado.clienteId || c.cuit === presupuestoClonado.clienteId);
+        const clienteObj = clientes.find(
+          (c) =>
+            c.id === presupuestoClonado.clienteId ||
+            c.cuit === presupuestoClonado.clienteId
+        );
         if (clienteObj) presupuestoClonado.cliente = clienteObj;
       }
       setPresupuestoEdit(presupuestoClonado);
@@ -166,44 +170,44 @@ const PresupuestoDetalle = () => {
       }));
 
       // Actualizar precios de productos en presupuestoEdit
-      const productosConPreciosActualizados = (presupuestoEdit.productos || []).map(
-        (productoPresupuesto) => {
-          const productoActualizado = productosActualizados.find(
-            (p) => p.id === productoPresupuesto.id
-          );
-          if (productoActualizado) {
-            let nuevoPrecio = 0;
-            if (productoActualizado.categoria === "Maderas") {
-              // Calcular precio para maderas
-              const alto = Number(productoActualizado.alto) || 0;
-              const ancho = Number(productoActualizado.ancho) || 0;
-              const largo = Number(productoActualizado.largo) || 0;
-              const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
+      const productosConPreciosActualizados = (
+        presupuestoEdit.productos || []
+      ).map((productoPresupuesto) => {
+        const productoActualizado = productosActualizados.find(
+          (p) => p.id === productoPresupuesto.id
+        );
+        if (productoActualizado) {
+          let nuevoPrecio = 0;
+          if (productoActualizado.categoria === "Maderas") {
+            // Calcular precio para maderas
+            const alto = Number(productoActualizado.alto) || 0;
+            const ancho = Number(productoActualizado.ancho) || 0;
+            const largo = Number(productoActualizado.largo) || 0;
+            const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
 
-              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
-                nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
-              }
-            } else if (productoActualizado.categoria === "Ferretería") {
-              nuevoPrecio = productoActualizado.valorVenta || 0;
-            } else {
-              nuevoPrecio =
-                productoActualizado.precioUnidad ||
-                productoActualizado.precioUnidadVenta ||
-                productoActualizado.precioUnidadHerraje ||
-                productoActualizado.precioUnidadQuimico ||
-                productoActualizado.precioUnidadHerramienta ||
-                0;
+            if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+              nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
+              nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
             }
-
-            return {
-              ...productoPresupuesto,
-              precio: nuevoPrecio,
-            };
+          } else if (productoActualizado.categoria === "Ferretería") {
+            nuevoPrecio = productoActualizado.valorVenta || 0;
+          } else {
+            nuevoPrecio =
+              productoActualizado.precioUnidad ||
+              productoActualizado.precioUnidadVenta ||
+              productoActualizado.precioUnidadHerraje ||
+              productoActualizado.precioUnidadQuimico ||
+              productoActualizado.precioUnidadHerramienta ||
+              0;
           }
-          return productoPresupuesto;
+
+          return {
+            ...productoPresupuesto,
+            precio: nuevoPrecio,
+          };
         }
-      );
+        return productoPresupuesto;
+      });
 
       setPresupuestoEdit((prev) => ({
         ...prev,
@@ -225,12 +229,15 @@ const PresupuestoDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (p.categoria === "Maderas") {
           // Recalcular precio base sin cepillado
-          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+          const precioBase =
+            0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
           const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
-          
+
           // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
-          
+          const precioFinal = aplicarCepillado
+            ? precioBaseRedondeado * 1.066
+            : precioBaseRedondeado;
+
           return {
             ...p,
             precio: precioFinal,
@@ -249,12 +256,15 @@ const PresupuestoDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           // Recalcular precio base con el nuevo precio por pie
-          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+          const precioBase =
+            0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
           const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
-          
+
           // Aplicar cepillado si está habilitado
-          const precioFinal = cepilladoAutomatico ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
-          
+          const precioFinal = cepilladoAutomatico
+            ? precioBaseRedondeado * 1.066
+            : precioBaseRedondeado;
+
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
@@ -531,16 +541,15 @@ const PresupuestoDetalle = () => {
             style={{ height: 60, width: "auto" }}
           />
           <div>
-            <h1
-              className="text-2xl font-bold "
-              style={{ letterSpacing: 1 }}
-            >
+            <h1 className="text-2xl font-bold " style={{ letterSpacing: 1 }}>
               Maderera Caballero
             </h1>
             <div className="text-gray-600 text-sm">
               Presupuesto / Cotización
             </div>
-            <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
+            <div className="text-gray-500 text-xs">
+              www.caballeromaderera.com
+            </div>
           </div>
           {/* Header profesional: solo mostrar número de pedido */}
           <div className="ml-auto text-right">
@@ -709,9 +718,7 @@ const PresupuestoDetalle = () => {
         {/* Productos */}
         {editando && presupuestoEdit ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 ">
-              Editar Presupuesto
-            </h3>
+            <h3 className="font-semibold text-lg mb-4 ">Editar Presupuesto</h3>
 
             {/* Mensaje de error */}
             {errorForm && (
@@ -734,7 +741,10 @@ const PresupuestoDetalle = () => {
                         ...presupuestoEdit,
                         tipoEnvio: e.target.value,
                         // Si se selecciona retiro local, limpiar costo de envío
-                        costoEnvio: e.target.value === "retiro_local" ? "" : presupuestoEdit.costoEnvio,
+                        costoEnvio:
+                          e.target.value === "retiro_local"
+                            ? ""
+                            : presupuestoEdit.costoEnvio,
                       })
                     }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -748,25 +758,26 @@ const PresupuestoDetalle = () => {
                     </option>
                   </select>
                 </div>
-                {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Costo de envío
-                    </label>
-                    <Input
-                      type="number"
-                      value={presupuestoEdit.costoEnvio || ""}
-                      onChange={(e) =>
-                        setPresupuestoEdit({
-                          ...presupuestoEdit,
-                          costoEnvio: e.target.value,
-                        })
-                      }
-                      placeholder="Costo de envío"
-                      className="w-full"
-                    />
-                  </div>
-                )}
+                {presupuestoEdit.tipoEnvio &&
+                  presupuestoEdit.tipoEnvio !== "retiro_local" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Costo de envío
+                      </label>
+                      <Input
+                        type="number"
+                        value={presupuestoEdit.costoEnvio || ""}
+                        onChange={(e) =>
+                          setPresupuestoEdit({
+                            ...presupuestoEdit,
+                            costoEnvio: e.target.value,
+                          })
+                        }
+                        placeholder="Costo de envío"
+                        className="w-full"
+                      />
+                    </div>
+                  )}
               </div>
 
               <div className="space-y-4">
@@ -817,9 +828,7 @@ const PresupuestoDetalle = () => {
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold ">
-                            Productos
-                          </h3>
+                          <h3 className="text-lg font-semibold ">Productos</h3>
                           <p className="text-sm text-gray-600">
                             Selecciona los productos para tu presupuesto
                           </p>
@@ -836,9 +845,10 @@ const PresupuestoDetalle = () => {
                     </div>
                     {/* Filtros mejorados */}
                     <div className="flex flex-col sm:flex-row gap-3">
-                      
                       {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
-                      {(presupuestoEdit.productos || []).some(p => p.categoria === "Maderas") && (
+                      {(presupuestoEdit.productos || []).some(
+                        (p) => p.categoria === "Maderas"
+                      ) && (
                         <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
                           <input
                             type="checkbox"
@@ -850,12 +860,15 @@ const PresupuestoDetalle = () => {
                             }}
                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                           />
-                          <label htmlFor="cepilladoAutomaticoPresupuestoEdicion" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          <label
+                            htmlFor="cepilladoAutomaticoPresupuestoEdicion"
+                            className="text-sm font-medium text-blue-800 dark:text-blue-200"
+                          >
                             Cepillado?
                           </label>
                         </div>
                       )}
-                      
+
                       {/* Filtro de categorías */}
                       <div className="flex-1">
                         <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
@@ -1235,64 +1248,6 @@ const PresupuestoDetalle = () => {
                     })()}
                   </div>
                 </section>
-                <div className="flex gap-2 mt-6">
-                  <Button
-                    variant="default"
-                    onClick={handleGuardarCambios}
-                    disabled={loadingPrecios}
-                  >
-                    Guardar cambios
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditando(false)}
-                    disabled={loadingPrecios}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleActualizarPrecios}
-                    disabled={loadingPrecios}
-                  >
-                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-                  </Button>
-                </div>
-                {errorForm && (
-                  <div className="text-red-500 mt-2">{errorForm}</div>
-                )}
-                {(presupuestoEdit.productos || []).length > 0 && (
-                  <div className="flex flex-col items-end gap-2 mt-4">
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                      <div>
-                        Subtotal: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div>
-                        Descuento: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
-                        </span>
-                      </div>
-                      {presupuestoEdit.costoEnvio && Number(presupuestoEdit.costoEnvio) > 0 && (
-                        <div>
-                          Costo de envío: <span className="font-bold">
-                            ${Number(presupuestoEdit.costoEnvio).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        Total: <span className="font-bold text-primary">
-                          ${(
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
-                            (Number(presupuestoEdit.costoEnvio) || 0)
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Tabla de productos seleccionados en modo edición */}
                 {(presupuestoEdit.productos || []).length > 0 && (
@@ -1302,7 +1257,10 @@ const PresupuestoDetalle = () => {
                         Productos Seleccionados
                       </h3>
                       <span className="text-sm text-default-600">
-                        {(presupuestoEdit.productos || []).length} producto{(presupuestoEdit.productos || []).length !== 1 ? "s" : ""}
+                        {(presupuestoEdit.productos || []).length} producto
+                        {(presupuestoEdit.productos || []).length !== 1
+                          ? "s"
+                          : ""}
                       </span>
                     </div>
 
@@ -1338,13 +1296,25 @@ const PresupuestoDetalle = () => {
                                       Dimensiones:
                                     </span>
                                     <span>
-                                      Alto: <span className="font-bold">{p.alto}</span> cm
+                                      Alto:{" "}
+                                      <span className="font-bold">
+                                        {p.alto}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
-                                      Ancho: <span className="font-bold">{p.ancho}</span> cm
+                                      Ancho:{" "}
+                                      <span className="font-bold">
+                                        {p.ancho}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
-                                      Largo: <span className="font-bold">{p.largo}</span> cm
+                                      Largo:{" "}
+                                      <span className="font-bold">
+                                        {p.largo}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
                                       $/pie:{" "}
@@ -1355,7 +1325,10 @@ const PresupuestoDetalle = () => {
                                           step="0.01"
                                           value={p.precioPorPie}
                                           onChange={(e) =>
-                                            handlePrecioPorPieChange(p.id, e.target.value)
+                                            handlePrecioPorPieChange(
+                                              p.id,
+                                              e.target.value
+                                            )
                                           }
                                           className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                           disabled={loadingPrecios}
@@ -1398,14 +1371,23 @@ const PresupuestoDetalle = () => {
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: Math.max(1, prod.cantidad - 1) }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: Math.max(
+                                                      1,
+                                                      prod.cantidad - 1
+                                                    ),
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
-                                      disabled={loadingPrecios || p.cantidad <= 1}
+                                      disabled={
+                                        loadingPrecios || p.cantidad <= 1
+                                      }
                                       className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                     >
                                       <svg
@@ -1422,7 +1404,7 @@ const PresupuestoDetalle = () => {
                                         />
                                       </svg>
                                     </button>
-                                    
+
                                     <input
                                       type="number"
                                       min={1}
@@ -1430,26 +1412,36 @@ const PresupuestoDetalle = () => {
                                       onChange={(e) =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: Number(e.target.value) }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: Number(
+                                                      e.target.value
+                                                    ),
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
                                       className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
                                       disabled={loadingPrecios}
                                     />
-                                    
+
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: prod.cantidad + 1 }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: prod.cantidad + 1,
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
@@ -1485,7 +1477,10 @@ const PresupuestoDetalle = () => {
                                       ...prev,
                                       productos: prev.productos.map((prod) =>
                                         prod.id === p.id
-                                          ? { ...prod, descuento: Number(e.target.value) }
+                                          ? {
+                                              ...prod,
+                                              descuento: Number(e.target.value),
+                                            }
                                           : prod
                                       ),
                                     }))
@@ -1508,7 +1503,9 @@ const PresupuestoDetalle = () => {
                                   onClick={() =>
                                     setPresupuestoEdit((prev) => ({
                                       ...prev,
-                                      productos: prev.productos.filter((prod) => prod.id !== p.id),
+                                      productos: prev.productos.filter(
+                                        (prod) => prod.id !== p.id
+                                      ),
                                     }))
                                   }
                                   disabled={loadingPrecios}
@@ -1565,8 +1562,12 @@ const PresupuestoDetalle = () => {
                                   <div className="mt-1 text-xs text-gray-500">
                                     <div className="flex flex-wrap gap-2">
                                       <span>Alto: {producto.alto || 0} cm</span>
-                                      <span>Ancho: {producto.ancho || 0} cm</span>
-                                      <span>Largo: {producto.largo || 0} cm</span>
+                                      <span>
+                                        Ancho: {producto.ancho || 0} cm
+                                      </span>
+                                      <span>
+                                        Largo: {producto.largo || 0} cm
+                                      </span>
                                     </div>
                                   </div>
                                 )}
@@ -1700,12 +1701,99 @@ const PresupuestoDetalle = () => {
         {/* Observaciones */}
         {presupuesto.observaciones && (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 ">
-              Observaciones
-            </h3>
+            <h3 className="font-semibold text-lg mb-3 ">Observaciones</h3>
             <p className="text-gray-700 whitespace-pre-wrap">
               {presupuesto.observaciones}
             </p>
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-6">
+          <Button
+            variant="default"
+            onClick={handleGuardarCambios}
+            disabled={loadingPrecios}
+          >
+            Guardar cambios
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setEditando(false)}
+            disabled={loadingPrecios}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleActualizarPrecios}
+            disabled={loadingPrecios}
+          >
+            {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+          </Button>
+        </div>
+        {errorForm && <div className="text-red-500 mt-2">{errorForm}</div>}
+        {(presupuestoEdit.productos || []).length > 0 && (
+          <div className="flex flex-col items-end gap-2 mt-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+              <div>
+                Subtotal:{" "}
+                <span className="font-bold">
+                  $
+                  {presupuestoEdit.productos
+                    .reduce(
+                      (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                      0
+                    )
+                    .toFixed(2)}
+                </span>
+              </div>
+              <div>
+                Descuento:{" "}
+                <span className="font-bold">
+                  $
+                  {presupuestoEdit.productos
+                    .reduce(
+                      (acc, p) =>
+                        acc +
+                        Number(p.precio) *
+                          Number(p.cantidad) *
+                          (Number(p.descuento || 0) / 100),
+                      0
+                    )
+                    .toFixed(2)}
+                </span>
+              </div>
+              {presupuestoEdit.costoEnvio &&
+                Number(presupuestoEdit.costoEnvio) > 0 && (
+                  <div>
+                    Costo de envío:{" "}
+                    <span className="font-bold">
+                      ${Number(presupuestoEdit.costoEnvio).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              <div>
+                Total:{" "}
+                <span className="font-bold text-primary">
+                  $
+                  {(
+                    presupuestoEdit.productos.reduce(
+                      (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                      0
+                    ) -
+                    presupuestoEdit.productos.reduce(
+                      (acc, p) =>
+                        acc +
+                        Number(p.precio) *
+                          Number(p.cantidad) *
+                          (Number(p.descuento || 0) / 100),
+                      0
+                    ) +
+                    (Number(presupuestoEdit.costoEnvio) || 0)
+                  ).toFixed(2)}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1901,9 +1989,14 @@ const PresupuestoDetalle = () => {
           <DialogContent className="w-[95vw] max-w-[420px] bg-card">
             <DialogHeader className="bg-card">
               <DialogTitle className="bg-card">Agregar Cliente</DialogTitle>
-              <DialogDescription className="bg-card">Complete los datos del nuevo cliente para agregarlo al sistema.</DialogDescription>
+              <DialogDescription className="bg-card">
+                Complete los datos del nuevo cliente para agregarlo al sistema.
+              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleNuevoClienteSubmit} className="space-y-2 bg-card">
+            <form
+              onSubmit={handleNuevoClienteSubmit}
+              className="space-y-2 bg-card"
+            >
               <Input
                 label="Nombre *"
                 value={nuevoCliente.nombre}
