@@ -1717,7 +1717,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           <div className="flex flex-col gap-4 py-2 bg-card">
             <Input
               placeholder="Nombre *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.nombre}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
@@ -1726,7 +1726,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="CUIT / DNI"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.cuit || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
@@ -1734,7 +1734,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Dirección *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.direccion}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
@@ -1743,7 +1743,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Teléfono *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.telefono}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
@@ -1752,7 +1752,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Email"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.email}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, email: e.target.value })
@@ -1760,7 +1760,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Localidad"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.localidad || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
@@ -1768,7 +1768,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Partido"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.partido || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
@@ -1776,7 +1776,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Barrio"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.barrio || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
@@ -1784,7 +1784,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Área"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.area || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, area: e.target.value })
@@ -1792,7 +1792,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Input
               placeholder="Lote"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
               value={nuevoCliente.lote || ""}
               onChange={(e) =>
                 setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
@@ -1800,7 +1800,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             />
             <Textarea
               placeholder="Descripción"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 dark:text-default-100 focus:border-primary focus:dark:border-primary-400 px-4 py-2 min-h-[60px]"
+              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2 min-h-[60px]"
               value={nuevoCliente.descripcion || ""}
               onChange={(e) =>
                 setNuevoCliente({
