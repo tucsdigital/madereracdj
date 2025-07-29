@@ -215,7 +215,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   });
 
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(true); // Checkbox para cepillado automático
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Cambiar a false por defecto
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
@@ -352,6 +352,33 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) =>
         p.id === id ? { ...p, descuento: Number(descuento) } : p
       )
+    );
+  };
+
+  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  const recalcularPreciosMadera = (aplicarCepillado) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.categoria === "Maderas") {
+          // Recalcular precio base sin cepillado
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
+          
+          // Aplicar cepillado si está habilitado
+          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
+          
+          return {
+            ...p,
+            precio: precioFinal,
+            cepilladoAplicado: aplicarCepillado,
+          };
+        }
+        return p;
+      })
     );
   };
 
@@ -881,22 +908,27 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                 </div>
 
-                {/* Checkbox de cepillado automático para maderas */}
-                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
-                  <input
-                    type="checkbox"
-                    id="cepilladoAutomatico"
-                    checked={cepilladoAutomatico}
-                    onChange={(e) => setCepilladoAutomatico(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  <label htmlFor="cepilladoAutomatico" className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Aplicar cepillado automático (6.6%) en productos de madera
-                  </label>
-                  <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                    El cepillado se aplica automáticamente al precio calculado de productos de madera
+                {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
+                {productosSeleccionados.some(p => p.categoria === "Maderas") && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
+                    <input
+                      type="checkbox"
+                      id="cepilladoAutomatico"
+                      checked={cepilladoAutomatico}
+                      onChange={(e) => {
+                        setCepilladoAutomatico(e.target.checked);
+                        recalcularPreciosMadera(e.target.checked);
+                      }}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <label htmlFor="cepilladoAutomatico" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Aplicar cepillado automático (6.6%) en productos de madera
+                    </label>
+                    <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                      El cepillado se aplica automáticamente al precio calculado de productos de madera
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Filtros mejorados */}
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -1910,7 +1942,7 @@ export function SelectorProductosPresupuesto({
 }) {
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(true); // Checkbox para cepillado automático
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Cambiar a false por defecto
 
   const handleAgregarProducto = (producto) => {
     const real = productosState.find((p) => p.id === producto.id);
@@ -2037,22 +2069,27 @@ export function SelectorProductosPresupuesto({
     <section className="bg-white dark:bg-default-900 rounded-lg p-4 border border-default-200 shadow-sm flex flex-col gap-2 mb-2">
       <label className="font-semibold">Productos</label>
       
-      {/* Checkbox de cepillado automático para maderas */}
-      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
-        <input
-          type="checkbox"
-          id="cepilladoAutomaticoPresupuesto"
-          checked={cepilladoAutomatico}
-          onChange={(e) => setCepilladoAutomatico(e.target.checked)}
-          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-        />
-        <label htmlFor="cepilladoAutomaticoPresupuesto" className="text-sm font-medium text-blue-800 dark:text-blue-200">
-          Aplicar cepillado automático (6.6%) en productos de madera
-        </label>
-        <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-          El cepillado se aplica automáticamente al precio calculado de productos de madera
+      {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
+      {productosSeleccionados.some(p => p.categoria === "Maderas") && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-2">
+          <input
+            type="checkbox"
+            id="cepilladoAutomaticoPresupuesto"
+            checked={cepilladoAutomatico}
+            onChange={(e) => {
+              setCepilladoAutomatico(e.target.checked);
+              recalcularPreciosMadera(e.target.checked);
+            }}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+          />
+          <label htmlFor="cepilladoAutomaticoPresupuesto" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+            Aplicar cepillado automático (6.6%) en productos de madera
+          </label>
+          <div className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+            El cepillado se aplica automáticamente al precio calculado de productos de madera
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="flex gap-3 overflow-x-auto pb-2 mb-2">
         {categoriasState.length === 0 && (
