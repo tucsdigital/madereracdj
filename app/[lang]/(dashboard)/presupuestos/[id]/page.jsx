@@ -1377,12 +1377,6 @@ const PresupuestoDetalle = () => {
                                         </svg>
                                       </div>
                                     </span>
-                                    <span className="ml-2 text-primary font-semibold">
-                                      Precio calculado: ${p.precio}
-                                    </span>
-                                    <span className="text-xs text-blue-600 font-medium">
-                                      (Edita el $/pie para recalcular)
-                                    </span>
                                     {p.stock <= 0 && (
                                       <span className="text-red-600 font-semibold ml-2">
                                         ¡Sin stock! Se permitirá avanzar igual.
@@ -1573,7 +1567,6 @@ const PresupuestoDetalle = () => {
                                       <span>Alto: {producto.alto || 0} cm</span>
                                       <span>Ancho: {producto.ancho || 0} cm</span>
                                       <span>Largo: {producto.largo || 0} cm</span>
-                                      <span>$/pie: {producto.precioPorPie || 0}</span>
                                     </div>
                                   </div>
                                 )}
