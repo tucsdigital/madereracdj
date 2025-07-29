@@ -404,7 +404,7 @@ const PresupuestoDetalle = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-card py-8">
       <style>{`
         @media print {
           @page { 
@@ -434,7 +434,7 @@ const PresupuestoDetalle = () => {
             gap: 20px !important;
             margin-bottom: 20px !important;
           }
-          #presupuesto-print .bg-gray-50 {
+          #presupuesto-print .bg-card {
             background: #f9fafb !important;
             padding: 15px !important;
             border-radius: 8px !important;
@@ -465,7 +465,7 @@ const PresupuestoDetalle = () => {
           />
           <div>
             <h1
-              className="text-2xl font-bold text-gray-900"
+              className="text-2xl font-bold "
               style={{ letterSpacing: 1 }}
             >
               Maderera Caballero
@@ -490,7 +490,7 @@ const PresupuestoDetalle = () => {
         <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold ">
                 N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
               </h1>
               {/* Mostrar observaciones si existen */}
@@ -539,7 +539,7 @@ const PresupuestoDetalle = () => {
           {/* Información del cliente */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="bg-card rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 text-gray-900">
+              <h3 className="font-semibold text-lg mb-3 ">
                 Información del Cliente
               </h3>
               {/* Información del cliente: solo datos relevantes, sin repeticiones */}
@@ -597,7 +597,7 @@ const PresupuestoDetalle = () => {
               </div>
             </div>
             <div className="bg-card rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 text-gray-900">
+              <h3 className="font-semibold text-lg mb-3 ">
                 Información del Presupuesto
               </h3>
               {/* Información del presupuesto: solo datos clave, sin ID */}
@@ -642,7 +642,7 @@ const PresupuestoDetalle = () => {
         {/* Productos */}
         {editando && presupuestoEdit ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+            <h3 className="font-semibold text-lg mb-4 ">
               Editar Presupuesto
             </h3>
 
@@ -726,7 +726,7 @@ const PresupuestoDetalle = () => {
             {/* Selector de productos */}
             {editando && presupuestoEdit && (
               <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-                <h3 className="font-semibold text-lg mb-4 text-gray-900">
+                <h3 className="font-semibold text-lg mb-4 ">
                   Editar productos del presupuesto
                 </h3>
                 <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
@@ -750,7 +750,7 @@ const PresupuestoDetalle = () => {
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold ">
                             Productos
                           </h3>
                           <p className="text-sm text-gray-600">
@@ -858,7 +858,7 @@ const PresupuestoDetalle = () => {
                                 />
                               </svg>
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            <h3 className="text-lg font-medium  mb-2">
                               Selecciona una categoría
                             </h3>
                             <p className="text-gray-500">
@@ -896,7 +896,7 @@ const PresupuestoDetalle = () => {
                                 />
                               </svg>
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            <h3 className="text-lg font-medium  mb-2">
                               No se encontraron productos
                             </h3>
                             <p className="text-gray-500">
@@ -935,7 +935,7 @@ const PresupuestoDetalle = () => {
                                             ? "🌲"
                                             : "🔧"}
                                         </div>
-                                        <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                        <h4 className="text-sm font-semibold  truncate">
                                           {prod.nombre}
                                         </h4>
                                         {yaAgregado && (
@@ -1211,7 +1211,7 @@ const PresupuestoDetalle = () => {
           </div>
         ) : (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+            <h3 className="font-semibold text-lg mb-4 ">
               Productos y Servicios
             </h3>
 
@@ -1236,7 +1236,7 @@ const PresupuestoDetalle = () => {
                     {safeArray(presupuesto.productos).length > 0
                       ? safeArray(presupuesto.productos).map(
                           (producto, idx) => (
-                            <tr key={idx} className="border-b hover:bg-gray-50">
+                            <tr key={idx} className="border-b hover:bg-card">
                               <td className="p-3 font-medium">
                                 {producto.descripcion ||
                                   producto.nombre ||
@@ -1266,7 +1266,7 @@ const PresupuestoDetalle = () => {
                           )
                         )
                       : safeArray(presupuesto.items).map((producto, idx) => (
-                          <tr key={idx} className="border-b hover:bg-gray-50">
+                          <tr key={idx} className="border-b hover:bg-card">
                             <td className="p-3 font-medium">
                               {producto.descripcion ||
                                 producto.nombre ||
@@ -1371,7 +1371,7 @@ const PresupuestoDetalle = () => {
         {/* Observaciones */}
         {presupuesto.observaciones && (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 text-gray-900">
+            <h3 className="font-semibold text-lg mb-3 ">
               Observaciones
             </h3>
             <p className="text-gray-700 whitespace-pre-wrap">
@@ -1383,7 +1383,7 @@ const PresupuestoDetalle = () => {
         {/* Modal de venta */}
         {convirtiendoVenta ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+            <h3 className="font-semibold text-lg mb-4 ">
               Convertir Presupuesto a Venta
             </h3>
             <p className="text-gray-600 mb-4">

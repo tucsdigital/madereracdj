@@ -458,7 +458,7 @@ const VentaDetalle = () => {
       : "pendiente";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-card py-8">
       <style>{`
     select {
       background: #fff !important;
@@ -510,7 +510,7 @@ const VentaDetalle = () => {
         gap: 20px !important;
         margin-bottom: 20px !important;
       }
-      #venta-print .bg-gray-50 {
+      #venta-print .bg-card {
         background: #f9fafb !important;
         padding: 15px !important;
         border-radius: 8px !important;
@@ -541,7 +541,7 @@ const VentaDetalle = () => {
           />
           <div>
             <h1
-              className="text-2xl font-bold text-gray-900"
+              className="text-2xl font-bold "
               style={{ letterSpacing: 1 }}
             >
               Maderera Caballero
@@ -562,7 +562,7 @@ const VentaDetalle = () => {
         <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold ">
                 N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
               </h1>
               {/* Mostrar observaciones si existen */}
@@ -603,7 +603,7 @@ const VentaDetalle = () => {
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+            <h3 className="font-semibold text-lg mb-2 ">
               Información del Cliente
             </h3>
             <div className="space-y-2 text-sm">
@@ -661,7 +661,7 @@ const VentaDetalle = () => {
           </div>
           {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+            <h3 className="font-semibold text-lg mb-2 ">
               Información de Envío y Pago
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -745,7 +745,7 @@ const VentaDetalle = () => {
           </div>
         ) : (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+            <h3 className="font-semibold text-lg mb-2 ">
               Información de Envío y Pago
             </h3>
             <div className="space-y-2 text-sm">
@@ -804,12 +804,12 @@ const VentaDetalle = () => {
 
         {/* 3. Información de Pagos */}
         <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
-          <h3 className="font-semibold text-lg mb-4 text-gray-900">
+          <h3 className="font-semibold text-lg mb-4 ">
             Información de Pagos
           </h3>
 
           {/* Estado de pago */}
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-4 p-3 bg-card rounded-lg">
             <div className="flex justify-between items-center">
               <span className="font-medium text-gray-700">Estado de pago:</span>
               <span
@@ -862,7 +862,7 @@ const VentaDetalle = () => {
               <h4 className="font-medium text-gray-700 mb-2">
                 Historial de pagos:
               </h4>
-              <div className="bg-gray-50 rounded-lg p-3">
+              <div className="bg-card rounded-lg p-3">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-card border-b">
@@ -893,7 +893,7 @@ const VentaDetalle = () => {
         {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
         (Array.isArray(venta.items) && venta.items.length > 0) ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
+            <h3 className="font-semibold text-lg mb-4 ">
               Productos y Servicios
             </h3>
             <div className="overflow-x-auto">
@@ -910,7 +910,7 @@ const VentaDetalle = () => {
                 </thead>
                 <tbody>
                   {(venta.productos || venta.items).map((producto, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
+                    <tr key={idx} className="border-b hover:bg-card">
                       <td className="p-3 font-medium">
                         {producto.descripcion ||
                           producto.nombre ||
@@ -943,7 +943,7 @@ const VentaDetalle = () => {
             </div>
             {/* Totales */}
             <div className="mt-6 flex justify-end">
-              <div className="bg-gray-50 rounded-lg p-4 min-w-[300px]">
+              <div className="bg-card rounded-lg p-4 min-w-[300px]">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
@@ -1000,7 +1000,7 @@ const VentaDetalle = () => {
         {/* 5. Observaciones */}
         {venta.observaciones && (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 text-gray-900">
+            <h3 className="font-semibold text-lg mb-2 ">
               Observaciones
             </h3>
             <p className="text-gray-700 whitespace-pre-wrap">
@@ -1014,7 +1014,7 @@ const VentaDetalle = () => {
           <div className="flex flex-col gap-8 mt-8">
             {/* Información de envío */}
             <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold  mb-2">
                 Información de envío
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1169,7 +1169,7 @@ const VentaDetalle = () => {
 
             {/* Información adicional */}
             <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold  mb-2">
                 Información adicional
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1225,7 +1225,7 @@ const VentaDetalle = () => {
 
             {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
             <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-              <h3 className="font-semibold text-lg mb-4 text-gray-900">
+              <h3 className="font-semibold text-lg mb-4 ">
                 Editar productos de la venta
               </h3>
               {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
@@ -1250,7 +1250,7 @@ const VentaDetalle = () => {
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold ">
                           Productos
                         </h3>
                         <p className="text-sm text-gray-600">
@@ -1356,7 +1356,7 @@ const VentaDetalle = () => {
                               />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          <h3 className="text-lg font-medium  mb-2">
                             Selecciona una categoría
                           </h3>
                           <p className="text-gray-500">
@@ -1394,7 +1394,7 @@ const VentaDetalle = () => {
                               />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          <h3 className="text-lg font-medium  mb-2">
                             No se encontraron productos
                           </h3>
                           <p className="text-gray-500">
@@ -1427,7 +1427,7 @@ const VentaDetalle = () => {
                                           ? "🌲"
                                           : "🔧"}
                                       </div>
-                                      <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                      <h4 className="text-sm font-semibold  truncate">
                                         {prod.nombre}
                                       </h4>
                                       {yaAgregado && (

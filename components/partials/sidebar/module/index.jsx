@@ -11,7 +11,6 @@ import Link from "next/link";
 import FooterMenu from "./footer-menu";
 import { SiteLogo } from "@/components/svg";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import LogoutFooter from "./logout-footer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import MenuOverlayPortal from "./MenuOverlayPortal";
 import { ChevronLeft } from "lucide-react";
@@ -242,7 +241,6 @@ const ModuleSidebar = ({ trans }) => {
               </ul>
             </div>
           </ScrollArea>
-          <LogoutFooter />
         </div>
         {/* end main panel */}
       </div>
