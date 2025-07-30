@@ -726,13 +726,6 @@ const VentaDetalle = () => {
                   {venta.observaciones}
                 </p>
               )}
-              {/* Mostrar fecha de actualización si existe */}
-              {venta.fechaActualizacion && (
-                <div className="mt-1 text-xs text-gray-500">
-                  Última actualización:{" "}
-                  {formatFechaLocal(venta.fechaActualizacion)}
-                </div>
-              )}
             </div>
             <div className="flex gap-3">
               <Button
@@ -1943,7 +1936,7 @@ const VentaDetalle = () => {
                                     onChange={(e) =>
                                       handleCantidadChange(p.id, e.target.value)
                                     }
-                                    className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                    className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
                                     disabled={loadingPrecios}
                                   />
 

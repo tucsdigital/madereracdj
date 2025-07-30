@@ -149,7 +149,11 @@ const PresupuestoDetalle = () => {
         presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
       }
       if (!presupuestoClonado.cliente && presupuestoClonado.clienteId) {
-        const clienteObj = clientes.find(c => c.id === presupuestoClonado.clienteId || c.cuit === presupuestoClonado.clienteId);
+        const clienteObj = clientes.find(
+          (c) =>
+            c.id === presupuestoClonado.clienteId ||
+            c.cuit === presupuestoClonado.clienteId
+        );
         if (clienteObj) presupuestoClonado.cliente = clienteObj;
       }
       setPresupuestoEdit(presupuestoClonado);
@@ -168,44 +172,44 @@ const PresupuestoDetalle = () => {
       }));
 
       // Actualizar precios de productos en presupuestoEdit
-      const productosConPreciosActualizados = (presupuestoEdit.productos || []).map(
-        (productoPresupuesto) => {
-          const productoActualizado = productosActualizados.find(
-            (p) => p.id === productoPresupuesto.id
-          );
-          if (productoActualizado) {
-            let nuevoPrecio = 0;
-            if (productoActualizado.categoria === "Maderas") {
-              // Calcular precio para maderas
-              const alto = Number(productoActualizado.alto) || 0;
-              const ancho = Number(productoActualizado.ancho) || 0;
-              const largo = Number(productoActualizado.largo) || 0;
-              const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
+      const productosConPreciosActualizados = (
+        presupuestoEdit.productos || []
+      ).map((productoPresupuesto) => {
+        const productoActualizado = productosActualizados.find(
+          (p) => p.id === productoPresupuesto.id
+        );
+        if (productoActualizado) {
+          let nuevoPrecio = 0;
+          if (productoActualizado.categoria === "Maderas") {
+            // Calcular precio para maderas
+            const alto = Number(productoActualizado.alto) || 0;
+            const ancho = Number(productoActualizado.ancho) || 0;
+            const largo = Number(productoActualizado.largo) || 0;
+            const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
 
-              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
-                nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
-              }
-            } else if (productoActualizado.categoria === "Ferretería") {
-              nuevoPrecio = productoActualizado.valorVenta || 0;
+            if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+              nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
+              nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
+            }
+          } else if (productoActualizado.categoria === "Ferretería") {
+            nuevoPrecio = productoActualizado.valorVenta || 0;
           } else {
-              nuevoPrecio =
-                productoActualizado.precioUnidad ||
-                productoActualizado.precioUnidadVenta ||
-                productoActualizado.precioUnidadHerraje ||
-                productoActualizado.precioUnidadQuimico ||
-                productoActualizado.precioUnidadHerramienta ||
+            nuevoPrecio =
+              productoActualizado.precioUnidad ||
+              productoActualizado.precioUnidadVenta ||
+              productoActualizado.precioUnidadHerraje ||
+              productoActualizado.precioUnidadQuimico ||
+              productoActualizado.precioUnidadHerramienta ||
               0;
           }
-          
+
           return {
-              ...productoPresupuesto,
-              precio: nuevoPrecio,
-            };
-          }
-          return productoPresupuesto;
+            ...productoPresupuesto,
+            precio: nuevoPrecio,
+          };
         }
-      );
+        return productoPresupuesto;
+      });
 
       setPresupuestoEdit((prev) => ({
         ...prev,
@@ -229,7 +233,7 @@ const PresupuestoDetalle = () => {
           // Recalcular precio base sin cepillado
           const precioBase =
             0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
-          
+
           // Aplicar cepillado si está habilitado
           const precioFinal = aplicarCepillado
             ? precioBase * 1.066
@@ -237,7 +241,7 @@ const PresupuestoDetalle = () => {
 
           // Redondear a centenas (múltiplos de 100)
           const precioRedondeado = Math.round(precioFinal / 100) * 100;
-          
+
           return {
             ...p,
             precio: precioRedondeado,
@@ -266,7 +270,7 @@ const PresupuestoDetalle = () => {
 
           // Redondear a centenas (múltiplos de 100)
           const precioRedondeado = Math.round(precioFinal / 100) * 100;
-          
+
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
@@ -325,13 +329,13 @@ const PresupuestoDetalle = () => {
             (Number(p.descuento || 0) / 100),
         0
       );
-      const costoEnvioCalculado = 
-        presupuestoEdit.tipoEnvio && 
-        presupuestoEdit.tipoEnvio !== "retiro_local" && 
-        presupuestoEdit.costoEnvio !== undefined && 
-        presupuestoEdit.costoEnvio !== "" && 
-        !isNaN(Number(presupuestoEdit.costoEnvio)) 
-          ? Number(presupuestoEdit.costoEnvio) 
+      const costoEnvioCalculado =
+        presupuestoEdit.tipoEnvio &&
+        presupuestoEdit.tipoEnvio !== "retiro_local" &&
+        presupuestoEdit.costoEnvio !== undefined &&
+        presupuestoEdit.costoEnvio !== "" &&
+        !isNaN(Number(presupuestoEdit.costoEnvio))
+          ? Number(presupuestoEdit.costoEnvio)
           : 0;
       const total = subtotal - descuentoTotal + costoEnvioCalculado;
       let numeroPedido = presupuestoEdit.numeroPedido;
@@ -385,7 +389,7 @@ const PresupuestoDetalle = () => {
   const handleNuevoClienteSubmit = async (e) => {
     e.preventDefault();
     try {
-      const clienteObj = { 
+      const clienteObj = {
         ...nuevoCliente,
         esClienteViejo: nuevoCliente.esClienteViejo || false,
       };
@@ -556,16 +560,15 @@ const PresupuestoDetalle = () => {
             style={{ height: 60, width: "auto" }}
           />
           <div>
-            <h1
-              className="text-2xl font-bold "
-              style={{ letterSpacing: 1 }}
-            >
+            <h1 className="text-2xl font-bold " style={{ letterSpacing: 1 }}>
               Maderera Caballero
             </h1>
             <div className="text-gray-600 text-sm">
               Presupuesto / Cotización
             </div>
-            <div className="text-gray-500 text-xs">www.caballeromaderera.com</div>
+            <div className="text-gray-500 text-xs">
+              www.caballeromaderera.com
+            </div>
           </div>
           {/* Header profesional: solo mostrar número de pedido */}
           <div className="ml-auto text-right">
@@ -579,7 +582,7 @@ const PresupuestoDetalle = () => {
           </div>
         </div>
         {/* Header */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold ">
@@ -590,13 +593,6 @@ const PresupuestoDetalle = () => {
                 <p className="text-gray-600 mt-1 whitespace-pre-line">
                   {presupuesto.observaciones}
                 </p>
-              )}
-              {/* Mostrar fecha de actualización si existe */}
-              {presupuesto.fechaActualizacion && (
-                <div className="mt-1 text-xs text-gray-500">
-                  Última actualización:{" "}
-                  {formatFechaLocal(presupuesto.fechaActualizacion)}
-                </div>
               )}
             </div>
             <div className="flex gap-3">
@@ -614,7 +610,7 @@ const PresupuestoDetalle = () => {
               </Button>
               {!editando && !convirtiendoVenta && (
                 <Button onClick={() => setEditando(true)} className="no-print">
-                  Editar Presupuesto
+                  Editar
                 </Button>
               )}
               {!editando && !convirtiendoVenta && (
@@ -627,105 +623,102 @@ const PresupuestoDetalle = () => {
               )}
             </div>
           </div>
+        </div>
 
-          {/* Información del cliente */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-card rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 ">
-                Información del Cliente
-              </h3>
-              {/* Información del cliente: solo datos relevantes, sin repeticiones */}
-              <div className="space-y-2 text-sm">
+        {/* 1. Información del cliente y venta */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+            <h3 className="font-semibold text-lg mb-3 ">
+              Información del Cliente
+            </h3>
+            {/* Información del cliente: solo datos relevantes, sin repeticiones */}
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium">Nombre:</span>{" "}
+                {presupuesto.cliente?.nombre || "-"}
+              </div>
+              <div>
+                <span className="font-medium">CUIT / DNI:</span>{" "}
+                {presupuesto.cliente?.cuit || "-"}
+              </div>
+              <div>
+                <span className="font-medium">Dirección:</span>{" "}
+                {presupuesto.cliente?.direccion || "-"}
+              </div>
+              <div>
+                <span className="font-medium">Teléfono:</span>{" "}
+                {presupuesto.cliente?.telefono || "-"}
+              </div>
+              {presupuesto.cliente?.partido && (
                 <div>
-                  <span className="font-medium">Nombre:</span>{" "}
-                  {presupuesto.cliente?.nombre || "-"}
+                  <span className="font-medium">Partido:</span>{" "}
+                  {presupuesto.cliente.partido}
                 </div>
+              )}
+              {presupuesto.cliente?.barrio && (
                 <div>
-                  <span className="font-medium">CUIT / DNI:</span>{" "}
-                  {presupuesto.cliente?.cuit || "-"}
+                  <span className="font-medium">Barrio:</span>{" "}
+                  {presupuesto.cliente.barrio}
                 </div>
+              )}
+              {presupuesto.cliente?.area && (
                 <div>
-                  <span className="font-medium">Dirección:</span>{" "}
-                  {presupuesto.cliente?.direccion || "-"}
+                  <span className="font-medium">Área:</span>{" "}
+                  {presupuesto.cliente.area}
                 </div>
+              )}
+              {presupuesto.cliente?.lote && (
                 <div>
-                  <span className="font-medium">Teléfono:</span>{" "}
-                  {presupuesto.cliente?.telefono || "-"}
+                  <span className="font-medium">Lote:</span>{" "}
+                  {presupuesto.cliente.lote}
                 </div>
-                {presupuesto.cliente?.partido && (
-                  <div>
-                    <span className="font-medium">Partido:</span>{" "}
-                    {presupuesto.cliente.partido}
-                  </div>
-                )}
-                {presupuesto.cliente?.barrio && (
-                  <div>
-                    <span className="font-medium">Barrio:</span>{" "}
-                    {presupuesto.cliente.barrio}
-                  </div>
-                )}
-                {presupuesto.cliente?.area && (
-                  <div>
-                    <span className="font-medium">Área:</span>{" "}
-                    {presupuesto.cliente.area}
-                  </div>
-                )}
-                {presupuesto.cliente?.lote && (
-                  <div>
-                    <span className="font-medium">Lote:</span>{" "}
-                    {presupuesto.cliente.lote}
-                  </div>
-                )}
-                {presupuesto.cliente?.descripcion && (
-                  <div>
-                    <span className="font-medium">Descripción:</span>{" "}
-                    {presupuesto.cliente.descripcion}
-                  </div>
-                )}
+              )}
+              {presupuesto.cliente?.descripcion && (
                 <div>
-                  <span className="font-medium">Email:</span>{" "}
-                  {presupuesto.cliente?.email || "-"}
+                  <span className="font-medium">Descripción:</span>{" "}
+                  {presupuesto.cliente.descripcion}
                 </div>
+              )}
+              <div>
+                <span className="font-medium">Email:</span>{" "}
+                {presupuesto.cliente?.email || "-"}
               </div>
             </div>
-            <div className="bg-card rounded-lg p-4">
-              <h3 className="font-semibold text-lg mb-3 ">
-                Información del Presupuesto
-              </h3>
-              {/* Información del presupuesto: solo datos clave, sin ID */}
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Fecha de emisión:</span>{" "}
-                  {presupuesto.fecha
-                    ? formatFechaLocal(presupuesto.fecha)
-                    : "-"}
-                </div>
-                {/* Eliminar el cálculo de fecha de vencimiento automática */}
-                <div>
-                  <span className="font-medium">Fecha de vencimiento:</span> -
-                </div>
-                <div>
-                  <span className="font-medium">Tipo:</span>{" "}
-                  {presupuesto.tipo || "Presupuesto"}
-                </div>
-                {presupuesto.costoEnvio !== undefined &&
-                  presupuesto.costoEnvio !== "" && (
-                    <div>
-                      <span className="font-medium">
-                        Costo estimado de envío:
-                      </span>{" "}
-                      $
-                      {Number(presupuesto.costoEnvio).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </div>
-                  )}
-                <div>
-                  <span className="font-medium">Estado:</span>{" "}
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    Activo
-                  </span>
-                </div>
+          </div>
+
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+            <h3 className="font-semibold text-lg mb-3 ">
+              Información del Presupuesto
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium">Fecha de emisión:</span>{" "}
+                {presupuesto.fecha ? formatFechaLocal(presupuesto.fecha) : "-"}
+              </div>
+              <div>
+                <span className="font-medium">Fecha de vencimiento:</span> -
+              </div>
+              <div>
+                <span className="font-medium">Tipo:</span>{" "}
+                {presupuesto.tipo || "Presupuesto"}
+              </div>
+              {presupuesto.costoEnvio !== undefined &&
+                presupuesto.costoEnvio !== "" && (
+                  <div>
+                    <span className="font-medium">
+                      Costo estimado de envío:
+                    </span>{" "}
+                    $
+                    {Number(presupuesto.costoEnvio).toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </div>
+                )}
+              <div>
+                <span className="font-medium">Estado:</span>{" "}
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                  Activo
+                </span>
               </div>
             </div>
           </div>
@@ -734,17 +727,15 @@ const PresupuestoDetalle = () => {
         {/* Productos */}
         {editando && presupuestoEdit ? (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-4 ">
-              Editar Presupuesto
-            </h3>
-            
+            <h3 className="font-semibold text-lg mb-4 ">Editar Presupuesto</h3>
+
             {/* Mensaje de error */}
             {errorForm && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-800 text-sm font-medium">{errorForm}</p>
               </div>
             )}
-            
+
             {/* Información editable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-4">
@@ -759,7 +750,10 @@ const PresupuestoDetalle = () => {
                         ...presupuestoEdit,
                         tipoEnvio: e.target.value,
                         // Si se selecciona retiro local, limpiar costo de envío
-                        costoEnvio: e.target.value === "retiro_local" ? "" : presupuestoEdit.costoEnvio,
+                        costoEnvio:
+                          e.target.value === "retiro_local"
+                            ? ""
+                            : presupuestoEdit.costoEnvio,
                       })
                     }
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
@@ -773,27 +767,28 @@ const PresupuestoDetalle = () => {
                     </option>
                   </select>
                 </div>
-                {presupuestoEdit.tipoEnvio && presupuestoEdit.tipoEnvio !== "retiro_local" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Costo de envío
-                    </label>
-                    <Input
-                      type="number"
-                      value={presupuestoEdit.costoEnvio || ""}
-                      onChange={(e) =>
-                        setPresupuestoEdit({
-                          ...presupuestoEdit,
-                          costoEnvio: e.target.value,
-                        })
-                      }
-                      placeholder="Costo de envío"
-                      className="w-full"
-                    />
-                  </div>
-                )}
+                {presupuestoEdit.tipoEnvio &&
+                  presupuestoEdit.tipoEnvio !== "retiro_local" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Costo de envío
+                      </label>
+                      <Input
+                        type="number"
+                        value={presupuestoEdit.costoEnvio || ""}
+                        onChange={(e) =>
+                          setPresupuestoEdit({
+                            ...presupuestoEdit,
+                            costoEnvio: e.target.value,
+                          })
+                        }
+                        placeholder="Costo de envío"
+                        className="w-full"
+                      />
+                    </div>
+                  )}
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -842,9 +837,7 @@ const PresupuestoDetalle = () => {
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold ">
-                            Productos
-                          </h3>
+                          <h3 className="text-lg font-semibold ">Productos</h3>
                           <p className="text-sm text-gray-600">
                             Selecciona los productos para tu presupuesto
                           </p>
@@ -861,9 +854,8 @@ const PresupuestoDetalle = () => {
                     </div>
                     {/* Filtros mejorados */}
                     <div className="flex flex-col sm:flex-row gap-3">
-                      
                       {/* Eliminar el checkbox global de cepillado automático */}
-                      
+
                       {/* Filtro de categorías */}
                       <div className="flex-1">
                         <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
@@ -879,8 +871,8 @@ const PresupuestoDetalle = () => {
                                   : "bg-gray-100 text-gray-700"
                               }`}
                               onClick={() =>
-                setPresupuestoEdit((prev) => ({
-                  ...prev,
+                                setPresupuestoEdit((prev) => ({
+                                  ...prev,
                                   categoriaId: categoria,
                                 }))
                               }
@@ -1058,11 +1050,12 @@ const PresupuestoDetalle = () => {
                                             Precio:
                                           </span>
                                           <span className="ml-1 font-bold text-blue-600">
-                                            ${formatearNumeroArgentino(
+                                            $
+                                            {formatearNumeroArgentino(
                                               prod.precioPorPie ||
-                                              prod.valorVenta ||
-                                              prod.precioUnidad ||
-                                              0
+                                                prod.valorVenta ||
+                                                prod.precioUnidad ||
+                                                0
                                             )}
                                           </span>
                                         </div>
@@ -1102,9 +1095,9 @@ const PresupuestoDetalle = () => {
                                             <span className="ml-1 font-bold text-orange-600">
                                               {prod.precioPorPie}
                                             </span>
-                                      </div>
+                                          </div>
                                         )}
-                                    </div>
+                                      </div>
 
                                       {/* Dimensiones para maderas */}
                                       {prod.categoria === "Maderas" && (
@@ -1198,143 +1191,140 @@ const PresupuestoDetalle = () => {
                                   </div>
 
                                   <div className="mt-auto">
-                                      {yaAgregado ? (
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad: Math.max(
-                                                            1,
-                                                            p.cantidad - 1
-                                                          ),
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            disabled={
-                                              presupuestoEdit.productos.find(
-                                                (p) => p.id === prod.id
-                                              )?.cantidad <= 1
-                                            }
-                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                          >
-                                            -
-                                          </button>
-                                          <input
-                                            type="number"
-                                            min={1}
-                                            value={
-                                              presupuestoEdit.productos.find(
-                                                (p) => p.id === prod.id
-                                              )?.cantidad || 1
-                                            }
-                                            onChange={(e) =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad: Number(
-                                                            e.target.value
-                                                          ),
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            className="w-12 text-center border rounded"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad:
-                                                            p.cantidad + 1,
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                          >
-                                            +
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos:
-                                                  prev.productos.filter(
-                                                    (p) => p.id !== prod.id
-                                                  ),
-                                              }))
-                                            }
-                                            className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                          >
-                                            Quitar
-                                          </button>
-                                        </div>
-                                      ) : (
+                                    {yaAgregado ? (
+                                      <div className="flex items-center gap-2">
                                         <button
                                           type="button"
                                           onClick={() =>
                                             setPresupuestoEdit((prev) => ({
                                               ...prev,
-                                              productos: [
-                                                ...(prev.productos || []),
-                                                {
-                                                  id: prod.id,
-                                                  nombre: prod.nombre,
-                                                  precio:
-                                                    prod.precioPorPie ||
-                                                    prod.valorVenta ||
-                                                    prod.precioUnidad ||
-                                                    0,
-                                                  unidad:
-                                                    prod.unidadMedida ||
-                                                    prod.unidadVenta ||
-                                                    prod.unidadVentaHerraje ||
-                                                    prod.unidadVentaQuimico ||
-                                                    prod.unidadVentaHerramienta,
-                                                  stock: prod.stock,
-                                                  cantidad: 1,
-                                                  descuento: 0,
-                                                  categoria: prod.categoria,
-                                                  alto: Number(prod.alto) || 0,
-                                                  ancho:
-                                                    Number(prod.ancho) || 0,
-                                                  largo:
-                                                    Number(prod.largo) || 0,
-                                                  precioPorPie:
-                                                    Number(prod.precioPorPie) ||
-                                                    0,
-                                                cepilladoAplicado: false, // Agregar propiedad por defecto
-                                                },
-                                              ],
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Math.max(
+                                                          1,
+                                                          p.cantidad - 1
+                                                        ),
+                                                      }
+                                                    : p
+                                              ),
                                             }))
                                           }
-                                        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                          disabled={
+                                            presupuestoEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad <= 1
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                                         >
-                                          Agregar
+                                          -
                                         </button>
-                                      )}
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          value={
+                                            presupuestoEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad || 1
+                                          }
+                                          onChange={(e) =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Number(
+                                                          e.target.value
+                                                        ),
+                                                      }
+                                                    : p
+                                              ),
+                                            }))
+                                          }
+                                          className="w-12 text-center border rounded"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad:
+                                                          p.cantidad + 1,
+                                                      }
+                                                    : p
+                                              ),
+                                            }))
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                        >
+                                          +
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.filter(
+                                                (p) => p.id !== prod.id
+                                              ),
+                                            }))
+                                          }
+                                          className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setPresupuestoEdit((prev) => ({
+                                            ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio:
+                                                  prod.precioPorPie ||
+                                                  prod.valorVenta ||
+                                                  prod.precioUnidad ||
+                                                  0,
+                                                unidad:
+                                                  prod.unidadMedida ||
+                                                  prod.unidadVenta ||
+                                                  prod.unidadVentaHerraje ||
+                                                  prod.unidadVentaQuimico ||
+                                                  prod.unidadVentaHerramienta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                                alto: Number(prod.alto) || 0,
+                                                ancho: Number(prod.ancho) || 0,
+                                                largo: Number(prod.largo) || 0,
+                                                precioPorPie:
+                                                  Number(prod.precioPorPie) ||
+                                                  0,
+                                                cepilladoAplicado: false, // Agregar propiedad por defecto
+                                              },
+                                            ],
+                                          }))
+                                        }
+                                        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                      >
+                                        Agregar
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1354,22 +1344,41 @@ const PresupuestoDetalle = () => {
                         Productos Seleccionados
                       </h3>
                       <span className="text-sm text-default-600">
-                        {(presupuestoEdit.productos || []).length} producto{(presupuestoEdit.productos || []).length !== 1 ? "s" : ""}
+                        {(presupuestoEdit.productos || []).length} producto
+                        {(presupuestoEdit.productos || []).length !== 1
+                          ? "s"
+                          : ""}
                       </span>
                     </div>
 
                     <div className="overflow-x-auto">
                       <table className="w-full caption-top text-sm overflow-hidden">
-                      <thead className="[&_tr]:border-b bg-default-">
-                      <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Categoría</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Producto</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cant.</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cepillado</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Precio unit.</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Desc.</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Subtotal</th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Acción</th>
+                        <thead className="[&_tr]:border-b bg-default-">
+                          <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Categoría
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Producto
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Cant.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Cepillado
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Precio unit.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Desc.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Subtotal
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Acción
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1391,13 +1400,25 @@ const PresupuestoDetalle = () => {
                                       Dimensiones:
                                     </span>
                                     <span>
-                                      Alto: <span className="font-bold">{p.alto}</span> cm
+                                      Alto:{" "}
+                                      <span className="font-bold">
+                                        {p.alto}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
-                                      Ancho: <span className="font-bold">{p.ancho}</span> cm
+                                      Ancho:{" "}
+                                      <span className="font-bold">
+                                        {p.ancho}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
-                                      Largo: <span className="font-bold">{p.largo}</span> cm
+                                      Largo:{" "}
+                                      <span className="font-bold">
+                                        {p.largo}
+                                      </span>{" "}
+                                      cm
                                     </span>
                                     <span>
                                       $/pie:{" "}
@@ -1408,7 +1429,10 @@ const PresupuestoDetalle = () => {
                                           step="0.01"
                                           value={p.precioPorPie}
                                           onChange={(e) =>
-                                            handlePrecioPorPieChange(p.id, e.target.value)
+                                            handlePrecioPorPieChange(
+                                              p.id,
+                                              e.target.value
+                                            )
                                           }
                                           className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                           disabled={loadingPrecios}
@@ -1451,14 +1475,23 @@ const PresupuestoDetalle = () => {
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: Math.max(1, prod.cantidad - 1) }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: Math.max(
+                                                      1,
+                                                      prod.cantidad - 1
+                                                    ),
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
-                                      disabled={loadingPrecios || p.cantidad <= 1}
+                                      disabled={
+                                        loadingPrecios || p.cantidad <= 1
+                                      }
                                       className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                     >
                                       <svg
@@ -1475,7 +1508,7 @@ const PresupuestoDetalle = () => {
                                         />
                                       </svg>
                                     </button>
-                                    
+
                                     <input
                                       type="number"
                                       min={1}
@@ -1483,26 +1516,36 @@ const PresupuestoDetalle = () => {
                                       onChange={(e) =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: Number(e.target.value) }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: Number(
+                                                      e.target.value
+                                                    ),
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
-                                      className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                      className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
                                       disabled={loadingPrecios}
                                     />
-                                    
+
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map((prod) =>
-                                            prod.id === p.id
-                                              ? { ...prod, cantidad: prod.cantidad + 1 }
-                                              : prod
+                                          productos: prev.productos.map(
+                                            (prod) =>
+                                              prod.id === p.id
+                                                ? {
+                                                    ...prod,
+                                                    cantidad: prod.cantidad + 1,
+                                                  }
+                                                : prod
                                           ),
                                         }))
                                       }
@@ -1533,7 +1576,10 @@ const PresupuestoDetalle = () => {
                                       type="checkbox"
                                       checked={p.cepilladoAplicado || false}
                                       onChange={(e) =>
-                                        recalcularPreciosMadera(p.id, e.target.checked)
+                                        recalcularPreciosMadera(
+                                          p.id,
+                                          e.target.checked
+                                        )
                                       }
                                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                       disabled={loadingPrecios}
@@ -1544,7 +1590,9 @@ const PresupuestoDetalle = () => {
                                   <span className="text-gray-400">-</span>
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">${formatearNumeroArgentino(p.precio)}</td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                ${formatearNumeroArgentino(p.precio)}
+                              </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <input
                                   type="number"
@@ -1556,7 +1604,10 @@ const PresupuestoDetalle = () => {
                                       ...prev,
                                       productos: prev.productos.map((prod) =>
                                         prod.id === p.id
-                                          ? { ...prod, descuento: Number(e.target.value) }
+                                          ? {
+                                              ...prod,
+                                              descuento: Number(e.target.value),
+                                            }
                                           : prod
                                       ),
                                     }))
@@ -1566,10 +1617,11 @@ const PresupuestoDetalle = () => {
                                 />
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                                ${formatearNumeroArgentino(
+                                $
+                                {formatearNumeroArgentino(
                                   Number(p.precio) *
-                                  Number(p.cantidad) *
-                                  (1 - Number(p.descuento || 0) / 100)
+                                    Number(p.cantidad) *
+                                    (1 - Number(p.descuento || 0) / 100)
                                 )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -1578,7 +1630,9 @@ const PresupuestoDetalle = () => {
                                   onClick={() =>
                                     setPresupuestoEdit((prev) => ({
                                       ...prev,
-                                      productos: prev.productos.filter((prod) => prod.id !== p.id),
+                                      productos: prev.productos.filter(
+                                        (prod) => prod.id !== p.id
+                                      ),
                                     }))
                                   }
                                   disabled={loadingPrecios}
@@ -1601,28 +1655,65 @@ const PresupuestoDetalle = () => {
                   <div className="flex flex-col items-end gap-2 mt-4">
                     <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                       <div>
-                        Subtotal: <span className="font-bold">
-                          ${formatearNumeroArgentino(presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0))}
+                        Subtotal:{" "}
+                        <span className="font-bold">
+                          $
+                          {formatearNumeroArgentino(
+                            presupuestoEdit.productos.reduce(
+                              (acc, p) =>
+                                acc + Number(p.precio) * Number(p.cantidad),
+                              0
+                            )
+                          )}
                         </span>
                       </div>
                       <div>
-                        Descuento: <span className="font-bold">
-                          ${formatearNumeroArgentino(presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0))}
+                        Descuento:{" "}
+                        <span className="font-bold">
+                          $
+                          {formatearNumeroArgentino(
+                            presupuestoEdit.productos.reduce(
+                              (acc, p) =>
+                                acc +
+                                Number(p.precio) *
+                                  Number(p.cantidad) *
+                                  (Number(p.descuento || 0) / 100),
+                              0
+                            )
+                          )}
                         </span>
                       </div>
-                      {presupuestoEdit.costoEnvio && Number(presupuestoEdit.costoEnvio) > 0 && (
-                        <div>
-                          Costo de envío: <span className="font-bold">
-                            ${formatearNumeroArgentino(Number(presupuestoEdit.costoEnvio))}
-                          </span>
-                        </div>
-                      )}
+                      {presupuestoEdit.costoEnvio &&
+                        Number(presupuestoEdit.costoEnvio) > 0 && (
+                          <div>
+                            Costo de envío:{" "}
+                            <span className="font-bold">
+                              $
+                              {formatearNumeroArgentino(
+                                Number(presupuestoEdit.costoEnvio)
+                              )}
+                            </span>
+                          </div>
+                        )}
                       <div>
-                        Total: <span className="font-bold text-primary">
-                          ${formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
-                            (Number(presupuestoEdit.costoEnvio) || 0)
+                        Total:{" "}
+                        <span className="font-bold text-primary">
+                          $
+                          {formatearNumeroArgentino(
+                            presupuestoEdit.productos.reduce(
+                              (acc, p) =>
+                                acc + Number(p.precio) * Number(p.cantidad),
+                              0
+                            ) -
+                              presupuestoEdit.productos.reduce(
+                                (acc, p) =>
+                                  acc +
+                                  Number(p.precio) *
+                                    Number(p.cantidad) *
+                                    (Number(p.descuento || 0) / 100),
+                                0
+                              ) +
+                              (Number(presupuestoEdit.costoEnvio) || 0)
                           )}
                         </span>
                       </div>
@@ -1631,29 +1722,29 @@ const PresupuestoDetalle = () => {
                 )}
 
                 {/* Botones al final de todas las secciones editables */}
-            <div className="flex gap-2 mt-6">
-              <Button
-                variant="default"
-                onClick={handleGuardarCambios}
-                disabled={loadingPrecios}
-              >
-                Guardar cambios
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setEditando(false)}
-                disabled={loadingPrecios}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleActualizarPrecios}
-                disabled={loadingPrecios}
-              >
-                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-              </Button>
-            </div>
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    variant="default"
+                    onClick={handleGuardarCambios}
+                    disabled={loadingPrecios}
+                  >
+                    Guardar cambios
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditando(false)}
+                    disabled={loadingPrecios}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleActualizarPrecios}
+                    disabled={loadingPrecios}
+                  >
+                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+                  </Button>
+                </div>
                 {errorForm && (
                   <div className="text-red-500 mt-2">{errorForm}</div>
                 )}
@@ -1694,8 +1785,12 @@ const PresupuestoDetalle = () => {
                                   <div className="mt-1 text-xs text-gray-500">
                                     <div className="flex flex-wrap gap-2">
                                       <span>Alto: {producto.alto || 0} cm</span>
-                                      <span>Ancho: {producto.ancho || 0} cm</span>
-                                      <span>Largo: {producto.largo || 0} cm</span>
+                                      <span>
+                                        Ancho: {producto.ancho || 0} cm
+                                      </span>
+                                      <span>
+                                        Largo: {producto.largo || 0} cm
+                                      </span>
                                     </div>
                                   </div>
                                 )}
@@ -1710,10 +1805,11 @@ const PresupuestoDetalle = () => {
                                 {safeNumber(producto.descuento).toFixed(2)}%
                               </td>
                               <td className="p-3 text-right font-medium">
-                                ${formatearNumeroArgentino(
+                                $
+                                {formatearNumeroArgentino(
                                   safeNumber(producto.precio) *
-                                  safeNumber(producto.cantidad) *
-                                  (1 - safeNumber(producto.descuento) / 100)
+                                    safeNumber(producto.cantidad) *
+                                    (1 - safeNumber(producto.descuento) / 100)
                                 )}
                               </td>
                             </tr>
@@ -1760,13 +1856,19 @@ const PresupuestoDetalle = () => {
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>
-                      ${formatearNumeroArgentino(safeNumber(presupuesto.subtotal))}
+                      $
+                      {formatearNumeroArgentino(
+                        safeNumber(presupuesto.subtotal)
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
                     <span>
-                      ${formatearNumeroArgentino(safeNumber(presupuesto.descuentoTotal))}
+                      $
+                      {formatearNumeroArgentino(
+                        safeNumber(presupuesto.descuentoTotal)
+                      )}
                     </span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
@@ -1777,27 +1879,33 @@ const PresupuestoDetalle = () => {
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
                         <span>
-                          ${formatearNumeroArgentino(safeNumber(presupuesto.costoEnvio))}
+                          $
+                          {formatearNumeroArgentino(
+                            safeNumber(presupuesto.costoEnvio)
+                          )}
                         </span>
                       </div>
                     )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      ${formatearNumeroArgentino((() => {
-                        const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(
-                          presupuesto.descuentoTotal
-                        );
-                        const envio =
-                          presupuesto.costoEnvio !== undefined &&
-                                     presupuesto.costoEnvio !== "" && 
-                                     !isNaN(Number(presupuesto.costoEnvio)) && 
-                                     Number(presupuesto.costoEnvio) > 0 
-                                       ? Number(presupuesto.costoEnvio) 
-                                       : 0;
-                        return subtotal - descuento + envio;
-                      })())}
+                      $
+                      {formatearNumeroArgentino(
+                        (() => {
+                          const subtotal = safeNumber(presupuesto.subtotal);
+                          const descuento = safeNumber(
+                            presupuesto.descuentoTotal
+                          );
+                          const envio =
+                            presupuesto.costoEnvio !== undefined &&
+                            presupuesto.costoEnvio !== "" &&
+                            !isNaN(Number(presupuesto.costoEnvio)) &&
+                            Number(presupuesto.costoEnvio) > 0
+                              ? Number(presupuesto.costoEnvio)
+                              : 0;
+                          return subtotal - descuento + envio;
+                        })()
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1809,9 +1917,7 @@ const PresupuestoDetalle = () => {
         {/* Observaciones */}
         {presupuesto.observaciones && (
           <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="font-semibold text-lg mb-3 ">
-              Observaciones
-            </h3>
+            <h3 className="font-semibold text-lg mb-3 ">Observaciones</h3>
             <p className="text-gray-700 whitespace-pre-wrap">
               {presupuesto.observaciones}
             </p>
@@ -1849,87 +1955,112 @@ const PresupuestoDetalle = () => {
                       const subtotal = safeNumber(presupuesto.subtotal);
                       const descuento = safeNumber(presupuesto.descuentoTotal);
                       // Usar el costo de envío del formulario si existe, sino del presupuesto
-                      const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
+                      const envio = ventaCampos.costoEnvio
+                        ? Number(ventaCampos.costoEnvio)
+                        : safeNumber(presupuesto.costoEnvio || 0);
                       const totalCorrecto = subtotal - descuento + envio;
-                      
+
                       // Debug para verificar el cálculo
-                      console.log("[DEBUG] Cálculo total en conversión a venta:");
+                      console.log(
+                        "[DEBUG] Cálculo total en conversión a venta:"
+                      );
                       console.log("Subtotal presupuesto:", subtotal);
                       console.log("Descuento presupuesto:", descuento);
-                      console.log("Envío del formulario:", ventaCampos.costoEnvio);
-                      console.log("Envío del presupuesto:", presupuesto.costoEnvio);
+                      console.log(
+                        "Envío del formulario:",
+                        ventaCampos.costoEnvio
+                      );
+                      console.log(
+                        "Envío del presupuesto:",
+                        presupuesto.costoEnvio
+                      );
                       console.log("Envío final usado:", envio);
                       console.log("Total calculado correcto:", totalCorrecto);
-                      console.log("Total presupuesto (puede estar incorrecto):", presupuesto.total);
-                      
+                      console.log(
+                        "Total presupuesto (puede estar incorrecto):",
+                        presupuesto.total
+                      );
+
                       // Usar el total recalculado para asegurar consistencia
                       return totalCorrecto;
                     })(),
                     observaciones: presupuesto.observaciones,
-                    
+
                     // Datos específicos de venta
                     tipo: "venta",
                     fechaCreacion: new Date().toISOString(),
                     numeroPedido: await getNextVentaNumber(),
-                    
+
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     montoAbonado: (() => {
                       const totalVenta = (() => {
                         const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(presupuesto.descuentoTotal);
+                        const descuento = safeNumber(
+                          presupuesto.descuentoTotal
+                        );
                         // Usar el costo de envío del formulario si existe, sino del presupuesto
-                        const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
+                        const envio = ventaCampos.costoEnvio
+                          ? Number(ventaCampos.costoEnvio)
+                          : safeNumber(presupuesto.costoEnvio || 0);
                         return subtotal - descuento + envio;
                       })();
-                      
+
                       // Si NO es pago parcial → montoAbonado = total
                       // Si ES pago parcial → usar el valor del formulario
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      return esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
+                      return esPagoParcial
+                        ? ventaCampos.montoAbonado || 0
+                        : totalVenta;
                     })(),
-                    
+
                     // Determinar estado de pago
                     estadoPago: (() => {
                       const totalVenta = (() => {
                         const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(presupuesto.descuentoTotal);
+                        const descuento = safeNumber(
+                          presupuesto.descuentoTotal
+                        );
                         // Usar el costo de envío del formulario si existe, sino del presupuesto
-                        const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
+                        const envio = ventaCampos.costoEnvio
+                          ? Number(ventaCampos.costoEnvio)
+                          : safeNumber(presupuesto.costoEnvio || 0);
                         return subtotal - descuento + envio;
                       })();
-                      
+
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      
+
                       console.log("[DEBUG] Cálculo estado de pago:");
                       console.log("Total venta:", totalVenta);
                       console.log("Es pago parcial:", esPagoParcial);
-                      
+
                       // Si NO es pago parcial → pagado
                       // Si ES pago parcial → pendiente
                       const estado = esPagoParcial ? "pendiente" : "pagado";
                       console.log("Estado resultante:", estado);
-                      
+
                       return estado;
                     })(),
-                    
+
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
                     transportista: ventaCampos.transportista,
-                    costoEnvio: ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : presupuesto.costoEnvio, // Usar el valor del formulario si existe
+                    costoEnvio: ventaCampos.costoEnvio
+                      ? Number(ventaCampos.costoEnvio)
+                      : presupuesto.costoEnvio, // Usar el valor del formulario si existe
                     direccionEnvio: ventaCampos.direccionEnvio,
                     localidadEnvio: ventaCampos.localidadEnvio,
                     usarDireccionCliente:
                       ventaCampos.usarDireccionCliente || true,
-                    
+
                     // Campos adicionales
                     vendedor: ventaCampos.vendedor,
                     prioridad: ventaCampos.prioridad,
                   };
-                  
+
                   // Limpiar datos antes de guardar (igual que en ventas/page.jsx)
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
@@ -1937,18 +2068,18 @@ const PresupuestoDetalle = () => {
                       return value;
                     })
                   );
-                  
+
                   console.log(
                     "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
                     cleanVentaData
                   );
-                  
+
                   // Guardar venta en Firestore
                   const docRef = await addDoc(
                     collection(db, "ventas"),
                     cleanVentaData
                   );
-                  
+
                   // Descontar stock y registrar movimientos (igual que en ventas/page.jsx)
                   for (const prod of cleanVentaData.productos) {
                     console.log(
@@ -1985,7 +2116,7 @@ const PresupuestoDetalle = () => {
                       productoNombre: prod.nombre,
                     });
                   }
-                  
+
                   // Crear envío si corresponde (igual que en ventas/page.jsx)
                   if (
                     cleanVentaData.tipoEnvio &&
@@ -2036,7 +2167,7 @@ const PresupuestoDetalle = () => {
                       docRef.id
                     );
                   }
-                  
+
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
@@ -2056,9 +2187,14 @@ const PresupuestoDetalle = () => {
           <DialogContent className="w-[95vw] max-w-[420px] bg-card">
             <DialogHeader className="bg-card">
               <DialogTitle className="bg-card">Agregar Cliente</DialogTitle>
-              <DialogDescription className="bg-card">Complete los datos del nuevo cliente para agregarlo al sistema.</DialogDescription>
+              <DialogDescription className="bg-card">
+                Complete los datos del nuevo cliente para agregarlo al sistema.
+              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleNuevoClienteSubmit} className="space-y-2 bg-card">
+            <form
+              onSubmit={handleNuevoClienteSubmit}
+              className="space-y-2 bg-card"
+            >
               {/* Checkbox para diferenciar tipo de cliente */}
               <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <input
@@ -2202,30 +2338,32 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             .min(1, "Debe ingresar un monto")
             .max(
               (() => {
-              const subtotal = presupuesto.subtotal || 0;
-              const descuento = presupuesto.descuentoTotal || 0;
+                const subtotal = presupuesto.subtotal || 0;
+                const descuento = presupuesto.descuentoTotal || 0;
                 // Usar el costo de envío del formulario si existe, sino del presupuesto
-                const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
-                  (presupuesto.costoEnvio !== undefined &&
-                   presupuesto.costoEnvio !== "" && 
-                   !isNaN(Number(presupuesto.costoEnvio)) && 
-                   Number(presupuesto.costoEnvio) > 0 
-                     ? Number(presupuesto.costoEnvio) 
-                     : 0);
-              return subtotal - descuento + envio;
+                const envio = watch("costoEnvio")
+                  ? Number(watch("costoEnvio"))
+                  : presupuesto.costoEnvio !== undefined &&
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    Number(presupuesto.costoEnvio) > 0
+                  ? Number(presupuesto.costoEnvio)
+                  : 0;
+                return subtotal - descuento + envio;
               })(),
               `No puede exceder el total de $${(() => {
-              const subtotal = presupuesto.subtotal || 0;
-              const descuento = presupuesto.descuentoTotal || 0;
+                const subtotal = presupuesto.subtotal || 0;
+                const descuento = presupuesto.descuentoTotal || 0;
                 // Usar el costo de envío del formulario si existe, sino del presupuesto
-                const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
-                  (presupuesto.costoEnvio !== undefined &&
-                   presupuesto.costoEnvio !== "" && 
-                   !isNaN(Number(presupuesto.costoEnvio)) && 
-                   Number(presupuesto.costoEnvio) > 0 
-                     ? Number(presupuesto.costoEnvio) 
-                     : 0);
-              return (subtotal - descuento + envio).toFixed(2);
+                const envio = watch("costoEnvio")
+                  ? Number(watch("costoEnvio"))
+                  : presupuesto.costoEnvio !== undefined &&
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    Number(presupuesto.costoEnvio) > 0
+                  ? Number(presupuesto.costoEnvio)
+                  : 0;
+                return (subtotal - descuento + envio).toFixed(2);
               })()}`
             )
             .required("Obligatorio"),
@@ -2272,7 +2410,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       otherwise: (s) => s.notRequired(),
     }),
   });
-  
+
   // Determinar valores por defecto inteligentes
   const getDefaultValues = () => {
     const defaults = {
@@ -2299,7 +2437,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 
     return defaults;
   };
-  
+
   const {
     register,
     handleSubmit,
@@ -2316,7 +2454,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
-  
+
   // Limpiar montoAbonado si se desmarca pagoParcial
   React.useEffect(() => {
     if (!watch("pagoParcial")) {
@@ -2350,7 +2488,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información de envío
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tipo de envío *
@@ -2375,166 +2513,166 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               </span>
             )}
           </div>
-          
+
           {tipoEnvioSeleccionado &&
             tipoEnvioSeleccionado !== "retiro_local" && (
-            <>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="usarDireccionCliente"
-                  {...register("usarDireccionCliente")}
-                />
-                <label htmlFor="usarDireccionCliente" className="text-sm">
-                  Usar dirección del cliente
-                </label>
-              </div>
-              
-              {!usarDireccionCliente && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dirección de envío *
-                    </label>
-                    <Input
-                      {...register("direccionEnvio")}
-                      placeholder="Dirección de envío"
-                      className={`w-full ${
-                        errors.direccionEnvio ? "border-red-500" : ""
-                      }`}
-                    />
-                    {errors.direccionEnvio && (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="usarDireccionCliente"
+                    {...register("usarDireccionCliente")}
+                  />
+                  <label htmlFor="usarDireccionCliente" className="text-sm">
+                    Usar dirección del cliente
+                  </label>
+                </div>
+
+                {!usarDireccionCliente && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dirección de envío *
+                      </label>
+                      <Input
+                        {...register("direccionEnvio")}
+                        placeholder="Dirección de envío"
+                        className={`w-full ${
+                          errors.direccionEnvio ? "border-red-500" : ""
+                        }`}
+                      />
+                      {errors.direccionEnvio && (
                         <span className="text-red-500 text-xs">
                           {errors.direccionEnvio.message}
                         </span>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Localidad *
-                    </label>
-                    <Input
-                      {...register("localidadEnvio")}
-                      placeholder="Localidad/Ciudad"
-                      className={`w-full ${
-                        errors.localidadEnvio ? "border-red-500" : ""
-                      }`}
-                    />
-                    {errors.localidadEnvio && (
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Localidad *
+                      </label>
+                      <Input
+                        {...register("localidadEnvio")}
+                        placeholder="Localidad/Ciudad"
+                        className={`w-full ${
+                          errors.localidadEnvio ? "border-red-500" : ""
+                        }`}
+                      />
+                      {errors.localidadEnvio && (
                         <span className="text-red-500 text-xs">
                           {errors.localidadEnvio.message}
                         </span>
-                    )}
-                  </div>
-                </>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Transportista *
-                </label>
-                <select
-                  {...register("transportista")}
-                  className={`w-full border rounded-md px-3 py-2 ${
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transportista *
+                  </label>
+                  <select
+                    {...register("transportista")}
+                    className={`w-full border rounded-md px-3 py-2 ${
                       errors.transportista
                         ? "border-red-500"
                         : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Seleccionar transportista...</option>
-                  {transportistas.map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-                {errors.transportista && (
+                    }`}
+                  >
+                    <option value="">Seleccionar transportista...</option>
+                    {transportistas.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                  {errors.transportista && (
                     <span className="text-red-500 text-xs">
                       {errors.transportista.message}
                     </span>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Costo de envío
-                </label>
-                <Input
-                  {...register("costoEnvio")}
-                  placeholder="Costo de envío"
-                  type="number"
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de entrega *
-                </label>
-                <Input
-                  {...register("fechaEntrega")}
-                  placeholder="Fecha de entrega"
-                  type="date"
-                  className={`w-full ${
-                    errors.fechaEntrega ? "border-red-500" : ""
-                  }`}
-                  value={
-                    watch("fechaEntrega")
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Costo de envío
+                  </label>
+                  <Input
+                    {...register("costoEnvio")}
+                    placeholder="Costo de envío"
+                    type="number"
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de entrega *
+                  </label>
+                  <Input
+                    {...register("fechaEntrega")}
+                    placeholder="Fecha de entrega"
+                    type="date"
+                    className={`w-full ${
+                      errors.fechaEntrega ? "border-red-500" : ""
+                    }`}
+                    value={
+                      watch("fechaEntrega")
                         ? new Date(watch("fechaEntrega"))
                             .toISOString()
                             .split("T")[0]
-                      : ""
-                  }
-                />
-                {errors.fechaEntrega && (
+                        : ""
+                    }
+                  />
+                  {errors.fechaEntrega && (
                     <span className="text-red-500 text-xs">
                       {errors.fechaEntrega.message}
                     </span>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rango horario *
-                </label>
-                <Input
-                  {...register("rangoHorario")}
-                  placeholder="Rango horario (ej: 8-12, 14-18)"
-                  className={`w-full ${
-                    errors.rangoHorario ? "border-red-500" : ""
-                  }`}
-                />
-                {errors.rangoHorario && (
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rango horario *
+                  </label>
+                  <Input
+                    {...register("rangoHorario")}
+                    placeholder="Rango horario (ej: 8-12, 14-18)"
+                    className={`w-full ${
+                      errors.rangoHorario ? "border-red-500" : ""
+                    }`}
+                  />
+                  {errors.rangoHorario && (
                     <span className="text-red-500 text-xs">
                       {errors.rangoHorario.message}
                     </span>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prioridad *
-                </label>
-                <select
-                  {...register("prioridad")}
-                  className={`w-full border rounded-md px-3 py-2 ${
-                    errors.prioridad ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Seleccionar prioridad...</option>
-                  {prioridades.map((p) => (
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Prioridad *
+                  </label>
+                  <select
+                    {...register("prioridad")}
+                    className={`w-full border rounded-md px-3 py-2 ${
+                      errors.prioridad ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Seleccionar prioridad...</option>
+                    {prioridades.map((p) => (
                       <option key={p}>
                         {p.charAt(0).toUpperCase() + p.slice(1)}
                       </option>
-                  ))}
-                </select>
-                {errors.prioridad && (
+                    ))}
+                  </select>
+                  {errors.prioridad && (
                     <span className="text-red-500 text-xs">
                       {errors.prioridad.message}
                     </span>
-                )}
-              </div>
-            </>
-          )}
+                  )}
+                </div>
+              </>
+            )}
         </div>
 
         {/* Condiciones de pago y entrega */}
@@ -2565,7 +2703,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -2576,7 +2714,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               ¿Pago parcial?
             </label>
           </div>
-          
+
           {watch("pagoParcial") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2590,11 +2728,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   const descuento = presupuesto.descuentoTotal || 0;
                   const envio =
                     presupuesto.costoEnvio !== undefined &&
-                               presupuesto.costoEnvio !== "" && 
-                               !isNaN(Number(presupuesto.costoEnvio)) && 
-                               Number(presupuesto.costoEnvio) > 0 
-                                 ? Number(presupuesto.costoEnvio) 
-                                 : 0;
+                    presupuesto.costoEnvio !== "" &&
+                    !isNaN(Number(presupuesto.costoEnvio)) &&
+                    Number(presupuesto.costoEnvio) > 0
+                      ? Number(presupuesto.costoEnvio)
+                      : 0;
                   return subtotal - descuento + envio;
                 })()}
                 placeholder={`Saldo pendiente: $${(() => {
@@ -2602,13 +2740,14 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   const subtotal = presupuesto.subtotal || 0;
                   const descuento = presupuesto.descuentoTotal || 0;
                   // Usar el costo de envío del formulario si existe, sino del presupuesto
-                  const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
-                    (presupuesto.costoEnvio !== undefined &&
-                     presupuesto.costoEnvio !== "" && 
-                     !isNaN(Number(presupuesto.costoEnvio)) && 
-                     Number(presupuesto.costoEnvio) > 0 
-                       ? Number(presupuesto.costoEnvio) 
-                       : 0);
+                  const envio = watch("costoEnvio")
+                    ? Number(watch("costoEnvio"))
+                    : presupuesto.costoEnvio !== undefined &&
+                      presupuesto.costoEnvio !== "" &&
+                      !isNaN(Number(presupuesto.costoEnvio)) &&
+                      Number(presupuesto.costoEnvio) > 0
+                    ? Number(presupuesto.costoEnvio)
+                    : 0;
                   const total = subtotal - descuento + envio;
                   const montoAbonado = watch("montoAbonado")
                     ? Number(watch("montoAbonado"))
@@ -2634,7 +2773,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Vendedor responsable *
@@ -2658,7 +2797,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           </div>
         </div>
       </div>
-      
+
       <div className="flex gap-3 justify-end">
         <Button
           variant="outline"
