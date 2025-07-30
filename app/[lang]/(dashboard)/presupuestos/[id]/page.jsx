@@ -1740,16 +1740,22 @@ const PresupuestoDetalle = () => {
                     descuentoTotal: presupuesto.descuentoTotal,
                     // Calcular el total correcto incluyendo envío
                     total: (() => {
+                      // Recalcular el total correcto basado en los datos del presupuesto
                       const subtotal = safeNumber(presupuesto.subtotal);
                       const descuento = safeNumber(presupuesto.descuentoTotal);
-                      const envio =
-                        presupuesto.costoEnvio !== undefined &&
-                                   presupuesto.costoEnvio !== "" && 
-                                   !isNaN(Number(presupuesto.costoEnvio)) && 
-                                   Number(presupuesto.costoEnvio) > 0 
-                                     ? Number(presupuesto.costoEnvio) 
-                                     : 0;
-                      return subtotal - descuento + envio;
+                      const envio = safeNumber(presupuesto.costoEnvio || 0);
+                      const totalCorrecto = subtotal - descuento + envio;
+                      
+                      // Debug para verificar el cálculo
+                      console.log("[DEBUG] Cálculo total en conversión a venta:");
+                      console.log("Subtotal presupuesto:", subtotal);
+                      console.log("Descuento presupuesto:", descuento);
+                      console.log("Envío presupuesto:", envio);
+                      console.log("Total calculado correcto:", totalCorrecto);
+                      console.log("Total presupuesto (puede estar incorrecto):", presupuesto.total);
+                      
+                      // Usar el total recalculado para asegurar consistencia
+                      return totalCorrecto;
                     })(),
                     observaciones: presupuesto.observaciones,
                     
@@ -1764,11 +1770,11 @@ const PresupuestoDetalle = () => {
                     montoAbonado: ventaCampos.montoAbonado || 0,
                     
                     // Campos de envío
-                    tipoEnvio: ventaCampos.tipoEnvio,
+                    tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
                     transportista: ventaCampos.transportista,
-                    costoEnvio: ventaCampos.costoEnvio,
+                    costoEnvio: presupuesto.costoEnvio, // Usar el costo de envío del presupuesto
                     direccionEnvio: ventaCampos.direccionEnvio,
                     localidadEnvio: ventaCampos.localidadEnvio,
                     usarDireccionCliente:

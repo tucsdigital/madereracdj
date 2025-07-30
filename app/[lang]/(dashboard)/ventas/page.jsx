@@ -2373,15 +2373,18 @@ const VentasPage = () => {
               (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
               0
             ),
-            total:
-              productosLimpios.reduce(
+            total: (() => {
+              const subtotal = productosLimpios.reduce(
                 (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
                 0
-              ) -
-              productosLimpios.reduce(
+              );
+              const descuento = productosLimpios.reduce(
                 (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
                 0
-              ),
+              );
+              const envio = costoEnvioFinal || 0;
+              return subtotal - descuento + envio;
+            })(),
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: nextNumeroPedido,

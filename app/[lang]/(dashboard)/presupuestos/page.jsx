@@ -119,7 +119,6 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   // Calcular totales
   const subtotal = productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad), 0);
   const descuentoTotal = productosSeleccionados.reduce((acc, p) => acc + (p.descuento * p.cantidad), 0);
-  const iva = (subtotal - descuentoTotal) * 0.21;
   // Calcular costo de envío solo si no es retiro local
   const costoEnvioCalculado = 
     tipoEnvio && 
@@ -129,7 +128,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     !isNaN(Number(costoEnvio)) 
       ? Number(costoEnvio) 
       : 0;
-  const total = subtotal - descuentoTotal + iva + costoEnvioCalculado;
+  const total = subtotal - descuentoTotal + costoEnvioCalculado;
 
   // Flatpickr handlers
   const handleDateChange = (field, date) => {
@@ -235,7 +234,6 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
         productos: productosSeleccionados,
         subtotal: subtotal,
         descuentoTotal: descuentoTotal,
-        iva: iva,
         total: total,
         fechaCreacion: new Date().toISOString(),
         tipo: "presupuesto",
@@ -503,7 +501,6 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
             <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-base shadow-sm w-full md:w-auto">
               <div>Subtotal: <span className="font-semibold">${subtotal.toFixed(2)}</span></div>
               <div>Descuento: <span className="font-semibold">${descuentoTotal.toFixed(2)}</span></div>
-              <div>IVA (21%): <span className="font-semibold">${iva.toFixed(2)}</span></div>
               {costoEnvioCalculado > 0 && (
                 <div>Costo de envío: <span className="font-semibold">${costoEnvioCalculado.toFixed(2)}</span></div>
               )}
