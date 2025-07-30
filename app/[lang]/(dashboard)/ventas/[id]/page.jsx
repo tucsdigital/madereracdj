@@ -223,16 +223,18 @@ const VentaDetalle = () => {
           // Recalcular precio base sin cepillado
           const precioBase =
             0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
-          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
 
           // Aplicar cepillado si está habilitado
           const precioFinal = aplicarCepillado
-            ? precioBaseRedondeado * 1.066
-            : precioBaseRedondeado;
+            ? precioBase * 1.066
+            : precioBase;
+
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
 
           return {
             ...p,
-            precio: precioFinal,
+            precio: precioRedondeado,
             cepilladoAplicado: aplicarCepillado,
           };
         }
@@ -250,12 +252,14 @@ const VentaDetalle = () => {
           // Recalcular precio base con el nuevo precio por pie
           const precioBase =
             0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
-          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
 
           // Aplicar cepillado si está habilitado para este producto específico
           const precioFinal = p.cepilladoAplicado
-            ? precioBaseRedondeado * 1.066
-            : precioBaseRedondeado;
+            ? precioBase * 1.066
+            : precioBase;
+
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
 
           return {
             ...p,
@@ -266,6 +270,12 @@ const VentaDetalle = () => {
         return p;
       }),
     }));
+  };
+
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
   };
 
   // Guardar cambios en Firestore
@@ -905,14 +915,14 @@ const VentaDetalle = () => {
             <div className="flex justify-between">
               <span className="">Total de la venta:</span>
               <span className="font-semibold">
-                ${(venta.total || 0).toFixed(2)}
+                ${formatearNumeroArgentino(venta.total || 0)}
               </span>
             </div>
             
             <div className="flex justify-between">
               <span className="">Monto abonado:</span>
               <span className="font-semibold text-green-600">
-                ${montoAbonado.toFixed(2)}
+                ${formatearNumeroArgentino(montoAbonado)}
               </span>
             </div>
             
@@ -920,7 +930,7 @@ const VentaDetalle = () => {
               <div className="flex justify-between border-t pt-2">
                 <span className="">Saldo pendiente:</span>
                 <span className="font-semibold text-red-600">
-                  ${saldoPendiente.toFixed(2)}
+                  ${formatearNumeroArgentino(saldoPendiente)}
                 </span>
               </div>
             )}

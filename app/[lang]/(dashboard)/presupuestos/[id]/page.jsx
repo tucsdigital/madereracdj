@@ -228,14 +228,16 @@ const PresupuestoDetalle = () => {
         if (p.id === productoId && p.categoria === "Maderas") {
           // Recalcular precio base sin cepillado
           const precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
-          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
           
           // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
+          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
+          
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
           
           return {
             ...p,
-            precio: precioFinal,
+            precio: precioRedondeado,
             cepilladoAplicado: aplicarCepillado,
           };
         }
@@ -252,20 +254,28 @@ const PresupuestoDetalle = () => {
         if (p.id === id && p.categoria === "Maderas") {
           // Recalcular precio base con el nuevo precio por pie
           const precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
-          const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
           
           // Aplicar cepillado si está habilitado para este producto específico
-          const precioFinal = p.cepilladoAplicado ? precioBaseRedondeado * 1.066 : precioBaseRedondeado;
+          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+          
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
           
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
-            precio: precioFinal,
+            precio: precioRedondeado,
           };
         }
         return p;
       }),
     }));
+  };
+
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
   };
 
   // 6. Guardar cambios en Firestore
@@ -1042,11 +1052,12 @@ const PresupuestoDetalle = () => {
                                             Precio:
                                           </span>
                                           <span className="ml-1 font-bold text-blue-600">
-                                            $
-                                            {prod.precioPorPie ||
+                                            ${formatearNumeroArgentino(
+                                              prod.precioPorPie ||
                                               prod.valorVenta ||
                                               prod.precioUnidad ||
-                                              0}
+                                              0
+                                            )}
                                           </span>
                                         </div>
                                         <div>
@@ -1427,7 +1438,7 @@ const PresupuestoDetalle = () => {
                                   <span className="text-gray-400">-</span>
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">${p.precio}</td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">${formatearNumeroArgentino(p.precio)}</td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <input
                                   type="number"
@@ -1449,12 +1460,11 @@ const PresupuestoDetalle = () => {
                                 />
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                                $
-                                {(
+                                ${formatearNumeroArgentino(
                                   Number(p.precio) *
                                   Number(p.cantidad) *
                                   (1 - Number(p.descuento || 0) / 100)
-                                ).toFixed(2)}
+                                )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <button
@@ -1486,28 +1496,28 @@ const PresupuestoDetalle = () => {
                     <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                       <div>
                         Subtotal: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
+                          ${formatearNumeroArgentino(presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0))}
                         </span>
                       </div>
                       <div>
                         Descuento: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
+                          ${formatearNumeroArgentino(presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0))}
                         </span>
                       </div>
                       {presupuestoEdit.costoEnvio && Number(presupuestoEdit.costoEnvio) > 0 && (
                         <div>
                           Costo de envío: <span className="font-bold">
-                            ${Number(presupuestoEdit.costoEnvio).toFixed(2)}
+                            ${formatearNumeroArgentino(Number(presupuestoEdit.costoEnvio))}
                           </span>
                         </div>
                       )}
                       <div>
                         Total: <span className="font-bold text-primary">
-                          ${(
+                          ${formatearNumeroArgentino(
                             presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
                             presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
                             (Number(presupuestoEdit.costoEnvio) || 0)
-                          ).toFixed(2)}
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1594,12 +1604,11 @@ const PresupuestoDetalle = () => {
                                 {safeNumber(producto.descuento).toFixed(2)}%
                               </td>
                               <td className="p-3 text-right font-medium">
-                                $
-                                {(
+                                ${formatearNumeroArgentino(
                                   safeNumber(producto.precio) *
                                   safeNumber(producto.cantidad) *
                                   (1 - safeNumber(producto.descuento) / 100)
-                                ).toFixed(2)}
+                                )}
                               </td>
                             </tr>
                           )
@@ -1645,21 +1654,13 @@ const PresupuestoDetalle = () => {
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>
-                      $
-                      {safeNumber(presupuesto.subtotal).toLocaleString(
-                        "es-AR",
-                        { minimumFractionDigits: 2 }
-                      )}
+                      ${formatearNumeroArgentino(safeNumber(presupuesto.subtotal))}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Descuento total:</span>
                     <span>
-                      $
-                      {safeNumber(presupuesto.descuentoTotal).toLocaleString(
-                        "es-AR",
-                        { minimumFractionDigits: 2 }
-                      )}
+                      ${formatearNumeroArgentino(safeNumber(presupuesto.descuentoTotal))}
                     </span>
                   </div>
                   {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
@@ -1670,19 +1671,14 @@ const PresupuestoDetalle = () => {
                       <div className="flex justify-between">
                         <span>Cotización de envío:</span>
                         <span>
-                          $
-                          {safeNumber(presupuesto.costoEnvio).toLocaleString(
-                            "es-AR",
-                            { minimumFractionDigits: 2 }
-                          )}
+                          ${formatearNumeroArgentino(safeNumber(presupuesto.costoEnvio))}
                         </span>
                       </div>
                     )}
                   <div className="border-t pt-2 flex justify-between font-bold text-lg">
                     <span>Total:</span>
                     <span className="text-primary">
-                      $
-                      {(() => {
+                      ${formatearNumeroArgentino((() => {
                         const subtotal = safeNumber(presupuesto.subtotal);
                         const descuento = safeNumber(
                           presupuesto.descuentoTotal
@@ -1694,11 +1690,8 @@ const PresupuestoDetalle = () => {
                                      Number(presupuesto.costoEnvio) > 0 
                                        ? Number(presupuesto.costoEnvio) 
                                        : 0;
-                        return (subtotal - descuento + envio).toLocaleString(
-                          "es-AR",
-                          { minimumFractionDigits: 2 }
-                        );
-                      })()}
+                        return subtotal - descuento + envio;
+                      })())}
                     </span>
                   </div>
                 </div>

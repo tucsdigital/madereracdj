@@ -350,9 +350,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             ? precioBase * 1.066
             : precioBase;
 
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
+
           return {
             ...p,
-            precio: precioFinal,
+            precio: precioRedondeado,
             cepilladoAplicado: aplicarCepillado,
           };
         }
@@ -376,10 +379,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             ? precioBase * 1.066
             : precioBase;
 
+          // Redondear a números enteros
+          const precioRedondeado = Math.round(precioFinal);
+
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
-            precio: precioFinal,
+            precio: precioRedondeado,
           };
         }
         return p;
@@ -607,8 +613,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       return 0;
     }
     const precio = factor * alto * ancho * largo * precioPorPie;
-    return Math.round(precio * 100) / 100;
+    // Redondear a números enteros
+    return Math.round(precio);
   }
+
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
+  };
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
@@ -1133,7 +1146,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         Precio:
                                       </span>
                                       <span className="ml-1 font-bold text-blue-600 dark:text-blue-400">
-                                        ${precio.toLocaleString()}
+                                        ${formatearNumeroArgentino(precio)}
                                       </span>
                                     </div>
                                     <div>
@@ -1525,69 +1538,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               </div>
                             )}
                           </td>
-                          <td className="text-center">
-                            <div className="flex items-center justify-center">
-                              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleDecrementarCantidad(p.id)
-                                  }
-                                  disabled={isSubmitting || p.cantidad <= 1}
-                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-                                >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                      d="M20 12H4"
-                                          />
-                                        </svg>
-                                </button>
-
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={p.cantidad}
-                                  onChange={(e) =>
-                                    handleCantidadChange(p.id, e.target.value)
-                                  }
-                                  className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
-                                  disabled={isSubmitting}
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleIncrementarCantidad(p.id)
-                                  }
-                                  disabled={isSubmitting}
-                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
-                                >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
-                                  </button>
-                                </div>
-                              </div>
-                          </td>
-                          <td className="text-center">${p.precio}</td>
+                          <td className="text-center">${formatearNumeroArgentino(p.precio)}</td>
                           <td className="text-center">
                             <Input
                               type="number"
@@ -1603,12 +1554,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             />
                           </td>
                           <td className="text-center font-semibold text-primary">
-                            $
-                            {(
+                            ${formatearNumeroArgentino(
                               Number(p.precio) *
                               Number(p.cantidad) *
                               (1 - Number(p.descuento) / 100)
-                            ).toFixed(2)}
+                            )}
                           </td>
                           <td className="text-center">
                             <Button
@@ -1957,24 +1907,24 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
                 Subtotal:{" "}
-                <span className="font-bold">${subtotal.toFixed(2)}</span>
+                <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
               </div>
               <div>
                 Descuento:{" "}
-                <span className="font-bold">${descuentoTotal.toFixed(2)}</span>
+                <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
               </div>
               {costoEnvioCalculado > 0 && (
                 <div>
                   Costo de envío:{" "}
                   <span className="font-bold">
-                    ${costoEnvioCalculado.toFixed(2)}
+                    ${formatearNumeroArgentino(costoEnvioCalculado)}
                   </span>
                 </div>
               )}
               <div>
                 Total:{" "}
                 <span className="font-bold text-primary">
-                  ${total.toFixed(2)}
+                  ${formatearNumeroArgentino(total)}
                 </span>
               </div>
             </div>
