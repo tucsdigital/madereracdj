@@ -524,13 +524,19 @@ const VentaDetalle = () => {
     : Number(venta.montoAbonado || 0);
   const saldoPendiente = (venta.total || 0) - montoAbonado;
   
-  // Determinar estado de pago basado en el monto abonado real
-  const estadoPagoCalculado =
-    montoAbonado >= (venta.total || 0)
-    ? "pagado" 
-    : montoAbonado > 0 
-    ? "parcial" 
-    : "pendiente";
+  // Usar el estadoPago de la base de datos, no recalcular
+  // Solo recalcular si no existe estadoPago en la BD
+  const estadoPagoFinal = venta.estadoPago || (() => {
+    const montoAbonadoReal = Array.isArray(venta.pagos) && venta.pagos.length > 0
+      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+      : Number(venta.montoAbonado || 0);
+    
+    return montoAbonadoReal >= (venta.total || 0)
+      ? "pagado" 
+      : montoAbonadoReal > 0 
+      ? "parcial" 
+      : "pendiente";
+  })();
 
   return (
     <div className="min-h-screen py-8">
@@ -788,22 +794,16 @@ const VentaDetalle = () => {
                 <div>
                   <span className="font-medium">Estado de la venta:</span>{" "}
                   {(() => {
-                    const total = venta.total || 0;
-                    const montoAbonadoCalculado =
-                      Array.isArray(venta.pagos) && venta.pagos.length > 0
-                        ? venta.pagos.reduce(
-                            (acc, p) => acc + Number(p.monto),
-                            0
-                          )
-                        : Number(venta.montoAbonado || 0);
-
-                    if (montoAbonadoCalculado >= total) {
+                    // Usar el estadoPago de la base de datos, no recalcular
+                    const estadoPago = venta.estadoPago || "pendiente";
+                    
+                    if (estadoPago === "pagado") {
                       return (
                         <span className="text-green-700 font-bold ml-2">
                           Pagado
                         </span>
                       );
-                    } else if (montoAbonadoCalculado > 0) {
+                    } else if (estadoPago === "parcial") {
                       return (
                         <span className="text-yellow-700 font-bold ml-2">
                           Parcial
@@ -846,22 +846,16 @@ const VentaDetalle = () => {
                 <div>
                   <span className="font-medium">Estado de la venta:</span>{" "}
                   {(() => {
-                    const total = venta.total || 0;
-                    const montoAbonadoCalculado =
-                      Array.isArray(venta.pagos) && venta.pagos.length > 0
-                        ? venta.pagos.reduce(
-                            (acc, p) => acc + Number(p.monto),
-                            0
-                          )
-                        : Number(venta.montoAbonado || 0);
-
-                    if (montoAbonadoCalculado >= total) {
+                    // Usar el estadoPago de la base de datos, no recalcular
+                    const estadoPago = venta.estadoPago || "pendiente";
+                    
+                    if (estadoPago === "pagado") {
                       return (
                         <span className="text-green-700 font-bold ml-2">
                           Pagado
                         </span>
                       );
-                    } else if (montoAbonadoCalculado > 0) {
+                    } else if (estadoPago === "parcial") {
                       return (
                         <span className="text-yellow-700 font-bold ml-2">
                           Parcial
@@ -891,16 +885,16 @@ const VentaDetalle = () => {
               <span className="font-medium">Estado de pago:</span>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  estadoPagoCalculado === "pagado"
+                  venta.estadoPago === "pagado"
                     ? "bg-green-100 text-green-800"
-                    : estadoPagoCalculado === "parcial"
+                    : venta.estadoPago === "parcial"
                     ? "bg-yellow-100 text-yellow-800"
                     : "bg-red-100 text-red-800"
                 }`}
               >
-                {estadoPagoCalculado === "pagado"
+                {venta.estadoPago === "pagado"
                   ? "Pagado"
-                  : estadoPagoCalculado === "parcial"
+                  : venta.estadoPago === "parcial"
                   ? "Pago Parcial"
                   : "Pendiente"}
               </span>

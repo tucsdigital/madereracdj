@@ -1772,7 +1772,20 @@ const PresupuestoDetalle = () => {
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
-                    montoAbonado: ventaCampos.montoAbonado || 0,
+                    montoAbonado: (() => {
+                      const totalVenta = (() => {
+                        const subtotal = safeNumber(presupuesto.subtotal);
+                        const descuento = safeNumber(presupuesto.descuentoTotal);
+                        // Usar el costo de envío del formulario si existe, sino del presupuesto
+                        const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
+                        return subtotal - descuento + envio;
+                      })();
+                      
+                      // Si NO es pago parcial → montoAbonado = total
+                      // Si ES pago parcial → usar el valor del formulario
+                      const esPagoParcial = ventaCampos.pagoParcial || false;
+                      return esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
+                    })(),
                     
                     // Determinar estado de pago
                     estadoPago: (() => {
@@ -1783,12 +1796,11 @@ const PresupuestoDetalle = () => {
                         const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
                         return subtotal - descuento + envio;
                       })();
-                      const montoAbonado = ventaCampos.montoAbonado || 0;
+                      
                       const esPagoParcial = ventaCampos.pagoParcial || false;
                       
                       console.log("[DEBUG] Cálculo estado de pago:");
                       console.log("Total venta:", totalVenta);
-                      console.log("Monto abonado:", montoAbonado);
                       console.log("Es pago parcial:", esPagoParcial);
                       
                       // Si NO es pago parcial → pagado
