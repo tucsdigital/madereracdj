@@ -2330,11 +2330,11 @@ const ObrasPage = () => {
         cleanFormData.numeroPedido = nextNumeroPedido;
         console.log("[DEBUG] Datos limpios para guardar obra:", cleanFormData);
         docRef = await addDoc(collection(db, "obras"), cleanFormData);
-        console.log(
+          console.log(
           "[SUCCESS] Obra guardada en Firebase con ID:",
-          docRef.id
-        );
-        setOpen(null);
+            docRef.id
+          );
+          setOpen(null);
         router.push(`/${lang}/obras-proyectos/${docRef.id}`);
       }
     } catch (error) {
@@ -2368,7 +2368,7 @@ const ObrasPage = () => {
   };
 
   if (loading) {
-    return (
+  return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -2461,8 +2461,8 @@ const ObrasPage = () => {
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             Filtros y Búsqueda
-          </CardTitle>
-        </CardHeader>
+            </CardTitle>
+          </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -2523,20 +2523,20 @@ const ObrasPage = () => {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Tabla de obras */}
       <Card>
         <CardHeader>
           <CardTitle>
             Obras y Proyectos ({obrasFiltradas.length} de {obrasData.length})
-          </CardTitle>
-        </CardHeader>
+            </CardTitle>
+          </CardHeader>
         <CardContent>
           <DataTable data={obrasFiltradas} columns={obrasColumns} />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       
       <Dialog open={!!open} onOpenChange={handleClose}>
         <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20 bg-card">

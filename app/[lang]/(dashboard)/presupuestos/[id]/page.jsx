@@ -327,6 +327,7 @@ const PresupuestoDetalle = () => {
         subtotal,
         descuentoTotal,
         total,
+        costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
         productos: productosArr,
         items: productosArr,
         numeroPedido,
@@ -337,6 +338,7 @@ const PresupuestoDetalle = () => {
         subtotal,
         descuentoTotal,
         total,
+        costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
         productos: productosArr,
         items: productosArr,
         numeroPedido,
@@ -1509,29 +1511,29 @@ const PresupuestoDetalle = () => {
                 )}
 
                 {/* Botones al final de todas las secciones editables */}
-                <div className="flex gap-2 mt-6">
-                  <Button
-                    variant="default"
-                    onClick={handleGuardarCambios}
-                    disabled={loadingPrecios}
-                  >
-                    Guardar cambios
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditando(false)}
-                    disabled={loadingPrecios}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleActualizarPrecios}
-                    disabled={loadingPrecios}
-                  >
-                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-                  </Button>
-                </div>
+            <div className="flex gap-2 mt-6">
+              <Button
+                variant="default"
+                onClick={handleGuardarCambios}
+                disabled={loadingPrecios}
+              >
+                Guardar cambios
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditando(false)}
+                disabled={loadingPrecios}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleActualizarPrecios}
+                disabled={loadingPrecios}
+              >
+                {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+              </Button>
+            </div>
                 {errorForm && (
                   <div className="text-red-500 mt-2">{errorForm}</div>
                 )}
@@ -1768,6 +1770,25 @@ const PresupuestoDetalle = () => {
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     montoAbonado: ventaCampos.montoAbonado || 0,
+                    
+                    // Determinar estado de pago
+                    estadoPago: (() => {
+                      const totalVenta = (() => {
+                        const subtotal = safeNumber(presupuesto.subtotal);
+                        const descuento = safeNumber(presupuesto.descuentoTotal);
+                        const envio = safeNumber(presupuesto.costoEnvio || 0);
+                        return subtotal - descuento + envio;
+                      })();
+                      const montoAbonado = ventaCampos.montoAbonado || 0;
+                      
+                      if (montoAbonado >= totalVenta) {
+                        return "pagado";
+                      } else if (montoAbonado > 0) {
+                        return "parcial";
+                      } else {
+                        return "pendiente";
+                      }
+                    })(),
                     
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
