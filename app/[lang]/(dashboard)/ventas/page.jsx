@@ -200,7 +200,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   });
 
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false);
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
@@ -253,10 +252,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie,
           });
 
-          if (cepilladoAutomatico) {
-            const cepillado = precio * 0.066; // 6.6% del precio calculado
-            precio += cepillado;
-          }
+          // El cepillado se aplicará individualmente por producto
         } else {
           setSubmitStatus("error");
           setSubmitMessage(
@@ -298,8 +294,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
-          cepilladoAplicado:
-            real.categoria === "Maderas" && cepilladoAutomatico,
+          cepilladoAplicado: false, // Por defecto sin cepillado
         },
       ]);
     }
@@ -340,10 +335,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  const recalcularPreciosMadera = (aplicarCepillado) => {
+  const recalcularPreciosMadera = (id, aplicarCepillado) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.categoria === "Maderas") {
+        if (p.id === id && p.categoria === "Maderas") {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: p.ancho,
@@ -377,7 +372,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: Number(nuevoPrecioPorPie),
           });
 
-          const precioFinal = cepilladoAutomatico
+          const precioFinal = p.cepilladoAplicado
             ? precioBase * 1.066
             : precioBase;
 
@@ -1403,30 +1398,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </span>
                 </div>
 
-                {/* Checkbox de cepillado automático para maderas */}
-                {productosSeleccionados.some(
-                  (p) => p.categoria === "Maderas"
-                ) && (
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
-                    <input
-                      type="checkbox"
-                      id="cepilladoAutomatico"
-                      checked={cepilladoAutomatico}
-                      onChange={(e) => {
-                        setCepilladoAutomatico(e.target.checked);
-                        recalcularPreciosMadera(e.target.checked);
-                      }}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label
-                      htmlFor="cepilladoAutomatico"
-                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                    >
-                      Cepillado?
-                    </label>
-                  </div>
-                )}
-
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
                     <thead>
@@ -1512,6 +1483,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 <span className="text-xs text-blue-600 font-medium">
                                   (Edita el $/pie para recalcular)
                                 </span>
+                                {/* Checkbox individual de cepillado para productos de madera */}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`cepillado-${p.id}`}
+                                    checked={p.cepilladoAplicado || false}
+                                    onChange={(e) => {
+                                      recalcularPreciosMadera(p.id, e.target.checked);
+                                    }}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                    disabled={isSubmitting}
+                                  />
+                                  <label
+                                    htmlFor={`cepillado-${p.id}`}
+                                    className="text-xs font-medium text-blue-800 dark:text-blue-200"
+                                  >
+                                    Cepillado (+6.6%)
+                                  </label>
+                                </div>
                                 {p.stock <= 0 && (
                                   <span className="text-red-600 font-semibold ml-2">
                                     ¡Sin stock! Se permitirá avanzar igual.

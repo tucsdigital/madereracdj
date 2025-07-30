@@ -42,7 +42,6 @@ const VentaDetalle = () => {
   const [productos, setProductos] = useState([]);
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Checkbox para cepillado automático
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -216,11 +215,11 @@ const VentaDetalle = () => {
   };
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
-  const recalcularPreciosMadera = (aplicarCepillado) => {
+  const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.categoria === "Maderas") {
+        if (p.id === productoId && p.categoria === "Maderas") {
           // Recalcular precio base sin cepillado
           const precioBase =
             0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
@@ -253,8 +252,8 @@ const VentaDetalle = () => {
             0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
           const precioBaseRedondeado = Math.round(precioBase * 100) / 100;
 
-          // Aplicar cepillado si está habilitado
-          const precioFinal = cepilladoAutomatico
+          // Aplicar cepillado si está habilitado para este producto específico
+          const precioFinal = p.cepilladoAplicado
             ? precioBaseRedondeado * 1.066
             : precioBaseRedondeado;
 
@@ -1344,30 +1343,7 @@ const VentaDetalle = () => {
                   </div>
                   {/* Filtros mejorados */}
                   <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Checkbox de cepillado automático para maderas - Solo mostrar si hay productos de madera */}
-                    {(ventaEdit.productos || []).some(
-                      (p) => p.categoria === "Maderas"
-                    ) && (
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-3">
-                        <input
-                          type="checkbox"
-                          id="cepilladoAutomaticoEdicion"
-                          checked={cepilladoAutomatico}
-                          onChange={(e) => {
-                            setCepilladoAutomatico(e.target.checked);
-                            recalcularPreciosMadera(e.target.checked);
-                          }}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                        />
-                        <label
-                          htmlFor="cepilladoAutomaticoEdicion"
-                          className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                        >
-                          Cepillado?
-                        </label>
-                      </div>
-                    )}
-
+                    {/* Eliminar el checkbox global de cepillado automático */}
                     {/* Filtro de categorías */}
                     <div className="flex-1">
                       <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
@@ -1716,6 +1692,7 @@ const VentaDetalle = () => {
                                                 precioPorPie:
                                                   Number(prod.precioPorPie) ||
                                                   0,
+                                                cepilladoAplicado: false, // Agregar propiedad por defecto
                                               },
                                             ],
                                           }))
@@ -1757,6 +1734,7 @@ const VentaDetalle = () => {
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Categoría</th>
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Producto</th>
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cant.</th>
+                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cepillado</th>
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Desc.</th>
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Subtotal</th>
                           <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Acción</th>
@@ -1987,6 +1965,24 @@ const VentaDetalle = () => {
                               >
                                 ×
                               </button>
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              {p.categoria === "Maderas" ? (
+                                <div className="flex items-center justify-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={p.cepilladoAplicado || false}
+                                    onChange={(e) =>
+                                      recalcularPreciosMadera(p.id, e.target.checked)
+                                    }
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                    disabled={loadingPrecios}
+                                    title="Aplicar cepillado (+6.6%)"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
                             </td>
                           </tr>
                         ))}
