@@ -12,6 +12,8 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
 import {
   Filter,
   Search,
