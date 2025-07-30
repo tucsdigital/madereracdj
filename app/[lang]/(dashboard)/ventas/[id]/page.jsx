@@ -1489,7 +1489,7 @@ const VentaDetalle = () => {
                       );
                     }
                     return (
-                      <div className="grid gap-3 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                         {productosFiltrados.map((prod) => {
                           const yaAgregado = (ventaEdit.productos || []).some(
                             (p) => p.id === prod.id
@@ -1497,14 +1497,14 @@ const VentaDetalle = () => {
                           return (
                             <div
                               key={prod.id}
-                              className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                              className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                                 yaAgregado
                                   ? "border-green-200 bg-green-50"
                                   : "border-gray-200 hover:border-blue-300"
                               }`}
                             >
-                              <div className="p-4">
-                                <div className="flex items-start justify-between">
+                              <div className="p-4 flex-1 flex flex-col">
+                                <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
                                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
@@ -1514,7 +1514,7 @@ const VentaDetalle = () => {
                                       </div>
                                       <h4 className="text-sm font-semibold  truncate">
                                         {prod.nombre}
-                </h4>
+                                      </h4>
                                       {yaAgregado && (
                                         <div className="flex items-center gap-1 text-green-600">
                                           <svg
@@ -1577,142 +1577,144 @@ const VentaDetalle = () => {
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="flex flex-col items-end gap-2 ml-4">
-                                    {yaAgregado ? (
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Math.max(
-                                                          1,
-                                                          p.cantidad - 1
-                                                        ),
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          disabled={
-                                            ventaEdit.productos.find(
-                                              (p) => p.id === prod.id
-                                            )?.cantidad <= 1
-                                          }
-                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                        >
-                                          -
-                                        </button>
-                    <input
-                      type="number"
-                      min={1}
-                                          value={
-                                            ventaEdit.productos.find(
-                                              (p) => p.id === prod.id
-                                            )?.cantidad || 1
-                                          }
-                      onChange={(e) =>
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Number(
-                                                          e.target.value
-                                                        ),
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          className="w-12 text-center border rounded"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad:
-                                                          p.cantidad + 1,
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                        >
-                                          +
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setVentaEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.filter(
-                                                (p) => p.id !== prod.id
-                                              ),
-                                            }))
-                                          }
-                                          className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                        >
-                                          Quitar
-                                        </button>
-                  </div>
-                                    ) : (
+                                </div>
+                                
+                                {/* Controles de acción al final */}
+                                <div className="mt-auto">
+                                  {yaAgregado ? (
+                                    <div className="flex items-center gap-2">
                                       <button
                                         type="button"
                                         onClick={() =>
                                           setVentaEdit((prev) => ({
                                             ...prev,
-                                            productos: [
-                                              ...(prev.productos || []),
-                                              {
-                                                id: prod.id,
-                                                nombre: prod.nombre,
-                                                precio:
-                                                  prod.precioPorPie ||
-                                                  prod.valorVenta ||
-                                                  prod.precioUnidad ||
-                                                  0,
-                                                unidad:
-                                                  prod.unidadMedida ||
-                                                  prod.unidadVenta ||
-                                                  prod.unidadVentaHerraje ||
-                                                  prod.unidadVentaQuimico ||
-                                                  prod.unidadVentaHerramienta,
-                                                stock: prod.stock,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                categoria: prod.categoria,
-                                                alto: Number(prod.alto) || 0,
-                                                ancho: Number(prod.ancho) || 0,
-                                                largo: Number(prod.largo) || 0,
-                                                precioPorPie:
-                                                  Number(prod.precioPorPie) ||
-                                                  0,
-                                                cepilladoAplicado: false, // Agregar propiedad por defecto
-                                              },
-                                            ],
+                                            productos: prev.productos.map(
+                                              (p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad: Math.max(
+                                                        1,
+                                                        p.cantidad - 1
+                                                      ),
+                                                    }
+                                                  : p
+                                            ),
                                           }))
                                         }
-                                        className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                        disabled={
+                                          ventaEdit.productos.find(
+                                            (p) => p.id === prod.id
+                                          )?.cantidad <= 1
+                                        }
+                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                                       >
-                                        Agregar
+                                        -
                                       </button>
-                                    )}
-                  </div>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={
+                                          ventaEdit.productos.find(
+                                            (p) => p.id === prod.id
+                                          )?.cantidad || 1
+                                        }
+                                        onChange={(e) =>
+                                          setVentaEdit((prev) => ({
+                                            ...prev,
+                                            productos: prev.productos.map(
+                                              (p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad: Number(
+                                                        e.target.value
+                                                      ),
+                                                    }
+                                                  : p
+                                            ),
+                                          }))
+                                        }
+                                        className="w-12 text-center border rounded"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setVentaEdit((prev) => ({
+                                            ...prev,
+                                            productos: prev.productos.map(
+                                              (p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad:
+                                                        p.cantidad + 1,
+                                                    }
+                                                  : p
+                                            ),
+                                          }))
+                                        }
+                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                      >
+                                        +
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setVentaEdit((prev) => ({
+                                            ...prev,
+                                            productos: prev.productos.filter(
+                                              (p) => p.id !== prod.id
+                                            ),
+                                          }))
+                                        }
+                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setVentaEdit((prev) => ({
+                                          ...prev,
+                                          productos: [
+                                            ...(prev.productos || []),
+                                            {
+                                              id: prod.id,
+                                              nombre: prod.nombre,
+                                              precio:
+                                                prod.precioPorPie ||
+                                                prod.valorVenta ||
+                                                prod.precioUnidad ||
+                                                0,
+                                              unidad:
+                                                prod.unidadMedida ||
+                                                prod.unidadVenta ||
+                                                prod.unidadVentaHerraje ||
+                                                prod.unidadVentaQuimico ||
+                                                prod.unidadVentaHerramienta,
+                                              stock: prod.stock,
+                                              cantidad: 1,
+                                              descuento: 0,
+                                              categoria: prod.categoria,
+                                              alto: Number(prod.alto) || 0,
+                                              ancho: Number(prod.ancho) || 0,
+                                              largo: Number(prod.largo) || 0,
+                                              precioPorPie:
+                                                Number(prod.precioPorPie) ||
+                                                0,
+                                              cepilladoAplicado: false, // Agregar propiedad por defecto
+                                            },
+                                          ],
+                                        }))
+                                      }
+                                      className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                    >
+                                      Agregar
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>

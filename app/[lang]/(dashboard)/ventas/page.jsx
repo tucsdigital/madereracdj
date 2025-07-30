@@ -978,7 +978,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
               </div>
 
-              {/* Lista de productos mejorada */}
+              {/* Lista de productos */}
               <div className="max-h-96 overflow-y-auto">
                 {categoriasState.length === 0 ? (
                   <div className="p-8 text-center">
@@ -1061,7 +1061,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-3 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                     {productosPorCategoria[categoriaId]
                       ?.filter(
                         (prod) =>
@@ -1096,14 +1096,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         return (
                           <div
                             key={prod.id}
-                            className={`group relative bg-white dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                            className={`group relative bg-white dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                               yaAgregado
                                 ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
                                 : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
                             }`}
                           >
-                            <div className="p-4">
-                              <div className="flex items-start justify-between">
+                            <div className="p-4 flex flex-col h-full">
+                              <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
                                     <div
@@ -1140,7 +1140,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     )}
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 dark:text-gray-400 mb-3">
                                     <div>
                                       <span className="font-medium">
                                         Precio:
@@ -1191,7 +1191,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
                                   {/* Dimensiones para maderas */}
                                   {prod.categoria === "Maderas" && (
-                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
+                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
                                       <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
                                         <svg
                                           className="w-3 h-3"
@@ -1236,7 +1236,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
                                   {/* Alertas de stock */}
                                   {prod.stock <= 0 && (
-                                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700">
+                                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 mb-3">
                                       <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
                                         <svg
                                           className="w-3 h-3"
@@ -1257,7 +1257,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     </div>
                                   )}
                                   {prod.stock > 0 && prod.stock <= 3 && (
-                                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
+                                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700 mb-3">
                                       <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
                                         <svg
                                           className="w-3 h-3"
@@ -1278,126 +1278,126 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     </div>
                                   )}
                                 </div>
+                              </div>
 
-                                <div className="flex flex-col items-end gap-2 ml-4">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
-                                  <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleDecrementarCantidad(prod.id)
-                                        }
-                                        disabled={
-                                          isSubmitting ||
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad <= 1
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad || 1
-                                        }
-                                        onChange={(e) =>
-                                          handleCantidadChange(
-                                            prod.id,
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-12 text-center border rounded"
-                                        disabled={isSubmitting}
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleIncrementarCantidad(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                      >
-                                        +
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleQuitarProducto(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  ) : (
+                              <div className="mt-auto">
+                                {yaAgregado ? (
+                                  <div className="flex items-center gap-2">
                                     <button
                                       type="button"
+                                      onClick={() =>
+                                        handleDecrementarCantidad(prod.id)
+                                      }
+                                      disabled={
+                                        isSubmitting ||
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad <= 1
+                                      }
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad || 1
+                                      }
+                                      onChange={(e) =>
+                                        handleCantidadChange(
+                                          prod.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-12 text-center border rounded"
+                                      disabled={isSubmitting}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleIncrementarCantidad(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleQuitarProducto(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                    >
+                                      Quitar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
                                     onClick={() => {
-                                        if (prod.categoria === "Maderas") {
-                                          const alto = Number(prod.alto) || 0;
-                                          const ancho = Number(prod.ancho) || 0;
-                                          const largo = Number(prod.largo) || 0;
-                                          const precioPorPie =
-                                            Number(prod.precioPorPie) || 0;
-                                          if (
-                                            alto > 0 &&
-                                            ancho > 0 &&
-                                            largo > 0 &&
-                                            precioPorPie > 0
-                                          ) {
-                                            const precio =
-                                              calcularPrecioCorteMadera({
-                                                alto,
-                                                ancho,
-                                                largo,
-                                                precioPorPie,
-                                              });
-                                            handleAgregarProducto({
-                                              id: prod.id,
-                                              nombre: prod.nombre,
-                                              precio,
-                                              unidad: prod.unidadMedida,
-                                              stock: prod.stock,
+                                      if (prod.categoria === "Maderas") {
+                                        const alto = Number(prod.alto) || 0;
+                                        const ancho = Number(prod.ancho) || 0;
+                                        const largo = Number(prod.largo) || 0;
+                                        const precioPorPie =
+                                          Number(prod.precioPorPie) || 0;
+                                        if (
+                                          alto > 0 &&
+                                          ancho > 0 &&
+                                          largo > 0 &&
+                                          precioPorPie > 0
+                                        ) {
+                                          const precio =
+                                            calcularPrecioCorteMadera({
                                               alto,
                                               ancho,
                                               largo,
                                               precioPorPie,
                                             });
-                                          } else {
-                                            setSubmitStatus("error");
-                                            setSubmitMessage(
-                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                            );
-                                            return;
-                                          }
-                                        } else {
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
-                                            precio: precio,
-                                            unidad:
-                                              prod.unidadMedida ||
-                                              prod.unidadVenta ||
-                                              prod.unidadVentaHerraje ||
-                                              prod.unidadVentaQuimico ||
-                                              prod.unidadVentaHerramienta,
+                                            precio,
+                                            unidad: prod.unidadMedida,
                                             stock: prod.stock,
+                                            alto,
+                                            ancho,
+                                            largo,
+                                            precioPorPie,
                                           });
-                                      }
-                                    }}
+                                        } else {
+                                          setSubmitStatus("error");
+                                          setSubmitMessage(
+                                            "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                          );
+                                          return;
+                                        }
+                                      } else {
+                                        handleAgregarProducto({
+                                          id: prod.id,
+                                          nombre: prod.nombre,
+                                          precio: precio,
+                                          unidad:
+                                            prod.unidadMedida ||
+                                            prod.unidadVenta ||
+                                            prod.unidadVentaHerraje ||
+                                            prod.unidadVentaQuimico ||
+                                            prod.unidadVentaHerramienta,
+                                          stock: prod.stock,
+                                        });
+                                    }
+                                  }}
                                     disabled={isSubmitting}
-                                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    >
-                                      Agregar
-                                    </button>
-                                  )}
-                                </div>
+                                    className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                  >
+                                    Agregar
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>

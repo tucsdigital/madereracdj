@@ -995,7 +995,7 @@ const PresupuestoDetalle = () => {
                         );
                       }
                       return (
-                        <div className="grid gap-3 p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                           {productosFiltrados.map((prod) => {
                             const yaAgregado = (
                               presupuestoEdit.productos || []
@@ -1003,14 +1003,14 @@ const PresupuestoDetalle = () => {
                             return (
                               <div
                                 key={prod.id}
-                                className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                                className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                                   yaAgregado
                                     ? "border-green-200 bg-green-50"
                                     : "border-gray-200 hover:border-blue-300"
                                 }`}
                               >
-                                <div className="p-4">
-                                  <div className="flex items-start justify-between">
+                                <div className="p-4 flex flex-col h-full">
+                                  <div className="flex items-start justify-between mb-3">
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-3 mb-2">
                                         <div
@@ -1046,7 +1046,7 @@ const PresupuestoDetalle = () => {
                                           </div>
                                         )}
                                       </div>
-                                      <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                                      <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
                                         <div>
                                           <span className="font-medium">
                                             Precio:
@@ -1088,147 +1088,247 @@ const PresupuestoDetalle = () => {
                                             {prod.stock}
                                           </span>
                                         </div>
+                                        {prod.categoria === "Maderas" && (
+                                          <div>
+                                            <span className="font-medium">
+                                              $/pie:
+                                            </span>
+                                            <span className="ml-1 font-bold text-orange-600">
+                                              {prod.precioPorPie}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-2 ml-4">
-                                      {yaAgregado ? (
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad: Math.max(
-                                                            1,
-                                                            p.cantidad - 1
-                                                          ),
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            disabled={
-                                              presupuestoEdit.productos.find(
-                                                (p) => p.id === prod.id
-                                              )?.cantidad <= 1
-                                            }
-                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                          >
-                                            -
-                                          </button>
-                                          <input
-                                            type="number"
-                                            min={1}
-                                            value={
-                                              presupuestoEdit.productos.find(
-                                                (p) => p.id === prod.id
-                                              )?.cantidad || 1
-                                            }
-                                            onChange={(e) =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad: Number(
-                                                            e.target.value
-                                                          ),
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            className="w-12 text-center border rounded"
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos: prev.productos.map(
-                                                  (p) =>
-                                                    p.id === prod.id
-                                                      ? {
-                                                          ...p,
-                                                          cantidad:
-                                                            p.cantidad + 1,
-                                                        }
-                                                      : p
-                                                ),
-                                              }))
-                                            }
-                                            className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                          >
-                                            +
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setPresupuestoEdit((prev) => ({
-                                                ...prev,
-                                                productos:
-                                                  prev.productos.filter(
-                                                    (p) => p.id !== prod.id
-                                                  ),
-                                              }))
-                                            }
-                                            className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                          >
-                                            Quitar
-                                          </button>
+
+                                      {/* Dimensiones para maderas */}
+                                      {prod.categoria === "Maderas" && (
+                                        <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
+                                          <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
+                                            <svg
+                                              className="w-3 h-3"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                            <span className="font-medium">
+                                              Dimensiones
+                                            </span>
+                                          </div>
+                                          <div className="flex gap-3 text-xs">
+                                            <span>
+                                              Alto:{" "}
+                                              <span className="font-bold">
+                                                {prod.alto || 0}
+                                              </span>{" "}
+                                              cm
+                                            </span>
+                                            <span>
+                                              Ancho:{" "}
+                                              <span className="font-bold">
+                                                {prod.ancho || 0}
+                                              </span>{" "}
+                                              cm
+                                            </span>
+                                            <span>
+                                              Largo:{" "}
+                                              <span className="font-bold">
+                                                {prod.largo || 0}
+                                              </span>{" "}
+                                              cm
+                                            </span>
+                                          </div>
                                         </div>
-                                      ) : (
+                                      )}
+
+                                      {/* Alertas de stock */}
+                                      {prod.stock <= 0 && (
+                                        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 mb-3">
+                                          <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
+                                            <svg
+                                              className="w-3 h-3"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                            <span className="font-medium">
+                                              ¡Sin stock! Se permitirá avanzar
+                                              igual.
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {prod.stock > 0 && prod.stock <= 3 && (
+                                        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700 mb-3">
+                                          <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
+                                            <svg
+                                              className="w-3 h-3"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                            <span className="font-medium">
+                                              Stock bajo: quedan {prod.stock}{" "}
+                                              unidades.
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-auto">
+                                    {yaAgregado ? (
+                                      <div className="flex items-center gap-2">
                                         <button
                                           type="button"
                                           onClick={() =>
                                             setPresupuestoEdit((prev) => ({
                                               ...prev,
-                                              productos: [
-                                                ...(prev.productos || []),
-                                                {
-                                                  id: prod.id,
-                                                  nombre: prod.nombre,
-                                                  precio:
-                                                    prod.precioPorPie ||
-                                                    prod.valorVenta ||
-                                                    prod.precioUnidad ||
-                                                    0,
-                                                  unidad:
-                                                    prod.unidadMedida ||
-                                                    prod.unidadVenta ||
-                                                    prod.unidadVentaHerraje ||
-                                                    prod.unidadVentaQuimico ||
-                                                    prod.unidadVentaHerramienta,
-                                                  stock: prod.stock,
-                                                  cantidad: 1,
-                                                  descuento: 0,
-                                                  categoria: prod.categoria,
-                                                  alto: Number(prod.alto) || 0,
-                                                  ancho:
-                                                    Number(prod.ancho) || 0,
-                                                  largo:
-                                                    Number(prod.largo) || 0,
-                                                  precioPorPie:
-                                                    Number(prod.precioPorPie) ||
-                                                    0,
-                                                  cepilladoAplicado: false, // Agregar propiedad por defecto
-                                                },
-                                              ],
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Math.max(
+                                                          1,
+                                                          p.cantidad - 1
+                                                        ),
+                                                      }
+                                                    : p
+                                              ),
                                             }))
                                           }
-                                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                          disabled={
+                                            presupuestoEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad <= 1
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                                         >
-                                          Agregar
+                                          -
                                         </button>
-                                      )}
-                                    </div>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          value={
+                                            presupuestoEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad || 1
+                                          }
+                                          onChange={(e) =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad: Number(
+                                                          e.target.value
+                                                        ),
+                                                      }
+                                                    : p
+                                              ),
+                                            }))
+                                          }
+                                          className="w-12 text-center border rounded"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map(
+                                                (p) =>
+                                                  p.id === prod.id
+                                                    ? {
+                                                        ...p,
+                                                        cantidad:
+                                                          p.cantidad + 1,
+                                                      }
+                                                    : p
+                                              ),
+                                            }))
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                        >
+                                          +
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos:
+                                                prev.productos.filter(
+                                                  (p) => p.id !== prod.id
+                                                ),
+                                            }))
+                                          }
+                                          className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setPresupuestoEdit((prev) => ({
+                                            ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio:
+                                                  prod.precioPorPie ||
+                                                  prod.valorVenta ||
+                                                  prod.precioUnidad ||
+                                                  0,
+                                                unidad:
+                                                  prod.unidadMedida ||
+                                                  prod.unidadVenta ||
+                                                  prod.unidadVentaHerraje ||
+                                                  prod.unidadVentaQuimico ||
+                                                  prod.unidadVentaHerramienta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                                alto: Number(prod.alto) || 0,
+                                                ancho:
+                                                  Number(prod.ancho) || 0,
+                                                largo:
+                                                  Number(prod.largo) || 0,
+                                                precioPorPie:
+                                                  Number(prod.precioPorPie) ||
+                                                  0,
+                                                cepilladoAplicado: false, // Agregar propiedad por defecto
+                                              },
+                                            ],
+                                          }))
+                                        }
+                                        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                      >
+                                        Agregar
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
