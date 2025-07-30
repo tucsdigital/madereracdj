@@ -1249,28 +1249,28 @@ const PresupuestoDetalle = () => {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
-                        <thead>
-                          <tr className="bg-primary/10 text-primary font-semibold">
-                            <th className="p-2 text-left">Categoría</th>
-                            <th className="p-2 text-left">Producto</th>
-                            <th className="p-2 text-center">Cant.</th>
-                            <th className="p-2 text-center">Precio unit.</th>
-                            <th className="p-2 text-center">Desc.</th>
-                            <th className="p-2 text-center">Subtotal</th>
-                            <th className="p-2 text-center">Acción</th>
+                      <table className="w-full caption-top text-sm overflow-hidden">
+                      <thead className="[&_tr]:border-b bg-default-">
+                      <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Categoría</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Producto</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cant.</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Precio unit.</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Desc.</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Subtotal</th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Acción</th>
                           </tr>
                         </thead>
                         <tbody>
                           {(presupuestoEdit.productos || []).map((p, idx) => (
                             <tr
                               key={p.id}
-                              className="border-b hover:bg-primary/5 transition-all"
+                              className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
                             >
-                              <td className="p-2 text-xs font-medium text-gray-600">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 {p.categoria}
                               </td>
-                              <td className="p-2">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <div className="font-semibold text-default-900">
                                   {p.nombre}
                                 </div>
@@ -1332,7 +1332,7 @@ const PresupuestoDetalle = () => {
                                   </div>
                                 )}
                               </td>
-                              <td className="text-center">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <div className="flex items-center justify-center">
                                   <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
                                     <button
@@ -1415,8 +1415,8 @@ const PresupuestoDetalle = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td className="text-center">${p.precio}</td>
-                              <td className="text-center">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">${p.precio}</td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <input
                                   type="number"
                                   min={0}
@@ -1436,7 +1436,7 @@ const PresupuestoDetalle = () => {
                                   disabled={loadingPrecios}
                                 />
                               </td>
-                              <td className="text-center font-semibold text-primary">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
                                 $
                                 {(
                                   Number(p.precio) *
@@ -1444,7 +1444,7 @@ const PresupuestoDetalle = () => {
                                   (1 - Number(p.descuento || 0) / 100)
                                 ).toFixed(2)}
                               </td>
-                              <td className="text-center">
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1548,9 +1548,6 @@ const PresupuestoDetalle = () => {
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
                       <th className="text-center p-3 font-medium">Unidad</th>
-                      <th className="text-right p-3 font-medium">
-                        Precio Unit.
-                      </th>
                       <th className="text-right p-3 font-medium">Descuento</th>
                       <th className="text-right p-3 font-medium">Subtotal</th>
                     </tr>
@@ -1580,9 +1577,6 @@ const PresupuestoDetalle = () => {
                               </td>
                               <td className="p-3 text-center">
                                 {producto.unidad || "-"}
-                              </td>
-                              <td className="p-3 text-right">
-                                ${safeNumber(producto.precio).toFixed(2)}
                               </td>
                               <td className="p-3 text-right">
                                 {safeNumber(producto.descuento).toFixed(2)}%
