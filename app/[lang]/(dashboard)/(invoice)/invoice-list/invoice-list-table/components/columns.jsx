@@ -367,3 +367,146 @@ export const columnsVentas = [
     )
   },
 ];
+
+export const columnsObras = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-[2px]"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-[2px]"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "numeroPedido",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Número" />
+    ),
+    cell: ({ row }) => (
+      <div className="w-[120px] font-mono text-xs">
+        {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8) || "-"}
+      </div>
+    ),
+    enableSorting: true,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "fecha",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Fecha" />
+    ),
+    cell: ({ row }) => (
+      <div className="w-[100px]">
+        {formatDate(row.getValue("fecha"))}
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "cliente",
+    header: "Cliente",
+    cell: ({ row }) => (
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-default-600 whitespace-nowrap">
+          {row?.original?.cliente?.nombre || "-"}
+        </span>
+        <span className="text-xs text-default-500 whitespace-nowrap">
+          {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+        </span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "tipo",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Tipo" />
+    ),
+    cell: ({ row }) => {
+      const tipo = row.getValue("tipo");
+      return (
+        <Badge variant={tipo === "obra" ? "default" : "secondary"}>
+          {tipo === "obra" ? "Obra" : "Proyecto"}
+        </Badge>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "total",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Total" />
+    ),
+    cell: ({ row }) => {
+      const total = row.getValue("total");
+      return (
+        <div className="text-right font-medium">
+          ${total ? Number(total).toLocaleString("es-AR", { minimumFractionDigits: 2 }) : "0.00"}
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "estado",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Estado" />
+    ),
+    cell: ({ row }) => {
+      const estado = row.getValue("estado");
+      const color = getStatusColor(estado);
+      return (
+        <Badge variant={color}>
+          {estado || "Pendiente"}
+        </Badge>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      const obra = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+          >
+            <Link href={`/es/obras-proyectos/${obra.id}`}>
+              <Icon icon="heroicons:eye" className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+          >
+            <Link href={`/es/obras-proyectos/${obra.id}?edit=true`}>
+              <Icon icon="heroicons:pencil" className="w-4 h-4" />
+            </Link>
+          </Button>
+        </div>
+      );
+    },
+    enableSorting: false,
+    enableHiding: false,
+  },
+];
