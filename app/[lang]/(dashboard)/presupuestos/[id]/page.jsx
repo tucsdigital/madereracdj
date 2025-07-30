@@ -583,9 +583,9 @@ const PresupuestoDetalle = () => {
         </div>
         {/* Header */}
         <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold ">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold">
                 N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
               </h1>
               {/* Mostrar observaciones si existen */}
@@ -595,30 +595,34 @@ const PresupuestoDetalle = () => {
                 </p>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
               <Button
                 variant="outline"
                 onClick={() => router.back()}
-                className="no-print"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver
+                <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Volver</span>
+                <span className="sm:hidden">←</span>
               </Button>
-              <Button onClick={handlePrint} className="no-print">
-                <Printer className="w-4 h-4 mr-2" />
-                Imprimir
+              <Button onClick={handlePrint} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
+                <Printer className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Imprimir</span>
+                <span className="sm:hidden">🖨️</span>
               </Button>
               {!editando && !convirtiendoVenta && (
-                <Button onClick={() => setEditando(true)} className="no-print">
-                  Editar
+                <Button onClick={() => setEditando(true)} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
+                  <span className="hidden sm:inline">Editar</span>
+                  <span className="sm:hidden">✏️</span>
                 </Button>
               )}
               {!editando && !convirtiendoVenta && (
                 <Button
                   onClick={() => setConvirtiendoVenta(true)}
-                  className="no-print"
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
-                  Convertir a Venta
+                  <span className="hidden sm:inline">Convertir a Venta</span>
+                  <span className="sm:hidden">💰</span>
                 </Button>
               )}
             </div>
