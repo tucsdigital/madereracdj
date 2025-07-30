@@ -186,17 +186,17 @@ const PresupuestoDetalle = () => {
               }
             } else if (productoActualizado.categoria === "Ferretería") {
               nuevoPrecio = productoActualizado.valorVenta || 0;
-            } else {
+          } else {
               nuevoPrecio =
                 productoActualizado.precioUnidad ||
                 productoActualizado.precioUnidadVenta ||
                 productoActualizado.precioUnidadHerraje ||
                 productoActualizado.precioUnidadQuimico ||
                 productoActualizado.precioUnidadHerramienta ||
-                0;
-            }
-
-            return {
+              0;
+          }
+          
+          return {
               ...productoPresupuesto,
               precio: nuevoPrecio,
             };
@@ -307,13 +307,13 @@ const PresupuestoDetalle = () => {
             (Number(p.descuento || 0) / 100),
         0
       );
-      const costoEnvioCalculado =
-        presupuestoEdit.tipoEnvio &&
-        presupuestoEdit.tipoEnvio !== "retiro_local" &&
-        presupuestoEdit.costoEnvio !== undefined &&
-        presupuestoEdit.costoEnvio !== "" &&
-        !isNaN(Number(presupuestoEdit.costoEnvio))
-          ? Number(presupuestoEdit.costoEnvio)
+      const costoEnvioCalculado = 
+        presupuestoEdit.tipoEnvio && 
+        presupuestoEdit.tipoEnvio !== "retiro_local" && 
+        presupuestoEdit.costoEnvio !== undefined && 
+        presupuestoEdit.costoEnvio !== "" && 
+        !isNaN(Number(presupuestoEdit.costoEnvio)) 
+          ? Number(presupuestoEdit.costoEnvio) 
           : 0;
       const total = subtotal - descuentoTotal + costoEnvioCalculado;
       let numeroPedido = presupuestoEdit.numeroPedido;
@@ -485,11 +485,11 @@ const PresupuestoDetalle = () => {
           body * { visibility: hidden !important; }
           #presupuesto-print, #presupuesto-print * { visibility: visible !important; }
           #presupuesto-print .no-print, #presupuesto-print .no-print * { display: none !important; }
-          #presupuesto-print { 
+          #presupuesto-print {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            margin: 0 !important; 
+            margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
             background: white !important;
@@ -712,14 +712,14 @@ const PresupuestoDetalle = () => {
             <h3 className="font-semibold text-lg mb-4 ">
               Editar Presupuesto
             </h3>
-
+            
             {/* Mensaje de error */}
             {errorForm && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-800 text-sm font-medium">{errorForm}</p>
               </div>
             )}
-
+            
             {/* Información editable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="space-y-4">
@@ -768,7 +768,7 @@ const PresupuestoDetalle = () => {
                   </div>
                 )}
               </div>
-
+              
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -871,8 +871,8 @@ const PresupuestoDetalle = () => {
                                   : "bg-gray-100 text-gray-700"
                               }`}
                               onClick={() =>
-                                setPresupuestoEdit((prev) => ({
-                                  ...prev,
+                setPresupuestoEdit((prev) => ({
+                  ...prev,
                                   categoriaId: categoria,
                                 }))
                               }
@@ -1235,64 +1235,6 @@ const PresupuestoDetalle = () => {
                     })()}
                   </div>
                 </section>
-                <div className="flex gap-2 mt-6">
-                  <Button
-                    variant="default"
-                    onClick={handleGuardarCambios}
-                    disabled={loadingPrecios}
-                  >
-                    Guardar cambios
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditando(false)}
-                    disabled={loadingPrecios}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleActualizarPrecios}
-                    disabled={loadingPrecios}
-                  >
-                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
-                  </Button>
-                </div>
-                {errorForm && (
-                  <div className="text-red-500 mt-2">{errorForm}</div>
-                )}
-                {(presupuestoEdit.productos || []).length > 0 && (
-                  <div className="flex flex-col items-end gap-2 mt-4">
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                      <div>
-                        Subtotal: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div>
-                        Descuento: <span className="font-bold">
-                          ${presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0).toFixed(2)}
-                        </span>
-                      </div>
-                      {presupuestoEdit.costoEnvio && Number(presupuestoEdit.costoEnvio) > 0 && (
-                        <div>
-                          Costo de envío: <span className="font-bold">
-                            ${Number(presupuestoEdit.costoEnvio).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                      <div>
-                        Total: <span className="font-bold text-primary">
-                          ${(
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad), 0) -
-                            presupuestoEdit.productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.cantidad) * (Number(p.descuento || 0) / 100), 0) +
-                            (Number(presupuestoEdit.costoEnvio) || 0)
-                          ).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Tabla de productos seleccionados en modo edición */}
                 {(presupuestoEdit.productos || []).length > 0 && (
@@ -1559,6 +1501,34 @@ const PresupuestoDetalle = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Botones al final de todas las secciones editables */}
+                <div className="flex gap-2 mt-6">
+                  <Button
+                    variant="default"
+                    onClick={handleGuardarCambios}
+                    disabled={loadingPrecios}
+                  >
+                    Guardar cambios
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditando(false)}
+                    disabled={loadingPrecios}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleActualizarPrecios}
+                    disabled={loadingPrecios}
+                  >
+                    {loadingPrecios ? "Actualizando..." : "Actualizar precios"}
+                  </Button>
+                </div>
+                {errorForm && (
+                  <div className="text-red-500 mt-2">{errorForm}</div>
+                )}
               </div>
             )}
           </div>
@@ -1713,11 +1683,11 @@ const PresupuestoDetalle = () => {
                         );
                         const envio =
                           presupuesto.costoEnvio !== undefined &&
-                          presupuesto.costoEnvio !== "" &&
-                          !isNaN(Number(presupuesto.costoEnvio)) &&
-                          Number(presupuesto.costoEnvio) > 0
-                            ? Number(presupuesto.costoEnvio)
-                            : 0;
+                                     presupuesto.costoEnvio !== "" && 
+                                     !isNaN(Number(presupuesto.costoEnvio)) && 
+                                     Number(presupuesto.costoEnvio) > 0 
+                                       ? Number(presupuesto.costoEnvio) 
+                                       : 0;
                         return (subtotal - descuento + envio).toLocaleString(
                           "es-AR",
                           { minimumFractionDigits: 2 }
@@ -1774,25 +1744,25 @@ const PresupuestoDetalle = () => {
                       const descuento = safeNumber(presupuesto.descuentoTotal);
                       const envio =
                         presupuesto.costoEnvio !== undefined &&
-                        presupuesto.costoEnvio !== "" &&
-                        !isNaN(Number(presupuesto.costoEnvio)) &&
-                        Number(presupuesto.costoEnvio) > 0
-                          ? Number(presupuesto.costoEnvio)
-                          : 0;
+                                   presupuesto.costoEnvio !== "" && 
+                                   !isNaN(Number(presupuesto.costoEnvio)) && 
+                                   Number(presupuesto.costoEnvio) > 0 
+                                     ? Number(presupuesto.costoEnvio) 
+                                     : 0;
                       return subtotal - descuento + envio;
                     })(),
                     observaciones: presupuesto.observaciones,
-
+                    
                     // Datos específicos de venta
                     tipo: "venta",
                     fechaCreacion: new Date().toISOString(),
                     numeroPedido: await getNextVentaNumber(),
-
+                    
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     montoAbonado: ventaCampos.montoAbonado || 0,
-
+                    
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
@@ -1803,12 +1773,12 @@ const PresupuestoDetalle = () => {
                     localidadEnvio: ventaCampos.localidadEnvio,
                     usarDireccionCliente:
                       ventaCampos.usarDireccionCliente || true,
-
+                    
                     // Campos adicionales
                     vendedor: ventaCampos.vendedor,
                     prioridad: ventaCampos.prioridad,
                   };
-
+                  
                   // Limpiar datos antes de guardar (igual que en ventas/page.jsx)
                   const cleanVentaData = JSON.parse(
                     JSON.stringify(ventaData, (key, value) => {
@@ -1816,18 +1786,18 @@ const PresupuestoDetalle = () => {
                       return value;
                     })
                   );
-
+                  
                   console.log(
                     "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
                     cleanVentaData
                   );
-
+                  
                   // Guardar venta en Firestore
                   const docRef = await addDoc(
                     collection(db, "ventas"),
                     cleanVentaData
                   );
-
+                  
                   // Descontar stock y registrar movimientos (igual que en ventas/page.jsx)
                   for (const prod of cleanVentaData.productos) {
                     console.log(
@@ -1864,7 +1834,7 @@ const PresupuestoDetalle = () => {
                       productoNombre: prod.nombre,
                     });
                   }
-
+                  
                   // Crear envío si corresponde (igual que en ventas/page.jsx)
                   if (
                     cleanVentaData.tipoEnvio &&
@@ -1915,7 +1885,7 @@ const PresupuestoDetalle = () => {
                       docRef.id
                     );
                   }
-
+                  
                   setConvirtiendoVenta(false);
                   router.push(`/${lang}/ventas/${docRef.id}`);
                 } catch (error) {
@@ -2060,28 +2030,28 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             .min(1, "Debe ingresar un monto")
             .max(
               (() => {
-                const subtotal = presupuesto.subtotal || 0;
-                const descuento = presupuesto.descuentoTotal || 0;
+              const subtotal = presupuesto.subtotal || 0;
+              const descuento = presupuesto.descuentoTotal || 0;
                 const envio =
                   presupuesto.costoEnvio !== undefined &&
-                  presupuesto.costoEnvio !== "" &&
-                  !isNaN(Number(presupuesto.costoEnvio)) &&
-                  Number(presupuesto.costoEnvio) > 0
-                    ? Number(presupuesto.costoEnvio)
-                    : 0;
-                return subtotal - descuento + envio;
+                           presupuesto.costoEnvio !== "" && 
+                           !isNaN(Number(presupuesto.costoEnvio)) && 
+                           Number(presupuesto.costoEnvio) > 0 
+                             ? Number(presupuesto.costoEnvio) 
+                             : 0;
+              return subtotal - descuento + envio;
               })(),
               `No puede exceder el total de $${(() => {
-                const subtotal = presupuesto.subtotal || 0;
-                const descuento = presupuesto.descuentoTotal || 0;
+              const subtotal = presupuesto.subtotal || 0;
+              const descuento = presupuesto.descuentoTotal || 0;
                 const envio =
                   presupuesto.costoEnvio !== undefined &&
-                  presupuesto.costoEnvio !== "" &&
-                  !isNaN(Number(presupuesto.costoEnvio)) &&
-                  Number(presupuesto.costoEnvio) > 0
-                    ? Number(presupuesto.costoEnvio)
-                    : 0;
-                return (subtotal - descuento + envio).toFixed(2);
+                           presupuesto.costoEnvio !== "" && 
+                           !isNaN(Number(presupuesto.costoEnvio)) && 
+                           Number(presupuesto.costoEnvio) > 0 
+                             ? Number(presupuesto.costoEnvio) 
+                             : 0;
+              return (subtotal - descuento + envio).toFixed(2);
               })()}`
             )
             .required("Obligatorio"),
@@ -2128,7 +2098,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       otherwise: (s) => s.notRequired(),
     }),
   });
-
+  
   // Determinar valores por defecto inteligentes
   const getDefaultValues = () => {
     const defaults = {
@@ -2155,7 +2125,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 
     return defaults;
   };
-
+  
   const {
     register,
     handleSubmit,
@@ -2172,7 +2142,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
-
+  
   // Limpiar montoAbonado si se desmarca pagoParcial
   React.useEffect(() => {
     if (!watch("pagoParcial")) {
@@ -2206,7 +2176,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información de envío
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Tipo de envío *
@@ -2231,166 +2201,166 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               </span>
             )}
           </div>
-
+          
           {tipoEnvioSeleccionado &&
             tipoEnvioSeleccionado !== "retiro_local" && (
-              <>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="usarDireccionCliente"
-                    {...register("usarDireccionCliente")}
-                  />
-                  <label htmlFor="usarDireccionCliente" className="text-sm">
-                    Usar dirección del cliente
-                  </label>
-                </div>
-
-                {!usarDireccionCliente && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Dirección de envío *
-                      </label>
-                      <Input
-                        {...register("direccionEnvio")}
-                        placeholder="Dirección de envío"
-                        className={`w-full ${
-                          errors.direccionEnvio ? "border-red-500" : ""
-                        }`}
-                      />
-                      {errors.direccionEnvio && (
+            <>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="usarDireccionCliente"
+                  {...register("usarDireccionCliente")}
+                />
+                <label htmlFor="usarDireccionCliente" className="text-sm">
+                  Usar dirección del cliente
+                </label>
+              </div>
+              
+              {!usarDireccionCliente && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dirección de envío *
+                    </label>
+                    <Input
+                      {...register("direccionEnvio")}
+                      placeholder="Dirección de envío"
+                      className={`w-full ${
+                        errors.direccionEnvio ? "border-red-500" : ""
+                      }`}
+                    />
+                    {errors.direccionEnvio && (
                         <span className="text-red-500 text-xs">
                           {errors.direccionEnvio.message}
                         </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Localidad *
-                      </label>
-                      <Input
-                        {...register("localidadEnvio")}
-                        placeholder="Localidad/Ciudad"
-                        className={`w-full ${
-                          errors.localidadEnvio ? "border-red-500" : ""
-                        }`}
-                      />
-                      {errors.localidadEnvio && (
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Localidad *
+                    </label>
+                    <Input
+                      {...register("localidadEnvio")}
+                      placeholder="Localidad/Ciudad"
+                      className={`w-full ${
+                        errors.localidadEnvio ? "border-red-500" : ""
+                      }`}
+                    />
+                    {errors.localidadEnvio && (
                         <span className="text-red-500 text-xs">
                           {errors.localidadEnvio.message}
                         </span>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Transportista *
-                  </label>
-                  <select
-                    {...register("transportista")}
-                    className={`w-full border rounded-md px-3 py-2 ${
+                    )}
+                  </div>
+                </>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Transportista *
+                </label>
+                <select
+                  {...register("transportista")}
+                  className={`w-full border rounded-md px-3 py-2 ${
                       errors.transportista
                         ? "border-red-500"
                         : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Seleccionar transportista...</option>
-                    {transportistas.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                  {errors.transportista && (
+                  }`}
+                >
+                  <option value="">Seleccionar transportista...</option>
+                  {transportistas.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+                {errors.transportista && (
                     <span className="text-red-500 text-xs">
                       {errors.transportista.message}
                     </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Costo de envío
-                  </label>
-                  <Input
-                    {...register("costoEnvio")}
-                    placeholder="Costo de envío"
-                    type="number"
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de entrega *
-                  </label>
-                  <Input
-                    {...register("fechaEntrega")}
-                    placeholder="Fecha de entrega"
-                    type="date"
-                    className={`w-full ${
-                      errors.fechaEntrega ? "border-red-500" : ""
-                    }`}
-                    value={
-                      watch("fechaEntrega")
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Costo de envío
+                </label>
+                <Input
+                  {...register("costoEnvio")}
+                  placeholder="Costo de envío"
+                  type="number"
+                  className="w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de entrega *
+                </label>
+                <Input
+                  {...register("fechaEntrega")}
+                  placeholder="Fecha de entrega"
+                  type="date"
+                  className={`w-full ${
+                    errors.fechaEntrega ? "border-red-500" : ""
+                  }`}
+                  value={
+                    watch("fechaEntrega")
                         ? new Date(watch("fechaEntrega"))
                             .toISOString()
                             .split("T")[0]
-                        : ""
-                    }
-                  />
-                  {errors.fechaEntrega && (
+                      : ""
+                  }
+                />
+                {errors.fechaEntrega && (
                     <span className="text-red-500 text-xs">
                       {errors.fechaEntrega.message}
                     </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rango horario *
-                  </label>
-                  <Input
-                    {...register("rangoHorario")}
-                    placeholder="Rango horario (ej: 8-12, 14-18)"
-                    className={`w-full ${
-                      errors.rangoHorario ? "border-red-500" : ""
-                    }`}
-                  />
-                  {errors.rangoHorario && (
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rango horario *
+                </label>
+                <Input
+                  {...register("rangoHorario")}
+                  placeholder="Rango horario (ej: 8-12, 14-18)"
+                  className={`w-full ${
+                    errors.rangoHorario ? "border-red-500" : ""
+                  }`}
+                />
+                {errors.rangoHorario && (
                     <span className="text-red-500 text-xs">
                       {errors.rangoHorario.message}
                     </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Prioridad *
-                  </label>
-                  <select
-                    {...register("prioridad")}
-                    className={`w-full border rounded-md px-3 py-2 ${
-                      errors.prioridad ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Seleccionar prioridad...</option>
-                    {prioridades.map((p) => (
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prioridad *
+                </label>
+                <select
+                  {...register("prioridad")}
+                  className={`w-full border rounded-md px-3 py-2 ${
+                    errors.prioridad ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <option value="">Seleccionar prioridad...</option>
+                  {prioridades.map((p) => (
                       <option key={p}>
                         {p.charAt(0).toUpperCase() + p.slice(1)}
                       </option>
-                    ))}
-                  </select>
-                  {errors.prioridad && (
+                  ))}
+                </select>
+                {errors.prioridad && (
                     <span className="text-red-500 text-xs">
                       {errors.prioridad.message}
                     </span>
-                  )}
-                </div>
-              </>
-            )}
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Condiciones de pago y entrega */}
@@ -2421,7 +2391,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               </span>
             )}
           </div>
-
+          
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -2432,7 +2402,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               ¿Pago parcial?
             </label>
           </div>
-
+          
           {watch("pagoParcial") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2446,11 +2416,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   const descuento = presupuesto.descuentoTotal || 0;
                   const envio =
                     presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0
-                      ? Number(presupuesto.costoEnvio)
-                      : 0;
+                               presupuesto.costoEnvio !== "" && 
+                               !isNaN(Number(presupuesto.costoEnvio)) && 
+                               Number(presupuesto.costoEnvio) > 0 
+                                 ? Number(presupuesto.costoEnvio) 
+                                 : 0;
                   return subtotal - descuento + envio;
                 })()}
                 placeholder={`Saldo pendiente: $${(() => {
@@ -2459,11 +2429,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   const descuento = presupuesto.descuentoTotal || 0;
                   const envio =
                     presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0
-                      ? Number(presupuesto.costoEnvio)
-                      : 0;
+                               presupuesto.costoEnvio !== "" && 
+                               !isNaN(Number(presupuesto.costoEnvio)) && 
+                               Number(presupuesto.costoEnvio) > 0 
+                                 ? Number(presupuesto.costoEnvio) 
+                                 : 0;
                   const total = subtotal - descuento + envio;
                   const montoAbonado = watch("montoAbonado")
                     ? Number(watch("montoAbonado"))
@@ -2489,7 +2459,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Vendedor responsable *
@@ -2513,7 +2483,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           </div>
         </div>
       </div>
-
+      
       <div className="flex gap-3 justify-end">
         <Button
           variant="outline"

@@ -288,30 +288,30 @@ const GastosPage = () => {
               {filtro ? "No se encontraron gastos con ese filtro" : "No hay gastos registrados"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Concepto</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Observaciones</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Concepto</TableHead>
+                <TableHead>Monto</TableHead>
+                <TableHead>Responsable</TableHead>
+                <TableHead>Observaciones</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
                 {gastosFiltrados.map(g => (
-                  <TableRow key={g.id}>
-                    <TableCell>{g.fecha}</TableCell>
+                <TableRow key={g.id}>
+                  <TableCell>{g.fecha}</TableCell>
                     <TableCell className="font-medium">{g.concepto}</TableCell>
                     <TableCell className="font-bold text-red-600">
                       ${Number(g.monto).toLocaleString("es-AR")}
                     </TableCell>
-                    <TableCell>{g.responsable}</TableCell>
+                  <TableCell>{g.responsable}</TableCell>
                     <TableCell className="max-w-xs truncate" title={g.observaciones}>
                       {g.observaciones || "-"}
                     </TableCell>
-                    <TableCell>
+                  <TableCell>
                       <div className="flex gap-1">
                         <Button size="sm" variant="outline" onClick={() => handleVer(g)}>
                           <Eye className="w-3 h-3" />
@@ -323,11 +323,11 @@ const GastosPage = () => {
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           )}
         </CardContent>
       </Card>
@@ -393,7 +393,7 @@ const GastosPage = () => {
                 {...register("observaciones")}
                 rows={3}
               />
-            </div>
+          </div>
           </form>
           <DialogFooter>
             <Button variant="outline" onClick={handleCerrarModal} disabled={guardando}>
