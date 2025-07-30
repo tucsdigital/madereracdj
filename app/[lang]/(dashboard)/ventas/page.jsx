@@ -447,6 +447,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         unidad: p.unidad,
         moneda: "$",
         descuento: p.descuento || 0,
+        categoria: p.categoria,
+        // Agregar propiedades específicas de madera
+        ...(p.categoria === "Maderas" && {
+          alto: Number(p.alto) || 0,
+          ancho: Number(p.ancho) || 0,
+          largo: Number(p.largo) || 0,
+          precioPorPie: Number(p.precioPorPie) || 0,
+          cepilladoAplicado: p.cepilladoAplicado || false,
+        }),
       }))
     );
   }, [productosSeleccionados, setValue]);
@@ -506,6 +515,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           obj.ancho = Number(p.ancho) || 0;
           obj.largo = Number(p.largo) || 0;
           obj.precioPorPie = Number(p.precioPorPie) || 0;
+          obj.cepilladoAplicado = p.cepilladoAplicado || false; // Agregar propiedad de cepillado
         }
         return obj;
       });
@@ -2329,6 +2339,14 @@ const VentasPage = () => {
           const clienteObj = formData.cliente || {};
           const productosLimpios = (formData.items || []).map((p) => ({
             ...p,
+            // Asegurar que las propiedades específicas de madera se preserven
+            ...(p.categoria === "Maderas" && {
+              alto: Number(p.alto) || 0,
+              ancho: Number(p.ancho) || 0,
+              largo: Number(p.largo) || 0,
+              precioPorPie: Number(p.precioPorPie) || 0,
+              cepilladoAplicado: p.cepilladoAplicado || false,
+            }),
           }));
 
           console.log("[DEBUG] Campos de envío recibidos:", {
