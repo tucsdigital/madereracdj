@@ -1784,19 +1784,19 @@ const PresupuestoDetalle = () => {
                         return subtotal - descuento + envio;
                       })();
                       const montoAbonado = ventaCampos.montoAbonado || 0;
+                      const esPagoParcial = ventaCampos.pagoParcial || false;
                       
                       console.log("[DEBUG] Cálculo estado de pago:");
                       console.log("Total venta:", totalVenta);
                       console.log("Monto abonado:", montoAbonado);
-                      console.log("Estado resultante:", montoAbonado >= totalVenta ? "pagado" : montoAbonado > 0 ? "parcial" : "pendiente");
+                      console.log("Es pago parcial:", esPagoParcial);
                       
-                      if (montoAbonado >= totalVenta) {
-                        return "pagado";
-                      } else if (montoAbonado > 0) {
-                        return "parcial";
-                      } else {
-                        return "pendiente";
-                      }
+                      // Si NO es pago parcial → pagado
+                      // Si ES pago parcial → pendiente
+                      const estado = esPagoParcial ? "pendiente" : "pagado";
+                      console.log("Estado resultante:", estado);
+                      
+                      return estado;
                     })(),
                     
                     // Campos de envío
