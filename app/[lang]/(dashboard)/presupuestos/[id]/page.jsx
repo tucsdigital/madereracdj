@@ -79,6 +79,7 @@ const PresupuestoDetalle = () => {
     area: "",
     lote: "",
     descripcion: "",
+    esClienteViejo: false, // Nuevo campo para diferenciar
   });
 
   useEffect(() => {
@@ -365,8 +366,12 @@ const PresupuestoDetalle = () => {
   const handleNuevoClienteSubmit = async (e) => {
     e.preventDefault();
     try {
-      const docRef = await addDoc(collection(db, "clientes"), nuevoCliente);
-      setClientes((prev) => [...prev, { id: docRef.id, ...nuevoCliente }]);
+      const clienteObj = { 
+        ...nuevoCliente,
+        esClienteViejo: nuevoCliente.esClienteViejo || false,
+      };
+      const docRef = await addDoc(collection(db, "clientes"), clienteObj);
+      setClientes((prev) => [...prev, { id: docRef.id, ...clienteObj }]);
       setNuevoCliente({
         nombre: "",
         direccion: "",
@@ -377,6 +382,7 @@ const PresupuestoDetalle = () => {
         area: "",
         lote: "",
         descripcion: "",
+        esClienteViejo: false,
       });
       setOpenNuevoCliente(false);
     } catch (error) {
@@ -1902,6 +1908,27 @@ const PresupuestoDetalle = () => {
               <DialogDescription className="bg-card">Complete los datos del nuevo cliente para agregarlo al sistema.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleNuevoClienteSubmit} className="space-y-2 bg-card">
+              {/* Checkbox para diferenciar tipo de cliente */}
+              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <input
+                  type="checkbox"
+                  id="esClienteViejo"
+                  checked={nuevoCliente.esClienteViejo}
+                  onChange={(e) =>
+                    setNuevoCliente({
+                      ...nuevoCliente,
+                      esClienteViejo: e.target.checked,
+                    })
+                  }
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label
+                  htmlFor="esClienteViejo"
+                  className="text-sm font-medium text-blue-800 dark:text-blue-200"
+                >
+                  ¿Es un cliente existente/antiguo?
+                </label>
+              </div>
               <Input
                 label="Nombre *"
                 value={nuevoCliente.nombre}

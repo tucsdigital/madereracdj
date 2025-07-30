@@ -20,14 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import {
-  Box,
-  Layers,
-  Settings,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -40,20 +33,13 @@ import {
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
 
-  // Esquema Yup para presupuesto (mínimo)
+  // Esquema Yup para presupuesto
   const schemaPresupuesto = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
     cliente: yup.object().shape({
@@ -93,7 +79,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       }),
   });
 
-  // Esquema Yup para venta (completo)
+  // Esquema Yup para venta
   const schemaVenta = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
     clienteId: yup.string().required("Debe seleccionar un cliente"),
@@ -184,8 +170,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setValue,
     formState: { errors },
     watch,
-    reset,
-    trigger,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
@@ -212,10 +196,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     telefono: "",
     email: "",
     localidad: "",
+    esClienteViejo: false,
   });
 
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false); // Cambiar a false por defecto
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false);
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
@@ -254,7 +239,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
       let precio;
 
-      // Para productos de madera, usar cálculo especial
       if (real.categoria === "Maderas") {
         let alto = Number(real.alto) || 0;
         let ancho = Number(real.ancho) || 0;
@@ -269,7 +253,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie,
           });
 
-          // Aplicar cepillado automático si está habilitado
           if (cepilladoAutomatico) {
             const cepillado = precio * 0.066; // 6.6% del precio calculado
             precio += cepillado;
@@ -282,7 +265,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           return;
         }
       } else {
-        // Para productos NO maderas, usar el campo correspondiente según categoría
         if (real.categoria === "Ferretería") {
           precio = real.valorVenta || 0;
         } else {
@@ -317,7 +299,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
           cepilladoAplicado:
-            real.categoria === "Maderas" && cepilladoAutomatico, // Marcar si se aplicó cepillado
+            real.categoria === "Maderas" && cepilladoAutomatico,
         },
       ]);
     }
@@ -358,12 +340,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
   const recalcularPreciosMadera = (aplicarCepillado) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.categoria === "Maderas") {
-          // Recalcular precio base sin cepillado
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: p.ancho,
@@ -371,7 +351,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: p.precioPorPie,
           });
 
-          // Aplicar cepillado si está habilitado
           const precioFinal = aplicarCepillado
             ? precioBase * 1.066
             : precioBase;
@@ -387,12 +366,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Función para recalcular precio cuando se cambia el precio por pie
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
-          // Recalcular precio base con el nuevo precio por pie
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: p.ancho,
@@ -400,7 +377,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: Number(nuevoPrecioPorPie),
           });
 
-          // Aplicar cepillado si está habilitado
           const precioFinal = cepilladoAutomatico
             ? precioBase * 1.066
             : precioBase;
@@ -424,7 +400,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
     0
   );
-  // Calcular costo de envío solo si no es retiro local
+
   const costoEnvioCalculado =
     tipoEnvio &&
     tipoEnvio !== "retiro_local" &&
@@ -434,10 +410,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       ? Number(costoEnvio)
       : 0;
   const total = subtotal - descuentoTotal + costoEnvioCalculado;
-
-  const handleDateChange = (field, date) => {
-    setValue(field, date[0]);
-  };
 
   const handleClienteChange = (val) => {
     if (val === "nuevo") {
@@ -456,22 +428,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         });
       }
     }
-  };
-
-  const handleGuardarNuevoCliente = async () => {
-    const clienteObj = { ...nuevoCliente };
-    const docRef = await addDoc(collection(db, "clientes"), clienteObj);
-    setClientesState([...clientesState, { ...clienteObj, id: docRef.id }]);
-    setClienteId(docRef.id);
-    setNuevoCliente({
-      nombre: "",
-      cuit: "",
-      direccion: "",
-      telefono: "",
-      email: "",
-      localidad: "",
-    });
-    setOpenNuevoCliente(false);
   };
 
   React.useEffect(() => {
@@ -1308,7 +1264,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 <div className="flex flex-col items-end gap-2 ml-4">
                                   {yaAgregado ? (
                                     <div className="flex items-center gap-2">
-                                  <button
+                                      <button
                                         type="button"
                                         onClick={() =>
                                           handleDecrementarCantidad(prod.id)
@@ -1364,7 +1320,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   ) : (
                                     <button
                                       type="button"
-                                    onClick={() => {
+                                      onClick={() => {
                                         if (prod.categoria === "Maderas") {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;
@@ -1415,9 +1371,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                               prod.unidadVentaHerramienta,
                                             stock: prod.stock,
                                           });
-                                      }
-                                    }}
-                                    disabled={isSubmitting}
+                                        }
+                                      }}
+                                      disabled={isSubmitting}
                                       className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                                     >
                                       Agregar
@@ -1580,19 +1536,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   disabled={isSubmitting || p.cantidad <= 1}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
                                       d="M20 12H4"
-                                          />
-                                        </svg>
+                                    />
+                                  </svg>
                                 </button>
 
                                 <input
@@ -1614,22 +1570,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   disabled={isSubmitting}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
-                                  </button>
-                                </div>
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
+                            </div>
                           </td>
                           <td className="text-center">${p.precio}</td>
                           <td className="text-center">
@@ -1672,8 +1628,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ))}
                     </tbody>
                   </table>
-              </div>
-            </section>
+                </div>
+              </section>
             )}
 
             {/* Sección condiciones y envío */}
@@ -2065,6 +2021,27 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2 bg-card">
+            {/* Checkbox para diferenciar tipo de cliente */}
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <input
+                type="checkbox"
+                id="esClienteViejo"
+                checked={nuevoCliente.esClienteViejo}
+                onChange={(e) =>
+                  setNuevoCliente({
+                    ...nuevoCliente,
+                    esClienteViejo: e.target.checked,
+                  })
+                }
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label
+                htmlFor="esClienteViejo"
+                className="text-sm font-medium text-blue-800 dark:text-blue-200"
+              >
+                ¿Es un cliente existente/antiguo?
+              </label>
+            </div>
             <Input
               placeholder="Nombre *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
@@ -2192,6 +2169,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   area: nuevoCliente.area || "",
                   lote: nuevoCliente.lote || "",
                   descripcion: nuevoCliente.descripcion || "",
+                  esClienteViejo: nuevoCliente.esClienteViejo || false,
                 };
                 const docRef = await addDoc(
                   collection(db, "clientes"),
@@ -2214,6 +2192,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   area: "",
                   lote: "",
                   descripcion: "",
+                  esClienteViejo: false,
                 });
                 setOpenNuevoCliente(false);
                 setDropdownClientesOpen(false);
@@ -2274,7 +2253,6 @@ const VentasPage = () => {
             return value;
           })
         );
-        // Obtener el próximo número correlativo de venta
         const nextNumeroPedido = await getNextVentaNumber();
         cleanFormData.numeroPedido = nextNumeroPedido;
         console.log("[DEBUG] Datos limpios para guardar venta:", cleanFormData);
@@ -2381,7 +2359,6 @@ const VentasPage = () => {
 
           console.log("[DEBUG] Costo de envío procesado:", costoEnvioFinal);
 
-          // Obtener el próximo número correlativo de presupuesto
           const nextNumeroPedido = await getNextPresupuestoNumber();
           const cleanFormData = {
             ...formData,
@@ -2408,7 +2385,6 @@ const VentasPage = () => {
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: nextNumeroPedido,
-            // Incluir campos de envío
             tipoEnvio: formData.tipoEnvio || "",
             costoEnvio: costoEnvioFinal,
           };
