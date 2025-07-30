@@ -735,10 +735,8 @@ const VentaDetalle = () => {
               >
                 <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
                 <span className="hidden sm:inline">Volver</span>
-                <span className="sm:hidden">←</span>
               </Button>
               <Button onClick={handlePrint} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
-                <Printer className="w-4 h-4 mr-1 lg:mr-2" />
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">🖨️</span>
               </Button>
@@ -2246,22 +2244,24 @@ const VentaDetalle = () => {
                 }
                 return null;
               })()}
-              <div className="flex gap-2 mt-6">
+              <div className="flex flex-wrap gap-2 mt-6">
                 <Button
                   variant="default"
                   onClick={handleGuardarCambios}
                   disabled={loadingPrecios}
-                  className="no-print"
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
-                  Guardar cambios
+                  <span className="hidden sm:inline">Guardar cambios</span>
+                  <span className="sm:hidden">💾</span>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setEditando(false)}
                   disabled={loadingPrecios}
-                  className="no-print"
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
-                  Cancelar
+                  <span className="hidden sm:inline">Cancelar</span>
+                  <span className="sm:hidden">❌</span>
                 </Button>
               </div>
               {errorForm && (
