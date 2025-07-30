@@ -227,14 +227,17 @@ const PresupuestoDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (p.id === productoId && p.categoria === "Maderas") {
           // Recalcular precio base sin cepillado
-          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
-          
+          const precioBase =
+            0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+
           // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
-          
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
-          
+          const precioFinal = aplicarCepillado
+            ? precioBase * 1.066
+            : precioBase;
+
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
           return {
             ...p,
             precio: precioRedondeado,
@@ -253,14 +256,17 @@ const PresupuestoDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           // Recalcular precio base con el nuevo precio por pie
-          const precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
-          
+          const precioBase =
+            0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+
           // Aplicar cepillado si está habilitado para este producto específico
-          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
-          
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
-          
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
@@ -2704,3 +2710,22 @@ const getNextVentaNumber = async () => {
   });
   return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
 };
+
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}

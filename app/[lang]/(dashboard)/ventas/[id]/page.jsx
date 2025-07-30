@@ -29,6 +29,25 @@ function formatFechaLocal(dateString) {
   return dateObj.toLocaleDateString("es-AR");
 }
 
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
 const VentaDetalle = () => {
   const params = useParams();
   const router = useRouter();
@@ -229,8 +248,8 @@ const VentaDetalle = () => {
             ? precioBase * 1.066
             : precioBase;
 
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
@@ -258,13 +277,13 @@ const VentaDetalle = () => {
             ? precioBase * 1.066
             : precioBase;
 
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
-            precio: precioFinal,
+            precio: precioRedondeado,
           };
         }
         return p;

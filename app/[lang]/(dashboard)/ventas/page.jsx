@@ -350,8 +350,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             ? precioBase * 1.066
             : precioBase;
 
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
@@ -379,8 +379,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             ? precioBase * 1.066
             : precioBase;
 
-          // Redondear a números enteros
-          const precioRedondeado = Math.round(precioFinal);
+          // Redondear a centenas (múltiplos de 100)
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
@@ -613,8 +613,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       return 0;
     }
     const precio = factor * alto * ancho * largo * precioPorPie;
-    // Redondear a números enteros
-    return Math.round(precio);
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
   }
 
   // Función para formatear números en formato argentino
@@ -816,7 +816,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.nombre || ""}
                       placeholder="Nombre del cliente"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.nombre && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -829,7 +829,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.cuit || ""}
                       placeholder="CUIT"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.cuit && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -842,7 +842,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.direccion || ""}
                       placeholder="Dirección"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.direccion && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -855,7 +855,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.telefono || ""}
                       placeholder="Teléfono"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.telefono && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -868,7 +868,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.email || ""}
                       placeholder="Email"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.email && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -929,14 +929,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         <button
                           key={categoria}
                           type="button"
-                          variant={
-                            categoriaId === categoria ? "default" : "soft"
-                          }
-                          size="sm"
-                          color={
-                            categoriaId === categoria ? "primary" : "secondary"
-                          }
-                          className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                          className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                            categoriaId === categoria
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -1096,7 +1093,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         return (
                           <div
                             key={prod.id}
-                            className={`group relative bg-white dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
+                            className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                               yaAgregado
                                 ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
                                 : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
