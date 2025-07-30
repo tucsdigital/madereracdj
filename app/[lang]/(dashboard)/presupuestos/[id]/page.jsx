@@ -1745,14 +1745,17 @@ const PresupuestoDetalle = () => {
                       // Recalcular el total correcto basado en los datos del presupuesto
                       const subtotal = safeNumber(presupuesto.subtotal);
                       const descuento = safeNumber(presupuesto.descuentoTotal);
-                      const envio = safeNumber(presupuesto.costoEnvio || 0);
+                      // Usar el costo de envío del formulario si existe, sino del presupuesto
+                      const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
                       const totalCorrecto = subtotal - descuento + envio;
                       
                       // Debug para verificar el cálculo
                       console.log("[DEBUG] Cálculo total en conversión a venta:");
                       console.log("Subtotal presupuesto:", subtotal);
                       console.log("Descuento presupuesto:", descuento);
-                      console.log("Envío presupuesto:", envio);
+                      console.log("Envío del formulario:", ventaCampos.costoEnvio);
+                      console.log("Envío del presupuesto:", presupuesto.costoEnvio);
+                      console.log("Envío final usado:", envio);
                       console.log("Total calculado correcto:", totalCorrecto);
                       console.log("Total presupuesto (puede estar incorrecto):", presupuesto.total);
                       
@@ -1776,10 +1779,16 @@ const PresupuestoDetalle = () => {
                       const totalVenta = (() => {
                         const subtotal = safeNumber(presupuesto.subtotal);
                         const descuento = safeNumber(presupuesto.descuentoTotal);
-                        const envio = safeNumber(presupuesto.costoEnvio || 0);
+                        // Usar el costo de envío del formulario si existe, sino del presupuesto
+                        const envio = ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : safeNumber(presupuesto.costoEnvio || 0);
                         return subtotal - descuento + envio;
                       })();
                       const montoAbonado = ventaCampos.montoAbonado || 0;
+                      
+                      console.log("[DEBUG] Cálculo estado de pago:");
+                      console.log("Total venta:", totalVenta);
+                      console.log("Monto abonado:", montoAbonado);
+                      console.log("Estado resultante:", montoAbonado >= totalVenta ? "pagado" : montoAbonado > 0 ? "parcial" : "pendiente");
                       
                       if (montoAbonado >= totalVenta) {
                         return "pagado";
@@ -1795,7 +1804,7 @@ const PresupuestoDetalle = () => {
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
                     transportista: ventaCampos.transportista,
-                    costoEnvio: presupuesto.costoEnvio, // Usar el costo de envío del presupuesto
+                    costoEnvio: ventaCampos.costoEnvio ? Number(ventaCampos.costoEnvio) : presupuesto.costoEnvio, // Usar el valor del formulario si existe
                     direccionEnvio: ventaCampos.direccionEnvio,
                     localidadEnvio: ventaCampos.localidadEnvio,
                     usarDireccionCliente:
@@ -2080,25 +2089,27 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               (() => {
               const subtotal = presupuesto.subtotal || 0;
               const descuento = presupuesto.descuentoTotal || 0;
-                const envio =
-                  presupuesto.costoEnvio !== undefined &&
-                           presupuesto.costoEnvio !== "" && 
-                           !isNaN(Number(presupuesto.costoEnvio)) && 
-                           Number(presupuesto.costoEnvio) > 0 
-                             ? Number(presupuesto.costoEnvio) 
-                             : 0;
+                // Usar el costo de envío del formulario si existe, sino del presupuesto
+                const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
+                  (presupuesto.costoEnvio !== undefined &&
+                   presupuesto.costoEnvio !== "" && 
+                   !isNaN(Number(presupuesto.costoEnvio)) && 
+                   Number(presupuesto.costoEnvio) > 0 
+                     ? Number(presupuesto.costoEnvio) 
+                     : 0);
               return subtotal - descuento + envio;
               })(),
               `No puede exceder el total de $${(() => {
               const subtotal = presupuesto.subtotal || 0;
               const descuento = presupuesto.descuentoTotal || 0;
-                const envio =
-                  presupuesto.costoEnvio !== undefined &&
-                           presupuesto.costoEnvio !== "" && 
-                           !isNaN(Number(presupuesto.costoEnvio)) && 
-                           Number(presupuesto.costoEnvio) > 0 
-                             ? Number(presupuesto.costoEnvio) 
-                             : 0;
+                // Usar el costo de envío del formulario si existe, sino del presupuesto
+                const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
+                  (presupuesto.costoEnvio !== undefined &&
+                   presupuesto.costoEnvio !== "" && 
+                   !isNaN(Number(presupuesto.costoEnvio)) && 
+                   Number(presupuesto.costoEnvio) > 0 
+                     ? Number(presupuesto.costoEnvio) 
+                     : 0);
               return (subtotal - descuento + envio).toFixed(2);
               })()}`
             )
@@ -2475,13 +2486,14 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   // Calcular el total completo incluyendo envío
                   const subtotal = presupuesto.subtotal || 0;
                   const descuento = presupuesto.descuentoTotal || 0;
-                  const envio =
-                    presupuesto.costoEnvio !== undefined &&
-                               presupuesto.costoEnvio !== "" && 
-                               !isNaN(Number(presupuesto.costoEnvio)) && 
-                               Number(presupuesto.costoEnvio) > 0 
-                                 ? Number(presupuesto.costoEnvio) 
-                                 : 0;
+                  // Usar el costo de envío del formulario si existe, sino del presupuesto
+                  const envio = watch("costoEnvio") ? Number(watch("costoEnvio")) : 
+                    (presupuesto.costoEnvio !== undefined &&
+                     presupuesto.costoEnvio !== "" && 
+                     !isNaN(Number(presupuesto.costoEnvio)) && 
+                     Number(presupuesto.costoEnvio) > 0 
+                       ? Number(presupuesto.costoEnvio) 
+                       : 0);
                   const total = subtotal - descuento + envio;
                   const montoAbonado = watch("montoAbonado")
                     ? Number(watch("montoAbonado"))
