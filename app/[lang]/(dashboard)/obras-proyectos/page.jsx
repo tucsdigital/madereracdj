@@ -138,6 +138,12 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const [categoriasState, setCategoriasState] = useState([]);
   const [productosLoading, setProductosLoading] = useState(true);
 
+  // Estados para productos de obras
+  const [productosObrasState, setProductosObrasState] = useState([]);
+  const [productosObrasPorCategoria, setProductosObrasPorCategoria] = useState({});
+  const [categoriasObrasState, setCategoriasObrasState] = useState([]);
+  const [productosObrasLoading, setProductosObrasLoading] = useState(true);
+
   useEffect(() => {
     setProductosLoading(true);
     const fetchProductos = async () => {
@@ -156,11 +162,36 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
     fetchProductos();
   }, []);
 
+  // Cargar productos de obras
+  useEffect(() => {
+    setProductosObrasLoading(true);
+    const fetchProductosObras = async () => {
+      const snap = await getDocs(collection(db, "productos_obras"));
+      const productosObras = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setProductosObrasState(productosObras);
+      const agrupados = {};
+      productosObras.forEach((p) => {
+        if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
+        agrupados[p.categoria].push(p);
+      });
+      setProductosObrasPorCategoria(agrupados);
+      setCategoriasObrasState(Object.keys(agrupados));
+      setProductosObrasLoading(false);
+    };
+    fetchProductosObras();
+  }, []);
+
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
 
+  // Determinar qué productos usar según el tipo
+  const productosActivos = tipo === "presupuesto" ? productosObrasState : productosState;
+  const productosPorCategoriaActivos = tipo === "presupuesto" ? productosObrasPorCategoria : productosPorCategoria;
+  const categoriasActivas = tipo === "presupuesto" ? categoriasObrasState : categoriasState;
+  const productosLoadingActivo = tipo === "presupuesto" ? productosObrasLoading : productosLoading;
+
   const handleAgregarProducto = (producto) => {
-    const real = productosState.find((p) => p.id === producto.id);
+    const real = productosActivos.find((p) => p.id === producto.id);
     if (!real) {
       setSubmitStatus("error");
       setSubmitMessage(
@@ -171,43 +202,48 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
       let precio;
 
-      // Para productos de madera, usar cálculo especial
-      if (real.categoria === "Maderas") {
-        let alto = Number(real.alto) || 0;
-        let ancho = Number(real.ancho) || 0;
-        let largo = Number(real.largo) || 0;
-        let precioPorPie = Number(real.precioPorPie) || 0;
+      if (tipo === "presupuesto") {
+        // Para productos de obras, usar precio directo
+        precio = real.precio || 0;
+      } else {
+        // Para productos normales, usar lógica existente
+        if (real.categoria === "Maderas") {
+          let alto = Number(real.alto) || 0;
+          let ancho = Number(real.ancho) || 0;
+          let largo = Number(real.largo) || 0;
+          let precioPorPie = Number(real.precioPorPie) || 0;
 
-        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-          precio = calcularPrecioCorteMadera({
-            alto,
-            ancho,
-            largo,
-            precioPorPie,
-          });
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioCorteMadera({
+              alto,
+              ancho,
+              largo,
+              precioPorPie,
+            });
 
-          if (cepilladoAutomatico) {
-            const cepillado = precio * 0.066; // 6.6% del precio calculado
-            precio += cepillado;
+            if (cepilladoAutomatico) {
+              const cepillado = precio * 0.066; // 6.6% del precio calculado
+              precio += cepillado;
+            }
+          } else {
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto de madera no tiene dimensiones válidas en la base de datos."
+            );
+            return;
           }
         } else {
-          setSubmitStatus("error");
-          setSubmitMessage(
-            "El producto de madera no tiene dimensiones válidas en la base de datos."
-          );
-          return;
-        }
-      } else {
-        if (real.categoria === "Ferretería") {
-          precio = real.valorVenta || 0;
-        } else {
-          precio =
-            real.precioUnidad ||
-            real.precioUnidadVenta ||
-            real.precioUnidadHerraje ||
-            real.precioUnidadQuimico ||
-            real.precioUnidadHerramienta ||
-            0;
+          if (real.categoria === "Ferretería") {
+            precio = real.valorVenta || 0;
+          } else {
+            precio =
+              real.precioUnidad ||
+              real.precioUnidadVenta ||
+              real.precioUnidadHerraje ||
+              real.precioUnidadQuimico ||
+              real.precioUnidadHerramienta ||
+              0;
+          }
         }
       }
 
@@ -217,26 +253,33 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
           id: real.id,
           nombre: real.nombre,
           precio,
-          unidad:
+          unidad: tipo === "presupuesto" ? real.unidad : (
             real.unidadMedida ||
             real.unidadVenta ||
             real.unidadVentaHerraje ||
             real.unidadVentaQuimico ||
-            real.unidadVentaHerramienta,
-          stock: real.stock,
+            real.unidadVentaHerramienta
+          ),
+          stock: real.stock || 0,
           cantidad: 1,
           descuento: 0,
           categoria: real.categoria,
-          alto: Number(real.alto) || 0,
-          ancho: Number(real.ancho) || 0,
-          largo: Number(real.largo) || 0,
-          precioPorPie: Number(real.precioPorPie) || 0,
-          cepilladoAplicado:
-            real.categoria === "Maderas" && cepilladoAutomatico,
+          subcategoria: real.subcategoria,
+          ubicacion: real.ubicacion,
+          observaciones: real.observaciones,
+          // Solo para productos normales
+          ...(tipo !== "presupuesto" && {
+            alto: Number(real.alto) || 0,
+            ancho: Number(real.ancho) || 0,
+            largo: Number(real.largo) || 0,
+            precioPorPie: Number(real.precioPorPie) || 0,
+            cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico,
+          }),
         },
       ]);
     }
   };
+
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
@@ -520,7 +563,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       setSubmitStatus("success");
       setSubmitMessage(
         `${
-          tipo === "presupuesto" ? "Presupuesto" : "Venta"
+          tipo === "presupuesto" ? "Presupuesto" : "Obra"
         } guardado exitosamente`
       );
       setTimeout(() => {
@@ -616,11 +659,11 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
             }
             className="w-6 h-6"
           />
-          {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Venta"}
+          {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Obra"}
         </DialogTitle>
         <DialogDescription className="text-base text-default-600">
           Complete todos los campos requeridos para crear un nuevo{" "}
-          {tipo === "presupuesto" ? "presupuesto" : "venta"}.
+          {tipo === "presupuesto" ? "presupuesto" : "obra"}.
         </DialogDescription>
       </DialogHeader>
 
@@ -839,10 +882,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Productos
+                        {tipo === "presupuesto" ? "Productos de obras" : "Productos"}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Selecciona los productos para tu venta
+                        {tipo === "presupuesto" 
+                          ? "Selecciona los productos de obras para tu presupuesto"
+                          : "Selecciona los productos para tu venta"
+                        }
                       </p>
                     </div>
                   </div>
@@ -851,7 +897,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       {productosSeleccionados.length}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      productos agregados
+                      {tipo === "presupuesto" ? "productos de obras" : "productos"} agregados
                     </div>
                   </div>
                 </div>
@@ -861,7 +907,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                   {/* Filtro de categorías */}
                   <div className="flex-1">
                     <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
-                      {categoriasState.map((categoria) => (
+                      {categoriasActivas.map((categoria) => (
                         <button
                           key={categoria}
                           type="button"
@@ -905,7 +951,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </div>
                     <input
                       type="text"
-                      placeholder="Buscar productos..."
+                      placeholder={tipo === "presupuesto" ? "Buscar productos de obras..." : "Buscar productos..."}
                       value={busquedaProducto}
                       onChange={(e) => setBusquedaProducto(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
@@ -916,7 +962,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
 
               {/* Lista de productos */}
               <div className="max-h-96 overflow-y-auto">
-                {categoriasState.length === 0 ? (
+                {categoriasActivas.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
                       <svg
@@ -964,12 +1010,12 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       Elige una categoría para ver los productos disponibles
                     </p>
                   </div>
-                ) : productosPorCategoria[categoriaId]?.filter(
+                ) : productosPorCategoriaActivos[categoriaId]?.filter(
                     (prod) =>
                       prod.nombre
                         .toLowerCase()
                         .includes(busquedaProducto.toLowerCase()) ||
-                      (prod.unidadMedida || "")
+                      (tipo === "presupuesto" ? prod.unidad : (prod.unidadMedida || ""))
                         .toLowerCase()
                         .includes(busquedaProducto.toLowerCase())
                   ).length === 0 ? (
@@ -998,13 +1044,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                   </div>
                 ) : (
                   <div className="grid gap-3 p-4">
-                    {productosPorCategoria[categoriaId]
+                    {productosPorCategoriaActivos[categoriaId]
                       ?.filter(
                         (prod) =>
                           prod.nombre
                             .toLowerCase()
                             .includes(busquedaProducto.toLowerCase()) ||
-                          (prod.unidadMedida || "")
+                          (tipo === "presupuesto" ? prod.unidad : (prod.unidadMedida || ""))
                             .toLowerCase()
                             .includes(busquedaProducto.toLowerCase())
                       )
@@ -1013,19 +1059,23 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                           (p) => p.id === prod.id
                         );
                         const precio = (() => {
-                          if (prod.categoria === "Maderas") {
-                            return prod.precioPorPie || 0;
-                          } else if (prod.categoria === "Ferretería") {
-                            return prod.valorVenta || 0;
+                          if (tipo === "presupuesto") {
+                            return prod.precio || 0;
                           } else {
-                            return (
-                              prod.precioUnidad ||
-                              prod.precioUnidadVenta ||
-                              prod.precioUnidadHerraje ||
-                              prod.precioUnidadQuimico ||
-                              prod.precioUnidadHerramienta ||
-                              0
-                            );
+                            if (prod.categoria === "Maderas") {
+                              return prod.precioPorPie || 0;
+                            } else if (prod.categoria === "Ferretería") {
+                              return prod.valorVenta || 0;
+                            } else {
+                              return (
+                                prod.precioUnidad ||
+                                prod.precioUnidadVenta ||
+                                prod.precioUnidadHerraje ||
+                                prod.precioUnidadQuimico ||
+                                prod.precioUnidadHerramienta ||
+                                0
+                              );
+                            }
                           }
                         })();
 
@@ -1044,14 +1094,14 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                   <div className="flex items-center gap-3 mb-2">
                                     <div
                                       className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                        prod.categoria === "Maderas"
+                                        tipo === "presupuesto" 
+                                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                          : prod.categoria === "Maderas"
                                           ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                                           : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                                       }`}
                                     >
-                                      {prod.categoria === "Maderas"
-                                        ? "🌲"
-                                        : "🔧"}
+                                      {tipo === "presupuesto" ? "🏗️" : (prod.categoria === "Maderas" ? "🌲" : "🔧")}
                                     </div>
                                     <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {prod.nombre}
@@ -1090,30 +1140,45 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                         Unidad:
                                       </span>
                                       <span className="ml-1">
-                                        {prod.unidadMedida ||
-                                          prod.unidadVenta ||
-                                          prod.unidadVentaHerraje ||
-                                          prod.unidadVentaQuimico ||
-                                          prod.unidadVentaHerramienta}
+                                        {tipo === "presupuesto" 
+                                          ? prod.unidad
+                                          : (prod.unidadMedida ||
+                                            prod.unidadVenta ||
+                                            prod.unidadVentaHerraje ||
+                                            prod.unidadVentaQuimico ||
+                                            prod.unidadVentaHerramienta)
+                                        }
                                       </span>
                                     </div>
-                                    <div>
-                                      <span className="font-medium">
-                                        Stock:
-                                      </span>
-                                      <span
-                                        className={`ml-1 font-bold ${
-                                          prod.stock > 10
-                                            ? "text-green-600 dark:text-green-400"
-                                            : prod.stock > 0
-                                            ? "text-yellow-600 dark:text-yellow-400"
-                                            : "text-red-600 dark:text-red-400"
-                                        }`}
-                                      >
-                                        {prod.stock}
-                                      </span>
-                                    </div>
-                                    {prod.categoria === "Maderas" && (
+                                    {tipo !== "presupuesto" && (
+                                      <div>
+                                        <span className="font-medium">
+                                          Stock:
+                                        </span>
+                                        <span
+                                          className={`ml-1 font-bold ${
+                                            prod.stock > 10
+                                              ? "text-green-600 dark:text-green-400"
+                                              : prod.stock > 0
+                                              ? "text-yellow-600 dark:text-yellow-400"
+                                              : "text-red-600 dark:text-red-400"
+                                          }`}
+                                        >
+                                          {prod.stock}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {tipo === "presupuesto" && prod.subcategoria && (
+                                      <div>
+                                        <span className="font-medium">
+                                          Subcategoría:
+                                        </span>
+                                        <span className="ml-1">
+                                          {prod.subcategoria}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {tipo !== "presupuesto" && prod.categoria === "Maderas" && (
                                       <div>
                                         <span className="font-medium">
                                           $/pie:
@@ -1125,8 +1190,48 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                     )}
                                   </div>
 
-                                  {/* Dimensiones para maderas */}
-                                  {prod.categoria === "Maderas" && (
+                                  {/* Información adicional para productos de obras */}
+                                  {tipo === "presupuesto" && (
+                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
+                                      <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
+                                        <svg
+                                          className="w-3 h-3"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                        <span className="font-medium">
+                                          Información adicional
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-3 text-xs">
+                                        {prod.ubicacion && (
+                                          <span>
+                                            Ubicación:{" "}
+                                            <span className="font-bold">
+                                              {prod.ubicacion}
+                                            </span>
+                                          </span>
+                                        )}
+                                        {prod.observaciones && (
+                                          <span>
+                                            Observaciones:{" "}
+                                            <span className="font-bold">
+                                              {prod.observaciones}
+                                            </span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Dimensiones para maderas (solo productos normales) */}
+                                  {tipo !== "presupuesto" && prod.categoria === "Maderas" && (
                                     <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
                                       <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
                                         <svg
@@ -1170,8 +1275,8 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                     </div>
                                   )}
 
-                                  {/* Alertas de stock */}
-                                  {prod.stock <= 0 && (
+                                  {/* Alertas de stock (solo productos normales) */}
+                                  {tipo !== "presupuesto" && prod.stock <= 0 && (
                                     <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700">
                                       <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
                                         <svg
@@ -1192,7 +1297,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                       </div>
                                     </div>
                                   )}
-                                  {prod.stock > 0 && prod.stock <= 3 && (
+                                  {tipo !== "presupuesto" && prod.stock > 0 && prod.stock <= 3 && (
                                     <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
                                       <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
                                         <svg
@@ -1275,56 +1380,69 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                     <button
                                       type="button"
                                     onClick={() => {
-                                        if (prod.categoria === "Maderas") {
-                                          const alto = Number(prod.alto) || 0;
-                                          const ancho = Number(prod.ancho) || 0;
-                                          const largo = Number(prod.largo) || 0;
-                                          const precioPorPie =
-                                            Number(prod.precioPorPie) || 0;
-                                          if (
-                                            alto > 0 &&
-                                            ancho > 0 &&
-                                            largo > 0 &&
-                                            precioPorPie > 0
-                                          ) {
-                                            const precio =
-                                              calcularPrecioCorteMadera({
+                                        if (tipo === "presupuesto") {
+                                          handleAgregarProducto({
+                                            id: prod.id,
+                                            nombre: prod.nombre,
+                                            precio: prod.precio,
+                                            unidad: prod.unidad,
+                                            categoria: prod.categoria,
+                                            subcategoria: prod.subcategoria,
+                                            ubicacion: prod.ubicacion,
+                                            observaciones: prod.observaciones,
+                                          });
+                                        } else {
+                                          if (prod.categoria === "Maderas") {
+                                            const alto = Number(prod.alto) || 0;
+                                            const ancho = Number(prod.ancho) || 0;
+                                            const largo = Number(prod.largo) || 0;
+                                            const precioPorPie =
+                                              Number(prod.precioPorPie) || 0;
+                                            if (
+                                              alto > 0 &&
+                                              ancho > 0 &&
+                                              largo > 0 &&
+                                              precioPorPie > 0
+                                            ) {
+                                              const precio =
+                                                calcularPrecioCorteMadera({
+                                                  alto,
+                                                  ancho,
+                                                  largo,
+                                                  precioPorPie,
+                                                });
+                                              handleAgregarProducto({
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio,
+                                                unidad: prod.unidadMedida,
+                                                stock: prod.stock,
                                                 alto,
                                                 ancho,
                                                 largo,
                                                 precioPorPie,
                                               });
+                                            } else {
+                                              setSubmitStatus("error");
+                                              setSubmitMessage(
+                                                "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                              );
+                                              return;
+                                            }
+                                          } else {
                                             handleAgregarProducto({
                                               id: prod.id,
                                               nombre: prod.nombre,
-                                              precio,
-                                              unidad: prod.unidadMedida,
+                                              precio: precio,
+                                              unidad:
+                                                prod.unidadMedida ||
+                                                prod.unidadVenta ||
+                                                prod.unidadVentaHerraje ||
+                                                prod.unidadVentaQuimico ||
+                                                prod.unidadVentaHerramienta,
                                               stock: prod.stock,
-                                              alto,
-                                              ancho,
-                                              largo,
-                                              precioPorPie,
                                             });
-                                          } else {
-                                            setSubmitStatus("error");
-                                            setSubmitMessage(
-                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                            );
-                                            return;
-                                          }
-                                        } else {
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio: precio,
-                                            unidad:
-                                              prod.unidadMedida ||
-                                              prod.unidadVenta ||
-                                              prod.unidadVentaHerraje ||
-                                              prod.unidadVentaQuimico ||
-                                              prod.unidadVentaHerramienta,
-                                            stock: prod.stock,
-                                          });
+                                        }
                                       }
                                     }}
                                     disabled={isSubmitting}
@@ -1349,16 +1467,16 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
               <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-default-900">
-                    Productos Seleccionados
+                    {tipo === "presupuesto" ? "Productos de obras seleccionados" : "Productos seleccionados"}
                   </h3>
                   <span className="text-sm text-default-600">
-                    {productosSeleccionados.length} producto
+                    {productosSeleccionados.length} {tipo === "presupuesto" ? "producto de obra" : "producto"}
                     {productosSeleccionados.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
-                {/* Checkbox de cepillado automático para maderas */}
-                {productosSeleccionados.some(
+                {/* Checkbox de cepillado automático para maderas (solo productos normales) */}
+                {tipo !== "presupuesto" && productosSeleccionados.some(
                   (p) => p.categoria === "Maderas"
                 ) && (
                   <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
@@ -1407,76 +1525,99 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                             <div className="font-semibold text-default-900">
                               {p.nombre}
                             </div>
-                            {p.categoria === "Maderas" && (
+                            {tipo === "presupuesto" ? (
                               <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                <span className="font-medium text-gray-500">
-                                  Dimensiones:
-                                </span>
-                                <span>
-                                  Alto:{" "}
-                                  <span className="font-bold">{p.alto}</span> cm
-                                </span>
-                                <span>
-                                  Ancho:{" "}
-                                  <span className="font-bold">{p.ancho}</span>{" "}
-                                  cm
-                                </span>
-                                <span>
-                                  Largo:{" "}
-                                  <span className="font-bold">{p.largo}</span>{" "}
-                                  cm
-                                </span>
-                                <span>
-                                  $/pie:{" "}
-                                  <div className="inline-flex items-center gap-1">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={p.precioPorPie}
-                                      onChange={(e) =>
-                                        handlePrecioPorPieChange(
-                                          p.id,
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                      disabled={isSubmitting}
-                                      placeholder="0.00"
-                                      title="Editar precio por pie"
-                                    />
-                                    <svg
-                                      className="w-3 h-3 text-blue-500"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </div>
-                                </span>
-                                <span className="ml-2 text-primary font-semibold">
-                                  Precio calculado: ${p.precio}
-                                </span>
-                                <span className="text-xs text-blue-600 font-medium">
-                                  (Edita el $/pie para recalcular)
-                                </span>
-                                {p.stock <= 0 && (
-                                  <span className="text-red-600 font-semibold ml-2">
-                                    ¡Sin stock! Se permitirá avanzar igual.
+                                {p.subcategoria && (
+                                  <span>
+                                    Subcategoría:{" "}
+                                    <span className="font-bold">{p.subcategoria}</span>
                                   </span>
                                 )}
-                                {p.stock > 0 && p.stock <= 3 && (
-                                  <span className="text-yellow-600 font-semibold ml-2">
-                                    Stock bajo: quedan {p.stock} unidades.
+                                {p.ubicacion && (
+                                  <span>
+                                    Ubicación:{" "}
+                                    <span className="font-bold">{p.ubicacion}</span>
+                                  </span>
+                                )}
+                                {p.observaciones && (
+                                  <span>
+                                    Obs:{" "}
+                                    <span className="font-bold">{p.observaciones}</span>
                                   </span>
                                 )}
                               </div>
+                            ) : (
+                              p.categoria === "Maderas" && (
+                                <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                  <span className="font-medium text-gray-500">
+                                    Dimensiones:
+                                  </span>
+                                  <span>
+                                    Alto:{" "}
+                                    <span className="font-bold">{p.alto}</span> cm
+                                  </span>
+                                  <span>
+                                    Ancho:{" "}
+                                    <span className="font-bold">{p.ancho}</span>{" "}
+                                    cm
+                                  </span>
+                                  <span>
+                                    Largo:{" "}
+                                    <span className="font-bold">{p.largo}</span>{" "}
+                                    cm
+                                  </span>
+                                  <span>
+                                    $/pie:{" "}
+                                    <div className="inline-flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={p.precioPorPie}
+                                        onChange={(e) =>
+                                          handlePrecioPorPieChange(
+                                            p.id,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                        disabled={isSubmitting}
+                                        placeholder="0.00"
+                                        title="Editar precio por pie"
+                                      />
+                                      <svg
+                                        className="w-3 h-3 text-blue-500"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                    </div>
+                                  </span>
+                                  <span className="ml-2 text-primary font-semibold">
+                                    Precio calculado: ${p.precio}
+                                  </span>
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    (Edita el $/pie para recalcular)
+                                  </span>
+                                  {p.stock <= 0 && (
+                                    <span className="text-red-600 font-semibold ml-2">
+                                      ¡Sin stock! Se permitirá avanzar igual.
+                                    </span>
+                                  )}
+                                  {p.stock > 0 && p.stock <= 3 && (
+                                    <span className="text-yellow-600 font-semibold ml-2">
+                                      Stock bajo: quedan {p.stock} unidades.
+                                    </span>
+                                  )}
+                                </div>
+                              )
                             )}
                           </td>
                           <td className="text-center">
@@ -1956,7 +2097,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                   Guardando...
                 </>
               ) : (
-                `Guardar ${tipo === "presupuesto" ? "Presupuesto" : "Venta"}`
+                `Guardar ${tipo === "presupuesto" ? "Presupuesto" : "Obra"}`
               )}
             </Button>
           </DialogFooter>
@@ -2222,7 +2363,7 @@ const ObrasPage = () => {
         const tipo = row.getValue("tipo");
         const tipos = {
           obra: { label: "Obra", color: "bg-blue-100 text-blue-800 border-blue-200" },
-          proyecto: { label: "Proyecto", color: "bg-purple-100 text-purple-800 border-purple-200" },
+          presupuesto: { label: "Presupuesto", color: "bg-purple-100 text-purple-800 border-purple-200" },
         };
         const tipoInfo = tipos[tipo] || { 
           label: tipo, 
@@ -2319,7 +2460,7 @@ const ObrasPage = () => {
     setLoading(true);
     try {
       let docRef;
-      if (open === "obra") {
+      if (open === "obra" || open === "presupuesto") {
         const cleanFormData = JSON.parse(
           JSON.stringify(formData, (key, value) => {
             if (value === undefined) return undefined;
@@ -2328,10 +2469,11 @@ const ObrasPage = () => {
         );
         const nextNumeroPedido = await getNextObraNumber();
         cleanFormData.numeroPedido = nextNumeroPedido;
-        console.log("[DEBUG] Datos limpios para guardar obra:", cleanFormData);
+        cleanFormData.tipo = open === "presupuesto" ? "presupuesto" : "obra";
+        console.log("[DEBUG] Datos limpios para guardar:", cleanFormData);
         docRef = await addDoc(collection(db, "obras"), cleanFormData);
           console.log(
-          "[SUCCESS] Obra guardada en Firebase con ID:",
+          "[SUCCESS] Documento guardado en Firebase con ID:",
             docRef.id
           );
           setOpen(null);
@@ -2361,7 +2503,7 @@ const ObrasPage = () => {
   const estadisticas = {
     total: obrasData.length,
     obras: obrasData.filter(o => o.tipo === 'obra').length,
-    proyectos: obrasData.filter(o => o.tipo === 'proyecto').length,
+    presupuestos: obrasData.filter(o => o.tipo === 'presupuesto').length,
     pendientes: obrasData.filter(o => o.estado === 'pendiente').length,
     enProgreso: obrasData.filter(o => o.estado === 'en_progreso').length,
     completadas: obrasData.filter(o => o.estado === 'completada').length,
@@ -2382,8 +2524,8 @@ const ObrasPage = () => {
     <div className="flex flex-col gap-6 py-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Obras y Proyectos</h1>
-          <p className="text-gray-600 mt-1">Administra y da seguimiento a todas las obras y proyectos</p>
+          <h1 className="text-3xl font-bold text-gray-900">Gestión de Obras y Presupuestos</h1>
+          <p className="text-gray-600 mt-1">Administra y da seguimiento a todas las obras y presupuestos</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -2404,13 +2546,13 @@ const ObrasPage = () => {
           <Button
             variant="default"
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
-            onClick={() => setOpen("proyecto")}
+            onClick={() => setOpen("presupuesto")}
           >
             <Icon
               icon="heroicons:document-text"
               className="w-4 h-4"
             />
-            Agregar Proyecto
+            Añadir presupuesto
           </Button>
         </div>
       </div>
@@ -2431,8 +2573,8 @@ const ObrasPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-600">{estadisticas.proyectos}</div>
-            <div className="text-sm text-gray-600">Proyectos</div>
+            <div className="text-2xl font-bold text-purple-600">{estadisticas.presupuestos}</div>
+            <div className="text-sm text-gray-600">Presupuestos</div>
           </CardContent>
         </Card>
         <Card>
@@ -2504,7 +2646,7 @@ const ObrasPage = () => {
                 <SelectContent>
                   <SelectItem value="">Todos los tipos</SelectItem>
                   <SelectItem value="obra">Obra</SelectItem>
-                  <SelectItem value="proyecto">Proyecto</SelectItem>
+                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2530,7 +2672,7 @@ const ObrasPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            Obras y Proyectos ({obrasFiltradas.length} de {obrasData.length})
+            Obras y Presupuestos ({obrasFiltradas.length} de {obrasData.length})
             </CardTitle>
           </CardHeader>
         <CardContent>
