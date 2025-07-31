@@ -32,7 +32,7 @@ const Footer = () => {
     },
     {
       icon: mail,
-      href: "mailto:info@somosluxgroup.com",
+      href: "mailto:info@caballeromaderas.com",
     },
   ];
   return (
@@ -49,14 +49,13 @@ const Footer = () => {
             className="inline-flex items-center gap-4 text-primary-foreground"
           >
             <SiteLogo className="w-[50px] h-[52px]" />
-            <span className="text-3xl font-semibold">SomosLuxGroup</span>
+            <span className="text-3xl font-semibold">Maderas Caballero</span>
           </Link>
           <p className="text-base leading-7 text-default-200 dark:text-default-600 text-center mt-3">
-            SomosLuxGroup es una empresa inmobiliaria líder en el sector
-            premium, especializada en la gestión de propiedades exclusivas y
-            atención personalizada a clientes de alto valor. Nuestro CRM y panel
-            corporativo permiten administrar leads, proyectos y ventas de manera
-            eficiente y profesional.
+            Maderas Caballero es una empresa líder en el sector
+            premium, especializada en la venta de maderas y productos de
+            carpintería. Nuestro CRM y panel corporativo permiten administrar
+            leads, proyectos y ventas de manera eficiente y profesional.
           </p>
           <div className="mt-9 flex justify-center flex-wrap gap-4">
             <Button
@@ -64,14 +63,14 @@ const Footer = () => {
               variant="outline"
               className="rounded text-primary-foreground border-primary"
             >
-              <Link href="/es/leads">Ver Propiedades</Link>
+              <Link href="/es/productos">Ver Productos</Link>
             </Button>
             <Button
               asChild
               variant="outline"
               className="rounded text-primary-foreground border-primary"
             >
-              <Link href="mailto:info@somosluxgroup.com">Contacto</Link>
+              <Link href="mailto:info@caballeromaderas.com">Contacto</Link>
             </Button>
             <Button
               asChild
@@ -102,7 +101,7 @@ const Footer = () => {
       <div className="relative bg-default-900 dark:bg-default-50 py-6">
         <div className="container flex flex-col text-center md:text-start md:flex-row gap-2">
           <p className="text-primary-foreground flex-1 text-base xl:text-lg font-medium">
-            COPYRIGHT &copy; 2025 SomosLuxGroup. Todos los derechos reservados.
+            COPYRIGHT &copy; 2025 Maderas Caballero. Todos los derechos reservados.
           </p>
           <p className="text-primary-foreground flex-none text-base font-medium">
             Desarrollado por{" "}
@@ -111,7 +110,7 @@ const Footer = () => {
               target="_blank"
               className="text-primary hover:underline"
             >
-              Lautaro Maza
+              Tucs Digital
             </Link>
           </p>
         </div>

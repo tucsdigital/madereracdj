@@ -16,23 +16,23 @@ export const metadata = {
   },
   description: siteConfig.description,
   keywords: siteConfig.keywords,
-  authors: [{ name: siteConfig.author, url: "https://somosluxgroup.com" }],
+  authors: [{ name: siteConfig.author, url: "https://caballeromaderas.com" }],
   icons: {
-    icon: "/luxfavicon.ico",
-    shortcut: "/luxfavicon.ico",
-    apple: "/luxfavicon.ico",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   openGraph: {
     title: siteConfig.name,
     description: siteConfig.description,
-    url: "https://somosluxgroup.com",
+    url: "https://caballeromaderas.com",
     siteName: siteConfig.name,
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "SomosLuxGroup CRM Inmobiliario",
+        alt: "Maderas Caballero",
       },
     ],
     locale: "es_ES",
@@ -43,7 +43,7 @@ export const metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     images: ["/og-image.jpg"],
-    creator: "@somosluxgroup",
+    creator: "@caballeromaderas",
   },
   viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
@@ -60,7 +60,7 @@ export default function RootLayout({ children, params: { lang } }) {
         <meta property="og:title" content={siteConfig.name} />
         <meta property="og:description" content={siteConfig.description} />
         <meta property="og:image" content="/og-image.jpg" />
-        <meta property="og:url" content="https://somosluxgroup.com" />
+        <meta property="og:url" content="https://caballeromaderas.com" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={siteConfig.name} />
