@@ -8,17 +8,30 @@ export function DataTableToolbar({ table }) {
   React.useEffect(() => {
     // Configurar la función de filtrado global para buscar solo en N° Pedido y Cliente
     table.setGlobalFilter((row, columnId, filterValue) => {
-      const searchValue = filterValue.toLowerCase();
+      if (!filterValue || filterValue.trim() === "") return true;
       
-      // Buscar en el campo numeroPedido
-      const numeroPedido = row.getValue("numeroPedido")?.toString().toLowerCase() || "";
-      if (numeroPedido.includes(searchValue)) return true;
+      const searchValue = filterValue.toLowerCase().trim();
       
-      // Buscar en el campo cliente (nombre del cliente)
-      const cliente = row.getValue("cliente")?.toString().toLowerCase() || "";
-      if (cliente.includes(searchValue)) return true;
-      
-      return false;
+      try {
+        // Buscar en el campo numeroPedido
+        const numeroPedidoValue = row.getValue("numeroPedido");
+        if (numeroPedidoValue) {
+          const numeroPedido = numeroPedidoValue.toString().toLowerCase();
+          if (numeroPedido.includes(searchValue)) return true;
+        }
+        
+        // Buscar en el campo cliente (nombre del cliente)
+        const clienteValue = row.getValue("cliente");
+        if (clienteValue) {
+          const cliente = clienteValue.toString().toLowerCase();
+          if (cliente.includes(searchValue)) return true;
+        }
+        
+        return false;
+      } catch (error) {
+        console.warn("Error en filtrado global:", error);
+        return true; // Si hay error, mostrar todas las filas
+      }
     });
   }, [globalFilter, table]);
 
