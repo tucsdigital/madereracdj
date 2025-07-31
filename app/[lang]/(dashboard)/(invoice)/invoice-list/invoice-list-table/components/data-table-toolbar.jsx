@@ -6,39 +6,13 @@ export function DataTableToolbar({ table }) {
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   React.useEffect(() => {
-    // Configurar la función de filtrado global para buscar solo en N° Pedido y Cliente
-    table.setGlobalFilter((row, columnId, filterValue) => {
-      if (!filterValue || filterValue.trim() === "") return true;
-      
-      const searchValue = filterValue.toLowerCase().trim();
-      
-      try {
-        // Buscar en el campo numeroPedido
-        const numeroPedidoValue = row.getValue("numeroPedido");
-        if (numeroPedidoValue) {
-          const numeroPedido = numeroPedidoValue.toString().toLowerCase();
-          if (numeroPedido.includes(searchValue)) return true;
-        }
-        
-        // Buscar en el campo cliente (nombre del cliente)
-        const clienteValue = row.getValue("cliente");
-        if (clienteValue) {
-          const cliente = clienteValue.toString().toLowerCase();
-          if (cliente.includes(searchValue)) return true;
-        }
-        
-        return false;
-      } catch (error) {
-        console.warn("Error en filtrado global:", error);
-        return true; // Si hay error, mostrar todas las filas
-      }
-    });
+    table.setGlobalFilter(globalFilter);
   }, [globalFilter, table]);
 
   return (
     <div className="flex justify-center w-full py-2">
       <Input
-        placeholder="Buscar por N° Pedido o Cliente..."
+        placeholder="Buscar en todos los campos..."
         value={globalFilter}
         onChange={e => setGlobalFilter(e.target.value)}
         className="w-full max-w-lg text-base px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-primary focus:ring-2 focus:ring-primary/30 transition"

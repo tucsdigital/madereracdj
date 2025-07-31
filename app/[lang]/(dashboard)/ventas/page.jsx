@@ -2591,3 +2591,6 @@ const getNextPresupuestoNumber = async () => {
   });
   return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
 };
+
+// Exportar FormularioVentaPresupuesto para uso en otros archivos
+export { FormularioVentaPresupuesto };

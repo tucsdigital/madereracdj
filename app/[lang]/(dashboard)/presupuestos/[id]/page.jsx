@@ -28,9 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import FormularioVentaPresupuesto, {
-  SelectorProductosPresupuesto,
-} from "../../ventas/page";
+import { FormularioVentaPresupuesto } from "../../ventas/page";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
