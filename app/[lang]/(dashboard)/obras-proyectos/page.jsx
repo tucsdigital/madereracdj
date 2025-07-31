@@ -1555,28 +1555,45 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                   )}
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
-                    <thead>
-                      <tr className="bg-primary/10 text-primary font-semibold">
-                        <th className="p-2 text-left">Categoría</th>
-                        <th className="p-2 text-left">Producto</th>
-                        <th className="p-2 text-center">Cant.</th>
-                        <th className="p-2 text-center">Precio unit.</th>
-                        <th className="p-2 text-center">Desc.</th>
-                        <th className="p-2 text-center">Subtotal</th>
-                        <th className="p-2 text-center">Acción</th>
+                  <table className="w-full caption-top text-sm overflow-hidden">
+                    <thead className="[&_tr]:border-b bg-default-">
+                      <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Categoría
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Producto
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Cant.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Cepillado
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Precio unit.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Desc.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Subtotal
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Acción
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {productosSeleccionados.map((p, idx) => (
                         <tr
                           key={p.id}
-                          className="border-b hover:bg-primary/5 transition-all"
+                          className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
                         >
-                          <td className="p-2 text-xs font-medium text-gray-600">
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             {p.categoria}
                           </td>
-                          <td className="p-2">
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             <div className="font-semibold text-default-900">
                               {p.nombre}
                             </div>
@@ -1662,12 +1679,6 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                       </svg>
                                     </div>
                                   </span>
-                                  <span className="ml-2 text-primary font-semibold">
-                                    Precio calculado: ${p.precio}
-                                  </span>
-                                  <span className="text-xs text-blue-600 font-medium">
-                                    (Edita el $/pie para recalcular)
-                                  </span>
                                   {p.stock <= 0 && (
                                     <span className="text-red-600 font-semibold ml-2">
                                       ¡Sin stock! Se permitirá avanzar igual.
@@ -1682,7 +1693,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                               )
                             )}
                           </td>
-                          <td className="text-center">
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             <div className="flex items-center justify-center">
                               <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
                                 <button
@@ -1744,42 +1755,61 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                               </div>
                             </div>
                           </td>
-                          <td className="text-center">${p.precio}</td>
-                          <td className="text-center">
-                            <Input
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            {p.categoria === "Maderas" ? (
+                              <div className="flex items-center justify-center">
+                                <input
+                                  type="checkbox"
+                                  checked={p.cepilladoAplicado || false}
+                                  onChange={(e) => {
+                                    recalcularPreciosMadera(
+                                      p.id,
+                                      e.target.checked
+                                    );
+                                  }}
+                                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                  disabled={isSubmitting}
+                                  title="Aplicar cepillado (+6.6%)"
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            ${formatearNumeroArgentino(p.precio)}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <input
                               type="number"
                               min={0}
                               max={100}
-                              value={p.descuento}
+                              value={p.descuento || 0}
                               onChange={(e) =>
                                 handleDescuentoChange(p.id, e.target.value)
                               }
-                              className="w-20 mx-auto text-center"
+                              className="w-20 mx-auto text-center border rounded px-2 py-1"
                               disabled={isSubmitting}
-                              suffix="%"
                             />
                           </td>
-                          <td className="text-center font-semibold text-primary">
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
                             $
-                            {(
+                            {formatearNumeroArgentino(
                               Number(p.precio) *
-                              Number(p.cantidad) *
-                              (1 - Number(p.descuento) / 100)
-                            ).toFixed(2)}
+                                Number(p.cantidad) *
+                                (1 - Number(p.descuento || 0) / 100)
+                            )}
                           </td>
-                          <td className="text-center">
-                            <Button
+                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <button
                               type="button"
-                              size="icon"
-                              variant="ghost"
                               onClick={() => handleQuitarProducto(p.id)}
                               disabled={isSubmitting}
+                              className="text-lg font-bold text-red-500 hover:text-red-700"
                               title="Quitar producto"
                             >
-                              <span className="text-lg font-bold text-red-500">
-                                ×
-                              </span>
-                            </Button>
+                              ×
+                            </button>
                           </td>
                         </tr>
                       ))}
