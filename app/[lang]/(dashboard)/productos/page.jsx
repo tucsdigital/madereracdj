@@ -613,16 +613,20 @@ const ProductosPage = () => {
           precioPorPie: Number(nuevoPrecioPorPie),
         });
         
-        const precioFinal = producto.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+        const precioConCepillado = precioBase * 1.066;
+        const precioFinal = producto.cepilladoAplicado ? precioConCepillado : precioBase;
+        
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
         
         await updateDoc(productoRef, {
           precioPorPie: Number(nuevoPrecioPorPie),
-          precioCalculado: precioFinal, // Guardar el precio calculado
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
           fechaActualizacion: new Date().toISOString(),
         });
         
         console.log(
-          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}. Precio calculado: ${precioFinal}`
+          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}. Precio calculado: ${precioRedondeado}`
         );
       } else {
         await updateDoc(productoRef, {
@@ -651,16 +655,20 @@ const ProductosPage = () => {
           precioPorPie: Number(producto.precioPorPie) || 0,
         });
         
-        const precioFinal = aplicarCepillado ? precioBase * 1.066 : precioBase;
+        const precioConCepillado = precioBase * 1.066;
+        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
+        
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
         
         await updateDoc(productoRef, {
           cepilladoAplicado: aplicarCepillado,
-          precioCalculado: precioFinal, // Guardar el precio calculado
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
           fechaActualizacion: new Date().toISOString(),
         });
         
         console.log(
-          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}. Precio: ${precioFinal}`
+          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}. Precio: ${precioRedondeado}`
         );
       } else {
         await updateDoc(productoRef, {
@@ -1590,7 +1598,10 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                                     largo: Number(p.largo) || 0,
                                     precioPorPie: Number(p.precioPorPie) || 0,
                                   });
-                                  return p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                                  const precioConCepillado = precioBase * 1.066;
+                                  const precioFinal = p.cepilladoAplicado ? precioConCepillado : precioBase;
+                                  // Redondear a centenas (múltiplos de 100)
+                                  return Math.round(precioFinal / 100) * 100;
                                 })()
                               )}
                             </span>
@@ -1617,7 +1628,10 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                                         largo: Number(p.largo) || 0,
                                         precioPorPie: Number(p.precioPorPie) || 0,
                                       });
-                                      return p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                                      const precioConCepillado = precioBase * 1.066;
+                                      const precioFinal = p.cepilladoAplicado ? precioConCepillado : precioBase;
+                                      // Redondear a centenas (múltiplos de 100)
+                                      return Math.round(precioFinal / 100) * 100;
                                     })()
                                   : (p.valorVenta || 0);
                                 const cantidad = p.cantidad || 1;
@@ -1643,16 +1657,13 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                           {p.estado}
                         </span>
                       </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      {/* <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            Ver
-                          </Button>
                           <Button size="sm" variant="outline">
                             Editar
                           </Button>
                         </div>
-                      </td>
+                      </td> */}
                     </tr>
                   ))}
                 </tbody>
