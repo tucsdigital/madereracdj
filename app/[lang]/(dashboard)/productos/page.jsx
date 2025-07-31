@@ -27,12 +27,40 @@ import {
   onSnapshot,
   query,
   orderBy,
+  doc,
+  updateDoc,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
 const categorias = ["Maderas", "Ferretería"];
+
+// Función para formatear números en formato argentino
+const formatearNumeroArgentino = (numero) => {
+  if (numero === null || numero === undefined || isNaN(numero)) return "0";
+  return Number(numero).toLocaleString("es-AR");
+};
+
+// Función para calcular precio de corte de madera
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
 
 // Esquemas de validación por categoría
 const baseSchema = {
@@ -537,6 +565,7 @@ function FormularioProducto({ onClose, onSuccess }) {
 const ProductosPage = () => {
   const [open, setOpen] = useState(false);
   const [openBulk, setOpenBulk] = useState(false);
+  const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
   const [reload, setReload] = useState(false);
@@ -545,13 +574,47 @@ const ProductosPage = () => {
   const [error, setError] = useState(null);
   
   // Estados para carga masiva
-  const [bulkJson, setBulkJson] = useState("");
   const [bulkStatus, setBulkStatus] = useState(null);
   const [bulkMessage, setBulkMessage] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkFile, setBulkFile] = useState(null);
-  const [uploadMethod, setUploadMethod] = useState("json"); // "json" | "excel"
+
+  // Estados para carga masiva Ferretería
+  const [bulkStatusFerreteria, setBulkStatusFerreteria] = useState(null);
+  const [bulkMessageFerreteria, setBulkMessageFerreteria] = useState("");
+  const [bulkLoadingFerreteria, setBulkLoadingFerreteria] = useState(false);
+  const [bulkProgressFerreteria, setBulkProgressFerreteria] = useState({ current: 0, total: 0 });
+  const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
+
+  // Funciones para manejar cambios en productos
+  const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      await updateDoc(productoRef, {
+        precioPorPie: Number(nuevoPrecioPorPie),
+        fechaActualizacion: new Date().toISOString(),
+      });
+      console.log(`Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}`);
+    } catch (error) {
+      console.error("Error al actualizar precio por pie:", error);
+      alert("Error al actualizar el precio por pie: " + error.message);
+    }
+  };
+
+  const handleCepilladoChange = async (id, aplicarCepillado) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      await updateDoc(productoRef, {
+        cepilladoAplicado: aplicarCepillado,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      console.log(`Cepillado actualizado para producto ${id}: ${aplicarCepillado}`);
+    } catch (error) {
+      console.error("Error al actualizar cepillado:", error);
+      alert("Error al actualizar el cepillado: " + error.message);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -681,6 +744,104 @@ const ProductosPage = () => {
     });
   };
 
+  // Función para procesar archivo Excel/CSV específico para Ferretería
+  const processExcelFileFerreteria = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log("Archivo Ferretería leído:", file.name, "Tamaño:", file.size);
+          
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith('.csv')) {
+            const lines = content.split('\n');
+            console.log("Líneas CSV Ferretería encontradas:", lines.length);
+            
+            if (lines.length < 2) {
+              reject(new Error('El archivo CSV debe tener al menos una fila de encabezados y una fila de datos'));
+              return;
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            console.log("Encabezados Ferretería detectados:", headers);
+            
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                // Función para parsear valores CSV correctamente
+                const parseCSVLine = (line) => {
+                  const result = [];
+                  let current = '';
+                  let inQuotes = false;
+                  
+                  for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                      inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                      result.push(current.trim());
+                      current = '';
+                    } else {
+                      current += char;
+                    }
+                  }
+                  result.push(current.trim());
+                  return result;
+                };
+                
+                const values = parseCSVLine(lines[i]);
+                const producto = {};
+                
+                headers.forEach((header, index) => {
+                  let value = values[index] || '';
+                  
+                  // Limpiar comillas
+                  value = value.replace(/"/g, '');
+                  
+                  // Convertir valores numéricos
+                  if (['costo', 'stockMinimo', 'valorCompra', 'valorVenta'].includes(header)) {
+                    // Manejar comas en números (formato argentino)
+                    value = value.replace(',', '.');
+                    value = parseFloat(value) || 0;
+                  }
+                  
+                  producto[header] = value;
+                });
+                
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  productos.push(producto);
+                  console.log("Producto Ferretería válido agregado:", producto.codigo);
+                } else {
+                  console.log("Producto Ferretería inválido ignorado:", producto);
+                }
+              }
+            }
+            
+            console.log("Total de productos Ferretería válidos:", productos.length);
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(new Error('Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente.'));
+          }
+        } catch (error) {
+          console.error("Error procesando archivo Ferretería:", error);
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => {
+        console.error("Error al leer el archivo Ferretería");
+        reject(new Error('Error al leer el archivo'));
+      };
+      
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
   // Función para procesar carga masiva
   const handleBulkUpload = async () => {
     setBulkStatus(null);
@@ -691,40 +852,20 @@ const ProductosPage = () => {
     try {
       let productosData;
 
-      if (uploadMethod === "excel") {
-        if (!bulkFile) {
-          setBulkStatus("error");
-          setBulkMessage("Debes seleccionar un archivo Excel/CSV.");
-          setBulkLoading(false);
-          return;
-        }
-        
-        try {
-          productosData = await processExcelFile(bulkFile);
-        } catch (e) {
-          setBulkStatus("error");
-          setBulkMessage("Error al procesar el archivo: " + e.message);
-          setBulkLoading(false);
-          return;
-        }
-      } else {
-        // Procesar JSON
-        try {
-          productosData = JSON.parse(bulkJson);
-        } catch (e) {
-          setBulkStatus("error");
-          setBulkMessage("JSON inválido. Verifica el formato.");
-          setBulkLoading(false);
-          return;
-        }
-
-        // Validar que sea un array
-        if (!Array.isArray(productosData)) {
-          setBulkStatus("error");
-          setBulkMessage("El JSON debe ser un array de productos.");
-          setBulkLoading(false);
-          return;
-        }
+      if (!bulkFile) {
+        setBulkStatus("error");
+        setBulkMessage("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoading(false);
+        return;
+      }
+      
+      try {
+        productosData = await processExcelFile(bulkFile);
+      } catch (e) {
+        setBulkStatus("error");
+        setBulkMessage("Error al procesar el archivo: " + e.message);
+        setBulkLoading(false);
+        return;
       }
 
       // Validar productos
@@ -833,7 +974,6 @@ const ProductosPage = () => {
       // Limpiar formulario y cerrar modal
       setTimeout(() => {
         setOpenBulk(false);
-        setBulkJson("");
         setBulkFile(null);
         setBulkStatus(null);
         setBulkMessage("");
@@ -849,6 +989,151 @@ const ProductosPage = () => {
     }
   };
 
+  // Función para procesar carga masiva de Ferretería
+  const handleBulkUploadFerreteria = async () => {
+    setBulkStatusFerreteria(null);
+    setBulkMessageFerreteria("");
+    setBulkLoadingFerreteria(true);
+    setBulkProgressFerreteria({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFileFerreteria) {
+        setBulkStatusFerreteria("error");
+        setBulkMessageFerreteria("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+      
+      try {
+        productosData = await processExcelFileFerreteria(bulkFileFerreteria);
+      } catch (e) {
+        setBulkStatusFerreteria("error");
+        setBulkMessageFerreteria("Error al procesar el archivo: " + e.message);
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+        
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)"
+          });
+          continue;
+        }
+
+        // Validar que sea de categoría Ferretería
+        if (producto.categoria !== "Ferretería") {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Solo se permiten productos de categoría 'Ferretería'"
+          });
+          continue;
+        }
+
+        // Validar campos específicos de ferretería
+        if (!producto.stockMinimo || !producto.unidadMedida || !producto.valorCompra || !producto.valorVenta) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos de ferretería. stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorCompra: ${producto.valorCompra}, valorVenta: ${producto.valorVenta}`
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = ['costo', 'stockMinimo', 'valorCompra', 'valorVenta'];
+        for (const campo of valoresNumericos) {
+          if (producto[campo] === null || producto[campo] === undefined || isNaN(producto[campo]) || producto[campo] < 0) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor o igual a 0. Valor actual: ${producto[campo]}`
+            });
+            continue;
+          }
+        }
+
+        // Validar que valorVenta sea mayor que valorCompra
+        if (producto.valorVenta <= producto.valorCompra) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `El valor de venta debe ser mayor al valor de compra. valorVenta: ${producto.valorVenta}, valorCompra: ${producto.valorCompra}`
+          });
+          continue;
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatusFerreteria("error");
+        const erroresDetallados = productosInvalidos.map(p => 
+          `Línea ${p.index} (${p.codigo}): ${p.error}`
+        ).join('\n');
+        setBulkMessageFerreteria(`Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`);
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+
+      // Procesar productos válidos
+      setBulkProgressFerreteria({ current: 0, total: productosValidos.length });
+      
+      for (let i = 0; i < productosValidos.length; i++) {
+        const producto = productosValidos[i];
+        
+        try {
+          await addDoc(collection(db, "productos"), producto);
+          setBulkProgressFerreteria({ current: i + 1, total: productosValidos.length });
+          
+          // Pequeña pausa para no sobrecargar Firebase
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          setBulkStatusFerreteria("error");
+          setBulkMessageFerreteria(`Error al guardar producto ${producto.codigo}: ${e.message}`);
+          setBulkLoadingFerreteria(false);
+          return;
+        }
+      }
+
+      setBulkStatusFerreteria("success");
+      setBulkMessageFerreteria(`Se cargaron exitosamente ${productosValidos.length} productos de Ferretería.`);
+      
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulkFerreteria(false);
+        setBulkFileFerreteria(null);
+        setBulkStatusFerreteria(null);
+        setBulkMessageFerreteria("");
+        setBulkLoadingFerreteria(false);
+        setBulkProgressFerreteria({ current: 0, total: 0 });
+        setReload(r => !r);
+      }, 2000);
+
+    } catch (e) {
+      setBulkStatusFerreteria("error");
+      setBulkMessageFerreteria("Error inesperado: " + e.message);
+      setBulkLoadingFerreteria(false);
+    }
+  };
+
   // Función para descargar CSV de ejemplo
   const downloadExampleCSV = () => {
     const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida
@@ -861,6 +1146,24 @@ const ProductosPage = () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'ejemplo_maderas.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Función para descargar CSV de ejemplo para Ferretería
+  const downloadExampleCSVFerreteria = () => {
+    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,stockMinimo,unidadMedida,valorCompra,valorVenta,ubicacion
+F001,Tornillos Phillips 3x20,Tornillos Phillips cabeza plana,Ferretería,Tornillos,Activo,150.0,50,kg,120.0,180.0,Estante A1
+F002,Clavos 2 pulgadas,Clavos de construcción,Ferretería,Clavos,Activo,80.0,100,kg,65.0,95.0,Estante B2
+F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,unidad,160.0,240.0,Estante C3`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ejemplo_ferreteria.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -906,6 +1209,10 @@ const ProductosPage = () => {
               <Upload className="w-4 h-4 mr-1" />
               Carga Masiva
             </Button>
+            <Button variant="outline" onClick={() => setOpenBulkFerreteria(true)}>
+              <Upload className="w-4 h-4 mr-1" />
+              Carga Masiva Ferretería
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -920,34 +1227,185 @@ const ProductosPage = () => {
               No hay productos para mostrar.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productosFiltrados.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.codigo}</TableCell>
-                    <TableCell>{p.nombre}</TableCell>
-                    <TableCell>{p.categoria}</TableCell>
-                    <TableCell>{p.unidadMedida}</TableCell>
-                    <TableCell>{p.estado}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline">
-                        Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="w-full caption-top text-sm overflow-hidden">
+                <thead className="[&_tr]:border-b bg-default-">
+                  <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Código
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Categoría
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Producto
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Stock
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Cepillado
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Precio unit.
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Estado
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosFiltrados.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
+                    >
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.codigo}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            p.categoria === "Maderas"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}>
+                            {p.categoria === "Maderas" ? "🌲" : "🔧"}
+                          </div>
+                          <span>{p.categoria}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.nombre}
+                        </div>
+                        {p.categoria === "Maderas" && (
+                          <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                            <span className="font-medium text-gray-500">
+                              Dimensiones:
+                            </span>
+                            <span>
+                              Alto:{" "}
+                              <span className="font-bold">{p.alto || 0}</span>{" "}
+                              cm
+                            </span>
+                            <span>
+                              Ancho:{" "}
+                              <span className="font-bold">{p.ancho || 0}</span>{" "}
+                              cm
+                            </span>
+                            <span>
+                              Largo:{" "}
+                              <span className="font-bold">{p.largo || 0}</span>{" "}
+                              cm
+                            </span>
+                            <span>
+                              $/pie:{" "}
+                              <div className="inline-flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={p.precioPorPie || 0}
+                                  onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                                  className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                  placeholder="0.00"
+                                  title="Editar precio por pie"
+                                />
+                                <svg
+                                  className="w-3 h-3 text-blue-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </div>
+                            </span>
+                            {p.stock <= 0 && (
+                              <span className="text-red-600 font-semibold ml-2">
+                                ¡Sin stock!
+                              </span>
+                            )}
+                            {p.stock > 0 && p.stock <= 3 && (
+                              <span className="text-yellow-600 font-semibold ml-2">
+                                Stock bajo: {p.stock}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <span
+                          className={`font-bold ${
+                            p.stock > 10
+                              ? "text-green-600"
+                              : p.stock > 0
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {p.stock || 0}
+                        </span>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        {p.categoria === "Maderas" ? (
+                          <div className="flex items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={p.cepilladoAplicado || false}
+                              onChange={(e) => {
+                                handleCepilladoChange(p.id, e.target.checked);
+                              }}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                              title="Aplicar cepillado (+6.6%)"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        ${formatearNumeroArgentino(p.precioPorPie || p.valorVenta || 0)}
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            p.estado === "Activo"
+                              ? "bg-green-100 text-green-800"
+                              : p.estado === "Inactivo"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {p.estado}
+                        </span>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            Ver
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Editar
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1005,105 +1463,45 @@ const ProductosPage = () => {
               </div>
             )}
 
-            {/* Selector de método */}
-            <div className="flex gap-2 border-b">
-              <button
-                type="button"
-                onClick={() => setUploadMethod("json")}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  uploadMethod === "json"
-                    ? "bg-blue-100 text-blue-700 border-b-2 border-blue-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                📄 JSON
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMethod("excel")}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  uploadMethod === "excel"
-                    ? "bg-blue-100 text-blue-700 border-b-2 border-blue-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                📊 Excel/CSV
-              </button>
-            </div>
-
-            {/* Contenido según método seleccionado */}
-            {uploadMethod === "json" ? (
-              <div>
-                <label className="font-semibold text-sm mb-2 block">
-                  JSON de Productos (Solo Maderas)
-                </label>
-                <textarea
-                  value={bulkJson}
-                  onChange={(e) => setBulkJson(e.target.value)}
-                  placeholder={`Pega aquí el JSON de productos. Ejemplo:
-[
-  {
-    "codigo": "1401",
-    "nombre": "TABLAS 1/2 X 6 X 3",
-    "descripcion": "",
-    "categoria": "Maderas",
-    "subcategoria": "Tabla",
-    "estado": "Activo",
-    "costo": 420.0,
-    "tipoMadera": "Saligna",
-    "largo": 3.0,
-    "ancho": 0.5,
-    "alto": 6.0,
-    "precioPorPie": 700.0,
-    "ubicacion": "",
-    "unidadMedida": "pie"
-  }
-]`}
-                  className="w-full h-64 p-3 border rounded-lg font-mono text-sm resize-none"
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setBulkFile(e.target.files[0])}
+                  className="hidden"
+                  id="file-upload"
                   disabled={bulkLoading}
                 />
-              </div>
-            ) : (
-              <div>
-                <label className="font-semibold text-sm mb-2 block">
-                  Archivo Excel/CSV
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Seleccionar archivo CSV
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setBulkFile(e.target.files[0])}
-                    className="hidden"
-                    id="file-upload"
-                    disabled={bulkLoading}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Seleccionar archivo CSV
-                  </label>
-                  {bulkFile && (
-                    <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                      <p className="text-sm text-green-800">
-                        ✅ Archivo seleccionado: <strong>{bulkFile.name}</strong>
-                      </p>
-                    </div>
-                  )}
-                  <p className="text-sm text-gray-500 mt-2">
-                    Formato soportado: CSV (guarda tu Excel como CSV)
-                  </p>
-                  <button
-                    type="button"
-                    onClick={downloadExampleCSV}
-                    className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    📥 Descargar ejemplo CSV
-                  </button>
-                </div>
+                {bulkFile && (
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      ✅ Archivo seleccionado: <strong>{bulkFile.name}</strong>
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSV}
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  📥 Descargar ejemplo CSV
+                </button>
               </div>
-            )}
+            </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
               <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Instrucciones:</h4>
@@ -1113,15 +1511,11 @@ const ProductosPage = () => {
                 <li>• El campo "precioPorPie" no puede ser null o 0</li>
                 <li>• Se agregarán automáticamente las fechas de creación</li>
                 <li>• La unidad de medida se establecerá automáticamente como "pie"</li>
-                {uploadMethod === "excel" && (
-                  <>
-                    <li>• El archivo debe tener encabezados en la primera fila</li>
-                    <li>• Los campos numéricos se convertirán automáticamente</li>
-                    <li>• Se ignorarán las filas vacías</li>
-                    <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
-                    <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
-                  </>
-                )}
+                <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• Los campos numéricos se convertirán automáticamente</li>
+                <li>• Se ignorarán las filas vacías</li>
+                <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
               </ul>
             </div>
           </div>
@@ -1132,9 +1526,125 @@ const ProductosPage = () => {
             <Button 
               variant="default" 
               onClick={handleBulkUpload} 
-              disabled={bulkLoading || (!bulkJson.trim() && !bulkFile)}
+              disabled={bulkLoading || !bulkFile}
             >
               {bulkLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva Ferretería */}
+      <Dialog open={openBulkFerreteria} onOpenChange={setOpenBulkFerreteria}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Carga Masiva de Productos Ferretería</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatusFerreteria && (
+              <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                bulkStatusFerreteria === 'success' 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {bulkStatusFerreteria === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                {bulkMessageFerreteria}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoadingFerreteria && bulkProgressFerreteria.total > 0 && (
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>{bulkProgressFerreteria.current} / {bulkProgressFerreteria.total}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(bulkProgressFerreteria.current / bulkProgressFerreteria.total) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setBulkFileFerreteria(e.target.files[0])}
+                  className="hidden"
+                  id="file-upload-ferreteria"
+                  disabled={bulkLoadingFerreteria}
+                />
+                <label
+                  htmlFor="file-upload-ferreteria"
+                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFileFerreteria && (
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      ✅ Archivo seleccionado: <strong>{bulkFileFerreteria.name}</strong>
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSVFerreteria}
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  📥 Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Instrucciones:</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Solo se permiten productos de categoría "Ferretería"</li>
+                <li>• Todos los campos obligatorios deben estar presentes</li>
+                <li>• El campo "stockMinimo" debe ser un número positivo</li>
+                <li>• El campo "valorCompra" y "valorVenta" deben ser números positivos</li>
+                <li>• Se agregarán automáticamente las fechas de creación</li>
+                <li>• La unidad de medida se establecerá automáticamente</li>
+                <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• Los campos numéricos se convertirán automáticamente</li>
+                <li>• Se ignorarán las filas vacías</li>
+                <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenBulkFerreteria(false)} disabled={bulkLoadingFerreteria}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleBulkUploadFerreteria} 
+              disabled={bulkLoadingFerreteria || !bulkFileFerreteria}
+            >
+              {bulkLoadingFerreteria ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Procesando...
