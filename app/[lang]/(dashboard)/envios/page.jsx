@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc, addDoc, query, where, orderBy } from "firebase/firestore";
-import { useRouter, useParams } from "next/navigation";
-import { Truck, Package, Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw } from "lucide-react";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw } from "lucide-react";
 
 // Estados de envío con colores y descripciones
 const estadosEnvio = {
@@ -19,25 +18,7 @@ const estadosEnvio = {
     label: "Pendiente", 
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
-    description: "Envío creado, pendiente de procesamiento"
-  },
-  en_preparacion: { 
-    label: "En Preparación", 
-    color: "bg-blue-100 text-blue-800 border-blue-200",
-    icon: Package,
-    description: "Productos siendo preparados para envío"
-  },
-  listo_para_envio: { 
-    label: "Listo para Envío", 
-    color: "bg-purple-100 text-purple-800 border-purple-200",
-    icon: Truck,
-    description: "Productos preparados, listos para despacho"
-  },
-  en_transito: { 
-    label: "En Tránsito", 
-    color: "bg-orange-100 text-orange-800 border-orange-200",
-    icon: Truck,
-    description: "Envío en camino al destino"
+    description: "Envío creado, pendiente de entrega"
   },
   entregado: { 
     label: "Entregado", 
@@ -52,96 +33,6 @@ const estadosEnvio = {
     description: "Envío cancelado"
   },
 };
-
-// Componente para cambiar estado de envío
-function CambiarEstadoEnvio({ envio, onClose, onUpdate }) {
-  const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
-  const [comentario, setComentario] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async () => {
-    if (nuevoEstado === envio.estado) {
-      onClose();
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const envioRef = doc(db, "envios", envio.id);
-      const historialActual = envio.historialEstados || [];
-      const nuevoHistorial = [
-        ...historialActual,
-        {
-          estado: nuevoEstado,
-          fecha: new Date().toISOString(),
-          comentario: comentario || `Estado cambiado a ${estadosEnvio[nuevoEstado]?.label || nuevoEstado}`,
-          cambiadoPor: "usuario",
-        }
-      ];
-      await updateDoc(envioRef, {
-        estado: nuevoEstado,
-        historialEstados: nuevoHistorial,
-        fechaActualizacion: new Date().toISOString(),
-      });
-      onUpdate();
-      onClose();
-    } catch (error) {
-      console.error("Error al actualizar estado:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Cambiar Estado de Envío</DialogTitle>
-          <DialogDescription>
-            Actualiza el estado del envío N° {envio.numeroPedido}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Estado actual</label>
-            <div className="mt-1 p-2 bg-gray-50 rounded border">
-              <Badge variant="outline" className={estadosEnvio[envio.estado]?.color}>
-                {estadosEnvio[envio.estado]?.label}
-              </Badge>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Nuevo estado</label>
-            <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value)}>
-              {Object.entries(estadosEnvio).map(([key, value]) => (
-                <option key={key} value={key}>{value.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Comentario (opcional)</label>
-            <Textarea
-              value={comentario}
-              onChange={(e) => setComentario(e.target.value)}
-              placeholder="Agrega un comentario sobre el cambio de estado..."
-              className="mt-1"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Actualizando..." : "Actualizar Estado"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // Componente para ver detalles del envío
 function DetalleEnvio({ envio, onClose }) {
@@ -248,10 +139,7 @@ function DetalleEnvio({ envio, onClose }) {
   );
 }
 
-// 1. Estado para modal de edición
-// 2. Filtro predeterminado a 'pendiente' al cargar
-// 3. Función para abrir modal de edición
-// 4. Modal de edición de envío
+// Modal de edición de envío
 function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
   const [nuevoTransportista, setNuevoTransportista] = useState(envio.transportista || "");
   const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
@@ -329,7 +217,7 @@ function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
 }
 
 const EnviosPage = () => {
-  // Hooks y estados deben estar aquí
+  // Hooks y estados
   const [enviosData, setEnviosData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("");
@@ -340,26 +228,23 @@ const EnviosPage = () => {
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [envioEdit, setEnvioEdit] = useState(null);
   const transportistas = ["camion", "camioneta 1", "camioneta 2", "otro"];
-  const router = useRouter();
-  const params = useParams();
-  const { lang } = params;
 
   // Filtro predeterminado a 'pendiente' al cargar
   useEffect(() => {
     setFiltroEstado("pendiente");
   }, []);
 
-  // Función para abrir modal de edición
   const handleEditarEnvio = (envio) => {
     setEnvioEdit(envio);
     setMostrarEditar(true);
   };
+  
   const handleVerDetalle = (envio) => {
     setEnvioSeleccionado(envio);
     setMostrarDetalle(true);
   };
 
-  // Columnas para la tabla de envíos con funcionalidades avanzadas
+  // Columnas para la tabla de envíos
   const enviosColumns = [
     {
       accessorKey: "numeroPedido",
@@ -568,12 +453,8 @@ const EnviosPage = () => {
   const estadisticas = {
     total: enviosData.length,
     pendientes: enviosData.filter(e => e.estado === 'pendiente').length,
-    enTransito: enviosData.filter(e => e.estado === 'en_transito').length,
     entregados: enviosData.filter(e => e.estado === 'entregado').length,
-    vencidos: enviosData.filter(e => {
-      if (!e.fechaEntrega) return false;
-      return new Date(e.fechaEntrega) < new Date();
-    }).length,
+    cancelados: enviosData.filter(e => e.estado === 'cancelado').length,
   };
 
   if (loading) {
@@ -601,7 +482,7 @@ const EnviosPage = () => {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
@@ -616,20 +497,14 @@ const EnviosPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-600">{estadisticas.enTransito}</div>
-            <div className="text-sm text-gray-600">En Tránsito</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">{estadisticas.entregados}</div>
             <div className="text-sm text-gray-600">Entregados</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">{estadisticas.vencidos}</div>
-            <div className="text-sm text-gray-600">Vencidos</div>
+            <div className="text-2xl font-bold text-red-600">{estadisticas.cancelados}</div>
+            <div className="text-sm text-gray-600">Cancelados</div>
           </CardContent>
         </Card>
       </div>
@@ -719,7 +594,6 @@ const EnviosPage = () => {
       </Card>
 
       {/* Modales */}
-      {/* Eliminado: CambiarEstadoEnvio */}
 
       {mostrarDetalle && envioSeleccionado && (
         <DetalleEnvio

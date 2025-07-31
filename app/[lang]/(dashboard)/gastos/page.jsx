@@ -6,20 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Receipt, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import { useAuth } from "@/provider/auth.provider";
 
-// Schema de validación
+// Estados de gastos
+const estadosGasto = {
+  varios: { label: "Varios", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  empleados: { label: "Empleados", color: "bg-green-100 text-green-800 border-green-200" },
+  viaticos: { label: "Viáticos", color: "bg-purple-100 text-purple-800 border-purple-200" },
+};
+
+// Schema de validación actualizado
 const schema = yup.object().shape({
   concepto: yup.string().required("El concepto es obligatorio"),
   monto: yup.number().positive("El monto debe ser positivo").required("El monto es obligatorio"),
-  responsable: yup.string().required("El responsable es obligatorio"),
+  estado: yup.string().required("El estado es obligatorio"),
   fecha: yup.string().required("La fecha es obligatoria"),
   observaciones: yup.string().optional(),
+  clienteId: yup.string().optional(),
 });
 
 // Función helper para formatear fechas de manera segura
@@ -51,10 +61,12 @@ const formatFechaSegura = (fecha) => {
 };
 
 const GastosPage = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [editando, setEditando] = useState(null);
   const [filtro, setFiltro] = useState("");
   const [gastos, setGastos] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -63,32 +75,48 @@ const GastosPage = () => {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       concepto: "",
       monto: "",
-      responsable: "",
+      estado: "varios",
       fecha: new Date().toISOString().split("T")[0],
       observaciones: "",
+      clienteId: "",
     },
   });
 
-  // Cargar gastos desde Firebase
+  // Cargar clientes y gastos desde Firebase
   useEffect(() => {
-    const cargarGastos = async () => {
+    const cargarDatos = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "gastos"));
-        const gastosData = querySnapshot.docs.map(doc => {
+        setLoading(true);
+        
+        // Cargar clientes
+        const clientesSnap = await getDocs(collection(db, "clientes"));
+        const clientesData = clientesSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setClientes(clientesData);
+        
+        // Cargar gastos
+        const gastosSnap = await getDocs(collection(db, "gastos"));
+        const gastosData = gastosSnap.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
             concepto: data.concepto || "",
             responsable: data.responsable || "",
             monto: Number(data.monto) || 0,
+            estado: data.estado || "varios",
             fecha: formatFechaSegura(data.fecha),
             observaciones: data.observaciones || "",
+            clienteId: data.clienteId || "",
+            cliente: data.cliente || null,
             fechaCreacion: data.fechaCreacion,
             fechaActualizacion: data.fechaActualizacion,
           };
@@ -101,14 +129,21 @@ const GastosPage = () => {
         
         setGastos(gastosValidos);
       } catch (error) {
-        console.error("Error al cargar gastos:", error);
+        console.error("Error al cargar datos:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    cargarGastos();
+    cargarDatos();
   }, []);
+
+  // Función para obtener nombre del cliente
+  const obtenerNombreCliente = (clienteId) => {
+    if (!clienteId) return null;
+    const cliente = clientes.find(c => c.id === clienteId);
+    return cliente ? cliente.nombre : null;
+  };
 
   // Función para guardar gasto
   const onSubmit = async (data) => {
@@ -117,10 +152,19 @@ const GastosPage = () => {
       // Asegurar que la fecha esté en formato correcto
       const fechaFormateada = formatFechaSegura(data.fecha) || new Date().toISOString().split("T")[0];
       
+      // Obtener información del cliente si se seleccionó
+      const clienteSeleccionado = data.clienteId ? clientes.find(c => c.id === data.clienteId) : null;
+      
       const gastoData = {
         ...data,
         fecha: fechaFormateada,
         monto: Number(data.monto),
+        responsable: user?.email || "Usuario no identificado",
+        cliente: clienteSeleccionado ? {
+          id: clienteSeleccionado.id,
+          nombre: clienteSeleccionado.nombre,
+          cuit: clienteSeleccionado.cuit || "",
+        } : null,
         fechaCreacion: serverTimestamp(),
         fechaActualizacion: serverTimestamp(),
       };
@@ -134,7 +178,14 @@ const GastosPage = () => {
         
         setGastos(prev => prev.map(g => 
           g.id === editando.id 
-            ? { ...g, ...data, fecha: fechaFormateada, monto: Number(data.monto) }
+            ? { 
+                ...g, 
+                ...data, 
+                fecha: fechaFormateada, 
+                monto: Number(data.monto),
+                responsable: user?.email || "Usuario no identificado",
+                cliente: gastoData.cliente,
+              }
             : g
         ));
       } else {
@@ -145,6 +196,8 @@ const GastosPage = () => {
           ...data,
           fecha: fechaFormateada,
           monto: Number(data.monto),
+          responsable: user?.email || "Usuario no identificado",
+          cliente: gastoData.cliente,
           fechaCreacion: new Date().toISOString(),
         };
         setGastos(prev => [nuevoGasto, ...prev]);
@@ -166,9 +219,10 @@ const GastosPage = () => {
     setEditando(gasto);
     setValue("concepto", gasto.concepto);
     setValue("monto", gasto.monto);
-    setValue("responsable", gasto.responsable);
+    setValue("estado", gasto.estado || "varios");
     setValue("fecha", gasto.fecha);
     setValue("observaciones", gasto.observaciones || "");
+    setValue("clienteId", gasto.clienteId || "");
     setOpen(true);
   };
 
@@ -190,10 +244,12 @@ const GastosPage = () => {
     const concepto = gasto.concepto || "Sin concepto";
     const monto = gasto.monto || 0;
     const responsable = gasto.responsable || "Sin responsable";
+    const estado = estadosGasto[gasto.estado]?.label || gasto.estado || "Sin estado";
     const fecha = gasto.fecha || "Sin fecha";
     const observaciones = gasto.observaciones || "Sin observaciones";
+    const cliente = gasto.cliente?.nombre || "Sin cliente/proveedor";
     
-    alert(`Detalles del gasto:\n\nConcepto: ${concepto}\nMonto: $${monto.toLocaleString("es-AR")}\nResponsable: ${responsable}\nFecha: ${fecha}\nObservaciones: ${observaciones}`);
+    alert(`Detalles del gasto:\n\nConcepto: ${concepto}\nMonto: $${monto.toLocaleString("es-AR")}\nEstado: ${estado}\nResponsable: ${responsable}\nCliente/Proveedor: ${cliente}\nFecha: ${fecha}\nObservaciones: ${observaciones}`);
   };
 
   // Función para cerrar modal
@@ -207,13 +263,23 @@ const GastosPage = () => {
   const gastosFiltrados = gastos.filter(g => {
     const concepto = (g.concepto || "").toLowerCase();
     const responsable = (g.responsable || "").toLowerCase();
+    const cliente = (g.cliente?.nombre || "").toLowerCase();
     const filtroLower = filtro.toLowerCase();
     
-    return concepto.includes(filtroLower) || responsable.includes(filtroLower);
+    return concepto.includes(filtroLower) || 
+           responsable.includes(filtroLower) || 
+           cliente.includes(filtroLower);
   });
 
   // Calcular total de gastos
   const totalGastos = gastos.reduce((acc, g) => acc + Number(g.monto), 0);
+
+  // Calcular totales por estado
+  const totalesPorEstado = {
+    varios: gastos.filter(g => g.estado === 'varios').reduce((acc, g) => acc + Number(g.monto), 0),
+    empleados: gastos.filter(g => g.estado === 'empleados').reduce((acc, g) => acc + Number(g.monto), 0),
+    viaticos: gastos.filter(g => g.estado === 'viaticos').reduce((acc, g) => acc + Number(g.monto), 0),
+  };
 
   if (loading) {
     return (
@@ -239,7 +305,7 @@ const GastosPage = () => {
       </div>
 
       {/* Resumen de gastos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-gray-500">Total Gastos</div>
@@ -250,17 +316,25 @@ const GastosPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-sm text-gray-500">Cantidad de Registros</div>
+            <div className="text-sm text-gray-500">Varios</div>
             <div className="text-2xl font-bold text-blue-600">
-              {gastos.length}
+              ${totalesPorEstado.varios.toLocaleString("es-AR")}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-sm text-gray-500">Promedio por Gasto</div>
+            <div className="text-sm text-gray-500">Empleados</div>
             <div className="text-2xl font-bold text-green-600">
-              ${gastos.length > 0 ? (totalGastos / gastos.length).toLocaleString("es-AR", { maximumFractionDigits: 2 }) : "0"}
+              ${totalesPorEstado.empleados.toLocaleString("es-AR")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm text-gray-500">Viáticos</div>
+            <div className="text-2xl font-bold text-purple-600">
+              ${totalesPorEstado.viaticos.toLocaleString("es-AR")}
             </div>
           </CardContent>
         </Card>
@@ -271,7 +345,7 @@ const GastosPage = () => {
           <CardTitle>Listado de Gastos</CardTitle>
           <div className="flex gap-2">
             <Input 
-              placeholder="Buscar concepto o responsable..." 
+              placeholder="Buscar concepto, responsable o cliente..." 
               value={filtro} 
               onChange={e => setFiltro(e.target.value)} 
               className="w-56" 
@@ -293,8 +367,10 @@ const GastosPage = () => {
               <TableRow>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Concepto</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead>Monto</TableHead>
                 <TableHead>Responsable</TableHead>
+                <TableHead>Cliente/Proveedor</TableHead>
                 <TableHead>Observaciones</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -303,14 +379,22 @@ const GastosPage = () => {
                 {gastosFiltrados.map(g => (
                 <TableRow key={g.id}>
                   <TableCell>{g.fecha}</TableCell>
-                    <TableCell className="font-medium">{g.concepto}</TableCell>
-                    <TableCell className="font-bold text-red-600">
-                      ${Number(g.monto).toLocaleString("es-AR")}
-                    </TableCell>
-                  <TableCell>{g.responsable}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={g.observaciones}>
-                      {g.observaciones || "-"}
-                    </TableCell>
+                  <TableCell className="font-medium">{g.concepto}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${estadosGasto[g.estado]?.color || 'bg-gray-100 text-gray-800'}`}>
+                      {estadosGasto[g.estado]?.label || g.estado}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-bold text-red-600">
+                    ${Number(g.monto).toLocaleString("es-AR")}
+                  </TableCell>
+                  <TableCell className="text-sm">{g.responsable}</TableCell>
+                  <TableCell className="text-sm">
+                    {g.cliente?.nombre || "-"}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate" title={g.observaciones}>
+                    {g.observaciones || "-"}
+                  </TableCell>
                   <TableCell>
                       <div className="flex gap-1">
                         <Button size="sm" variant="outline" onClick={() => handleVer(g)}>
@@ -333,7 +417,7 @@ const GastosPage = () => {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[420px]">
+        <DialogContent className="w-[95vw] max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
               {editando ? "Editar Gasto" : "Registrar Gasto"}
@@ -365,14 +449,43 @@ const GastosPage = () => {
             </div>
             
             <div>
-              <Input 
-                placeholder="Responsable *" 
-                {...register("responsable")}
-                className={errors.responsable ? "border-red-500" : ""}
-              />
-              {errors.responsable && (
-                <span className="text-red-500 text-xs">{errors.responsable.message}</span>
+              <Select 
+                value={watch("estado")} 
+                onValueChange={(value) => setValue("estado", value)}
+              >
+                <SelectTrigger className={errors.estado ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Seleccionar estado *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(estadosGasto).map(([key, value]) => (
+                    <SelectItem key={key} value={key}>
+                      {value.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.estado && (
+                <span className="text-red-500 text-xs">{errors.estado.message}</span>
               )}
+            </div>
+            
+            <div>
+              <Select 
+                value={watch("clienteId")} 
+                onValueChange={(value) => setValue("clienteId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cliente/proveedor (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin cliente/proveedor</SelectItem>
+                  {clientes.map(cliente => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nombre} {cliente.cuit ? `(${cliente.cuit})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div>
@@ -393,7 +506,11 @@ const GastosPage = () => {
                 {...register("observaciones")}
                 rows={3}
               />
-          </div>
+            </div>
+            
+            <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+              <strong>Responsable:</strong> {user?.email || "Usuario no identificado"}
+            </div>
           </form>
           <DialogFooter>
             <Button variant="outline" onClick={handleCerrarModal} disabled={guardando}>

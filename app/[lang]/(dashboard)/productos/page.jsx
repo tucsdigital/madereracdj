@@ -1442,9 +1442,6 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Estado
                     </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Acciones
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
