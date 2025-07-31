@@ -2348,13 +2348,13 @@ const PresupuestoDetalle = () => {
 // Nuevo formulario minimalista para conversión a venta
 function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const [clientes, setClientes] = React.useState([]);
-  
+
   // Función para formatear números en formato argentino
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
     return Number(numero).toLocaleString("es-AR");
   };
-  
+
   // Cargar clientes al montar
   React.useEffect(() => {
     getDocs(collection(db, "clientes")).then((snap) => {
@@ -2404,7 +2404,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   ? Number(presupuesto.costoEnvio)
                   : 0;
                 const total = subtotal - descuento + envio;
-                return `No puede exceder el total de $${formatearNumeroArgentino(total)}`;
+                return `No puede exceder el total de $${formatearNumeroArgentino(
+                  total
+                )}`;
               }
             )
             .required("Obligatorio"),
