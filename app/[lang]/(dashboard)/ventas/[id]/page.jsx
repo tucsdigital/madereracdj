@@ -1614,12 +1614,16 @@ const VentaDetalle = () => {
                                 ? "bg-blue-600 text-white"
                                 : "bg-gray-100 text-gray-700"
                             }`}
-                            onClick={() =>
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                categoriaId: categoria,
-                              }))
-                            }
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (categoriaId === categoria) {
+                                setCategoriaId("");
+                              } else {
+                                setCategoriaId(categoria);
+                              }
+                            }}
+                            disabled={isSubmitting}
                           >
                             {categoria}
                           </button>

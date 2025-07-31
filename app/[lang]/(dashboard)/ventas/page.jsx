@@ -964,7 +964,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setCategoriaId(categoria);
+                            if (categoriaId === categoria) {
+                              setCategoriaId("");
+                            } else {
+                              setCategoriaId(categoria);
+                            }
                           }}
                           disabled={isSubmitting}
                         >

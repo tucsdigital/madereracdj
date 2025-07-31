@@ -175,7 +175,7 @@ function StockComprasPage() {
         setMovStatus("error"); 
         setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
         return;
-      }
+    }
     }
 
     setMovLoading(true);
@@ -408,7 +408,7 @@ function StockComprasPage() {
                   <option value="entrada">📥 Entrada (Aumentar stock)</option>
                   <option value="salida">📤 Salida (Disminuir stock)</option>
                   <option value="ajuste">⚖️ Ajuste (Corregir stock)</option>
-                </select>
+              </select>
               </div>
 
               {/* Cantidad con validación visual */}
