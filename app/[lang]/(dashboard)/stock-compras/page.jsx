@@ -311,7 +311,7 @@ function StockComprasPage() {
                 <CardTitle>Movimientos de Stock</CardTitle>
                 <div className="flex gap-2">
                   <Input placeholder="Buscar producto o usuario..." value={filtroMov} onChange={e => setFiltroMov(e.target.value)} className="w-56" />
-                  <Button variant="default" onClick={() => setOpenMov(true)}><Plus className="w-4 h-4 mr-1" />Registrar Movimiento</Button>
+                  {/* <Button variant="default" onClick={() => setOpenMov(true)}><Plus className="w-4 h-4 mr-1" />Registrar Movimiento</Button> */}
                 </div>
               </CardHeader>
               <CardContent className="overflow-x-auto">

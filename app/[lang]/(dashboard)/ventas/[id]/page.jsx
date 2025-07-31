@@ -441,6 +441,7 @@ const VentaDetalle = () => {
         return;
       }
     }
+    
     const productosArr = ventaEdit.productos || ventaEdit.items;
     const subtotal = productosArr.reduce(
       (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -454,6 +455,7 @@ const VentaDetalle = () => {
           (Number(p.descuento || 0) / 100),
       0
     );
+    
     // Calcular costo de envío solo si no es retiro local
     const costoEnvioCalculado =
       ventaEdit.tipoEnvio &&
@@ -463,11 +465,13 @@ const VentaDetalle = () => {
       !isNaN(Number(ventaEdit.costoEnvio))
         ? Number(ventaEdit.costoEnvio)
         : 0;
+    
     const total = subtotal - descuentoTotal + costoEnvioCalculado;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
       (acc, p) => acc + Number(p.monto),
       0
     );
+    
     if (totalAbonado >= total) {
       ventaEdit.estadoPago = "pagado";
     } else if (totalAbonado > 0) {
@@ -475,6 +479,7 @@ const VentaDetalle = () => {
     } else {
       ventaEdit.estadoPago = "pendiente";
     }
+    
     // Guardar correctamente los pagos del saldo pendiente
     if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
       delete ventaEdit.montoAbonado;
@@ -607,47 +612,63 @@ const VentaDetalle = () => {
       }
     }
     
-    // 4. Manejar cambios de envío
+    // 4. Manejar cambios de envío de manera más robusta
     const tipoEnvioOriginal = venta.tipoEnvio || "retiro_local";
     const tipoEnvioNuevo = ventaEdit.tipoEnvio || "retiro_local";
+    const costoEnvioOriginal = Number(venta.costoEnvio) || 0;
+    const costoEnvioNuevo = costoEnvioCalculado;
     
     console.log("=== ANÁLISIS DE ENVÍO ===");
     console.log("Tipo envío original:", tipoEnvioOriginal);
     console.log("Tipo envío nuevo:", tipoEnvioNuevo);
+    console.log("Costo envío original:", costoEnvioOriginal);
+    console.log("Costo envío nuevo:", costoEnvioNuevo);
     
     // Buscar envío existente
     const enviosSnap = await getDocs(collection(db, "envios"));
     const envioExistente = enviosSnap.docs.find(e => e.data().ventaId === ventaEdit.id);
     
-    if (tipoEnvioNuevo !== "retiro_local" && tipoEnvioNuevo !== tipoEnvioOriginal) {
+    // Lógica mejorada para manejar cambios de envío
+    if (tipoEnvioNuevo !== "retiro_local") {
       // Crear nuevo envío o actualizar existente
       const envioData = {
         ventaId: ventaEdit.id,
         clienteId: ventaEdit.clienteId,
         cliente: ventaEdit.cliente,
-        fechaCreacion: new Date().toISOString(),
+        fechaCreacion: envioExistente ? envioExistente.data().fechaCreacion : new Date().toISOString(),
         fechaEntrega: ventaEdit.fechaEntrega,
-        estado: "pendiente",
+        estado: envioExistente ? envioExistente.data().estado : "pendiente",
         prioridad: ventaEdit.prioridad || "media",
         vendedor: ventaEdit.vendedor,
-        direccionEnvio: ventaEdit.direccionEnvio,
-        localidadEnvio: ventaEdit.localidadEnvio,
+        direccionEnvio: ventaEdit.usarDireccionCliente !== false 
+          ? ventaEdit.cliente?.direccion 
+          : ventaEdit.direccionEnvio,
+        localidadEnvio: ventaEdit.usarDireccionCliente !== false 
+          ? ventaEdit.cliente?.localidad 
+          : ventaEdit.localidadEnvio,
         tipoEnvio: ventaEdit.tipoEnvio,
         transportista: ventaEdit.transportista,
-        costoEnvio: parseFloat(ventaEdit.costoEnvio) || 0,
+        costoEnvio: costoEnvioNuevo,
         numeroPedido: ventaEdit.numeroPedido,
         totalVenta: total,
         productos: productosArr,
         cantidadTotal: productosArr.reduce((acc, p) => acc + p.cantidad, 0),
-        historialEstados: [
-          {
-            estado: "pendiente",
-            fecha: new Date().toISOString(),
-            comentario: envioExistente 
-              ? "Envío actualizado desde edición de venta"
-              : "Envío creado desde edición de venta"
-          }
-        ],
+        historialEstados: envioExistente 
+          ? [
+              ...(envioExistente.data().historialEstados || []),
+              {
+                estado: "actualizado",
+                fecha: new Date().toISOString(),
+                comentario: "Envío actualizado desde edición de venta"
+              }
+            ]
+          : [
+              {
+                estado: "pendiente",
+                fecha: new Date().toISOString(),
+                comentario: "Envío creado desde edición de venta"
+              }
+            ],
         observaciones: ventaEdit.observaciones,
         instruccionesEspeciales: "",
         fechaActualizacion: new Date().toISOString(),
@@ -655,7 +676,7 @@ const VentaDetalle = () => {
       };
       
       const cleanEnvioData = Object.fromEntries(
-        Object.entries(envioData).filter(([_, v]) => v !== undefined)
+        Object.entries(envioData).filter(([_, v]) => v !== undefined && v !== null && v !== "")
       );
       
       if (envioExistente) {
@@ -685,25 +706,37 @@ const VentaDetalle = () => {
       console.log("✅ Envío cancelado por cambio a retiro local");
     }
 
-    // 5. Actualizar la venta
+    // 5. Actualizar la venta con los nuevos totales calculados correctamente
+    const ventaActualizada = {
+      ...ventaEdit,
+      subtotal,
+      descuentoTotal,
+      total,
+      productos: productosArr,
+      items: productosArr,
+      // Asegurar que el costo de envío se guarde correctamente
+      costoEnvio: costoEnvioNuevo,
+      // Limpiar campos de envío si es retiro local
+      ...(tipoEnvioNuevo === "retiro_local" && {
+        costoEnvio: 0,
+        direccionEnvio: "",
+        localidadEnvio: "",
+        transportista: "",
+        rangoHorario: "",
+        prioridad: ""
+      })
+    };
+    
     const docRef = doc(db, "ventas", ventaEdit.id);
-    await updateDoc(docRef, {
-      ...ventaEdit,
-      subtotal,
-      descuentoTotal,
-      total,
-      productos: productosArr,
-      items: productosArr,
-    });
-    setVenta({
-      ...ventaEdit,
-      subtotal,
-      descuentoTotal,
-      total,
-      productos: productosArr,
-      items: productosArr,
-    });
+    await updateDoc(docRef, ventaActualizada);
+    
+    // Actualizar el estado local
+    setVenta(ventaActualizada);
     setEditando(false);
+    
+    console.log("✅ Venta actualizada exitosamente");
+    console.log("Total final:", total);
+    console.log("Costo envío final:", costoEnvioNuevo);
   };
 
   if (loading) {
@@ -1359,9 +1392,30 @@ const VentaDetalle = () => {
                   <select
                     className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
                     value={ventaEdit.tipoEnvio || ""}
-                    onChange={(e) =>
-                      setVentaEdit({ ...ventaEdit, tipoEnvio: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const nuevoTipoEnvio = e.target.value;
+                      setVentaEdit((prev) => {
+                        const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
+                        
+                        // Si cambia de envío a retiro local, limpiar costo de envío
+                        if (nuevoTipoEnvio === "retiro_local") {
+                          updated.costoEnvio = "";
+                          updated.direccionEnvio = "";
+                          updated.localidadEnvio = "";
+                          updated.transportista = "";
+                          updated.rangoHorario = "";
+                          updated.prioridad = "";
+                        }
+                        
+                        // Si cambia de retiro local a envío, inicializar campos
+                        if (nuevoTipoEnvio !== "retiro_local" && prev.tipoEnvio === "retiro_local") {
+                          updated.usarDireccionCliente = true;
+                          updated.costoEnvio = "0";
+                        }
+                        
+                        return updated;
+                      });
+                    }}
                   >
                     <option value="">Selecciona...</option>
                     <option value="retiro_local">Retiro en local</option>
@@ -1454,6 +1508,8 @@ const VentaDetalle = () => {
                         }
                         placeholder="Costo de envío"
                         type="number"
+                        min="0"
+                        step="0.01"
                       />
                       <input
                         className="border rounded px-2 py-2 w-full"
@@ -1480,21 +1536,20 @@ const VentaDetalle = () => {
                       />
                     </>
                   )}
+                {/* Solo mostrar fecha de retiro si es retiro local */}
                 {ventaEdit.tipoEnvio === "retiro_local" && (
-                  <>
-                    <input
-                      className="border rounded px-2 py-2 w-full"
-                      type="date"
-                      value={ventaEdit.fechaEntrega || ""}
-                      onChange={(e) =>
-                        setVentaEdit({
-                          ...ventaEdit,
-                          fechaEntrega: e.target.value,
-                        })
-                      }
-                      placeholder="Fecha de retiro"
-                    />
-                  </>
+                  <input
+                    className="border rounded px-2 py-2 w-full"
+                    type="date"
+                    value={ventaEdit.fechaEntrega || ""}
+                    onChange={(e) =>
+                      setVentaEdit({
+                        ...ventaEdit,
+                        fechaEntrega: e.target.value,
+                      })
+                    }
+                    placeholder="Fecha de retiro"
+                  />
                 )}
               </div>
             </section>
@@ -2245,8 +2300,9 @@ const VentaDetalle = () => {
                           .toFixed(2)}
                       </span>
                     </div>
-                    {ventaEdit.costoEnvio &&
-                      Number(ventaEdit.costoEnvio) > 0 && (
+                    {ventaEdit.tipoEnvio && 
+                     ventaEdit.tipoEnvio !== "retiro_local" && 
+                     Number(ventaEdit.costoEnvio) > 0 && (
                         <div>
                           Costo de envío:{" "}
                           <span className="font-bold">
@@ -2272,7 +2328,9 @@ const VentaDetalle = () => {
                                 (Number(p.descuento || 0) / 100),
                             0
                           ) +
-                          (Number(ventaEdit.costoEnvio) || 0)
+                          (ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" 
+                            ? Number(ventaEdit.costoEnvio) || 0 
+                            : 0)
                         ).toFixed(2)}
                       </span>
                     </div>
@@ -2281,7 +2339,7 @@ const VentaDetalle = () => {
               )}
 
               {(() => {
-                // Calcula el saldo pendiente en modo edición
+                // Calcula el saldo pendiente en modo edición con lógica mejorada
                 const subtotal = (ventaEdit.productos || []).reduce(
                   (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
                   0
@@ -2294,18 +2352,40 @@ const VentaDetalle = () => {
                       (Number(p.descuento || 0) / 100),
                   0
                 );
-                const envio = Number(ventaEdit.costoEnvio) || 0;
+                
+                // Calcular costo de envío basado en el tipo de envío actual
+                const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
+                  ? Number(ventaEdit.costoEnvio) || 0
+                  : 0;
+                
                 const total = subtotal - descuento + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
                   ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                   : Number(ventaEdit.montoAbonado || 0);
                 const saldo = total - abonado;
+                
+                console.log("=== CÁLCULO SALDO PENDIENTE ===");
+                console.log("Subtotal:", subtotal);
+                console.log("Descuento:", descuento);
+                console.log("Tipo envío:", ventaEdit.tipoEnvio);
+                console.log("Costo envío:", envio);
+                console.log("Total:", total);
+                console.log("Abonado:", abonado);
+                console.log("Saldo pendiente:", saldo);
+                
                 if (saldo > 0) {
                   return (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
                       <h4 className="font-semibold text-yellow-800 mb-2">
                         Saldo pendiente: ${saldo.toFixed(2)}
                       </h4>
+                      <div className="text-sm text-yellow-700 mb-3">
+                        <div>Subtotal: ${subtotal.toFixed(2)}</div>
+                        <div>Descuento: ${descuento.toFixed(2)}</div>
+                        {envio > 0 && <div>Costo envío: ${envio.toFixed(2)}</div>}
+                        <div className="font-bold">Total: ${total.toFixed(2)}</div>
+                        <div>Abonado: ${abonado.toFixed(2)}</div>
+                      </div>
                       <div className="flex flex-col md:flex-row gap-2 items-end">
                         <input
                           type="number"
