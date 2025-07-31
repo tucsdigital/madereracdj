@@ -122,7 +122,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
-    prioridad: yup.string().required("Selecciona la prioridad"),
+    prioridad: yup.string().when("tipoEnvio", {
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("Selecciona la prioridad"),
+      otherwise: (s) => s.notRequired(),
+    }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     usarDireccionCliente: yup.boolean().default(true),
     fechaEntrega: yup.string().when("tipoEnvio", {
@@ -1707,10 +1711,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <option value="">Tipo de envío...</option>
                       <option value="retiro_local">Retiro en local</option>
                       <option value="envio_domicilio">Envío a domicilio</option>
-                      <option value="envio_obra">Envío a obra</option>
-                      <option value="transporte_propio">
-                        Transporte propio del cliente
-                      </option>
                     </select>
                     {errors.tipoEnvio && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -1908,10 +1908,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <option value="">Tipo de envío...</option>
                     <option value="retiro_local">Retiro en local</option>
                     <option value="envio_domicilio">Envío a domicilio</option>
-                    <option value="envio_obra">Envío a obra</option>
-                    <option value="transporte_propio">
-                      Transporte propio del cliente
-                    </option>
                   </select>
                   {errors.tipoEnvio && (
                     <span className="text-red-500 dark:text-red-400 text-xs">

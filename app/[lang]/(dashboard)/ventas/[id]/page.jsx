@@ -1362,10 +1362,6 @@ const VentaDetalle = () => {
                     <option value="">Selecciona...</option>
                     <option value="retiro_local">Retiro en local</option>
                     <option value="envio_domicilio">Envío a domicilio</option>
-                    <option value="envio_obra">Envío a obra</option>
-                    <option value="transporte_propio">
-                      Transporte propio del cliente
-                    </option>
                   </select>
                 </label>
                 {ventaEdit.tipoEnvio &&

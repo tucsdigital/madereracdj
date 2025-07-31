@@ -769,10 +769,6 @@ const PresupuestoDetalle = () => {
                     <option value="">Seleccionar tipo de envío...</option>
                     <option value="retiro_local">Retiro en local</option>
                     <option value="envio_domicilio">Envío a domicilio</option>
-                    <option value="envio_obra">Envío a obra</option>
-                    <option value="transporte_propio">
-                      Transporte propio del cliente
-                    </option>
                   </select>
                 </div>
                 {presupuestoEdit.tipoEnvio &&
@@ -2541,10 +2537,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               <option value="">Seleccionar tipo de envío...</option>
               <option value="retiro_local">Retiro en local</option>
               <option value="envio_domicilio">Envío a domicilio</option>
-              <option value="envio_obra">Envío a obra</option>
-              <option value="transporte_propio">
-                Transporte propio del cliente
-              </option>
             </select>
             {errors.tipoEnvio && (
               <span className="text-red-500 text-xs">
