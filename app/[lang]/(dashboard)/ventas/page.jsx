@@ -1275,126 +1275,126 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     </div>
                                   )}
                                 </div>
-                                </div>
+                              </div>
 
                               <div className="mt-auto">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
-                                  <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleDecrementarCantidad(prod.id)
-                                        }
-                                        disabled={
-                                          isSubmitting ||
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad <= 1
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad || 1
-                                        }
-                                        onChange={(e) =>
-                                          handleCantidadChange(
-                                            prod.id,
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-12 text-center border rounded"
-                                        disabled={isSubmitting}
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleIncrementarCantidad(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                      >
-                                        +
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleQuitarProducto(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  ) : (
+                                {yaAgregado ? (
+                                  <div className="flex items-center gap-2">
                                     <button
                                       type="button"
+                                      onClick={() =>
+                                        handleDecrementarCantidad(prod.id)
+                                      }
+                                      disabled={
+                                        isSubmitting ||
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad <= 1
+                                      }
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad || 1
+                                      }
+                                      onChange={(e) =>
+                                        handleCantidadChange(
+                                          prod.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-12 text-center border rounded"
+                                      disabled={isSubmitting}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleIncrementarCantidad(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleQuitarProducto(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                    >
+                                      Quitar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
                                     onClick={() => {
-                                        if (prod.categoria === "Maderas") {
-                                          const alto = Number(prod.alto) || 0;
-                                          const ancho = Number(prod.ancho) || 0;
-                                          const largo = Number(prod.largo) || 0;
-                                          const precioPorPie =
-                                            Number(prod.precioPorPie) || 0;
-                                          if (
-                                            alto > 0 &&
-                                            ancho > 0 &&
-                                            largo > 0 &&
-                                            precioPorPie > 0
-                                          ) {
-                                            const precio =
-                                              calcularPrecioCorteMadera({
-                                                alto,
-                                                ancho,
-                                                largo,
-                                                precioPorPie,
-                                              });
-                                            handleAgregarProducto({
-                                              id: prod.id,
-                                              nombre: prod.nombre,
-                                              precio,
-                                              unidad: prod.unidadMedida,
-                                              stock: prod.stock,
+                                      if (prod.categoria === "Maderas") {
+                                        const alto = Number(prod.alto) || 0;
+                                        const ancho = Number(prod.ancho) || 0;
+                                        const largo = Number(prod.largo) || 0;
+                                        const precioPorPie =
+                                          Number(prod.precioPorPie) || 0;
+                                        if (
+                                          alto > 0 &&
+                                          ancho > 0 &&
+                                          largo > 0 &&
+                                          precioPorPie > 0
+                                        ) {
+                                          const precio =
+                                            calcularPrecioCorteMadera({
                                               alto,
                                               ancho,
                                               largo,
                                               precioPorPie,
                                             });
-                                          } else {
-                                            setSubmitStatus("error");
-                                            setSubmitMessage(
-                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                            );
-                                            return;
-                                          }
-                                        } else {
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
-                                            precio: precio,
-                                            unidad:
-                                              prod.unidadMedida ||
-                                              prod.unidadVenta ||
-                                              prod.unidadVentaHerraje ||
-                                              prod.unidadVentaQuimico ||
-                                              prod.unidadVentaHerramienta,
+                                            precio,
+                                            unidad: prod.unidadMedida,
                                             stock: prod.stock,
+                                            alto,
+                                            ancho,
+                                            largo,
+                                            precioPorPie,
                                           });
+                                        } else {
+                                          setSubmitStatus("error");
+                                          setSubmitMessage(
+                                            "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                          );
+                                          return;
+                                        }
+                                      } else {
+                                        handleAgregarProducto({
+                                          id: prod.id,
+                                          nombre: prod.nombre,
+                                          precio: precio,
+                                          unidad:
+                                            prod.unidadMedida ||
+                                            prod.unidadVenta ||
+                                            prod.unidadVentaHerraje ||
+                                            prod.unidadVentaQuimico ||
+                                            prod.unidadVentaHerramienta,
+                                          stock: prod.stock,
+                                        });
                                       }
                                     }}
                                     disabled={isSubmitting}
                                     className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    >
-                                      Agregar
-                                    </button>
-                                  )}
+                                  >
+                                    Agregar
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1422,14 +1422,30 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   <table className="w-full caption-top text-sm overflow-hidden">
                     <thead className="[&_tr]:border-b bg-default-">
                       <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Categoría</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Producto</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cant.</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Cepillado</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Precio unit.</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Desc.</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Subtotal</th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">Acción</th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Categoría
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Producto
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Cant.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Cepillado
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Precio unit.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Desc.
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Subtotal
+                        </th>
+                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          Acción
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1451,13 +1467,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   Dimensiones:
                                 </span>
                                 <span>
-                                  Alto: <span className="font-bold">{p.alto}</span> cm
+                                  Alto:{" "}
+                                  <span className="font-bold">{p.alto}</span> cm
                                 </span>
                                 <span>
-                                  Ancho: <span className="font-bold">{p.ancho}</span> cm
+                                  Ancho:{" "}
+                                  <span className="font-bold">{p.ancho}</span>{" "}
+                                  cm
                                 </span>
                                 <span>
-                                  Largo: <span className="font-bold">{p.largo}</span> cm
+                                  Largo:{" "}
+                                  <span className="font-bold">{p.largo}</span>{" "}
+                                  cm
                                 </span>
                                 <span>
                                   $/pie:{" "}
@@ -1468,7 +1489,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       step="0.01"
                                       value={p.precioPorPie}
                                       onChange={(e) =>
-                                        handlePrecioPorPieChange(p.id, e.target.value)
+                                        handlePrecioPorPieChange(
+                                          p.id,
+                                          e.target.value
+                                        )
                                       }
                                       className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                       disabled={isSubmitting}
@@ -1508,56 +1532,62 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
                                 <button
                                   type="button"
-                                  onClick={() => handleDecrementarCantidad(p.id)}
+                                  onClick={() =>
+                                    handleDecrementarCantidad(p.id)
+                                  }
                                   disabled={isSubmitting || p.cantidad <= 1}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
                                       d="M20 12H4"
-                                          />
-                                        </svg>
+                                    />
+                                  </svg>
                                 </button>
 
                                 <input
                                   type="number"
                                   min={1}
                                   value={p.cantidad}
-                                  onChange={(e) => handleCantidadChange(p.id, e.target.value)}
+                                  onChange={(e) =>
+                                    handleCantidadChange(p.id, e.target.value)
+                                  }
                                   className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
                                   disabled={isSubmitting}
                                 />
 
                                 <button
                                   type="button"
-                                  onClick={() => handleIncrementarCantidad(p.id)}
+                                  onClick={() =>
+                                    handleIncrementarCantidad(p.id)
+                                  }
                                   disabled={isSubmitting}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
-                                  </button>
-                                </div>
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
+                            </div>
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             {p.categoria === "Maderas" ? (
@@ -1566,7 +1596,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   type="checkbox"
                                   checked={p.cepilladoAplicado || false}
                                   onChange={(e) => {
-                                    recalcularPreciosMadera(p.id, e.target.checked);
+                                    recalcularPreciosMadera(
+                                      p.id,
+                                      e.target.checked
+                                    );
                                   }}
                                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                   disabled={isSubmitting}
@@ -1586,16 +1619,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               min={0}
                               max={100}
                               value={p.descuento || 0}
-                              onChange={(e) => handleDescuentoChange(p.id, e.target.value)}
+                              onChange={(e) =>
+                                handleDescuentoChange(p.id, e.target.value)
+                              }
                               className="w-20 mx-auto text-center border rounded px-2 py-1"
                               disabled={isSubmitting}
                             />
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                            ${formatearNumeroArgentino(
+                            $
+                            {formatearNumeroArgentino(
                               Number(p.precio) *
-                              Number(p.cantidad) *
-                              (1 - Number(p.descuento || 0) / 100)
+                                Number(p.cantidad) *
+                                (1 - Number(p.descuento || 0) / 100)
                             )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -1606,15 +1642,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               className="text-lg font-bold text-red-500 hover:text-red-700"
                               title="Quitar producto"
                             >
-                                ×
+                              ×
                             </button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-              </div>
-            </section>
+                </div>
+              </section>
             )}
 
             {/* Sección condiciones y envío */}
@@ -1942,11 +1978,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
                 Subtotal:{" "}
-                <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
+                <span className="font-bold">
+                  ${formatearNumeroArgentino(subtotal)}
+                </span>
               </div>
               <div>
                 Descuento:{" "}
-                <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
+                <span className="font-bold">
+                  ${formatearNumeroArgentino(descuentoTotal)}
+                </span>
               </div>
               {costoEnvioCalculado > 0 && (
                 <div>

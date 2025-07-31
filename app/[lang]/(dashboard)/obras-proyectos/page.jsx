@@ -4,8 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { db } from "@/lib/firebase";
@@ -29,29 +42,29 @@ import {
 
 // Estados de obras con colores y descripciones
 const estadosObra = {
-  pendiente: { 
-    label: "Pendiente", 
+  pendiente: {
+    label: "Pendiente",
     color: "bg-yellow-100 text-yellow-800 border-yellow-200",
     icon: Clock,
-    description: "Obra creada, pendiente de inicio"
+    description: "Obra creada, pendiente de inicio",
   },
-  en_progreso: { 
-    label: "En Progreso", 
+  en_progreso: {
+    label: "En Progreso",
     color: "bg-blue-100 text-blue-800 border-blue-200",
     icon: Building,
-    description: "Obra en ejecución"
+    description: "Obra en ejecución",
   },
-  completada: { 
-    label: "Completada", 
+  completada: {
+    label: "Completada",
     color: "bg-green-100 text-green-800 border-green-200",
     icon: CheckCircle,
-    description: "Obra finalizada exitosamente"
+    description: "Obra finalizada exitosamente",
   },
-  cancelada: { 
-    label: "Cancelada", 
+  cancelada: {
+    label: "Cancelada",
     color: "bg-red-100 text-red-800 border-red-200",
     icon: AlertCircle,
-    description: "Obra cancelada"
+    description: "Obra cancelada",
   },
 };
 
@@ -132,7 +145,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   });
 
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
-  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false)
+  const [cepilladoAutomatico, setCepilladoAutomatico] = useState(false);
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
@@ -140,7 +153,9 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
 
   // Estados para productos de obras
   const [productosObrasState, setProductosObrasState] = useState([]);
-  const [productosObrasPorCategoria, setProductosObrasPorCategoria] = useState({});
+  const [productosObrasPorCategoria, setProductosObrasPorCategoria] = useState(
+    {}
+  );
   const [categoriasObrasState, setCategoriasObrasState] = useState([]);
   const [productosObrasLoading, setProductosObrasLoading] = useState(true);
 
@@ -167,7 +182,10 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
     setProductosObrasLoading(true);
     const fetchProductosObras = async () => {
       const snap = await getDocs(collection(db, "productos_obras"));
-      const productosObras = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const productosObras = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setProductosObrasState(productosObras);
       const agrupados = {};
       productosObras.forEach((p) => {
@@ -185,10 +203,14 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const [busquedaProducto, setBusquedaProducto] = useState("");
 
   // Determinar qué productos usar según el tipo
-  const productosActivos = tipo === "presupuesto" ? productosObrasState : productosState;
-  const productosPorCategoriaActivos = tipo === "presupuesto" ? productosObrasPorCategoria : productosPorCategoria;
-  const categoriasActivas = tipo === "presupuesto" ? categoriasObrasState : categoriasState;
-  const productosLoadingActivo = tipo === "presupuesto" ? productosObrasLoading : productosLoading;
+  const productosActivos =
+    tipo === "presupuesto" ? productosObrasState : productosState;
+  const productosPorCategoriaActivos =
+    tipo === "presupuesto" ? productosObrasPorCategoria : productosPorCategoria;
+  const categoriasActivas =
+    tipo === "presupuesto" ? categoriasObrasState : categoriasState;
+  const productosLoadingActivo =
+    tipo === "presupuesto" ? productosObrasLoading : productosLoading;
 
   const handleAgregarProducto = (producto) => {
     const real = productosActivos.find((p) => p.id === producto.id);
@@ -253,13 +275,14 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
           id: real.id,
           nombre: real.nombre,
           precio,
-          unidad: tipo === "presupuesto" ? real.unidad : (
-            real.unidadMedida ||
-            real.unidadVenta ||
-            real.unidadVentaHerraje ||
-            real.unidadVentaQuimico ||
-            real.unidadVentaHerramienta
-          ),
+          unidad:
+            tipo === "presupuesto"
+              ? real.unidad
+              : real.unidadMedida ||
+                real.unidadVenta ||
+                real.unidadVentaHerraje ||
+                real.unidadVentaQuimico ||
+                real.unidadVentaHerramienta,
           stock: real.stock || 0,
           cantidad: 1,
           descuento: 0,
@@ -273,7 +296,8 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
             ancho: Number(real.ancho) || 0,
             largo: Number(real.largo) || 0,
             precioPorPie: Number(real.precioPorPie) || 0,
-            cepilladoAplicado: real.categoria === "Maderas" && cepilladoAutomatico,
+            cepilladoAplicado:
+              real.categoria === "Maderas" && cepilladoAutomatico,
           }),
         },
       ]);
@@ -410,7 +434,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   };
 
   const handleGuardarNuevoCliente = async () => {
-    const clienteObj = { 
+    const clienteObj = {
       ...nuevoCliente,
       esClienteViejo: nuevoCliente.esClienteViejo || false,
     };
@@ -604,8 +628,15 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       return 0;
     }
     const precio = factor * alto * ancho * largo * precioPorPie;
-    return Math.round(precio * 100) / 100;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
   }
+
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
+  };
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
@@ -795,7 +826,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.nombre || ""}
                       placeholder="Nombre del cliente"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.nombre && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -808,7 +839,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.cuit || ""}
                       placeholder="CUIT"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.cuit && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -821,7 +852,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.direccion || ""}
                       placeholder="Dirección"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.direccion && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -834,7 +865,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.telefono || ""}
                       placeholder="Teléfono"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.telefono && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -847,7 +878,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       value={clienteSeleccionado?.email || ""}
                       placeholder="Email"
                       readOnly
-                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md text-base dark:text-default-100"
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
                     />
                     {errors.cliente?.email && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
@@ -859,7 +890,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
               </div>
             </section>
 
-            {/* Sección Productos */}
+            {/* Sección Productos - Diseño Mejorado */}
             <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
               {/* Header con estadísticas */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -882,13 +913,14 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {tipo === "presupuesto" ? "Productos de obras" : "Productos"}
+                        {tipo === "presupuesto"
+                          ? "Productos de obras"
+                          : "Productos"}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {tipo === "presupuesto" 
+                        {tipo === "presupuesto"
                           ? "Selecciona los productos de obras para tu presupuesto"
-                          : "Selecciona los productos para tu venta"
-                        }
+                          : "Selecciona los productos para tu venta"}
                       </p>
                     </div>
                   </div>
@@ -897,12 +929,15 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       {productosSeleccionados.length}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {tipo === "presupuesto" ? "productos de obras" : "productos"} agregados
+                      {tipo === "presupuesto"
+                        ? "productos de obras"
+                        : "productos"}{" "}
+                      agregados
                     </div>
                   </div>
                 </div>
 
-                {/* Filtros */}
+                {/* Filtros mejorados */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {/* Filtro de categorías */}
                   <div className="flex-1">
@@ -911,14 +946,11 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                         <button
                           key={categoria}
                           type="button"
-                          variant={
-                            categoriaId === categoria ? "default" : "soft"
-                          }
-                          size="sm"
-                          color={
-                            categoriaId === categoria ? "primary" : "secondary"
-                          }
-                          className="rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all"
+                          className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                            categoriaId === categoria
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -932,7 +964,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </div>
                   </div>
 
-                  {/* Buscador */}
+                  {/* Buscador mejorado */}
                   <div className="flex-1 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg
@@ -951,7 +983,11 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </div>
                     <input
                       type="text"
-                      placeholder={tipo === "presupuesto" ? "Buscar productos de obras..." : "Buscar productos..."}
+                      placeholder={
+                        tipo === "presupuesto"
+                          ? "Buscar productos de obras..."
+                          : "Buscar productos..."
+                      }
                       value={busquedaProducto}
                       onChange={(e) => setBusquedaProducto(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
@@ -1015,7 +1051,10 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       prod.nombre
                         .toLowerCase()
                         .includes(busquedaProducto.toLowerCase()) ||
-                      (tipo === "presupuesto" ? prod.unidad : (prod.unidadMedida || ""))
+                      (tipo === "presupuesto"
+                        ? prod.unidad
+                        : prod.unidadMedida || ""
+                      )
                         .toLowerCase()
                         .includes(busquedaProducto.toLowerCase())
                   ).length === 0 ? (
@@ -1043,14 +1082,17 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-3 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                     {productosPorCategoriaActivos[categoriaId]
                       ?.filter(
                         (prod) =>
                           prod.nombre
                             .toLowerCase()
                             .includes(busquedaProducto.toLowerCase()) ||
-                          (tipo === "presupuesto" ? prod.unidad : (prod.unidadMedida || ""))
+                          (tipo === "presupuesto"
+                            ? prod.unidad
+                            : prod.unidadMedida || ""
+                          )
                             .toLowerCase()
                             .includes(busquedaProducto.toLowerCase())
                       )
@@ -1082,26 +1124,30 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                         return (
                           <div
                             key={prod.id}
-                            className={`group relative bg-white dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                            className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                               yaAgregado
                                 ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
                                 : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
                             }`}
                           >
-                            <div className="p-4">
-                              <div className="flex items-start justify-between">
+                            <div className="p-4 flex flex-col h-full">
+                              <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
                                     <div
                                       className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                        tipo === "presupuesto" 
+                                        tipo === "presupuesto"
                                           ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                                           : prod.categoria === "Maderas"
                                           ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                                           : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                                       }`}
                                     >
-                                      {tipo === "presupuesto" ? "🏗️" : (prod.categoria === "Maderas" ? "🌲" : "🔧")}
+                                      {tipo === "presupuesto"
+                                        ? "🏗️"
+                                        : prod.categoria === "Maderas"
+                                        ? "🌲"
+                                        : "🔧"}
                                     </div>
                                     <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                                       {prod.nombre}
@@ -1126,13 +1172,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                     )}
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-4 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 dark:text-gray-400 mb-3">
                                     <div>
                                       <span className="font-medium">
                                         Precio:
                                       </span>
                                       <span className="ml-1 font-bold text-blue-600 dark:text-blue-400">
-                                        ${precio.toLocaleString()}
+                                        ${formatearNumeroArgentino(precio)}
                                       </span>
                                     </div>
                                     <div>
@@ -1140,14 +1186,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                         Unidad:
                                       </span>
                                       <span className="ml-1">
-                                        {tipo === "presupuesto" 
+                                        {tipo === "presupuesto"
                                           ? prod.unidad
-                                          : (prod.unidadMedida ||
+                                          : prod.unidadMedida ||
                                             prod.unidadVenta ||
                                             prod.unidadVentaHerraje ||
                                             prod.unidadVentaQuimico ||
-                                            prod.unidadVentaHerramienta)
-                                        }
+                                            prod.unidadVentaHerramienta}
                                       </span>
                                     </div>
                                     {tipo !== "presupuesto" && (
@@ -1168,31 +1213,33 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                         </span>
                                       </div>
                                     )}
-                                    {tipo === "presupuesto" && prod.subcategoria && (
-                                      <div>
-                                        <span className="font-medium">
-                                          Subcategoría:
-                                        </span>
-                                        <span className="ml-1">
-                                          {prod.subcategoria}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {tipo !== "presupuesto" && prod.categoria === "Maderas" && (
-                                      <div>
-                                        <span className="font-medium">
-                                          $/pie:
-                                        </span>
-                                        <span className="ml-1 font-bold text-orange-600 dark:text-orange-400">
-                                          {prod.precioPorPie}
-                                        </span>
-                                      </div>
-                                    )}
+                                    {tipo === "presupuesto" &&
+                                      prod.subcategoria && (
+                                        <div>
+                                          <span className="font-medium">
+                                            Subcategoría:
+                                          </span>
+                                          <span className="ml-1">
+                                            {prod.subcategoria}
+                                          </span>
+                                        </div>
+                                      )}
+                                    {tipo !== "presupuesto" &&
+                                      prod.categoria === "Maderas" && (
+                                        <div>
+                                          <span className="font-medium">
+                                            $/pie:
+                                          </span>
+                                          <span className="ml-1 font-bold text-orange-600 dark:text-orange-400">
+                                            {prod.precioPorPie}
+                                          </span>
+                                        </div>
+                                      )}
                                   </div>
 
                                   {/* Información adicional para productos de obras */}
                                   {tipo === "presupuesto" && (
-                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
+                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
                                       <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
                                         <svg
                                           className="w-3 h-3"
@@ -1231,227 +1278,231 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                   )}
 
                                   {/* Dimensiones para maderas (solo productos normales) */}
-                                  {tipo !== "presupuesto" && prod.categoria === "Maderas" && (
-                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700">
-                                      <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          Dimensiones
-                                        </span>
+                                  {tipo !== "presupuesto" &&
+                                    prod.categoria === "Maderas" && (
+                                      <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
+                                        <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                          <span className="font-medium">
+                                            Dimensiones
+                                          </span>
+                                        </div>
+                                        <div className="flex gap-3 text-xs">
+                                          <span>
+                                            Alto:{" "}
+                                            <span className="font-bold">
+                                              {prod.alto || 0}
+                                            </span>{" "}
+                                            cm
+                                          </span>
+                                          <span>
+                                            Ancho:{" "}
+                                            <span className="font-bold">
+                                              {prod.ancho || 0}
+                                            </span>{" "}
+                                            cm
+                                          </span>
+                                          <span>
+                                            Largo:{" "}
+                                            <span className="font-bold">
+                                              {prod.largo || 0}
+                                            </span>{" "}
+                                            cm
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="flex gap-3 text-xs">
-                                        <span>
-                                          Alto:{" "}
-                                          <span className="font-bold">
-                                            {prod.alto || 0}
-                                          </span>{" "}
-                                          cm
-                                        </span>
-                                        <span>
-                                          Ancho:{" "}
-                                          <span className="font-bold">
-                                            {prod.ancho || 0}
-                                          </span>{" "}
-                                          cm
-                                        </span>
-                                        <span>
-                                          Largo:{" "}
-                                          <span className="font-bold">
-                                            {prod.largo || 0}
-                                          </span>{" "}
-                                          cm
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
+                                    )}
 
                                   {/* Alertas de stock (solo productos normales) */}
-                                  {tipo !== "presupuesto" && prod.stock <= 0 && (
-                                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700">
-                                      <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          ¡Sin stock! Se permitirá avanzar
-                                          igual.
-                                        </span>
+                                  {tipo !== "presupuesto" &&
+                                    prod.stock <= 0 && (
+                                      <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 mb-3">
+                                        <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                          <span className="font-medium">
+                                            ¡Sin stock! Se permitirá avanzar
+                                            igual.
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {tipo !== "presupuesto" && prod.stock > 0 && prod.stock <= 3 && (
-                                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
-                                      <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          Stock bajo: quedan {prod.stock}{" "}
-                                          unidades.
-                                        </span>
+                                    )}
+                                  {tipo !== "presupuesto" &&
+                                    prod.stock > 0 &&
+                                    prod.stock <= 3 && (
+                                      <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700 mb-3">
+                                        <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                          <span className="font-medium">
+                                            Stock bajo: quedan {prod.stock}{" "}
+                                            unidades.
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
                                 </div>
+                              </div>
 
-                                <div className="flex flex-col items-end gap-2 ml-4">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
-                                  <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleDecrementarCantidad(prod.id)
-                                        }
-                                        disabled={
-                                          isSubmitting ||
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad <= 1
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                          productosSeleccionados.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad || 1
-                                        }
-                                        onChange={(e) =>
-                                          handleCantidadChange(
-                                            prod.id,
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-12 text-center border rounded"
-                                        disabled={isSubmitting}
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleIncrementarCantidad(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                      >
-                                        +
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleQuitarProducto(prod.id)
-                                        }
-                                        disabled={isSubmitting}
-                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  ) : (
+                              <div className="mt-auto">
+                                {yaAgregado ? (
+                                  <div className="flex items-center gap-2">
                                     <button
                                       type="button"
+                                      onClick={() =>
+                                        handleDecrementarCantidad(prod.id)
+                                      }
+                                      disabled={
+                                        isSubmitting ||
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad <= 1
+                                      }
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={
+                                        productosSeleccionados.find(
+                                          (p) => p.id === prod.id
+                                        )?.cantidad || 1
+                                      }
+                                      onChange={(e) =>
+                                        handleCantidadChange(
+                                          prod.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-12 text-center border rounded"
+                                      disabled={isSubmitting}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleIncrementarCantidad(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleQuitarProducto(prod.id)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                    >
+                                      Quitar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
                                     onClick={() => {
-                                        if (tipo === "presupuesto") {
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio: prod.precio,
-                                            unidad: prod.unidad,
-                                            categoria: prod.categoria,
-                                            subcategoria: prod.subcategoria,
-                                            ubicacion: prod.ubicacion,
-                                            observaciones: prod.observaciones,
-                                          });
-                                        } else {
-                                          if (prod.categoria === "Maderas") {
-                                            const alto = Number(prod.alto) || 0;
-                                            const ancho = Number(prod.ancho) || 0;
-                                            const largo = Number(prod.largo) || 0;
-                                            const precioPorPie =
-                                              Number(prod.precioPorPie) || 0;
-                                            if (
-                                              alto > 0 &&
-                                              ancho > 0 &&
-                                              largo > 0 &&
-                                              precioPorPie > 0
-                                            ) {
-                                              const precio =
-                                                calcularPrecioCorteMadera({
-                                                  alto,
-                                                  ancho,
-                                                  largo,
-                                                  precioPorPie,
-                                                });
-                                              handleAgregarProducto({
-                                                id: prod.id,
-                                                nombre: prod.nombre,
-                                                precio,
-                                                unidad: prod.unidadMedida,
-                                                stock: prod.stock,
+                                      if (tipo === "presupuesto") {
+                                        handleAgregarProducto({
+                                          id: prod.id,
+                                          nombre: prod.nombre,
+                                          precio: prod.precio,
+                                          unidad: prod.unidad,
+                                          categoria: prod.categoria,
+                                          subcategoria: prod.subcategoria,
+                                          ubicacion: prod.ubicacion,
+                                          observaciones: prod.observaciones,
+                                        });
+                                      } else {
+                                        if (prod.categoria === "Maderas") {
+                                          const alto = Number(prod.alto) || 0;
+                                          const ancho = Number(prod.ancho) || 0;
+                                          const largo = Number(prod.largo) || 0;
+                                          const precioPorPie =
+                                            Number(prod.precioPorPie) || 0;
+                                          if (
+                                            alto > 0 &&
+                                            ancho > 0 &&
+                                            largo > 0 &&
+                                            precioPorPie > 0
+                                          ) {
+                                            const precio =
+                                              calcularPrecioCorteMadera({
                                                 alto,
                                                 ancho,
                                                 largo,
                                                 precioPorPie,
                                               });
-                                            } else {
-                                              setSubmitStatus("error");
-                                              setSubmitMessage(
-                                                "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                              );
-                                              return;
-                                            }
-                                          } else {
                                             handleAgregarProducto({
                                               id: prod.id,
                                               nombre: prod.nombre,
-                                              precio: precio,
-                                              unidad:
-                                                prod.unidadMedida ||
-                                                prod.unidadVenta ||
-                                                prod.unidadVentaHerraje ||
-                                                prod.unidadVentaQuimico ||
-                                                prod.unidadVentaHerramienta,
+                                              precio,
+                                              unidad: prod.unidadMedida,
                                               stock: prod.stock,
+                                              alto,
+                                              ancho,
+                                              largo,
+                                              precioPorPie,
                                             });
+                                          } else {
+                                            setSubmitStatus("error");
+                                            setSubmitMessage(
+                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                            );
+                                            return;
+                                          }
+                                        } else {
+                                          handleAgregarProducto({
+                                            id: prod.id,
+                                            nombre: prod.nombre,
+                                            precio: precio,
+                                            unidad:
+                                              prod.unidadMedida ||
+                                              prod.unidadVenta ||
+                                              prod.unidadVentaHerraje ||
+                                              prod.unidadVentaQuimico ||
+                                              prod.unidadVentaHerramienta,
+                                            stock: prod.stock,
+                                          });
                                         }
                                       }
                                     }}
                                     disabled={isSubmitting}
-                                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    >
-                                      Agregar
-                                    </button>
-                                  )}
-                                </div>
+                                    className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                  >
+                                    Agregar
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1467,37 +1518,41 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
               <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-default-900">
-                    {tipo === "presupuesto" ? "Productos de obras seleccionados" : "Productos seleccionados"}
+                    {tipo === "presupuesto"
+                      ? "Productos de obras seleccionados"
+                      : "Productos seleccionados"}
                   </h3>
                   <span className="text-sm text-default-600">
-                    {productosSeleccionados.length} {tipo === "presupuesto" ? "producto de obra" : "producto"}
+                    {productosSeleccionados.length}{" "}
+                    {tipo === "presupuesto" ? "producto de obra" : "producto"}
                     {productosSeleccionados.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
                 {/* Checkbox de cepillado automático para maderas (solo productos normales) */}
-                {tipo !== "presupuesto" && productosSeleccionados.some(
-                  (p) => p.categoria === "Maderas"
-                ) && (
-                  <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
-                    <input
-                      type="checkbox"
-                      id="cepilladoAutomatico"
-                      checked={cepilladoAutomatico}
-                      onChange={(e) => {
-                        setCepilladoAutomatico(e.target.checked);
-                        recalcularPreciosMadera(e.target.checked);
-                      }}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label
-                      htmlFor="cepilladoAutomatico"
-                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                    >
-                      Cepillado?
-                    </label>
-                  </div>
-                )}
+                {tipo !== "presupuesto" &&
+                  productosSeleccionados.some(
+                    (p) => p.categoria === "Maderas"
+                  ) && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
+                      <input
+                        type="checkbox"
+                        id="cepilladoAutomatico"
+                        checked={cepilladoAutomatico}
+                        onChange={(e) => {
+                          setCepilladoAutomatico(e.target.checked);
+                          recalcularPreciosMadera(e.target.checked);
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <label
+                        htmlFor="cepilladoAutomatico"
+                        className="text-sm font-medium text-blue-800 dark:text-blue-200"
+                      >
+                        Cepillado?
+                      </label>
+                    </div>
+                  )}
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[700px] border rounded-lg shadow-sm bg-white dark:bg-default-900">
@@ -1530,19 +1585,25 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                 {p.subcategoria && (
                                   <span>
                                     Subcategoría:{" "}
-                                    <span className="font-bold">{p.subcategoria}</span>
+                                    <span className="font-bold">
+                                      {p.subcategoria}
+                                    </span>
                                   </span>
                                 )}
                                 {p.ubicacion && (
                                   <span>
                                     Ubicación:{" "}
-                                    <span className="font-bold">{p.ubicacion}</span>
+                                    <span className="font-bold">
+                                      {p.ubicacion}
+                                    </span>
                                   </span>
                                 )}
                                 {p.observaciones && (
                                   <span>
                                     Obs:{" "}
-                                    <span className="font-bold">{p.observaciones}</span>
+                                    <span className="font-bold">
+                                      {p.observaciones}
+                                    </span>
                                   </span>
                                 )}
                               </div>
@@ -1554,7 +1615,8 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                   </span>
                                   <span>
                                     Alto:{" "}
-                                    <span className="font-bold">{p.alto}</span> cm
+                                    <span className="font-bold">{p.alto}</span>{" "}
+                                    cm
                                   </span>
                                   <span>
                                     Ancho:{" "}
@@ -1631,19 +1693,19 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                   disabled={isSubmitting || p.cantidad <= 1}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
                                       d="M20 12H4"
-                                          />
-                                        </svg>
+                                    />
+                                  </svg>
                                 </button>
 
                                 <input
@@ -1665,22 +1727,22 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                   disabled={isSubmitting}
                                   className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
                                 >
-                                        <svg
-                                          className="w-4 h-4"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
-                                  </button>
-                                </div>
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
+                            </div>
                           </td>
                           <td className="text-center">${p.precio}</td>
                           <td className="text-center">
@@ -1723,8 +1785,8 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                       ))}
                     </tbody>
                   </table>
-              </div>
-            </section>
+                </div>
+              </section>
             )}
 
             {/* Sección condiciones y envío */}
@@ -2137,7 +2199,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                 ¿Es un cliente existente/antiguo?
               </label>
             </div>
-            
+
             <Input
               placeholder="Nombre *"
               className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
@@ -2336,7 +2398,9 @@ const ObrasPage = () => {
         return (
           <div>
             <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
-            <div className="text-xs text-gray-500">{cliente?.cuit || "Sin CUIT"}</div>
+            <div className="text-xs text-gray-500">
+              {cliente?.cuit || "Sin CUIT"}
+            </div>
           </div>
         );
       },
@@ -2347,11 +2411,11 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const fecha = row.getValue("fecha");
         if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
-        
-        const fechaObra = new Date(fecha + 'T00:00:00');
+
+        const fechaObra = new Date(fecha + "T00:00:00");
         return (
           <div className="text-gray-600">
-            {fechaObra.toLocaleDateString('es-AR')}
+            {fechaObra.toLocaleDateString("es-AR")}
           </div>
         );
       },
@@ -2362,12 +2426,18 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const tipo = row.getValue("tipo");
         const tipos = {
-          obra: { label: "Obra", color: "bg-blue-100 text-blue-800 border-blue-200" },
-          presupuesto: { label: "Presupuesto", color: "bg-purple-100 text-purple-800 border-purple-200" },
+          obra: {
+            label: "Obra",
+            color: "bg-blue-100 text-blue-800 border-blue-200",
+          },
+          presupuesto: {
+            label: "Presupuesto",
+            color: "bg-purple-100 text-purple-800 border-purple-200",
+          },
         };
-        const tipoInfo = tipos[tipo] || { 
-          label: tipo, 
-          color: "bg-gray-100 text-gray-800 border-gray-200" 
+        const tipoInfo = tipos[tipo] || {
+          label: tipo,
+          color: "bg-gray-100 text-gray-800 border-gray-200",
         };
         return (
           <Badge variant="outline" className={tipoInfo.color}>
@@ -2381,9 +2451,9 @@ const ObrasPage = () => {
       header: "Estado",
       cell: ({ row }) => {
         const estado = row.getValue("estado");
-        const estadoInfo = estadosObra[estado] || { 
-          label: estado, 
-          color: "bg-gray-100 text-gray-800 border-gray-200" 
+        const estadoInfo = estadosObra[estado] || {
+          label: estado,
+          color: "bg-gray-100 text-gray-800 border-gray-200",
         };
         const Icon = estadoInfo.icon || Clock;
         return (
@@ -2403,7 +2473,12 @@ const ObrasPage = () => {
         const total = row.getValue("total");
         return (
           <div className="font-medium">
-            ${total ? Number(total).toLocaleString("es-AR", { minimumFractionDigits: 2 }) : "0.00"}
+            $
+            {total
+              ? Number(total).toLocaleString("es-AR", {
+                  minimumFractionDigits: 2,
+                })
+              : "0.00"}
           </div>
         );
       },
@@ -2425,7 +2500,9 @@ const ObrasPage = () => {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => router.push(`/${lang}/obras-proyectos/${obra.id}?edit=true`)}
+              onClick={() =>
+                router.push(`/${lang}/obras-proyectos/${obra.id}?edit=true`)
+              }
             >
               Editar
             </Button>
@@ -2472,11 +2549,11 @@ const ObrasPage = () => {
         cleanFormData.tipo = open === "presupuesto" ? "presupuesto" : "obra";
         console.log("[DEBUG] Datos limpios para guardar:", cleanFormData);
         docRef = await addDoc(collection(db, "obras"), cleanFormData);
-          console.log(
+        console.log(
           "[SUCCESS] Documento guardado en Firebase con ID:",
-            docRef.id
-          );
-          setOpen(null);
+          docRef.id
+        );
+        setOpen(null);
         router.push(`/${lang}/obras-proyectos/${docRef.id}`);
       }
     } catch (error) {
@@ -2489,28 +2566,29 @@ const ObrasPage = () => {
   };
 
   // Filtrar obras
-  const obrasFiltradas = obrasData.filter(obra => {
+  const obrasFiltradas = obrasData.filter((obra) => {
     const cumpleEstado = !filtroEstado || obra.estado === filtroEstado;
     const cumpleTipo = !filtroTipo || obra.tipo === filtroTipo;
-    const cumpleBusqueda = !busqueda || 
+    const cumpleBusqueda =
+      !busqueda ||
       obra.numeroPedido?.toLowerCase().includes(busqueda.toLowerCase()) ||
       obra.cliente?.nombre?.toLowerCase().includes(busqueda.toLowerCase());
-    
+
     return cumpleEstado && cumpleTipo && cumpleBusqueda;
   });
 
   // Estadísticas
   const estadisticas = {
     total: obrasData.length,
-    obras: obrasData.filter(o => o.tipo === 'obra').length,
-    presupuestos: obrasData.filter(o => o.tipo === 'presupuesto').length,
-    pendientes: obrasData.filter(o => o.estado === 'pendiente').length,
-    enProgreso: obrasData.filter(o => o.estado === 'en_progreso').length,
-    completadas: obrasData.filter(o => o.estado === 'completada').length,
+    obras: obrasData.filter((o) => o.tipo === "obra").length,
+    presupuestos: obrasData.filter((o) => o.tipo === "presupuesto").length,
+    pendientes: obrasData.filter((o) => o.estado === "pendiente").length,
+    enProgreso: obrasData.filter((o) => o.estado === "en_progreso").length,
+    completadas: obrasData.filter((o) => o.estado === "completada").length,
   };
 
   if (loading) {
-  return (
+    return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -2524,8 +2602,12 @@ const ObrasPage = () => {
     <div className="flex flex-col gap-6 py-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Obras y Presupuestos</h1>
-          <p className="text-gray-600 mt-1">Administra y da seguimiento a todas las obras y presupuestos</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Gestión de Obras y Presupuestos
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Administra y da seguimiento a todas las obras y presupuestos
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -2537,10 +2619,7 @@ const ObrasPage = () => {
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
             onClick={() => setOpen("obra")}
           >
-            <Icon
-              icon="heroicons:building-office"
-              className="w-4 h-4"
-            />
+            <Icon icon="heroicons:building-office" className="w-4 h-4" />
             Agregar Obra
           </Button>
           <Button
@@ -2548,10 +2627,7 @@ const ObrasPage = () => {
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
             onClick={() => setOpen("presupuesto")}
           >
-            <Icon
-              icon="heroicons:document-text"
-              className="w-4 h-4"
-            />
+            <Icon icon="heroicons:document-text" className="w-4 h-4" />
             Añadir presupuesto
           </Button>
         </div>
@@ -2561,37 +2637,49 @@ const ObrasPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {estadisticas.total}
+            </div>
             <div className="text-sm text-gray-600">Total</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-600">{estadisticas.obras}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {estadisticas.obras}
+            </div>
             <div className="text-sm text-gray-600">Obras</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-600">{estadisticas.presupuestos}</div>
+            <div className="text-2xl font-bold text-purple-600">
+              {estadisticas.presupuestos}
+            </div>
             <div className="text-sm text-gray-600">Presupuestos</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {estadisticas.pendientes}
+            </div>
             <div className="text-sm text-gray-600">Pendientes</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{estadisticas.enProgreso}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {estadisticas.enProgreso}
+            </div>
             <div className="text-sm text-gray-600">En Progreso</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">{estadisticas.completadas}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {estadisticas.completadas}
+            </div>
             <div className="text-sm text-gray-600">Completadas</div>
           </CardContent>
         </Card>
@@ -2603,8 +2691,8 @@ const ObrasPage = () => {
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             Filtros y Búsqueda
-            </CardTitle>
-          </CardHeader>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -2619,7 +2707,7 @@ const ObrasPage = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Estado</label>
               <Select value={filtroEstado} onValueChange={setFiltroEstado}>
@@ -2636,7 +2724,7 @@ const ObrasPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium">Tipo</label>
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
@@ -2650,10 +2738,10 @@ const ObrasPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex items-end">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setFiltroEstado("");
                   setFiltroTipo("");
@@ -2665,21 +2753,21 @@ const ObrasPage = () => {
               </Button>
             </div>
           </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
       {/* Tabla de obras */}
       <Card>
         <CardHeader>
           <CardTitle>
             Obras y Presupuestos ({obrasFiltradas.length} de {obrasData.length})
-            </CardTitle>
-          </CardHeader>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           <DataTable data={obrasFiltradas} columns={obrasColumns} />
-          </CardContent>
-        </Card>
-      
+        </CardContent>
+      </Card>
+
       <Dialog open={!!open} onOpenChange={handleClose}>
         <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20 bg-card">
           <FormularioObra
