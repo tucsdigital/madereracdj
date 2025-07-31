@@ -2335,7 +2335,7 @@ const VentasPage = () => {
             fecha: serverTimestamp(),
             referencia: "venta",
             referenciaId: docRef.id,
-            observaciones: `Salida por venta (${cleanFormData.nombre || ""})`,
+            observaciones: `Salida por venta`,
             productoNombre: prod.nombre,
           });
         }

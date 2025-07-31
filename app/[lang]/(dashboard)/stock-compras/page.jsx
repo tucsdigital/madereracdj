@@ -13,7 +13,6 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 
 function StockComprasPage() {
   const [tab, setTab] = useState("inventario");
-  const [openRepo, setOpenRepo] = useState(false);
   const [openMov, setOpenMov] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [filtroMov, setFiltroMov] = useState("");
@@ -22,13 +21,6 @@ function StockComprasPage() {
   const [loadingProd, setLoadingProd] = useState(true);
   const [loadingMov, setLoadingMov] = useState(true);
   const [error, setError] = useState(null);
-  // Formulario reposición
-  const [repoProductoId, setRepoProductoId] = useState("");
-  const [repoCantidad, setRepoCantidad] = useState(1);
-  const [repoObs, setRepoObs] = useState("");
-  const [repoStatus, setRepoStatus] = useState(null); // 'success' | 'error' | null
-  const [repoMsg, setRepoMsg] = useState("");
-  const [repoLoading, setRepoLoading] = useState(false);
   // Formulario movimiento
   const [movProductoId, setMovProductoId] = useState("");
   const [movTipo, setMovTipo] = useState("entrada");
@@ -40,24 +32,12 @@ function StockComprasPage() {
 
   // Estado para proveedores y buscador dinámico
   const [proveedores, setProveedores] = useState([]);
-  const [buscadorRepo, setBuscadorRepo] = useState("");
   const [buscadorMov, setBuscadorMov] = useState("");
-  const [repoCosto, setRepoCosto] = useState("");
-  const [repoProveedor, setRepoProveedor] = useState("");
-  const [movCosto, setMovCosto] = useState("");
-  const [movProveedor, setMovProveedor] = useState("");
 
   // Estado para modal de detalle de producto
   const [detalleProducto, setDetalleProducto] = useState(null);
   const [detalleMovimientos, setDetalleMovimientos] = useState([]);
   const [detalleOpen, setDetalleOpen] = useState(false);
-
-  // Proveedores ficticios internos
-  const proveedoresFicticios = [
-    { id: "1", nombre: "Proveedor A" },
-    { id: "2", nombre: "Proveedor B" },
-    { id: "3", nombre: "Proveedor C" },
-  ];
 
   // Cargar productos en tiempo real
   useEffect(() => {
@@ -98,12 +78,8 @@ function StockComprasPage() {
 
   // Al seleccionar producto, prellenar costo
   useEffect(() => {
-    const prod = productos.find(p => p.id === repoProductoId);
-    setRepoCosto(prod ? prod.costo : "");
-  }, [repoProductoId, productos]);
-  useEffect(() => {
     const prod = productos.find(p => p.id === movProductoId);
-    setMovCosto(prod ? prod.costo : "");
+    // setMovCosto(prod ? prod.costo : ""); // Eliminado
   }, [movProductoId, productos]);
 
   // Función profesional para registrar movimiento y actualizar stock
@@ -158,92 +134,96 @@ function StockComprasPage() {
     );
 
   // Filtrar productos en buscador dinámico
-  const productosRepoFiltrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(buscadorRepo.toLowerCase()) ||
-    p.id.toLowerCase().includes(buscadorRepo.toLowerCase())
-  );
   const productosMovFiltrados = productos.filter(p =>
     p.nombre.toLowerCase().includes(buscadorMov.toLowerCase()) ||
     p.id.toLowerCase().includes(buscadorMov.toLowerCase())
   );
 
   // Handlers para formularios
-  const handleRepoGuardar = async () => {
-    setRepoStatus(null); setRepoMsg("");
-    if (!repoProductoId || repoCantidad <= 0 || !repoProveedor) {
-      setRepoStatus("error"); setRepoMsg("Completa todos los campos correctamente."); return;
-    }
-    setRepoLoading(true);
-    try {
-      // Actualizar costo si cambió
-      const prod = productos.find(p => p.id === repoProductoId);
-      if (prod && Number(repoCosto) !== Number(prod.costo)) {
-        await updateDoc(doc(db, "productos", repoProductoId), { costo: Number(repoCosto) });
-      }
-      // Registrar movimiento y stock
-      await registrarMovimiento({
-        productoId: repoProductoId,
-        tipo: "entrada",
-        cantidad: Number(repoCantidad),
-        usuario: "Admin",
-        observaciones: repoObs
-      });
-      // Crear gasto automático
-      await addDoc(collection(db, "gastos"), {
-        productoId: repoProductoId,
-        productoNombre: prod?.nombre || "",
-        proveedorId: repoProveedor,
-        proveedorNombre: proveedoresFicticios.find(p => p.id === repoProveedor)?.nombre || "",
-        cantidad: Number(repoCantidad),
-        costoUnitario: Number(repoCosto),
-        total: Number(repoCosto) * Number(repoCantidad),
-        fecha: serverTimestamp(),
-        tipo: "compra_stock"
-      });
-      setRepoStatus("success"); setRepoMsg("Reposición registrada, stock y gasto actualizados.");
-      setTimeout(() => { setOpenRepo(false); setRepoProductoId(""); setRepoCantidad(1); setRepoObs(""); setRepoProveedor(""); setRepoCosto(""); setRepoStatus(null); setRepoLoading(false); }, 1200);
-    } catch (e) {
-      setRepoStatus("error"); setRepoMsg("Error: " + e.message); setRepoLoading(false);
-    }
-  };
   const handleMovGuardar = async () => {
-    setMovStatus(null); setMovMsg("");
-    if (!movProductoId || movCantidad <= 0 || !movProveedor) {
-      setMovStatus("error"); setMovMsg("Completa todos los campos correctamente."); return;
+    setMovStatus(null); 
+    setMovMsg("");
+    
+    // Validaciones inteligentes
+    if (!movProductoId) {
+      setMovStatus("error"); 
+      setMovMsg("Debe seleccionar un producto."); 
+      return;
     }
+    
+    if (movCantidad <= 0) {
+      setMovStatus("error"); 
+      setMovMsg("La cantidad debe ser mayor a 0."); 
+      return;
+    }
+
+    // Validación especial para salidas
+    if (movTipo === "salida") {
+      const producto = productos.find(p => p.id === movProductoId);
+      if (producto && producto.stock < movCantidad) {
+        setMovStatus("error"); 
+        setMovMsg(`Stock insuficiente. Stock actual: ${producto.stock}, intenta vender: ${movCantidad}`);
+        return;
+      }
+    }
+
+    // Validación para ajustes
+    if (movTipo === "ajuste") {
+      const producto = productos.find(p => p.id === movProductoId);
+      const nuevoStock = producto.stock + movCantidad;
+      if (nuevoStock < 0) {
+        setMovStatus("error"); 
+        setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
+        return;
+      }
+    }
+
     setMovLoading(true);
     try {
-      // Actualizar costo si cambió
-      const prod = productos.find(p => p.id === movProductoId);
-      if (prod && Number(movCosto) !== Number(prod.costo)) {
-        await updateDoc(doc(db, "productos", movProductoId), { costo: Number(movCosto) });
-      }
       // Registrar movimiento y stock
       await registrarMovimiento({
         productoId: movProductoId,
         tipo: movTipo,
         cantidad: Number(movCantidad),
         usuario: "Admin",
-        observaciones: movObs
+        observaciones: movObs || `Movimiento ${movTipo} registrado manualmente`
       });
-      // Crear gasto automático solo si es entrada
-      if (movTipo === "entrada") {
-        await addDoc(collection(db, "gastos"), {
-          productoId: movProductoId,
-          productoNombre: prod?.nombre || "",
-          proveedorId: movProveedor,
-          proveedorNombre: proveedoresFicticios.find(p => p.id === movProveedor)?.nombre || "",
-          cantidad: Number(movCantidad),
-          costoUnitario: Number(movCosto),
-          total: Number(movCosto) * Number(movCantidad),
-          fecha: serverTimestamp(),
-          tipo: "compra_stock"
-        });
-      }
-      setMovStatus("success"); setMovMsg("Movimiento registrado, stock y gasto actualizados.");
-      setTimeout(() => { setOpenMov(false); setMovProductoId(""); setMovTipo("entrada"); setMovCantidad(1); setMovObs(""); setMovProveedor(""); setMovCosto(""); setMovStatus(null); setMovLoading(false); }, 1200);
+      
+      setMovStatus("success"); 
+      setMovMsg(`Movimiento de ${movTipo} registrado exitosamente. Stock actualizado.`);
+      
+      setTimeout(() => { 
+        setOpenMov(false); 
+        setMovProductoId(""); 
+        setMovTipo("entrada"); 
+        setMovCantidad(1); 
+        setMovObs(""); 
+        setMovStatus(null); 
+        setMovLoading(false); 
+      }, 1500);
     } catch (e) {
-      setMovStatus("error"); setMovMsg("Error: " + e.message); setMovLoading(false);
+      setMovStatus("error"); 
+      setMovMsg("Error: " + e.message); 
+      setMovLoading(false);
+    }
+  };
+
+  // Función para prellenar datos inteligentemente
+  const handleSeleccionarProducto = (productoId) => {
+    setMovProductoId(productoId);
+    const producto = productos.find(p => p.id === productoId);
+    
+    // Prellenar observaciones según el tipo de producto
+    if (producto) {
+      let observacionSugerida = "";
+      if (producto.stock === 0) {
+        observacionSugerida = "Reposición de stock agotado";
+      } else if (producto.stock <= (producto.min || 0)) {
+        observacionSugerida = "Reposición de stock bajo";
+      } else {
+        observacionSugerida = "Movimiento de stock";
+      }
+      setMovObs(observacionSugerida);
     }
   };
 
@@ -273,7 +253,6 @@ function StockComprasPage() {
                 <CardTitle>Inventario</CardTitle>
                 <div className="flex gap-2">
                   <Input placeholder="Buscar producto..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-48" />
-                  <Button variant="default" onClick={() => setOpenRepo(true)}><Plus className="w-4 h-4 mr-1" />Agregar Reposición</Button>
                 </div>
               </CardHeader>
               <CardContent className="overflow-x-auto">
@@ -315,8 +294,7 @@ function StockComprasPage() {
                             {p.stock === 0 ? <span className="text-red-700 font-semibold">Sin stock</span> : p.stock <= (p.min || 0) ? <span className="text-yellow-700 font-semibold">Bajo</span> : <span className="text-green-600 font-semibold">OK</span>}
                           </TableCell>
                           <TableCell>
-                            <Button size="sm" variant="outline" onClick={() => { setOpenRepo(true); setRepoProductoId(p.id); }}><ArrowDown className="w-4 h-4 mr-1" />Reposición</Button>
-                            <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); setMovProductoId(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); handleSeleccionarProducto(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
                             <Button size="sm" variant="soft" onClick={() => handleVerDetalleProducto(p)}><Plus className="w-4 h-4 mr-1" />Ver detalle</Button>
                           </TableCell>
                         </TableRow>
@@ -375,88 +353,136 @@ function StockComprasPage() {
             </Card>
           </TabsContent>
         </Tabs>
-        {/* Modal de Reposición */}
-        <Dialog open={openRepo} onOpenChange={setOpenRepo}>
-          <DialogContent className="w-[95vw] max-w-[420px]">
-            <DialogHeader>
-              <DialogTitle>Agregar Reposición</DialogTitle>
-              <DialogDescription>Completa los datos para registrar una reposición de stock.</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 py-2">
-              {repoStatus && (
-                <div className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${repoStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                  {repoStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                  {repoMsg}
-                </div>
-              )}
-              {/* Nombre del producto */}
-              <label className="font-semibold">Producto</label>
-              <div className="p-2 bg-gray-50 rounded font-bold text-primary">{productos.find(p => p.id === repoProductoId)?.nombre || ""}</div>
-              {/* Costo unitario */}
-              <label className="font-semibold">Costo unitario</label>
-              <Input type="number" min={0} className="w-full" value={repoCosto} onChange={e => setRepoCosto(e.target.value)} />
-              {/* Proveedor */}
-              <label className="font-semibold">Proveedor</label>
-              <select className="border rounded px-2 py-2" value={repoProveedor} onChange={e => setRepoProveedor(e.target.value)}>
-                <option value="">Seleccionar proveedor</option>
-                {proveedoresFicticios.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
-              {/* Cantidad */}
-              <label className="font-semibold">Cantidad</label>
-              <Input type="number" min={1} className="w-full" value={repoCantidad} onChange={e => setRepoCantidad(e.target.value)} />
-              {/* Motivo/Observaciones */}
-              <label className="font-semibold">Motivo/Observaciones</label>
-              <Input type="text" className="w-full" value={repoObs} onChange={e => setRepoObs(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpenRepo(false)}>Cancelar</Button>
-              <Button variant="default" onClick={handleRepoGuardar} disabled={loadingProd || repoLoading}>Guardar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
         {/* Modal de Movimiento */}
         <Dialog open={openMov} onOpenChange={setOpenMov}>
-          <DialogContent className="w-[95vw] max-w-[420px]">
+          <DialogContent className="w-[95vw] max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Registrar Movimiento</DialogTitle>
-              <DialogDescription>Completa los datos para registrar un movimiento de stock.</DialogDescription>
+              <DialogTitle>Registrar Movimiento de Stock</DialogTitle>
+              <DialogDescription>Gestiona el inventario del producto seleccionado.</DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-3 py-2">
+            <div className="flex flex-col gap-4 py-2">
               {movStatus && (
-                <div className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${movStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                <div className={`mb-2 p-3 rounded-lg flex items-center gap-2 text-sm ${movStatus === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
                   {movStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                   {movMsg}
                 </div>
               )}
-              {/* Nombre del producto */}
-              <label className="font-semibold">Producto</label>
-              <div className="p-2 bg-gray-50 rounded font-bold text-primary">{productos.find(p => p.id === movProductoId)?.nombre || ""}</div>
-              {/* Costo unitario */}
-              <label className="font-semibold">Costo unitario</label>
-              <Input type="number" min={0} className="w-full" value={movCosto} onChange={e => setMovCosto(e.target.value)} />
-              {/* Proveedor */}
-              <label className="font-semibold">Proveedor</label>
-              <select className="border rounded px-2 py-2" value={movProveedor} onChange={e => setMovProveedor(e.target.value)}>
-                <option value="">Seleccionar proveedor</option>
-                {proveedoresFicticios.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              
+              {/* Información del producto seleccionado */}
+              {movProductoId && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">Producto Seleccionado</h4>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      productos.find(p => p.id === movProductoId)?.stock === 0 
+                        ? 'bg-red-100 text-red-800' 
+                        : productos.find(p => p.id === movProductoId)?.stock <= (productos.find(p => p.id === movProductoId)?.min || 0)
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {productos.find(p => p.id === movProductoId)?.stock === 0 
+                        ? 'Sin stock' 
+                        : productos.find(p => p.id === movProductoId)?.stock <= (productos.find(p => p.id === movProductoId)?.min || 0)
+                        ? 'Stock bajo'
+                        : 'Stock OK'
+                      }
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div><span className="font-medium">Nombre:</span> {productos.find(p => p.id === movProductoId)?.nombre}</div>
+                    <div><span className="font-medium">Categoría:</span> {productos.find(p => p.id === movProductoId)?.categoria}</div>
+                    <div><span className="font-medium">Stock actual:</span> <span className="font-bold">{productos.find(p => p.id === movProductoId)?.stock || 0}</span></div>
+                    <div><span className="font-medium">Stock mínimo:</span> {productos.find(p => p.id === movProductoId)?.min || 0}</div>
+                  </div>
+                </div>
+              )}
+
               {/* Tipo de movimiento */}
-              <label className="font-semibold">Tipo de movimiento</label>
-              <select className="border rounded px-2 py-2" value={movTipo} onChange={e => setMovTipo(e.target.value)}>
-                <option value="entrada">Entrada</option>
-                <option value="salida">Salida</option>
-                <option value="ajuste">Ajuste</option>
-              </select>
-              {/* Cantidad */}
-              <label className="font-semibold">Cantidad</label>
-              <Input type="number" min={1} className="w-full" value={movCantidad} onChange={e => setMovCantidad(e.target.value)} />
-              {/* Motivo/Observaciones */}
-              <label className="font-semibold">Motivo/Observaciones</label>
-              <Input type="text" className="w-full" value={movObs} onChange={e => setMovObs(e.target.value)} />
+              <div>
+                <label className="font-semibold text-sm mb-2 block">Tipo de movimiento</label>
+                <select 
+                  className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  value={movTipo} 
+                  onChange={e => setMovTipo(e.target.value)}
+                >
+                  <option value="entrada">📥 Entrada (Aumentar stock)</option>
+                  <option value="salida">📤 Salida (Disminuir stock)</option>
+                  <option value="ajuste">⚖️ Ajuste (Corregir stock)</option>
+                </select>
+              </div>
+
+              {/* Cantidad con validación visual */}
+              <div>
+                <label className="font-semibold text-sm mb-2 block">
+                  Cantidad
+                  {movTipo === "salida" && movProductoId && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Máx: {productos.find(p => p.id === movProductoId)?.stock || 0})
+                    </span>
+                  )}
+                </label>
+                <Input 
+                  type="number" 
+                  min={1} 
+                  max={movTipo === "salida" ? productos.find(p => p.id === movProductoId)?.stock || 0 : undefined}
+                  className={`w-full ${movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0) ? 'border-red-500 focus:border-red-500' : ''}`}
+                  value={movCantidad} 
+                  onChange={e => setMovCantidad(Number(e.target.value))} 
+                />
+                {movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0) && (
+                  <p className="text-red-600 text-xs mt-1">⚠️ Cantidad excede el stock disponible</p>
+                )}
+              </div>
+
+              {/* Observaciones */}
+              <div>
+                <label className="font-semibold text-sm mb-2 block">Observaciones</label>
+                <Input 
+                  type="text" 
+                  className="w-full" 
+                  value={movObs} 
+                  onChange={e => setMovObs(e.target.value)}
+                  placeholder="Motivo del movimiento..."
+                />
+              </div>
+
+              {/* Resumen del movimiento */}
+              {movProductoId && movCantidad > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <h5 className="font-medium text-sm mb-2">Resumen del movimiento:</h5>
+                  <div className="text-sm">
+                    <p><span className="font-medium">Stock actual:</span> {productos.find(p => p.id === movProductoId)?.stock || 0}</p>
+                    <p><span className="font-medium">Movimiento:</span> {movTipo === "entrada" ? "+" : movTipo === "salida" ? "-" : "±"} {movCantidad}</p>
+                    <p><span className="font-medium">Stock resultante:</span> 
+                      <span className={`font-bold ml-1 ${
+                        movTipo === "entrada" 
+                          ? "text-green-600" 
+                          : movTipo === "salida" 
+                          ? "text-red-600" 
+                          : "text-blue-600"
+                      }`}>
+                        {movTipo === "entrada" 
+                          ? (productos.find(p => p.id === movProductoId)?.stock || 0) + movCantidad
+                          : movTipo === "salida"
+                          ? (productos.find(p => p.id === movProductoId)?.stock || 0) - movCantidad
+                          : (productos.find(p => p.id === movProductoId)?.stock || 0) + movCantidad
+                        }
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpenMov(false)}>Cancelar</Button>
-              <Button variant="default" onClick={handleMovGuardar} disabled={loadingProd || movLoading}>Guardar</Button>
+              <Button 
+                variant="default" 
+                onClick={handleMovGuardar} 
+                disabled={loadingProd || movLoading || !movProductoId || movCantidad <= 0 || (movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0))}
+              >
+                {movLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Registrar Movimiento
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

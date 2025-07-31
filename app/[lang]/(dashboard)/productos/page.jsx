@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Boxes, Plus, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Boxes, Plus, Loader2, CheckCircle, AlertCircle, Upload, FileSpreadsheet } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -536,12 +536,22 @@ function FormularioProducto({ onClose, onSuccess }) {
 
 const ProductosPage = () => {
   const [open, setOpen] = useState(false);
+  const [openBulk, setOpenBulk] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
   const [reload, setReload] = useState(false);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Estados para carga masiva
+  const [bulkJson, setBulkJson] = useState("");
+  const [bulkStatus, setBulkStatus] = useState(null);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+  const [bulkFile, setBulkFile] = useState(null);
+  const [uploadMethod, setUploadMethod] = useState("json"); // "json" | "excel"
 
   useEffect(() => {
     setLoading(true);
@@ -572,6 +582,202 @@ const ProductosPage = () => {
           p.codigo?.toLowerCase().includes(filtro.toLowerCase())
         : true)
   );
+
+  // Función para procesar archivo Excel/CSV
+  const processExcelFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const csv = e.target.result;
+          const lines = csv.split('\n');
+          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          
+          const productos = [];
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim()) {
+              const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+              const producto = {};
+              
+              headers.forEach((header, index) => {
+                let value = values[index] || '';
+                
+                // Convertir valores numéricos
+                if (['costo', 'largo', 'ancho', 'alto', 'precioPorPie'].includes(header)) {
+                  value = parseFloat(value) || 0;
+                }
+                
+                producto[header] = value;
+              });
+              
+              // Validar que tenga los campos mínimos
+              if (producto.codigo && producto.nombre && producto.categoria) {
+                productos.push(producto);
+              }
+            }
+          }
+          
+          resolve(productos);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      reader.readAsText(file);
+    });
+  };
+
+  // Función para procesar carga masiva
+  const handleBulkUpload = async () => {
+    setBulkStatus(null);
+    setBulkMessage("");
+    setBulkLoading(true);
+    setBulkProgress({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (uploadMethod === "excel") {
+        if (!bulkFile) {
+          setBulkStatus("error");
+          setBulkMessage("Debes seleccionar un archivo Excel/CSV.");
+          setBulkLoading(false);
+          return;
+        }
+        
+        try {
+          productosData = await processExcelFile(bulkFile);
+        } catch (e) {
+          setBulkStatus("error");
+          setBulkMessage("Error al procesar el archivo: " + e.message);
+          setBulkLoading(false);
+          return;
+        }
+      } else {
+        // Procesar JSON
+        try {
+          productosData = JSON.parse(bulkJson);
+        } catch (e) {
+          setBulkStatus("error");
+          setBulkMessage("JSON inválido. Verifica el formato.");
+          setBulkLoading(false);
+          return;
+        }
+
+        // Validar que sea un array
+        if (!Array.isArray(productosData)) {
+          setBulkStatus("error");
+          setBulkMessage("El JSON debe ser un array de productos.");
+          setBulkLoading(false);
+          return;
+        }
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+        
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)"
+          });
+          continue;
+        }
+
+        // Validar que sea de categoría Maderas
+        if (producto.categoria !== "Maderas") {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Solo se permiten productos de categoría 'Maderas'"
+          });
+          continue;
+        }
+
+        // Validar campos específicos de maderas
+        if (!producto.tipoMadera || !producto.largo || !producto.ancho || !producto.alto) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Faltan campos específicos de maderas (tipoMadera, largo, ancho, alto)"
+          });
+          continue;
+        }
+
+        // Validar que precioPorPie no sea null
+        if (producto.precioPorPie === null || producto.precioPorPie === undefined || producto.precioPorPie === 0) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "precioPorPie no puede ser null o 0"
+          });
+          continue;
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          // Asegurar que unidadMedida sea "pie" para maderas
+          unidadMedida: "pie"
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatus("error");
+        setBulkMessage(`Se encontraron ${productosInvalidos.length} productos con errores. Revisa los datos.`);
+        setBulkLoading(false);
+        return;
+      }
+
+      // Procesar productos válidos
+      setBulkProgress({ current: 0, total: productosValidos.length });
+      
+      for (let i = 0; i < productosValidos.length; i++) {
+        const producto = productosValidos[i];
+        
+        try {
+          await addDoc(collection(db, "productos"), producto);
+          setBulkProgress({ current: i + 1, total: productosValidos.length });
+          
+          // Pequeña pausa para no sobrecargar Firebase
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          setBulkStatus("error");
+          setBulkMessage(`Error al guardar producto ${producto.codigo}: ${e.message}`);
+          setBulkLoading(false);
+          return;
+        }
+      }
+
+      setBulkStatus("success");
+      setBulkMessage(`Se cargaron exitosamente ${productosValidos.length} productos.`);
+      
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulk(false);
+        setBulkJson("");
+        setBulkFile(null);
+        setBulkStatus(null);
+        setBulkMessage("");
+        setBulkLoading(false);
+        setBulkProgress({ current: 0, total: 0 });
+        setReload(r => !r);
+      }, 2000);
+
+    } catch (e) {
+      setBulkStatus("error");
+      setBulkMessage("Error inesperado: " + e.message);
+      setBulkLoading(false);
+    }
+  };
 
   return (
     <div className="py-8 px-2 max-w-5xl mx-auto">
@@ -607,6 +813,10 @@ const ProductosPage = () => {
             <Button variant="default" onClick={() => setOpen(true)}>
               <Plus className="w-4 h-4 mr-1" />
               Agregar Producto
+            </Button>
+            <Button variant="outline" onClick={() => setOpenBulk(true)}>
+              <Upload className="w-4 h-4 mr-1" />
+              Carga Masiva
             </Button>
           </div>
         </CardHeader>
@@ -669,6 +879,175 @@ const ProductosPage = () => {
           </div>
           <DialogFooter className="bg-white px-6 py-4 border-t bottom-0 z-20 shadow-lg flex justify-end gap-2">
             {/* Los botones del footer se renderizan dentro del propio FormularioProducto, así que aquí solo se deja el espacio visual */}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Modal de Carga Masiva */}
+      <Dialog open={openBulk} onOpenChange={setOpenBulk}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Carga Masiva de Productos</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatus && (
+              <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                bulkStatus === 'success' 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {bulkStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                {bulkMessage}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoading && bulkProgress.total > 0 && (
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>{bulkProgress.current} / {bulkProgress.total}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            {/* Selector de método */}
+            <div className="flex gap-2 border-b">
+              <button
+                type="button"
+                onClick={() => setUploadMethod("json")}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  uploadMethod === "json"
+                    ? "bg-blue-100 text-blue-700 border-b-2 border-blue-700"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                📄 JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMethod("excel")}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  uploadMethod === "excel"
+                    ? "bg-blue-100 text-blue-700 border-b-2 border-blue-700"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                📊 Excel/CSV
+              </button>
+            </div>
+
+            {/* Contenido según método seleccionado */}
+            {uploadMethod === "json" ? (
+              <div>
+                <label className="font-semibold text-sm mb-2 block">
+                  JSON de Productos (Solo Maderas)
+                </label>
+                <textarea
+                  value={bulkJson}
+                  onChange={(e) => setBulkJson(e.target.value)}
+                  placeholder={`Pega aquí el JSON de productos. Ejemplo:
+[
+  {
+    "codigo": "1401",
+    "nombre": "TABLAS 1/2 X 6 X 3",
+    "descripcion": "",
+    "categoria": "Maderas",
+    "subcategoria": "Tabla",
+    "estado": "Activo",
+    "costo": 420.0,
+    "tipoMadera": "Saligna",
+    "largo": 3.0,
+    "ancho": 0.5,
+    "alto": 6.0,
+    "precioPorPie": 700.0,
+    "ubicacion": ""
+  }
+]`}
+                  className="w-full h-64 p-3 border rounded-lg font-mono text-sm resize-none"
+                  disabled={bulkLoading}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="font-semibold text-sm mb-2 block">
+                  Archivo Excel/CSV
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={(e) => setBulkFile(e.target.files[0])}
+                    className="hidden"
+                    id="file-upload"
+                    disabled={bulkLoading}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Seleccionar archivo
+                  </label>
+                  {bulkFile && (
+                    <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                      <p className="text-sm text-green-800">
+                        ✅ Archivo seleccionado: <strong>{bulkFile.name}</strong>
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-sm text-gray-500 mt-2">
+                    Formatos soportados: CSV, XLSX, XLS
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Instrucciones:</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Solo se permiten productos de categoría "Maderas"</li>
+                <li>• Todos los campos obligatorios deben estar presentes</li>
+                <li>• El campo "precioPorPie" no puede ser null o 0</li>
+                <li>• Se agregarán automáticamente las fechas de creación</li>
+                <li>• La unidad de medida se establecerá automáticamente como "pie"</li>
+                {uploadMethod === "excel" && (
+                  <>
+                    <li>• El archivo debe tener encabezados en la primera fila</li>
+                    <li>• Los campos numéricos se convertirán automáticamente</li>
+                    <li>• Se ignorarán las filas vacías</li>
+                  </>
+                )}
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenBulk(false)} disabled={bulkLoading}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleBulkUpload} 
+              disabled={bulkLoading || (!bulkJson.trim() && !bulkFile)}
+            >
+              {bulkLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar Productos
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2147,9 +2147,7 @@ const PresupuestoDetalle = () => {
                       fecha: serverTimestamp(),
                       referencia: "venta",
                       referenciaId: docRef.id,
-                      observaciones: `Salida por venta (${
-                        presupuesto.cliente?.nombre || ""
-                      })`,
+                      observaciones: `Salida por venta desde presupuesto`,
                       productoNombre: prod.nombre,
                     });
                   }
