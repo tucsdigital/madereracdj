@@ -587,42 +587,70 @@ const ProductosPage = () => {
   const processExcelFile = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      
       reader.onload = (e) => {
         try {
-          const csv = e.target.result;
-          const lines = csv.split('\n');
-          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const content = e.target.result;
+          console.log("Archivo leído:", file.name, "Tamaño:", file.size);
           
-          const productos = [];
-          for (let i = 1; i < lines.length; i++) {
-            if (lines[i].trim()) {
-              const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-              const producto = {};
-              
-              headers.forEach((header, index) => {
-                let value = values[index] || '';
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith('.csv')) {
+            const lines = content.split('\n');
+            console.log("Líneas CSV encontradas:", lines.length);
+            
+            if (lines.length < 2) {
+              reject(new Error('El archivo CSV debe tener al menos una fila de encabezados y una fila de datos'));
+              return;
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            console.log("Encabezados detectados:", headers);
+            
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                const producto = {};
                 
-                // Convertir valores numéricos
-                if (['costo', 'largo', 'ancho', 'alto', 'precioPorPie'].includes(header)) {
-                  value = parseFloat(value) || 0;
+                headers.forEach((header, index) => {
+                  let value = values[index] || '';
+                  
+                  // Convertir valores numéricos
+                  if (['costo', 'largo', 'ancho', 'alto', 'precioPorPie'].includes(header)) {
+                    value = parseFloat(value) || 0;
+                  }
+                  
+                  producto[header] = value;
+                });
+                
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  productos.push(producto);
+                  console.log("Producto válido agregado:", producto.codigo);
+                } else {
+                  console.log("Producto inválido ignorado:", producto);
                 }
-                
-                producto[header] = value;
-              });
-              
-              // Validar que tenga los campos mínimos
-              if (producto.codigo && producto.nombre && producto.categoria) {
-                productos.push(producto);
               }
             }
+            
+            console.log("Total de productos válidos:", productos.length);
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(new Error('Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente.'));
           }
-          
-          resolve(productos);
         } catch (error) {
+          console.error("Error procesando archivo:", error);
           reject(error);
         }
       };
-      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      
+      reader.onerror = () => {
+        console.error("Error al leer el archivo");
+        reject(new Error('Error al leer el archivo'));
+      };
+      
+      // Leer como texto para CSV
       reader.readAsText(file);
     });
   };
@@ -777,6 +805,24 @@ const ProductosPage = () => {
       setBulkMessage("Error inesperado: " + e.message);
       setBulkLoading(false);
     }
+  };
+
+  // Función para descargar CSV de ejemplo
+  const downloadExampleCSV = () => {
+    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion
+1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,
+1402,TABALAS 1" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,
+1403,TABALAS 1" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ejemplo_maderas.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -983,7 +1029,7 @@ const ProductosPage = () => {
                   <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <input
                     type="file"
-                    accept=".csv,.xlsx,.xls"
+                    accept=".csv"
                     onChange={(e) => setBulkFile(e.target.files[0])}
                     className="hidden"
                     id="file-upload"
@@ -993,7 +1039,7 @@ const ProductosPage = () => {
                     htmlFor="file-upload"
                     className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Seleccionar archivo
+                    Seleccionar archivo CSV
                   </label>
                   {bulkFile && (
                     <div className="mt-4 p-3 bg-green-50 rounded-lg">
@@ -1003,8 +1049,15 @@ const ProductosPage = () => {
                     </div>
                   )}
                   <p className="text-sm text-gray-500 mt-2">
-                    Formatos soportados: CSV, XLSX, XLS
+                    Formato soportado: CSV (guarda tu Excel como CSV)
                   </p>
+                  <button
+                    type="button"
+                    onClick={downloadExampleCSV}
+                    className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    📥 Descargar ejemplo CSV
+                  </button>
                 </div>
               </div>
             )}
@@ -1022,6 +1075,8 @@ const ProductosPage = () => {
                     <li>• El archivo debe tener encabezados en la primera fila</li>
                     <li>• Los campos numéricos se convertirán automáticamente</li>
                     <li>• Se ignorarán las filas vacías</li>
+                    <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                    <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
                   </>
                 )}
               </ul>
