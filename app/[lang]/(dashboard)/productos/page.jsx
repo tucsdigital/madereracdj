@@ -809,10 +809,10 @@ const ProductosPage = () => {
 
   // Función para descargar CSV de ejemplo
   const downloadExampleCSV = () => {
-    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion
-1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,
-1402,TABALAS 1" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,
-1403,TABALAS 1" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,`;
+    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida
+1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,,pie
+1402,TABALAS 1" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,,pie
+1403,TABALAS 1" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,,pie`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -1013,7 +1013,8 @@ const ProductosPage = () => {
     "ancho": 0.5,
     "alto": 6.0,
     "precioPorPie": 700.0,
-    "ubicacion": ""
+    "ubicacion": "",
+    "unidadMedida": "pie"
   }
 ]`}
                   className="w-full h-64 p-3 border rounded-lg font-mono text-sm resize-none"
