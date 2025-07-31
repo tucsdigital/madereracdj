@@ -33,8 +33,10 @@ import {
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
+import { useAuth } from "@/provider/auth.provider";
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
@@ -575,6 +577,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
               // Agregar campos de envío
               tipoEnvio: cleanData.tipoEnvio || "",
               costoEnvio:
@@ -596,6 +599,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               estadoPago: estadoPagoFinal,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
             };
       console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
@@ -1866,21 +1870,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <div className="text-base font-semibold pb-1">
                       Información adicional
                     </div>
-                    <select
-                      {...register("vendedor")}
-                      className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Vendedor responsable...</option>
-                      {vendedores.map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                    {errors.vendedor && (
-                      <span className="text-red-500 dark:text-red-400 text-xs">
-                        {errors.vendedor.message}
-                      </span>
-                    )}
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <strong>Vendedor:</strong> {user?.email || "Usuario no identificado"}
+                    </div>
                     <Textarea
                       {...register("observaciones")}
                       placeholder="Observaciones adicionales"
@@ -2351,7 +2343,7 @@ const VentasPage = () => {
             fechaEntrega: cleanFormData.fechaEntrega,
             estado: "pendiente",
             prioridad: cleanFormData.prioridad || "media",
-            vendedor: cleanFormData.vendedor,
+            vendedor: user?.email || "Usuario no identificado",
             direccionEnvio: cleanFormData.direccionEnvio,
             localidadEnvio: cleanFormData.localidadEnvio,
             tipoEnvio: cleanFormData.tipoEnvio,
@@ -2448,6 +2440,7 @@ const VentasPage = () => {
             fechaCreacion: new Date().toISOString(),
             tipo: "presupuesto",
             numeroPedido: nextNumeroPedido,
+            vendedor: user?.email || "Usuario no identificado",
             tipoEnvio: formData.tipoEnvio || "",
             costoEnvio: costoEnvioFinal,
           };
