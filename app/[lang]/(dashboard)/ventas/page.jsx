@@ -2252,6 +2252,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 }
 
 const VentasPage = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(null);
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
