@@ -609,14 +609,40 @@ const ProductosPage = () => {
             const productos = [];
             for (let i = 1; i < lines.length; i++) {
               if (lines[i].trim()) {
-                const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                // Función para parsear valores CSV correctamente
+                const parseCSVLine = (line) => {
+                  const result = [];
+                  let current = '';
+                  let inQuotes = false;
+                  
+                  for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                      inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                      result.push(current.trim());
+                      current = '';
+                    } else {
+                      current += char;
+                    }
+                  }
+                  result.push(current.trim());
+                  return result;
+                };
+                
+                const values = parseCSVLine(lines[i]);
                 const producto = {};
                 
                 headers.forEach((header, index) => {
                   let value = values[index] || '';
                   
+                  // Limpiar comillas
+                  value = value.replace(/"/g, '');
+                  
                   // Convertir valores numéricos
                   if (['costo', 'largo', 'ancho', 'alto', 'precioPorPie'].includes(header)) {
+                    // Manejar comas en números (formato argentino)
+                    value = value.replace(',', '.');
                     value = parseFloat(value) || 0;
                   }
                   
@@ -733,19 +759,32 @@ const ProductosPage = () => {
           productosInvalidos.push({
             index: i + 1,
             codigo: producto.codigo,
-            error: "Faltan campos específicos de maderas (tipoMadera, largo, ancho, alto)"
+            error: `Faltan campos específicos de maderas. tipoMadera: ${producto.tipoMadera}, largo: ${producto.largo}, ancho: ${producto.ancho}, alto: ${producto.alto}`
           });
           continue;
         }
 
-        // Validar que precioPorPie no sea null
+        // Validar que precioPorPie no sea null o 0
         if (producto.precioPorPie === null || producto.precioPorPie === undefined || producto.precioPorPie === 0) {
           productosInvalidos.push({
             index: i + 1,
             codigo: producto.codigo,
-            error: "precioPorPie no puede ser null o 0"
+            error: `precioPorPie no puede ser null o 0. Valor actual: ${producto.precioPorPie}`
           });
           continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = ['largo', 'ancho', 'alto', 'costo', 'precioPorPie'];
+        for (const campo of valoresNumericos) {
+          if (producto[campo] === null || producto[campo] === undefined || isNaN(producto[campo]) || producto[campo] <= 0) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor a 0. Valor actual: ${producto[campo]}`
+            });
+            continue;
+          }
         }
 
         productosValidos.push({
@@ -760,7 +799,10 @@ const ProductosPage = () => {
       // Mostrar errores si hay productos inválidos
       if (productosInvalidos.length > 0) {
         setBulkStatus("error");
-        setBulkMessage(`Se encontraron ${productosInvalidos.length} productos con errores. Revisa los datos.`);
+        const erroresDetallados = productosInvalidos.map(p => 
+          `Línea ${p.index} (${p.codigo}): ${p.error}`
+        ).join('\n');
+        setBulkMessage(`Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`);
         setBulkLoading(false);
         return;
       }
