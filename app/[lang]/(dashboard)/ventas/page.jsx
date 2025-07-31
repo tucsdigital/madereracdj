@@ -534,6 +534,31 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         cleanData.localidadEnvio = undefined;
         cleanData.costoEnvio = undefined;
       }
+
+      // Lógica para manejar montoAbonado y estado de pago
+      let montoAbonadoFinal = cleanData.montoAbonado || 0;
+      let estadoPagoFinal = "pendiente";
+
+      if (tipo === "venta") {
+        const esPagoParcial = cleanData.pagoParcial || false;
+        
+        if (!esPagoParcial) {
+          // Si NO es pago parcial → montoAbonado = total y estado = "pagado"
+          montoAbonadoFinal = total;
+          estadoPagoFinal = "pagado";
+        } else {
+          // Si ES pago parcial → usar el valor del formulario
+          montoAbonadoFinal = cleanData.montoAbonado || 0;
+          if (montoAbonadoFinal >= total) {
+            estadoPagoFinal = "pagado";
+          } else if (montoAbonadoFinal > 0) {
+            estadoPagoFinal = "parcial";
+          } else {
+            estadoPagoFinal = "pendiente";
+          }
+        }
+      }
+
       const formData =
         tipo === "presupuesto"
           ? {
@@ -563,6 +588,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
               total: total,
+              montoAbonado: montoAbonadoFinal,
+              estadoPago: estadoPagoFinal,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
             };

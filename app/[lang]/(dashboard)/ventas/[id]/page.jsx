@@ -10,6 +10,7 @@ import {
   updateDoc,
   increment,
   serverTimestamp,
+  addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download } from "lucide-react";
@@ -496,6 +497,191 @@ const VentaDetalle = () => {
       ventaEdit.clienteId = venta.clienteId;
     }
 
+    // ===== LÓGICA PROFESIONAL PARA MANEJAR CAMBIOS =====
+    
+    // 1. Detectar cambios en productos y cantidades
+    const productosOriginales = venta.productos || venta.items || [];
+    const productosNuevos = productosArr;
+    
+    console.log("=== ANÁLISIS DE CAMBIOS ===");
+    console.log("Productos originales:", productosOriginales);
+    console.log("Productos nuevos:", productosNuevos);
+    
+    // Crear mapas para comparación eficiente
+    const productosOriginalesMap = new Map();
+    productosOriginales.forEach(p => productosOriginalesMap.set(p.id, p));
+    
+    const productosNuevosMap = new Map();
+    productosNuevos.forEach(p => productosNuevosMap.set(p.id, p));
+    
+    // 2. Manejar cambios de stock y movimientos
+    const cambiosStock = [];
+    
+    // Productos que se agregaron o aumentaron cantidad
+    for (const [productoId, productoNuevo] of productosNuevosMap) {
+      const productoOriginal = productosOriginalesMap.get(productoId);
+      
+      if (!productoOriginal) {
+        // Producto nuevo agregado
+        cambiosStock.push({
+          productoId,
+          tipo: "nuevo",
+          cantidadOriginal: 0,
+          cantidadNueva: productoNuevo.cantidad,
+          diferencia: productoNuevo.cantidad
+        });
+      } else {
+        // Producto existente con posible cambio de cantidad
+        const diferencia = productoNuevo.cantidad - productoOriginal.cantidad;
+        if (diferencia !== 0) {
+          cambiosStock.push({
+            productoId,
+            tipo: "modificado",
+            cantidadOriginal: productoOriginal.cantidad,
+            cantidadNueva: productoNuevo.cantidad,
+            diferencia
+          });
+        }
+      }
+    }
+    
+    // Productos que se eliminaron o redujeron cantidad
+    for (const [productoId, productoOriginal] of productosOriginalesMap) {
+      if (!productosNuevosMap.has(productoId)) {
+        // Producto eliminado
+        cambiosStock.push({
+          productoId,
+          tipo: "eliminado",
+          cantidadOriginal: productoOriginal.cantidad,
+          cantidadNueva: 0,
+          diferencia: -productoOriginal.cantidad
+        });
+      }
+    }
+    
+    console.log("Cambios de stock detectados:", cambiosStock);
+    
+    // 3. Aplicar cambios de stock y registrar movimientos
+    for (const cambio of cambiosStock) {
+      try {
+        const productoRef = doc(db, "productos", cambio.productoId);
+        
+        // Verificar que el producto existe
+        const productoSnap = await getDocs(collection(db, "productos"));
+        const existe = productoSnap.docs.find((d) => d.id === cambio.productoId);
+        
+        if (!existe) {
+          console.warn(`Producto ${cambio.productoId} no existe en el catálogo`);
+          continue;
+        }
+        
+        // Actualizar stock
+        await updateDoc(productoRef, {
+          stock: increment(-cambio.diferencia)
+        });
+        
+        // Registrar movimiento
+        const tipoMovimiento = cambio.diferencia > 0 ? "salida" : "entrada";
+        const cantidadMovimiento = Math.abs(cambio.diferencia);
+        
+        await addDoc(collection(db, "movimientos"), {
+          productoId: cambio.productoId,
+          tipo: tipoMovimiento,
+          cantidad: cantidadMovimiento,
+          usuario: "Sistema",
+          fecha: serverTimestamp(),
+          referencia: "edicion_venta",
+          referenciaId: ventaEdit.id,
+          observaciones: `Ajuste por edición de venta - ${cambio.tipo}: ${cambio.cantidadOriginal} → ${cambio.cantidadNueva}`,
+          productoNombre: existe.data().nombre || "Producto desconocido"
+        });
+        
+        console.log(`✅ Stock actualizado para producto ${cambio.productoId}: ${cambio.diferencia}`);
+        
+      } catch (error) {
+        console.error(`Error actualizando stock para producto ${cambio.productoId}:`, error);
+      }
+    }
+    
+    // 4. Manejar cambios de envío
+    const tipoEnvioOriginal = venta.tipoEnvio || "retiro_local";
+    const tipoEnvioNuevo = ventaEdit.tipoEnvio || "retiro_local";
+    
+    console.log("=== ANÁLISIS DE ENVÍO ===");
+    console.log("Tipo envío original:", tipoEnvioOriginal);
+    console.log("Tipo envío nuevo:", tipoEnvioNuevo);
+    
+    // Buscar envío existente
+    const enviosSnap = await getDocs(collection(db, "envios"));
+    const envioExistente = enviosSnap.docs.find(e => e.data().ventaId === ventaEdit.id);
+    
+    if (tipoEnvioNuevo !== "retiro_local" && tipoEnvioNuevo !== tipoEnvioOriginal) {
+      // Crear nuevo envío o actualizar existente
+      const envioData = {
+        ventaId: ventaEdit.id,
+        clienteId: ventaEdit.clienteId,
+        cliente: ventaEdit.cliente,
+        fechaCreacion: new Date().toISOString(),
+        fechaEntrega: ventaEdit.fechaEntrega,
+        estado: "pendiente",
+        prioridad: ventaEdit.prioridad || "media",
+        vendedor: ventaEdit.vendedor,
+        direccionEnvio: ventaEdit.direccionEnvio,
+        localidadEnvio: ventaEdit.localidadEnvio,
+        tipoEnvio: ventaEdit.tipoEnvio,
+        transportista: ventaEdit.transportista,
+        costoEnvio: parseFloat(ventaEdit.costoEnvio) || 0,
+        numeroPedido: ventaEdit.numeroPedido,
+        totalVenta: total,
+        productos: productosArr,
+        cantidadTotal: productosArr.reduce((acc, p) => acc + p.cantidad, 0),
+        historialEstados: [
+          {
+            estado: "pendiente",
+            fecha: new Date().toISOString(),
+            comentario: envioExistente 
+              ? "Envío actualizado desde edición de venta"
+              : "Envío creado desde edición de venta"
+          }
+        ],
+        observaciones: ventaEdit.observaciones,
+        instruccionesEspeciales: "",
+        fechaActualizacion: new Date().toISOString(),
+        creadoPor: "sistema"
+      };
+      
+      const cleanEnvioData = Object.fromEntries(
+        Object.entries(envioData).filter(([_, v]) => v !== undefined)
+      );
+      
+      if (envioExistente) {
+        // Actualizar envío existente
+        await updateDoc(doc(db, "envios", envioExistente.id), cleanEnvioData);
+        console.log("✅ Envío actualizado:", envioExistente.id);
+      } else {
+        // Crear nuevo envío
+        await addDoc(collection(db, "envios"), cleanEnvioData);
+        console.log("✅ Nuevo envío creado");
+      }
+      
+    } else if (tipoEnvioNuevo === "retiro_local" && envioExistente) {
+      // Eliminar envío si cambió a retiro local
+      await updateDoc(doc(db, "envios", envioExistente.id), {
+        estado: "cancelado",
+        fechaActualizacion: new Date().toISOString(),
+        historialEstados: [
+          ...(envioExistente.data().historialEstados || []),
+          {
+            estado: "cancelado",
+            fecha: new Date().toISOString(),
+            comentario: "Envío cancelado - cambiado a retiro local"
+          }
+        ]
+      });
+      console.log("✅ Envío cancelado por cambio a retiro local");
+    }
+
+    // 5. Actualizar la venta
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, {
       ...ventaEdit,

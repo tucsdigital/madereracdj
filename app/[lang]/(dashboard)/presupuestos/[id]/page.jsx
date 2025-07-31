@@ -2057,16 +2057,26 @@ const PresupuestoDetalle = () => {
                       })();
 
                       const esPagoParcial = ventaCampos.pagoParcial || false;
+                      const montoAbonado = esPagoParcial
+                        ? ventaCampos.montoAbonado || 0
+                        : totalVenta;
 
                       console.log("[DEBUG] Cálculo estado de pago:");
                       console.log("Total venta:", totalVenta);
                       console.log("Es pago parcial:", esPagoParcial);
+                      console.log("Monto abonado:", montoAbonado);
 
-                      // Si NO es pago parcial → pagado
-                      // Si ES pago parcial → pendiente
-                      const estado = esPagoParcial ? "pendiente" : "pagado";
+                      // Lógica inteligente: calcular estado según monto abonado
+                      let estado;
+                      if (montoAbonado >= totalVenta) {
+                        estado = "pagado";
+                      } else if (montoAbonado > 0) {
+                        estado = "parcial";
+                      } else {
+                        estado = "pendiente";
+                      }
+
                       console.log("Estado resultante:", estado);
-
                       return estado;
                     })(),
 
