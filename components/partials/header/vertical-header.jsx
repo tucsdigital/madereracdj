@@ -10,7 +10,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 const MenuBar = ({ collapsed, setCollapsed }) => {
   return (
     <button
-      className="relative group  disabled:cursor-not-allowed opacity-50"
+      className="relative group p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer"
       onClick={() => setCollapsed(!collapsed)}
     >
       <div>
@@ -63,6 +63,16 @@ const VerticalHeader = ({ handleOpenSearch }) => {
   let menuBarContent = null;
   // let searchButtonContent = null;
 
+  // Debug logs
+  console.log("VerticalHeader Debug:", {
+    layout,
+    sidebarType,
+    isDesktop,
+    isMobile,
+    subMenu,
+    collapsed
+  });
+
   const MainLogo = (
     <Link href="/dashboard" className=" text-primary ">
       <SiteLogo className="h-7 w-7" />
@@ -96,23 +106,33 @@ const VerticalHeader = ({ handleOpenSearch }) => {
     LogoContent = MainLogo;
   }
 
-  // menu bar content condition
-  if (isDesktop && sidebarType !== "module") {
-    menuBarContent = (
-      <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
-    );
-  }
+  // menu bar content condition - Simplificada para module
   if (sidebarType === "module") {
     menuBarContent = (
       <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
     );
-  }
-  if (sidebarType === "classic") {
+  } else if (isDesktop && sidebarType !== "module") {
+    menuBarContent = (
+      <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
+    );
+  } else if (sidebarType === "classic") {
     menuBarContent = null;
   }
-  if (subMenu && isDesktop) {
+  
+  // Solo ocultar si hay submenu activo en desktop Y NO es module
+  if (subMenu && isDesktop && sidebarType !== "module") {
     menuBarContent = null;
   }
+  
+  // Fallback: Si sidebarType es "module", siempre mostrar el botón
+  if (sidebarType === "module" && !menuBarContent) {
+    menuBarContent = (
+      <MenuBar collapsed={collapsed} setCollapsed={setCollapsed} />
+    );
+  }
+  
+  console.log("MenuBar Content:", menuBarContent ? "Will show" : "Will hide");
+  
   // if (sidebarType === "module" && isMobile) {
   //   searchButtonContent = SearchButton;
   // }
@@ -124,7 +144,6 @@ const VerticalHeader = ({ handleOpenSearch }) => {
       <div className="flex items-center md:gap-6 gap-3">
         {LogoContent}
         {menuBarContent}
-        {/* {searchButtonContent} */}
       </div>
     </>
   );
