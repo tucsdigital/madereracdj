@@ -70,6 +70,10 @@ const VentaDetalle = () => {
   const [registrandoPago, setRegistrandoPago] = useState(false);
   const [pagoExitoso, setPagoExitoso] = useState(false);
 
+  // Estados para filtros de productos
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+
   useEffect(() => {
     const fetchVenta = async () => {
       try {
@@ -1606,7 +1610,7 @@ const VentaDetalle = () => {
                             key={categoria}
                             type="button"
                             className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                              ventaEdit.categoriaId === categoria
+                              categoriaId === categoria
                                 ? "bg-blue-600 text-white"
                                 : "bg-gray-100 text-gray-700"
                             }`}
@@ -1645,13 +1649,8 @@ const VentaDetalle = () => {
                       <input
                         type="text"
                         placeholder="Buscar productos..."
-                        value={ventaEdit.busquedaProducto || ""}
-                        onChange={(e) =>
-                          setVentaEdit((prev) => ({
-                            ...prev,
-                            busquedaProducto: e.target.value,
-                          }))
-                        }
+                        value={busquedaProducto}
+                        onChange={(e) => setBusquedaProducto(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       />
                     </div>
@@ -1660,8 +1659,6 @@ const VentaDetalle = () => {
                 {/* Lista de productos mejorada */}
                 <div className="max-h-96 overflow-y-auto">
                   {(() => {
-                    const categoriaId = ventaEdit.categoriaId;
-                    const busquedaProducto = ventaEdit.busquedaProducto || "";
                     const productosPorCategoria = {};
                     productos.forEach((p) => {
                       if (!productosPorCategoria[p.categoria])
@@ -1734,7 +1731,7 @@ const VentaDetalle = () => {
                       );
                     }
                     return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                         {productosFiltrados.map((prod) => {
                           const yaAgregado = (ventaEdit.productos || []).some(
                             (p) => p.id === prod.id

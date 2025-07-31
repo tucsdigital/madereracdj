@@ -68,6 +68,10 @@ const PresupuestoDetalle = () => {
   // Estado para conversión a venta
   const [convirtiendoVenta, setConvirtiendoVenta] = useState(false);
 
+  // Estados para filtros de productos
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+
   // Estado para nuevo cliente en presupuestos
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -870,7 +874,7 @@ const PresupuestoDetalle = () => {
                               key={categoria}
                               type="button"
                               className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                presupuestoEdit.categoriaId === categoria
+                                categoriaId === categoria
                                   ? "bg-blue-600 text-white"
                                   : "bg-gray-100 text-gray-700"
                               }`}
@@ -909,13 +913,8 @@ const PresupuestoDetalle = () => {
                         <input
                           type="text"
                           placeholder="Buscar productos..."
-                          value={presupuestoEdit.busquedaProducto || ""}
-                          onChange={(e) =>
-                            setPresupuestoEdit((prev) => ({
-                              ...prev,
-                              busquedaProducto: e.target.value,
-                            }))
-                          }
+                          value={busquedaProducto}
+                          onChange={(e) => setBusquedaProducto(e.target.value)}
                           className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                         />
                       </div>
@@ -1000,7 +999,7 @@ const PresupuestoDetalle = () => {
                         );
                       }
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                           {productosFiltrados.map((prod) => {
                             const yaAgregado = (
                               presupuestoEdit.productos || []
@@ -2349,6 +2348,13 @@ const PresupuestoDetalle = () => {
 // Nuevo formulario minimalista para conversión a venta
 function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const [clientes, setClientes] = React.useState([]);
+  
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
+  };
+  
   // Cargar clientes al montar
   React.useEffect(() => {
     getDocs(collection(db, "clientes")).then((snap) => {
@@ -2385,7 +2391,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   : 0;
                 return subtotal - descuento + envio;
               })(),
-              `No puede exceder el total de $${(() => {
+              (value) => {
                 const subtotal = presupuesto.subtotal || 0;
                 const descuento = presupuesto.descuentoTotal || 0;
                 // Usar el costo de envío del formulario si existe, sino del presupuesto
@@ -2397,8 +2403,9 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                     Number(presupuesto.costoEnvio) > 0
                   ? Number(presupuesto.costoEnvio)
                   : 0;
-                return (subtotal - descuento + envio).toFixed(2);
-              })()}`
+                const total = subtotal - descuento + envio;
+                return `No puede exceder el total de $${formatearNumeroArgentino(total)}`;
+              }
             )
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
@@ -2756,13 +2763,15 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                 max={(() => {
                   const subtotal = presupuesto.subtotal || 0;
                   const descuento = presupuesto.descuentoTotal || 0;
-                  const envio =
-                    presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0
-                      ? Number(presupuesto.costoEnvio)
-                      : 0;
+                  // Usar el costo de envío del formulario si existe, sino del presupuesto
+                  const envio = watch("costoEnvio")
+                    ? Number(watch("costoEnvio"))
+                    : presupuesto.costoEnvio !== undefined &&
+                      presupuesto.costoEnvio !== "" &&
+                      !isNaN(Number(presupuesto.costoEnvio)) &&
+                      Number(presupuesto.costoEnvio) > 0
+                    ? Number(presupuesto.costoEnvio)
+                    : 0;
                   return subtotal - descuento + envio;
                 })()}
                 placeholder={`Saldo pendiente: $${(() => {
@@ -2782,7 +2791,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   const montoAbonado = watch("montoAbonado")
                     ? Number(watch("montoAbonado"))
                     : 0;
-                  return (total - montoAbonado).toFixed(2);
+                  return formatearNumeroArgentino(total - montoAbonado);
                 })()}`}
                 {...register("montoAbonado")}
                 className={`w-full ${
