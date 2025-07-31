@@ -1619,7 +1619,6 @@ const VentaDetalle = () => {
                                 setCategoriaId(categoria);
                               }
                             }}
-                            disabled={isSubmitting}
                           >
                             {categoria}
                           </button>
