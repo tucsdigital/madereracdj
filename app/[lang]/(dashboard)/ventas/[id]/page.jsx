@@ -441,7 +441,7 @@ const VentaDetalle = () => {
         return;
       }
     }
-    
+
     const productosArr = ventaEdit.productos || ventaEdit.items;
     const subtotal = productosArr.reduce(
       (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -455,7 +455,7 @@ const VentaDetalle = () => {
           (Number(p.descuento || 0) / 100),
       0
     );
-    
+
     // Calcular costo de envío solo si no es retiro local
     const costoEnvioCalculado =
       ventaEdit.tipoEnvio &&
@@ -465,13 +465,13 @@ const VentaDetalle = () => {
       !isNaN(Number(ventaEdit.costoEnvio))
         ? Number(ventaEdit.costoEnvio)
         : 0;
-    
+
     const total = subtotal - descuentoTotal + costoEnvioCalculado;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
       (acc, p) => acc + Number(p.monto),
       0
     );
-    
+
     if (totalAbonado >= total) {
       ventaEdit.estadoPago = "pagado";
     } else if (totalAbonado > 0) {
@@ -479,7 +479,7 @@ const VentaDetalle = () => {
     } else {
       ventaEdit.estadoPago = "pendiente";
     }
-    
+
     // Guardar correctamente los pagos del saldo pendiente
     if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
       delete ventaEdit.montoAbonado;
@@ -507,29 +507,29 @@ const VentaDetalle = () => {
     }
 
     // ===== LÓGICA PROFESIONAL PARA MANEJAR CAMBIOS =====
-    
+
     // 1. Detectar cambios en productos y cantidades
     const productosOriginales = venta.productos || venta.items || [];
     const productosNuevos = productosArr;
-    
+
     console.log("=== ANÁLISIS DE CAMBIOS ===");
     console.log("Productos originales:", productosOriginales);
     console.log("Productos nuevos:", productosNuevos);
-    
+
     // Crear mapas para comparación eficiente
     const productosOriginalesMap = new Map();
-    productosOriginales.forEach(p => productosOriginalesMap.set(p.id, p));
-    
+    productosOriginales.forEach((p) => productosOriginalesMap.set(p.id, p));
+
     const productosNuevosMap = new Map();
-    productosNuevos.forEach(p => productosNuevosMap.set(p.id, p));
-    
+    productosNuevos.forEach((p) => productosNuevosMap.set(p.id, p));
+
     // 2. Manejar cambios de stock y movimientos
     const cambiosStock = [];
-    
+
     // Productos que se agregaron o aumentaron cantidad
     for (const [productoId, productoNuevo] of productosNuevosMap) {
       const productoOriginal = productosOriginalesMap.get(productoId);
-      
+
       if (!productoOriginal) {
         // Producto nuevo agregado
         cambiosStock.push({
@@ -537,7 +537,7 @@ const VentaDetalle = () => {
           tipo: "nuevo",
           cantidadOriginal: 0,
           cantidadNueva: productoNuevo.cantidad,
-          diferencia: productoNuevo.cantidad
+          diferencia: productoNuevo.cantidad,
         });
       } else {
         // Producto existente con posible cambio de cantidad
@@ -548,12 +548,12 @@ const VentaDetalle = () => {
             tipo: "modificado",
             cantidadOriginal: productoOriginal.cantidad,
             cantidadNueva: productoNuevo.cantidad,
-            diferencia
+            diferencia,
           });
         }
       }
     }
-    
+
     // Productos que se eliminaron o redujeron cantidad
     for (const [productoId, productoOriginal] of productosOriginalesMap) {
       if (!productosNuevosMap.has(productoId)) {
@@ -563,36 +563,40 @@ const VentaDetalle = () => {
           tipo: "eliminado",
           cantidadOriginal: productoOriginal.cantidad,
           cantidadNueva: 0,
-          diferencia: -productoOriginal.cantidad
+          diferencia: -productoOriginal.cantidad,
         });
       }
     }
-    
+
     console.log("Cambios de stock detectados:", cambiosStock);
-    
+
     // 3. Aplicar cambios de stock y registrar movimientos
     for (const cambio of cambiosStock) {
       try {
         const productoRef = doc(db, "productos", cambio.productoId);
-        
+
         // Verificar que el producto existe
         const productoSnap = await getDocs(collection(db, "productos"));
-        const existe = productoSnap.docs.find((d) => d.id === cambio.productoId);
-        
+        const existe = productoSnap.docs.find(
+          (d) => d.id === cambio.productoId
+        );
+
         if (!existe) {
-          console.warn(`Producto ${cambio.productoId} no existe en el catálogo`);
+          console.warn(
+            `Producto ${cambio.productoId} no existe en el catálogo`
+          );
           continue;
         }
-        
+
         // Actualizar stock
         await updateDoc(productoRef, {
-          stock: increment(-cambio.diferencia)
+          stock: increment(-cambio.diferencia),
         });
-        
+
         // Registrar movimiento
         const tipoMovimiento = cambio.diferencia > 0 ? "salida" : "entrada";
         const cantidadMovimiento = Math.abs(cambio.diferencia);
-        
+
         await addDoc(collection(db, "movimientos"), {
           productoId: cambio.productoId,
           tipo: tipoMovimiento,
@@ -602,32 +606,38 @@ const VentaDetalle = () => {
           referencia: "edicion_venta",
           referenciaId: ventaEdit.id,
           observaciones: `Ajuste por edición de venta - ${cambio.tipo}: ${cambio.cantidadOriginal} → ${cambio.cantidadNueva}`,
-          productoNombre: existe.data().nombre || "Producto desconocido"
+          productoNombre: existe.data().nombre || "Producto desconocido",
         });
-        
-        console.log(`✅ Stock actualizado para producto ${cambio.productoId}: ${cambio.diferencia}`);
-        
+
+        console.log(
+          `✅ Stock actualizado para producto ${cambio.productoId}: ${cambio.diferencia}`
+        );
       } catch (error) {
-        console.error(`Error actualizando stock para producto ${cambio.productoId}:`, error);
+        console.error(
+          `Error actualizando stock para producto ${cambio.productoId}:`,
+          error
+        );
       }
     }
-    
+
     // 4. Manejar cambios de envío de manera más robusta
     const tipoEnvioOriginal = venta.tipoEnvio || "retiro_local";
     const tipoEnvioNuevo = ventaEdit.tipoEnvio || "retiro_local";
     const costoEnvioOriginal = Number(venta.costoEnvio) || 0;
     const costoEnvioNuevo = costoEnvioCalculado;
-    
+
     console.log("=== ANÁLISIS DE ENVÍO ===");
     console.log("Tipo envío original:", tipoEnvioOriginal);
     console.log("Tipo envío nuevo:", tipoEnvioNuevo);
     console.log("Costo envío original:", costoEnvioOriginal);
     console.log("Costo envío nuevo:", costoEnvioNuevo);
-    
+
     // Buscar envío existente
     const enviosSnap = await getDocs(collection(db, "envios"));
-    const envioExistente = enviosSnap.docs.find(e => e.data().ventaId === ventaEdit.id);
-    
+    const envioExistente = enviosSnap.docs.find(
+      (e) => e.data().ventaId === ventaEdit.id
+    );
+
     // Lógica mejorada para manejar cambios de envío
     if (tipoEnvioNuevo !== "retiro_local") {
       // Crear nuevo envío o actualizar existente
@@ -635,17 +645,21 @@ const VentaDetalle = () => {
         ventaId: ventaEdit.id,
         clienteId: ventaEdit.clienteId,
         cliente: ventaEdit.cliente,
-        fechaCreacion: envioExistente ? envioExistente.data().fechaCreacion : new Date().toISOString(),
+        fechaCreacion: envioExistente
+          ? envioExistente.data().fechaCreacion
+          : new Date().toISOString(),
         fechaEntrega: ventaEdit.fechaEntrega,
         estado: envioExistente ? envioExistente.data().estado : "pendiente",
         prioridad: ventaEdit.prioridad || "media",
         vendedor: ventaEdit.vendedor,
-        direccionEnvio: ventaEdit.usarDireccionCliente !== false 
-          ? ventaEdit.cliente?.direccion 
-          : ventaEdit.direccionEnvio,
-        localidadEnvio: ventaEdit.usarDireccionCliente !== false 
-          ? ventaEdit.cliente?.localidad 
-          : ventaEdit.localidadEnvio,
+        direccionEnvio:
+          ventaEdit.usarDireccionCliente !== false
+            ? ventaEdit.cliente?.direccion
+            : ventaEdit.direccionEnvio,
+        localidadEnvio:
+          ventaEdit.usarDireccionCliente !== false
+            ? ventaEdit.cliente?.localidad
+            : ventaEdit.localidadEnvio,
         tipoEnvio: ventaEdit.tipoEnvio,
         transportista: ventaEdit.transportista,
         costoEnvio: costoEnvioNuevo,
@@ -653,32 +667,34 @@ const VentaDetalle = () => {
         totalVenta: total,
         productos: productosArr,
         cantidadTotal: productosArr.reduce((acc, p) => acc + p.cantidad, 0),
-        historialEstados: envioExistente 
+        historialEstados: envioExistente
           ? [
               ...(envioExistente.data().historialEstados || []),
               {
                 estado: "actualizado",
                 fecha: new Date().toISOString(),
-                comentario: "Envío actualizado desde edición de venta"
-              }
+                comentario: "Envío actualizado desde edición de venta",
+              },
             ]
           : [
               {
                 estado: "pendiente",
                 fecha: new Date().toISOString(),
-                comentario: "Envío creado desde edición de venta"
-              }
+                comentario: "Envío creado desde edición de venta",
+              },
             ],
         observaciones: ventaEdit.observaciones,
         instruccionesEspeciales: "",
         fechaActualizacion: new Date().toISOString(),
-        creadoPor: "sistema"
+        creadoPor: "sistema",
       };
-      
+
       const cleanEnvioData = Object.fromEntries(
-        Object.entries(envioData).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+        Object.entries(envioData).filter(
+          ([_, v]) => v !== undefined && v !== null && v !== ""
+        )
       );
-      
+
       if (envioExistente) {
         // Actualizar envío existente
         await updateDoc(doc(db, "envios", envioExistente.id), cleanEnvioData);
@@ -688,7 +704,6 @@ const VentaDetalle = () => {
         await addDoc(collection(db, "envios"), cleanEnvioData);
         console.log("✅ Nuevo envío creado");
       }
-      
     } else if (tipoEnvioNuevo === "retiro_local" && envioExistente) {
       // Eliminar envío si cambió a retiro local
       await updateDoc(doc(db, "envios", envioExistente.id), {
@@ -699,9 +714,9 @@ const VentaDetalle = () => {
           {
             estado: "cancelado",
             fecha: new Date().toISOString(),
-            comentario: "Envío cancelado - cambiado a retiro local"
-          }
-        ]
+            comentario: "Envío cancelado - cambiado a retiro local",
+          },
+        ],
       });
       console.log("✅ Envío cancelado por cambio a retiro local");
     }
@@ -723,17 +738,17 @@ const VentaDetalle = () => {
         localidadEnvio: "",
         transportista: "",
         rangoHorario: "",
-        prioridad: ""
-      })
+        prioridad: "",
+      }),
     };
-    
+
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, ventaActualizada);
-    
+
     // Actualizar el estado local
     setVenta(ventaActualizada);
     setEditando(false);
-    
+
     console.log("✅ Venta actualizada exitosamente");
     console.log("Total final:", total);
     console.log("Costo envío final:", costoEnvioNuevo);
@@ -802,11 +817,11 @@ const VentaDetalle = () => {
   // Función para imprimir versión empleado (sin precios)
   const handlePrintEmpleado = () => {
     // Agregar clase al body para identificar modo empleado
-    document.body.classList.add('print-empleado');
+    document.body.classList.add("print-empleado");
     window.print();
     // Remover clase después de imprimir
     setTimeout(() => {
-      document.body.classList.remove('print-empleado');
+      document.body.classList.remove("print-empleado");
     }, 1000);
   };
 
@@ -984,9 +999,13 @@ const VentaDetalle = () => {
           <div className="text-center">
             {/* <h3 className="text-lg font-bold mb-2">📋 LISTA DE PRODUCTOS PARA EMPLEADO</h3>
             <p className="text-sm">Esta versión oculta los precios para uso interno del empleado</p> */}
-            <p className="text-sm font-medium mt-2">Venta N°: {venta?.numeroPedido || venta?.id?.slice(-8)}</p>
+            <p className="text-sm font-medium mt-2">
+              Venta N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+            </p>
             <p className="text-sm">Cliente: {venta.cliente?.nombre || "-"}</p>
-            <p className="text-sm">Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}</p>
+            <p className="text-sm">
+              Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}
+            </p>
           </div>
         </div>
         {/* Header con botones */}
@@ -1012,12 +1031,15 @@ const VentaDetalle = () => {
                 <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
                 <span className="hidden sm:inline">Volver</span>
               </Button>
-              <Button onClick={handlePrint} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
+              <Button
+                onClick={handlePrint}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">🖨️</span>
               </Button>
-              <Button 
-                onClick={handlePrintEmpleado} 
+              <Button
+                onClick={handlePrintEmpleado}
                 variant="outline"
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
               >
@@ -1025,7 +1047,10 @@ const VentaDetalle = () => {
                 <span className="sm:hidden">👷</span>
               </Button>
               {!editando && (
-                <Button onClick={() => setEditando(true)} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
+                <Button
+                  onClick={() => setEditando(true)}
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
                   <span className="hidden sm:inline">Editar</span>
                   <span className="sm:hidden">✏️</span>
                 </Button>
@@ -1131,7 +1156,9 @@ const VentaDetalle = () => {
                 <div className="space-y-3">
                   <div>
                     <span className="font-medium">Forma de pago:</span>{" "}
-                    <span className="forma-pago-empleado">{venta.formaPago || "-"}</span>
+                    <span className="forma-pago-empleado">
+                      {venta.formaPago || "-"}
+                    </span>
                   </div>
                   {venta.costoEnvio !== undefined &&
                     Number(venta.costoEnvio) > 0 && (
@@ -1325,9 +1352,15 @@ const VentaDetalle = () => {
                     <th className="text-left p-3 font-medium">Producto</th>
                     <th className="text-center p-3 font-medium">Cantidad</th>
                     <th className="text-center p-3 font-medium">Unidad</th>
-                    <th className="text-right p-3 font-medium precio-empleado">Precio Unit.</th>
-                    <th className="text-right p-3 font-medium descuento-empleado">Descuento</th>
-                    <th className="text-right p-3 font-medium subtotal-empleado">Subtotal</th>
+                    <th className="text-right p-3 font-medium precio-empleado">
+                      Precio Unit.
+                    </th>
+                    <th className="text-right p-3 font-medium descuento-empleado">
+                      Descuento
+                    </th>
+                    <th className="text-right p-3 font-medium subtotal-empleado">
+                      Subtotal
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1457,7 +1490,7 @@ const VentaDetalle = () => {
                       const nuevoTipoEnvio = e.target.value;
                       setVentaEdit((prev) => {
                         const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
-                        
+
                         // Si cambia de envío a retiro local, limpiar costo de envío
                         if (nuevoTipoEnvio === "retiro_local") {
                           updated.costoEnvio = "";
@@ -1467,13 +1500,16 @@ const VentaDetalle = () => {
                           updated.rangoHorario = "";
                           updated.prioridad = "";
                         }
-                        
+
                         // Si cambia de retiro local a envío, inicializar campos
-                        if (nuevoTipoEnvio !== "retiro_local" && prev.tipoEnvio === "retiro_local") {
+                        if (
+                          nuevoTipoEnvio !== "retiro_local" &&
+                          prev.tipoEnvio === "retiro_local"
+                        ) {
                           updated.usarDireccionCliente = true;
                           updated.costoEnvio = "0";
                         }
-                        
+
                         return updated;
                       });
                     }}
@@ -2361,9 +2397,9 @@ const VentaDetalle = () => {
                           .toFixed(2)}
                       </span>
                     </div>
-                    {ventaEdit.tipoEnvio && 
-                     ventaEdit.tipoEnvio !== "retiro_local" && 
-                     Number(ventaEdit.costoEnvio) > 0 && (
+                    {ventaEdit.tipoEnvio &&
+                      ventaEdit.tipoEnvio !== "retiro_local" &&
+                      Number(ventaEdit.costoEnvio) > 0 && (
                         <div>
                           Costo de envío:{" "}
                           <span className="font-bold">
@@ -2389,8 +2425,9 @@ const VentaDetalle = () => {
                                 (Number(p.descuento || 0) / 100),
                             0
                           ) +
-                          (ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" 
-                            ? Number(ventaEdit.costoEnvio) || 0 
+                          (ventaEdit.tipoEnvio &&
+                          ventaEdit.tipoEnvio !== "retiro_local"
+                            ? Number(ventaEdit.costoEnvio) || 0
                             : 0)
                         ).toFixed(2)}
                       </span>
@@ -2413,18 +2450,19 @@ const VentaDetalle = () => {
                       (Number(p.descuento || 0) / 100),
                   0
                 );
-                
+
                 // Calcular costo de envío basado en el tipo de envío actual
-                const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
-                  ? Number(ventaEdit.costoEnvio) || 0
-                  : 0;
-                
+                const envio =
+                  ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
+                    ? Number(ventaEdit.costoEnvio) || 0
+                    : 0;
+
                 const total = subtotal - descuento + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
                   ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                   : Number(ventaEdit.montoAbonado || 0);
                 const saldo = total - abonado;
-                
+
                 console.log("=== CÁLCULO SALDO PENDIENTE ===");
                 console.log("Subtotal:", subtotal);
                 console.log("Descuento:", descuento);
@@ -2433,7 +2471,7 @@ const VentaDetalle = () => {
                 console.log("Total:", total);
                 console.log("Abonado:", abonado);
                 console.log("Saldo pendiente:", saldo);
-                
+
                 if (saldo > 0) {
                   return (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
@@ -2443,8 +2481,12 @@ const VentaDetalle = () => {
                       <div className="text-sm text-yellow-700 mb-3">
                         <div>Subtotal: ${subtotal.toFixed(2)}</div>
                         <div>Descuento: ${descuento.toFixed(2)}</div>
-                        {envio > 0 && <div>Costo envío: ${envio.toFixed(2)}</div>}
-                        <div className="font-bold">Total: ${total.toFixed(2)}</div>
+                        {envio > 0 && (
+                          <div>Costo envío: ${envio.toFixed(2)}</div>
+                        )}
+                        <div className="font-bold">
+                          Total: ${total.toFixed(2)}
+                        </div>
                         <div>Abonado: ${abonado.toFixed(2)}</div>
                       </div>
                       <div className="flex flex-col md:flex-row gap-2 items-end">
