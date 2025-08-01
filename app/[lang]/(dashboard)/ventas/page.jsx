@@ -340,6 +340,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       )
     );
   };
+  const handleNombreChange = (id, nombre) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, nombre: nombre } : p
+      )
+    );
+  };
+  const handlePrecioChange = (id, precio) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, precio: Number(precio) } : p
+      )
+    );
+  };
 
   const recalcularPreciosMadera = (id, aplicarCepillado) => {
     setProductosSeleccionados(
@@ -959,7 +973,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           stock: 100,
                           cantidad: 2,
                           descuento: 0,
-                          categoria: "Ferretería",
+                          categoria: "Eventual",
+                          esEditable: true, // Marca que es un producto editable
                         };
                         setProductosSeleccionados([...productosSeleccionados, productoEjemplo]);
                       }}
@@ -1523,7 +1538,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             <div className="font-semibold text-default-900">
-                              {p.nombre}
+                              {p.esEditable ? (
+                                <input
+                                  type="text"
+                                  value={p.nombre}
+                                  onChange={(e) => handleNombreChange(p.id, e.target.value)}
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                  disabled={isSubmitting}
+                                  placeholder="Nombre del producto"
+                                />
+                              ) : (
+                                p.nombre
+                              )}
                             </div>
                             {p.categoria === "Maderas" && (
                               <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
@@ -1588,6 +1614,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     Stock bajo: quedan {p.stock} unidades.
                                   </span>
                                 )}
+                              </div>
+                            )}
+                            {p.esEditable && (
+                              <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                <span className="text-blue-600 font-medium">
+                                  ✏️ Producto editable
+                                </span>
                               </div>
                             )}
                           </td>
@@ -1675,7 +1708,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            ${formatearNumeroArgentino(p.precio)}
+                            {p.esEditable ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="100"
+                                value={p.precio}
+                                onChange={(e) => handlePrecioChange(p.id, e.target.value)}
+                                className="w-24 text-center border border-gray-300 rounded px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                disabled={isSubmitting}
+                                placeholder="0"
+                              />
+                            ) : (
+                              `$${formatearNumeroArgentino(p.precio)}`
+                            )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             <input
