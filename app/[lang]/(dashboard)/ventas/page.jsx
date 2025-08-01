@@ -945,12 +945,37 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {productosSeleccionados.length}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      productos agregados
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const productoEjemplo = {
+                          id: "ejemplo-" + Date.now(),
+                          nombre: "Producto de Ejemplo",
+                          precio: 15000,
+                          unidad: "unidad",
+                          stock: 100,
+                          cantidad: 2,
+                          descuento: 0,
+                          categoria: "Ferretería",
+                        };
+                        setProductosSeleccionados([...productosSeleccionados, productoEjemplo]);
+                      }}
+                      disabled={isSubmitting}
+                      className="text-xs px-3 py-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    >
+                      <Icon icon="heroicons:plus-circle" className="w-3 h-3 mr-1" />
+                      Agregar Ejemplo
+                    </Button>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {productosSeleccionados.length}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        productos agregados
+                      </div>
                     </div>
                   </div>
                 </div>
