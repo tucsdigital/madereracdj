@@ -18,13 +18,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/firebase";
 import {
@@ -324,22 +317,18 @@ const PreciosPage = () => {
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <CardTitle>Listado de Productos</CardTitle>
             <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <Select
+              <select
                 value={categoriaSeleccionada}
-                onValueChange={setCategoriaSeleccionada}
+                onChange={(e) => setCategoriaSeleccionada(e.target.value)}
+                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filtrar por categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas las categorías</SelectItem>
-                  {categorias.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {getIconoCategoria(cat)} {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Todas las categorías</option>
+                {categorias.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {getIconoCategoria(cat)} {cat}
+                  </option>
+                ))}
+              </select>
               <Input
                 placeholder="Buscar producto..."
                 value={filtro}
@@ -574,21 +563,23 @@ const PreciosPage = () => {
                   <label className="text-sm font-medium text-gray-700">
                     Tipo de Madera
                   </label>
-                  <Select
+                  <select
                     value={tipoMaderaSeleccionado}
-                    onValueChange={setTipoMaderaSeleccionado}
+                    onChange={(e) => setTipoMaderaSeleccionado(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleccionar tipo de madera" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      {tiposMadera.map((tipo) => (
-                        <SelectItem key={tipo} value={tipo}>
-                          🌲 {tipo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Seleccionar tipo de madera</option>
+                    {tiposMadera.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        🌲 {tipo}
+                      </option>
+                    ))}
+                  </select>
+                  {tipoMaderaSeleccionado && (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                      📊 Se actualizarán {productos.filter(p => p.categoria === "Maderas" && p.tipoMadera === tipoMaderaSeleccionado).length} productos de tipo "{tipoMaderaSeleccionado}"
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -597,21 +588,23 @@ const PreciosPage = () => {
                   <label className="text-sm font-medium text-gray-700">
                     Proveedor
                   </label>
-                  <Select
+                  <select
                     value={proveedorSeleccionado}
-                    onValueChange={setProveedorSeleccionado}
+                    onChange={(e) => setProveedorSeleccionado(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleccionar proveedor" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      {proveedores.map((prov) => (
-                        <SelectItem key={prov} value={prov}>
-                          📦 {prov}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <option value="">Seleccionar proveedor</option>
+                    {proveedores.map((prov) => (
+                      <option key={prov} value={prov}>
+                        📦 {prov}
+                      </option>
+                    ))}
+                  </select>
+                  {proveedorSeleccionado && (
+                    <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                      📊 Se actualizarán {productos.filter(p => p.proveedor === proveedorSeleccionado).length} productos del proveedor "{proveedorSeleccionado}"
+                    </div>
+                  )}
                 </div>
               )}
 
