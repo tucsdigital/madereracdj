@@ -799,6 +799,17 @@ const VentaDetalle = () => {
     window.print();
   };
 
+  // Función para imprimir versión empleado (sin precios)
+  const handlePrintEmpleado = () => {
+    // Agregar clase al body para identificar modo empleado
+    document.body.classList.add('print-empleado');
+    window.print();
+    // Remover clase después de imprimir
+    setTimeout(() => {
+      document.body.classList.remove('print-empleado');
+    }, 1000);
+  };
+
   // Función para obtener el estado del pago
   const getEstadoPagoColor = (estado) => {
     switch (estado) {
@@ -905,6 +916,38 @@ const VentaDetalle = () => {
       #venta-print .space-y-2 > div {
         margin-bottom: 4px !important;
       }
+      
+      /* Estilos específicos para impresión de empleados */
+      body.print-empleado #venta-print .precio-empleado,
+      body.print-empleado #venta-print .subtotal-empleado,
+      body.print-empleado #venta-print .total-empleado,
+      body.print-empleado #venta-print .descuento-empleado,
+      body.print-empleado #venta-print .costo-envio-empleado,
+      body.print-empleado #venta-print .monto-abonado-empleado,
+      body.print-empleado #venta-print .saldo-pendiente-empleado,
+      body.print-empleado #venta-print .estado-pago-empleado,
+      body.print-empleado #venta-print .forma-pago-empleado,
+      body.print-empleado #venta-print .historial-pagos-empleado {
+        display: none !important;
+      }
+      
+      /* Mostrar mensaje para empleados */
+      body.print-empleado #venta-print .mensaje-empleado {
+        display: block !important;
+        background: #f0f9ff !important;
+        border: 2px solid #0ea5e9 !important;
+        padding: 15px !important;
+        margin: 20px 0 !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        color: #0c4a6e !important;
+      }
+      
+      /* Ocultar mensaje en impresión normal */
+      body:not(.print-empleado) #venta-print .mensaje-empleado {
+        display: none !important;
+      }
     }
   `}</style>
       <div id="venta-print" className="max-w-4xl mx-auto px-4">
@@ -920,11 +963,11 @@ const VentaDetalle = () => {
           />
           <div>
             <h1 className="text-2xl font-bold " style={{ letterSpacing: 1 }}>
-              Maderera Caballero
+              Maderas Caballero
             </h1>
             <div className=" text-sm">Venta / Comprobante</div>
             <div className="text-gray-500 text-xs">
-              www.caballeromaderera.com
+              www.caballeromaderas.com
             </div>
           </div>
           <div className="ml-auto text-right">
@@ -934,6 +977,16 @@ const VentaDetalle = () => {
             <div className="text-xs text-gray-500">
               N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
             </div>
+          </div>
+        </div>
+        {/* Mensaje para empleados (solo visible en impresión) */}
+        <div className="mensaje-empleado hidden">
+          <div className="text-center">
+            {/* <h3 className="text-lg font-bold mb-2">📋 LISTA DE PRODUCTOS PARA EMPLEADO</h3>
+            <p className="text-sm">Esta versión oculta los precios para uso interno del empleado</p> */}
+            <p className="text-sm font-medium mt-2">Venta N°: {venta?.numeroPedido || venta?.id?.slice(-8)}</p>
+            <p className="text-sm">Cliente: {venta.cliente?.nombre || "-"}</p>
+            <p className="text-sm">Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}</p>
           </div>
         </div>
         {/* Header con botones */}
@@ -962,6 +1015,14 @@ const VentaDetalle = () => {
               <Button onClick={handlePrint} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">🖨️</span>
+              </Button>
+              <Button 
+                onClick={handlePrintEmpleado} 
+                variant="outline"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+              >
+                <span className="hidden sm:inline">Imprimir Empleado</span>
+                <span className="sm:hidden">👷</span>
               </Button>
               {!editando && (
                 <Button onClick={() => setEditando(true)} className="no-print flex-1 lg:flex-none text-sm lg:text-base">
@@ -1070,11 +1131,11 @@ const VentaDetalle = () => {
                 <div className="space-y-3">
                   <div>
                     <span className="font-medium">Forma de pago:</span>{" "}
-                    {venta.formaPago || "-"}
+                    <span className="forma-pago-empleado">{venta.formaPago || "-"}</span>
                   </div>
                   {venta.costoEnvio !== undefined &&
                     Number(venta.costoEnvio) > 0 && (
-                      <div>
+                      <div className="costo-envio-empleado">
                         <span className="font-medium">Costo de envío:</span> $
                         {Number(venta.costoEnvio).toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
@@ -1083,7 +1144,7 @@ const VentaDetalle = () => {
                     )}
                 </div>
                 {/* Estado de la venta */}
-                <div>
+                <div className="estado-pago-empleado">
                   <span className="font-medium">Estado de la venta:</span>{" "}
                   {(() => {
                     // Usar el estadoPago de la base de datos, no recalcular
@@ -1197,14 +1258,14 @@ const VentaDetalle = () => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="">Total de la venta:</span>
-              <span className="font-semibold">
+              <span className="font-semibold total-empleado">
                 ${formatearNumeroArgentino(venta.total || 0)}
               </span>
             </div>
 
             <div className="flex justify-between">
               <span className="">Monto abonado:</span>
-              <span className="font-semibold text-green-600">
+              <span className="font-semibold text-green-600 monto-abonado-empleado">
                 ${formatearNumeroArgentino(montoAbonado)}
               </span>
             </div>
@@ -1212,7 +1273,7 @@ const VentaDetalle = () => {
             {saldoPendiente > 0 && (
               <div className="flex justify-between border-t pt-2">
                 <span className="">Saldo pendiente:</span>
-                <span className="font-semibold text-red-600">
+                <span className="font-semibold text-red-600 saldo-pendiente-empleado">
                   ${formatearNumeroArgentino(saldoPendiente)}
                 </span>
               </div>
@@ -1221,7 +1282,7 @@ const VentaDetalle = () => {
 
           {/* Historial de pagos si existe */}
           {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 historial-pagos-empleado">
               <h4 className="font-medium mb-2">Historial de pagos:</h4>
               <div className="bg-card rounded-lg p-3">
                 <table className="w-full text-sm">
@@ -1264,9 +1325,9 @@ const VentaDetalle = () => {
                     <th className="text-left p-3 font-medium">Producto</th>
                     <th className="text-center p-3 font-medium">Cantidad</th>
                     <th className="text-center p-3 font-medium">Unidad</th>
-                    <th className="text-right p-3 font-medium">Precio Unit.</th>
-                    <th className="text-right p-3 font-medium">Descuento</th>
-                    <th className="text-right p-3 font-medium">Subtotal</th>
+                    <th className="text-right p-3 font-medium precio-empleado">Precio Unit.</th>
+                    <th className="text-right p-3 font-medium descuento-empleado">Descuento</th>
+                    <th className="text-right p-3 font-medium subtotal-empleado">Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1293,13 +1354,13 @@ const VentaDetalle = () => {
                       <td className="p-3 text-center">
                         {producto.unidad || "-"}
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right precio-empleado">
                         ${formatearNumeroArgentino(Number(producto.precio))}
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right descuento-empleado">
                         {Number(producto.descuento || 0).toFixed(2)}%
                       </td>
-                      <td className="p-3 text-right font-medium">
+                      <td className="p-3 text-right font-medium subtotal-empleado">
                         $
                         {formatearNumeroArgentino(
                           Number(producto.precio) *
@@ -1316,7 +1377,7 @@ const VentaDetalle = () => {
             <div className="mt-6 flex justify-end">
               <div className="bg-card rounded-lg p-4 min-w-[300px]">
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between subtotal-empleado">
                     <span>Subtotal:</span>
                     <span>
                       $
@@ -1325,7 +1386,7 @@ const VentaDetalle = () => {
                       })}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between descuento-empleado">
                     <span>Descuento total:</span>
                     <span>
                       $
@@ -1341,7 +1402,7 @@ const VentaDetalle = () => {
                     venta.costoEnvio !== "" &&
                     !isNaN(Number(venta.costoEnvio)) &&
                     Number(venta.costoEnvio) > 0 && (
-                      <div className="flex justify-between">
+                      <div className="flex justify-between costo-envio-empleado">
                         <span>Cotización de envío:</span>
                         <span>
                           $
@@ -1351,7 +1412,7 @@ const VentaDetalle = () => {
                         </span>
                       </div>
                     )}
-                  <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                  <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
                     <span>Total:</span>
                     <span className="text-primary">
                       $

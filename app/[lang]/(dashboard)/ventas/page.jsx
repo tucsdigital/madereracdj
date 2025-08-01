@@ -561,7 +561,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       if (tipo === "venta") {
         const esPagoParcial = cleanData.pagoParcial || false;
-        
+
         if (!esPagoParcial) {
           // Si NO es pago parcial → montoAbonado = total y estado = "pagado"
           montoAbonadoFinal = total;
@@ -976,12 +976,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           categoria: "Eventual",
                           esEditable: true, // Marca que es un producto editable
                         };
-                        setProductosSeleccionados([...productosSeleccionados, productoEjemplo]);
+                        setProductosSeleccionados([
+                          ...productosSeleccionados,
+                          productoEjemplo,
+                        ]);
                       }}
                       disabled={isSubmitting}
                       className="text-xs px-3 py-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
                     >
-                      <Icon icon="heroicons:plus-circle" className="w-3 h-3 mr-1" />
+                      <Icon
+                        icon="heroicons:plus-circle"
+                        className="w-3 h-3 mr-1"
+                      />
                       Agregar Ejemplo
                     </Button>
                     <div className="text-right">
@@ -1542,7 +1548,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 <input
                                   type="text"
                                   value={p.nombre}
-                                  onChange={(e) => handleNombreChange(p.id, e.target.value)}
+                                  onChange={(e) =>
+                                    handleNombreChange(p.id, e.target.value)
+                                  }
                                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
                                   disabled={isSubmitting}
                                   placeholder="Nombre del producto"
@@ -1714,7 +1722,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 min="0"
                                 step="100"
                                 value={p.precio}
-                                onChange={(e) => handlePrecioChange(p.id, e.target.value)}
+                                onChange={(e) =>
+                                  handlePrecioChange(p.id, e.target.value)
+                                }
                                 className="w-24 text-center border border-gray-300 rounded px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
                                 disabled={isSubmitting}
                                 placeholder="0"
@@ -1942,7 +1952,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Información adicional
                     </div>
                     <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                      <strong>Vendedor:</strong> {user?.email || "Usuario no identificado"}
+                      <strong>Vendedor:</strong>{" "}
+                      {user?.email || "Usuario no identificado"}
                     </div>
                     <Textarea
                       {...register("observaciones")}
