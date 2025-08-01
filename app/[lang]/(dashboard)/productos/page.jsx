@@ -717,6 +717,26 @@ const ProductosPage = () => {
     }
   };
 
+  const handleValorVentaChange = async (id, nuevoValorVenta) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Ferretería") {
+        await updateDoc(productoRef, {
+          valorVenta: Number(nuevoValorVenta),
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Valor de venta actualizado para producto ${id}: ${nuevoValorVenta}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar valor de venta:", error);
+      alert("Error al actualizar el valor de venta: " + error.message);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -1630,9 +1650,38 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                             </span>
                           </div>
                         ) : (
-                          <span className="font-bold">
-                            ${formatearNumeroArgentino(p.valorVenta || 0)}
-                          </span>
+                          <div className="flex flex-col items-center">
+                            <div className="inline-flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={p.valorVenta || 0}
+                                onChange={(e) =>
+                                  handleValorVentaChange(p.id, e.target.value)
+                                }
+                                className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                placeholder="0.00"
+                                title="Editar valor de venta"
+                              />
+                              <svg
+                                className="w-3 h-3 text-blue-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              Valor de venta
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -1662,8 +1711,8 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                                           Math.round(precioFinal / 100) * 100
                                         );
                                       })()
-                                    : p.valorVenta || 0;
-                                const cantidad = p.cantidad || 1;
+                                    : Number(p.valorVenta) || 0;
+                                const cantidad = Number(p.cantidad) || 1;
                                 return precioUnitario * cantidad;
                               })()
                             )}
