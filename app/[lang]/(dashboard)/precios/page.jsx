@@ -74,10 +74,15 @@ const PreciosPage = () => {
   const tiposMadera = [
     ...new Set(
       productos
-        .filter((p) => p.categoria === "Maderas")
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
         .map((p) => p.tipoMadera)
     ),
   ].filter(Boolean);
+  
+  // Debug: mostrar tipos de madera disponibles
+  console.log("Tipos de madera disponibles:", tiposMadera);
+  console.log("Productos de maderas:", productos.filter(p => p.categoria === "Maderas"));
+  
   const proveedores = [
     ...new Set(productos.filter((p) => p.proveedor).map((p) => p.proveedor)),
   ].filter(Boolean);
@@ -565,39 +570,49 @@ const PreciosPage = () => {
               </div>
 
               {modalTipo === "maderas" && (
-                <Select
-                  value={tipoMaderaSeleccionado}
-                  onValueChange={setTipoMaderaSeleccionado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo de madera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tiposMadera.map((tipo) => (
-                      <SelectItem key={tipo} value={tipo}>
-                        🌲 {tipo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Tipo de Madera
+                  </label>
+                  <Select
+                    value={tipoMaderaSeleccionado}
+                    onValueChange={setTipoMaderaSeleccionado}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar tipo de madera" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
+                      {tiposMadera.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          🌲 {tipo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
               {modalTipo === "proveedor" && (
-                <Select
-                  value={proveedorSeleccionado}
-                  onValueChange={setProveedorSeleccionado}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar proveedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {proveedores.map((prov) => (
-                      <SelectItem key={prov} value={prov}>
-                        📦 {prov}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Proveedor
+                  </label>
+                  <Select
+                    value={proveedorSeleccionado}
+                    onValueChange={setProveedorSeleccionado}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar proveedor" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
+                      {proveedores.map((prov) => (
+                        <SelectItem key={prov} value={prov}>
+                          📦 {prov}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
               <Input
