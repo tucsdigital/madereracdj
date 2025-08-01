@@ -41,7 +41,7 @@ const PreciosPage = () => {
   const [editProd, setEditProd] = useState(null);
   const [editForm, setEditForm] = useState({
     costo: "",
-    precioVenta: "",
+    valorVenta: "",
     precioCompra: "",
   });
   const [saving, setSaving] = useState(false);
@@ -85,7 +85,7 @@ const PreciosPage = () => {
     setEditProd(prod);
     setEditForm({
       costo: prod.costo ?? "",
-      precioVenta: prod.precioVenta ?? prod.valorVenta ?? "",
+      valorVenta: prod.valorVenta ?? "",
       precioCompra: prod.precioCompra ?? "",
     });
     setMsg("");
@@ -95,7 +95,7 @@ const PreciosPage = () => {
   const handleActualizacionGlobal = (tipo) => {
     setModalTipo(tipo);
     setEditProd(null);
-    setEditForm({ costo: "", precioVenta: "", precioCompra: "" });
+    setEditForm({ costo: "", valorVenta: "", precioCompra: "" });
     setPorcentajeAumento("");
     setTipoMaderaSeleccionado("");
     setProveedorSeleccionado("");
@@ -109,8 +109,8 @@ const PreciosPage = () => {
     try {
       const updates = {};
       if (editForm.costo !== "") updates.costo = Number(editForm.costo);
-      if (editForm.precioVenta !== "")
-        updates.precioVenta = Number(editForm.precioVenta);
+      if (editForm.valorVenta !== "")
+        updates.valorVenta = Number(editForm.valorVenta);
       if (editForm.precioCompra !== "")
         updates.precioCompra = Number(editForm.precioCompra);
 
@@ -152,9 +152,6 @@ const PreciosPage = () => {
       for (const producto of productosAActualizar) {
         const updates = {};
 
-        if (producto.precioVenta) {
-          updates.precioVenta = producto.precioVenta * (1 + porcentaje);
-        }
         if (producto.valorVenta) {
           updates.valorVenta = producto.valorVenta * (1 + porcentaje);
         }
@@ -403,9 +400,6 @@ const PreciosPage = () => {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {p.precioVenta && (
-                          <div>Venta: ${p.precioVenta.toFixed(2)}</div>
-                        )}
                         {p.valorVenta && (
                           <div>Venta: ${p.valorVenta.toFixed(2)}</div>
                         )}
@@ -485,11 +479,11 @@ const PreciosPage = () => {
                       min={0}
                       step={0.01}
                       placeholder="Ingrese el precio de venta"
-                      value={editForm.precioVenta}
+                      value={editForm.valorVenta}
                       onChange={(e) =>
                         setEditForm((f) => ({
                           ...f,
-                          precioVenta: e.target.value,
+                          valorVenta: e.target.value,
                         }))
                       }
                     />
