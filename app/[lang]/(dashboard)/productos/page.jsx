@@ -96,13 +96,15 @@ const maderasSchema = yup.object().shape({
   ubicacion: yup.string().required("Ubicación obligatoria"),
 });
 
-// Esquema para Ferretería
+// Esquema para Ferretería (Unificado)
 const ferreteriaSchema = yup.object().shape({
   ...baseSchema,
   stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
   valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
   valorVenta: yup.number().positive().required("Valor de venta obligatorio"),
+  proveedor: yup.string().required("Proveedor obligatorio"),
+  unidad: yup.string().optional(), // Campo opcional para compatibilidad
 });
 
 // Esquemas comentados para uso futuro
@@ -458,11 +460,13 @@ function FormularioProducto({ onClose, onSuccess }) {
                         </span>
                       )}
                     </div>
-                    {errors.unidadMedida && (
-                      <span className="text-red-500 text-xs">
-                        {errors.unidadMedida.message}
-                      </span>
-                    )}
+                    <div>
+                      <Input
+                        {...register("unidad")}
+                        placeholder="Unidad (opcional)"
+                        disabled={isSubmitting}
+                      />
+                    </div>
                     <div>
                       <Input
                         {...register("valorCompra")}
@@ -491,6 +495,13 @@ function FormularioProducto({ onClose, onSuccess }) {
                         {errors.valorVenta.message}
                       </span>
                     )}
+                    <div>
+                      <Input
+                        {...register("proveedor")}
+                        placeholder="Proveedor"
+                        disabled={isSubmitting}
+                      />
+                    </div>
                   </>
                 )}
                 {/*
@@ -574,6 +585,7 @@ const ProductosPage = () => {
   const [open, setOpen] = useState(false);
   const [openBulk, setOpenBulk] = useState(false);
   const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
+  const [openBulkFerreteriaProveedor, setOpenBulkFerreteriaProveedor] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
   const [reload, setReload] = useState(false);
@@ -597,6 +609,16 @@ const ProductosPage = () => {
     total: 0,
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
+
+  // Estados para carga masiva Ferretería con Proveedor
+  const [bulkStatusFerreteriaProveedor, setBulkStatusFerreteriaProveedor] = useState(null);
+  const [bulkMessageFerreteriaProveedor, setBulkMessageFerreteriaProveedor] = useState("");
+  const [bulkLoadingFerreteriaProveedor, setBulkLoadingFerreteriaProveedor] = useState(false);
+  const [bulkProgressFerreteriaProveedor, setBulkProgressFerreteriaProveedor] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [bulkFileFerreteriaProveedor, setBulkFileFerreteriaProveedor] = useState(null);
 
   // Funciones para manejar cambios en productos
   const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
@@ -930,6 +952,11 @@ const ProductosPage = () => {
                   producto[header] = value;
                 });
 
+                // Asignar valorCompra automáticamente si no está presente
+                if (!producto.valorCompra) {
+                  producto.valorCompra = 1;
+                }
+
                 // Validar que tenga los campos mínimos
                 if (producto.codigo && producto.nombre && producto.categoria) {
                   productos.push(producto);
@@ -967,6 +994,135 @@ const ProductosPage = () => {
 
       reader.onerror = () => {
         console.error("Error al leer el archivo Ferretería");
+        reject(new Error("Error al leer el archivo"));
+      };
+
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
+  // Función para procesar archivo Excel/CSV específico para Ferretería con Proveedor
+  const processExcelFileFerreteriaProveedor = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log(
+            "Archivo Ferretería con Proveedor leído:",
+            file.name,
+            "Tamaño:",
+            file.size
+          );
+
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            const lines = content.split("\n");
+            console.log("Líneas CSV Ferretería con Proveedor encontradas:", lines.length);
+
+            if (lines.length < 2) {
+              reject(
+                new Error(
+                  "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
+                )
+              );
+              return;
+            }
+
+            const headers = lines[0]
+              .split(",")
+              .map((h) => h.trim().replace(/"/g, ""));
+            console.log("Encabezados Ferretería con Proveedor detectados:", headers);
+
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                // Función para parsear valores CSV correctamente
+                const parseCSVLine = (line) => {
+                  const result = [];
+                  let current = "";
+                  let inQuotes = false;
+
+                  for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                      inQuotes = !inQuotes;
+                    } else if (char === "," && !inQuotes) {
+                      result.push(current.trim());
+                      current = "";
+                    } else {
+                      current += char;
+                    }
+                  }
+                  result.push(current.trim());
+                  return result;
+                };
+
+                const values = parseCSVLine(lines[i]);
+                const producto = {};
+
+                headers.forEach((header, index) => {
+                  let value = values[index] || "";
+
+                  // Limpiar comillas
+                  value = value.replace(/"/g, "");
+
+                  // Convertir valores numéricos
+                  if (
+                    [
+                      "costo",
+                      "stockMinimo",
+                      "valorVenta",
+                      "valorCompra",
+                    ].includes(header)
+                  ) {
+                    // Manejar comas en números (formato argentino)
+                    value = value.replace(",", ".");
+                    value = parseFloat(value) || 0;
+                  }
+
+                  producto[header] = value;
+                });
+
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  productos.push(producto);
+                  console.log(
+                    "Producto Ferretería con Proveedor válido agregado:",
+                    producto.codigo
+                  );
+                } else {
+                  console.log(
+                    "Producto Ferretería con Proveedor inválido ignorado:",
+                    producto
+                  );
+                }
+              }
+            }
+
+            console.log(
+              "Total de productos Ferretería con Proveedor válidos:",
+              productos.length
+            );
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(
+              new Error(
+                "Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente."
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error procesando archivo Ferretería con Proveedor:", error);
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("Error al leer el archivo Ferretería con Proveedor");
         reject(new Error("Error al leer el archivo"));
       };
 
@@ -1205,12 +1361,13 @@ const ProductosPage = () => {
           !producto.stockMinimo ||
           !producto.unidadMedida ||
           !producto.valorCompra ||
-          !producto.valorVenta
+          !producto.valorVenta ||
+          !producto.proveedor
         ) {
           productosInvalidos.push({
             index: i + 1,
             codigo: producto.codigo,
-            error: `Faltan campos específicos de ferretería. stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorCompra: ${producto.valorCompra}, valorVenta: ${producto.valorVenta}`,
+            error: `Faltan campos específicos de ferretería. stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorCompra: ${producto.valorCompra}, valorVenta: ${producto.valorVenta}, proveedor: ${producto.proveedor}`,
           });
           continue;
         }
@@ -1244,6 +1401,16 @@ const ProductosPage = () => {
             index: i + 1,
             codigo: producto.codigo,
             error: `El valor de venta debe ser mayor al valor de compra. valorVenta: ${producto.valorVenta}, valorCompra: ${producto.valorCompra}`,
+          });
+          continue;
+        }
+
+        // Validar que valorCompra sea mayor que 0
+        if (producto.valorCompra <= 0) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `El valor de compra debe ser mayor a 0. valorCompra: ${producto.valorCompra}`,
           });
           continue;
         }
@@ -1335,10 +1502,10 @@ const ProductosPage = () => {
 
   // Función para descargar CSV de ejemplo para Ferretería
   const downloadExampleCSVFerreteria = () => {
-    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,stockMinimo,unidadMedida,valorCompra,valorVenta,ubicacion
-F001,Tornillos Phillips 3x20,Tornillos Phillips cabeza plana,Ferretería,Tornillos,Activo,150.0,50,kg,120.0,180.0,Estante A1
-F002,Clavos 2 pulgadas,Clavos de construcción,Ferretería,Clavos,Activo,80.0,100,kg,65.0,95.0,Estante B2
-F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,unidad,160.0,240.0,Estante C3`;
+    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,stockMinimo,unidadMedida,valorCompra,valorVenta,proveedor,ubicacion
+F001,Tornillos Phillips 3x20,Tornillos Phillips cabeza plana,Ferretería,Tornillos,Activo,150.0,50,kg,120.0,180.0,Proveedor A,Estante A1
+F002,Clavos 2 pulgadas,Clavos de construcción,Ferretería,Clavos,Activo,80.0,100,kg,65.0,95.0,Proveedor B,Estante B2
+F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,unidad,160.0,240.0,Proveedor C,Estante C3`;
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -1349,6 +1516,205 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  // Función para descargar CSV de ejemplo para Ferretería con Proveedor
+  const downloadExampleCSVFerreteriaProveedor = () => {
+    const csvContent = `codigo,nombre,descripcion,categoria,subCategoria,estado,unidad,stockMinimo,unidadMedida,costo,valorVenta,proveedor
+F001,Tornillos Phillips 3x20,Tornillos Phillips cabeza plana,Ferretería,Tornillos,Activo,kg,50,kg,120.0,180.0,Proveedor A
+F002,Clavos 2 pulgadas,Clavos de construcción,Ferretería,Clavos,Activo,kg,100,kg,65.0,95.0,Proveedor B
+F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,unidad,30,unidad,160.0,240.0,Proveedor C
+
+Nota: Si no incluyes valorCompra, se asignará automáticamente como 1`;
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ejemplo_ferreteria_proveedor.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Función para procesar carga masiva de Ferretería con Proveedor
+  const handleBulkUploadFerreteriaProveedor = async () => {
+    setBulkStatusFerreteriaProveedor(null);
+    setBulkMessageFerreteriaProveedor("");
+    setBulkLoadingFerreteriaProveedor(true);
+    setBulkProgressFerreteriaProveedor({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFileFerreteriaProveedor) {
+        setBulkStatusFerreteriaProveedor("error");
+        setBulkMessageFerreteriaProveedor("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoadingFerreteriaProveedor(false);
+        return;
+      }
+
+      try {
+        productosData = await processExcelFileFerreteriaProveedor(bulkFileFerreteriaProveedor);
+      } catch (e) {
+        setBulkStatusFerreteriaProveedor("error");
+        setBulkMessageFerreteriaProveedor("Error al procesar el archivo: " + e.message);
+        setBulkLoadingFerreteriaProveedor(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)",
+          });
+          continue;
+        }
+
+        // Validar que sea de categoría Ferretería
+        if (producto.categoria !== "Ferretería") {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Solo se permiten productos de categoría 'Ferretería'",
+          });
+          continue;
+        }
+
+        // Validar campos específicos de ferretería con proveedor
+        if (
+          !producto.stockMinimo ||
+          !producto.unidadMedida ||
+          !producto.costo ||
+          !producto.valorVenta ||
+          !producto.proveedor
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos. stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, costo: ${producto.costo}, valorVenta: ${producto.valorVenta}, proveedor: ${producto.proveedor}`,
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericosFerreteriaProveedor = [
+          "costo",
+          "stockMinimo",
+          "valorVenta",
+          "valorCompra",
+        ];
+        for (const campo of valoresNumericosFerreteriaProveedor) {
+          if (
+            producto[campo] === null ||
+            producto[campo] === undefined ||
+            isNaN(producto[campo]) ||
+            producto[campo] < 0
+          ) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor o igual a 0. Valor actual: ${producto[campo]}`,
+            });
+            continue;
+          }
+        }
+
+        // Validar que valorVenta sea mayor que costo
+        if (producto.valorVenta <= producto.costo) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `El precio de venta debe ser mayor al costo. valorVenta: ${producto.valorVenta}, costo: ${producto.costo}`,
+          });
+          continue;
+        }
+
+        // Validar que valorCompra sea mayor que 0
+        if (producto.valorCompra <= 0) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `El valor de compra debe ser mayor a 0. valorCompra: ${producto.valorCompra}`,
+          });
+          continue;
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatusFerreteriaProveedor("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageFerreteriaProveedor(
+          `Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`
+        );
+        setBulkLoadingFerreteriaProveedor(false);
+        return;
+      }
+
+      // Procesar productos válidos
+      setBulkProgressFerreteriaProveedor({ current: 0, total: productosValidos.length });
+
+      for (let i = 0; i < productosValidos.length; i++) {
+        const producto = productosValidos[i];
+
+        try {
+          await addDoc(collection(db, "productos"), producto);
+          setBulkProgressFerreteriaProveedor({
+            current: i + 1,
+            total: productosValidos.length,
+          });
+
+          // Pequeña pausa para no sobrecargar Firebase
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } catch (e) {
+          setBulkStatusFerreteriaProveedor("error");
+          setBulkMessageFerreteriaProveedor(
+            `Error al guardar producto ${producto.codigo}: ${e.message}`
+          );
+          setBulkLoadingFerreteriaProveedor(false);
+          return;
+        }
+      }
+
+      setBulkStatusFerreteriaProveedor("success");
+      setBulkMessageFerreteriaProveedor(
+        `Se cargaron exitosamente ${productosValidos.length} productos de Ferretería con Proveedor.`
+      );
+
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulkFerreteriaProveedor(false);
+        setBulkFileFerreteriaProveedor(null);
+        setBulkStatusFerreteriaProveedor(null);
+        setBulkMessageFerreteriaProveedor("");
+        setBulkLoadingFerreteriaProveedor(false);
+        setBulkProgressFerreteriaProveedor({ current: 0, total: 0 });
+        setReload((r) => !r);
+      }, 2000);
+    } catch (e) {
+      setBulkStatusFerreteriaProveedor("error");
+      setBulkMessageFerreteriaProveedor("Error inesperado: " + e.message);
+      setBulkLoadingFerreteriaProveedor(false);
+    }
   };
 
   return (
@@ -1388,7 +1754,7 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
             </Button>
             <Button variant="outline" onClick={() => setOpenBulk(true)}>
               <Upload className="w-4 h-4 mr-1" />
-              Carga Masiva
+              Carga Masiva Maderas
             </Button>
             <Button
               variant="outline"
@@ -1396,6 +1762,13 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
             >
               <Upload className="w-4 h-4 mr-1" />
               Carga Masiva Ferretería
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setOpenBulkFerreteriaProveedor(true)}
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              Carga Masiva Ferretería con Proveedor
             </Button>
           </div>
         </CardHeader>
@@ -1926,20 +2299,15 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                 <li>• Solo se permiten productos de categoría "Ferretería"</li>
                 <li>• Todos los campos obligatorios deben estar presentes</li>
                 <li>• El campo "stockMinimo" debe ser un número positivo</li>
-                <li>
-                  • El campo "valorCompra" y "valorVenta" deben ser números
-                  positivos
-                </li>
+                <li>• Los campos "valorCompra" y "valorVenta" deben ser números positivos</li>
+                <li>• El campo "proveedor" es obligatorio</li>
+                <li>• El valor de venta debe ser mayor al valor de compra</li>
                 <li>• Se agregarán automáticamente las fechas de creación</li>
-                <li>• La unidad de medida se establecerá automáticamente</li>
                 <li>• El archivo debe tener encabezados en la primera fila</li>
                 <li>• Los campos numéricos se convertirán automáticamente</li>
                 <li>• Se ignorarán las filas vacías</li>
                 <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
-                <li>
-                  • Asegúrate de que las columnas coincidan con el formato
-                  esperado
-                </li>
+                <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
               </ul>
             </div>
           </div>
@@ -1957,6 +2325,146 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
               disabled={bulkLoadingFerreteria || !bulkFileFerreteria}
             >
               {bulkLoadingFerreteria ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva Ferretería con Proveedor */}
+      <Dialog open={openBulkFerreteriaProveedor} onOpenChange={setOpenBulkFerreteriaProveedor}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Carga Masiva de Productos Ferretería con Proveedor</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatusFerreteriaProveedor && (
+              <div
+                className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                  bulkStatusFerreteriaProveedor === "success"
+                    ? "bg-green-50 text-green-800 border border-green-200"
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}
+              >
+                {bulkStatusFerreteriaProveedor === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                {bulkMessageFerreteriaProveedor}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoadingFerreteriaProveedor && bulkProgressFerreteriaProveedor.total > 0 && (
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>
+                    {bulkProgressFerreteriaProveedor.current} /{" "}
+                    {bulkProgressFerreteriaProveedor.total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        (bulkProgressFerreteriaProveedor.current /
+                          bulkProgressFerreteriaProveedor.total) *
+                        100
+                      }%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setBulkFileFerreteriaProveedor(e.target.files[0])}
+                  className="hidden"
+                  id="file-upload-ferreteria-proveedor"
+                  disabled={bulkLoadingFerreteriaProveedor}
+                />
+                <label
+                  htmlFor="file-upload-ferreteria-proveedor"
+                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFileFerreteriaProveedor && (
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      ✅ Archivo seleccionado:{" "}
+                      <strong>{bulkFileFerreteriaProveedor.name}</strong>
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSVFerreteriaProveedor}
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  📥 Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-800 mb-2">
+                ⚠️ Instrucciones:
+              </h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Solo se permiten productos de categoría "Ferretería"</li>
+                <li>• Todos los campos obligatorios deben estar presentes</li>
+                <li>• El campo "stockMinimo" debe ser un número positivo</li>
+                <li>• Los campos "costo" y "valorVenta" deben ser números positivos</li>
+                <li>• El campo "proveedor" es obligatorio</li>
+                <li>• El precio de venta debe ser mayor al costo</li>
+                <li>• Si no incluyes "valorCompra", se asignará automáticamente como 1</li>
+                <li>• Se agregarán automáticamente las fechas de creación</li>
+                <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• Los campos numéricos se convertirán automáticamente</li>
+                <li>• Se ignorarán las filas vacías</li>
+                <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                <li>• Asegúrate de que las columnas coincidan con el formato esperado</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpenBulkFerreteriaProveedor(false)}
+              disabled={bulkLoadingFerreteriaProveedor}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleBulkUploadFerreteriaProveedor}
+              disabled={bulkLoadingFerreteriaProveedor || !bulkFileFerreteriaProveedor}
+            >
+              {bulkLoadingFerreteriaProveedor ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Procesando...

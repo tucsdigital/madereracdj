@@ -461,42 +461,57 @@ const PreciosPage = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="Costo"
-                    value={editForm.costo}
-                    onChange={(e) =>
-                      setEditForm((f) => ({ ...f, costo: e.target.value }))
-                    }
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="Precio de venta"
-                    value={editForm.precioVenta}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        precioVenta: e.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="Precio de compra"
-                    value={editForm.precioCompra}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        precioCompra: e.target.value,
-                      }))
-                    }
-                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Costo
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      placeholder="Ingrese el costo"
+                      value={editForm.costo}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, costo: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Precio de Venta
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      placeholder="Ingrese el precio de venta"
+                      value={editForm.precioVenta}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          precioVenta: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Precio de Compra
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      placeholder="Ingrese el precio de compra"
+                      value={editForm.precioCompra}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          precioCompra: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
                 {msg && (
                   <div
