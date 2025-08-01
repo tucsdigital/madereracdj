@@ -674,6 +674,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('datos');
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
@@ -2136,197 +2137,355 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       </form>
 
       <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[420px] rounded-xl shadow-2xl border-2 border-primary/20 bg-card border-default-700">
-          <DialogHeader className="bg-card">
-            <DialogTitle className="text-xl font-bold text-primary dark:text-primary-300 flex items-center gap-2 bg-card">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> Agregar
-              Cliente
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> 
+              Agregar Cliente
             </DialogTitle>
-            <DialogDescription className="text-base text-default-600 dark:text-default-300 bg-card">
+            <DialogDescription className="text-base text-default-600">
               Complete los datos del nuevo cliente para agregarlo al sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4 py-2 bg-card">
-            {/* Checkbox para diferenciar tipo de cliente */}
-            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <input
-                type="checkbox"
-                id="esClienteViejo"
-                checked={nuevoCliente.esClienteViejo}
-                onChange={(e) =>
-                  setNuevoCliente({
-                    ...nuevoCliente,
-                    esClienteViejo: e.target.checked,
-                  })
-                }
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label
-                htmlFor="esClienteViejo"
-                className="text-sm font-medium text-blue-800 dark:text-blue-200"
+          
+          <div className="flex flex-col h-full">
+            {/* Pestañas */}
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'datos' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('datos')}
               >
-                ¿Es un cliente existente/antiguo?
-              </label>
+                Datos Básicos
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'ubicacion' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('ubicacion')}
+              >
+                Ubicación
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'adicional' 
+                    ? 'border-blue-500 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('adicional')}
+              >
+                Adicional
+              </button>
             </div>
-            <Input
-              placeholder="Nombre *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.nombre}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
-              }
-              required
-            />
-            <Input
-              placeholder="CUIT / DNI"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.cuit || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Dirección *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.direccion}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
-              }
-              required
-            />
-            <Input
-              placeholder="Teléfono *"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.telefono}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
-              }
-              required
-            />
-            <Input
-              placeholder="Email"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.email}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, email: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Localidad"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.localidad || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Partido"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.partido || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Barrio"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.barrio || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Área"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.area || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, area: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Lote"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2"
-              value={nuevoCliente.lote || ""}
-              onChange={(e) =>
-                setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
-              }
-            />
-            <Textarea
-              placeholder="Descripción"
-              className="w-full rounded-md border-default-200 dark:border-default-700 bg-white dark:bg-default-800 text-base text-default-900 focus:border-primary focus:dark:border-primary-400 px-4 py-2 min-h-[60px]"
-              value={nuevoCliente.descripcion || ""}
-              onChange={(e) =>
-                setNuevoCliente({
-                  ...nuevoCliente,
-                  descripcion: e.target.value,
-                })
-              }
-            />
+
+            {/* Contenido de las pestañas */}
+            <div className="flex-1 overflow-y-auto">
+              {activeTab === 'datos' && (
+                <div className="space-y-4">
+                  {/* Checkbox para cliente antiguo */}
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <input
+                      type="checkbox"
+                      id="esClienteViejo"
+                      checked={nuevoCliente.esClienteViejo}
+                      onChange={(e) =>
+                        setNuevoCliente({
+                          ...nuevoCliente,
+                          esClienteViejo: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <label
+                      htmlFor="esClienteViejo"
+                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
+                    >
+                      ¿Es un cliente antiguo?
+                    </label>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nombre *
+                      </label>
+                      <Input
+                        placeholder="Nombre completo"
+                        className="w-full"
+                        value={nuevoCliente.nombre}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        CUIT / DNI
+                      </label>
+                      <Input
+                        placeholder="CUIT o DNI"
+                        className="w-full"
+                        value={nuevoCliente.cuit || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Teléfono *
+                      </label>
+                      <Input
+                        placeholder="Teléfono"
+                        className="w-full"
+                        value={nuevoCliente.telefono}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Email
+                      </label>
+                      <Input
+                        placeholder="Email"
+                        type="email"
+                        className="w-full"
+                        value={nuevoCliente.email}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, email: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Dirección *
+                      </label>
+                      <Input
+                        placeholder="Dirección completa"
+                        className="w-full"
+                        value={nuevoCliente.direccion}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'ubicacion' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Localidad
+                      </label>
+                      <Input
+                        placeholder="Localidad"
+                        className="w-full"
+                        value={nuevoCliente.localidad || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Partido
+                      </label>
+                      <Input
+                        placeholder="Partido"
+                        className="w-full"
+                        value={nuevoCliente.partido || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Barrio
+                      </label>
+                      <Input
+                        placeholder="Barrio"
+                        className="w-full"
+                        value={nuevoCliente.barrio || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Área
+                      </label>
+                      <Input
+                        placeholder="Área"
+                        className="w-full"
+                        value={nuevoCliente.area || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, area: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Lote
+                      </label>
+                      <Input
+                        placeholder="Lote"
+                        className="w-full"
+                        value={nuevoCliente.lote || ""}
+                        onChange={(e) =>
+                          setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'adicional' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Descripción
+                    </label>
+                    <Textarea
+                      placeholder="Información adicional sobre el cliente"
+                      className="w-full min-h-[120px]"
+                      value={nuevoCliente.descripcion || ""}
+                      onChange={(e) =>
+                        setNuevoCliente({
+                          ...nuevoCliente,
+                          descripcion: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navegación y botones */}
+            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <div className="flex gap-2">
+                {activeTab !== 'datos' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (activeTab === 'ubicacion') setActiveTab('datos');
+                      if (activeTab === 'adicional') setActiveTab('ubicacion');
+                    }}
+                    className="text-sm"
+                  >
+                    Anterior
+                  </Button>
+                )}
+                {activeTab !== 'adicional' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (activeTab === 'datos') setActiveTab('ubicacion');
+                      if (activeTab === 'ubicacion') setActiveTab('adicional');
+                    }}
+                    disabled={
+                      (activeTab === 'datos' && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono)) ||
+                      (activeTab === 'ubicacion' && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono))
+                    }
+                    className="text-sm"
+                  >
+                    Siguiente
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setOpenNuevoCliente(false)}
+                  className="text-sm"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={async () => {
+                    if (
+                      !nuevoCliente.nombre ||
+                      !nuevoCliente.direccion ||
+                      !nuevoCliente.telefono
+                    ) {
+                      alert("Nombre, dirección y teléfono son obligatorios");
+                      return;
+                    }
+                    const clienteObj = {
+                      nombre: nuevoCliente.nombre,
+                      cuit: nuevoCliente.cuit || "",
+                      direccion: nuevoCliente.direccion,
+                      telefono: nuevoCliente.telefono,
+                      email: nuevoCliente.email || "",
+                      localidad: nuevoCliente.localidad || "",
+                      partido: nuevoCliente.partido || "",
+                      barrio: nuevoCliente.barrio || "",
+                      area: nuevoCliente.area || "",
+                      lote: nuevoCliente.lote || "",
+                      descripcion: nuevoCliente.descripcion || "",
+                      esClienteViejo: nuevoCliente.esClienteViejo || false,
+                    };
+                    const docRef = await addDoc(
+                      collection(db, "clientes"),
+                      clienteObj
+                    );
+                    setClientesState([
+                      ...clientesState,
+                      { ...clienteObj, id: docRef.id },
+                    ]);
+                    setClienteId(docRef.id);
+                    setNuevoCliente({
+                      nombre: "",
+                      cuit: "",
+                      direccion: "",
+                      telefono: "",
+                      email: "",
+                      localidad: "",
+                      partido: "",
+                      barrio: "",
+                      area: "",
+                      lote: "",
+                      descripcion: "",
+                      esClienteViejo: false,
+                    });
+                    setOpenNuevoCliente(false);
+                    setDropdownClientesOpen(false);
+                  }}
+                  disabled={
+                    !nuevoCliente.nombre || 
+                    !nuevoCliente.direccion || 
+                    !nuevoCliente.telefono
+                  }
+                  className="text-sm"
+                >
+                  Guardar Cliente
+                </Button>
+              </div>
+            </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-4 justify-end pt-2 bg-card">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base"
-              onClick={() => setOpenNuevoCliente(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="default"
-              className="w-full sm:w-auto shadow-md min-w-[120px] rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold"
-              onClick={async () => {
-                if (
-                  !nuevoCliente.nombre ||
-                  !nuevoCliente.direccion ||
-                  !nuevoCliente.telefono
-                ) {
-                  alert("Nombre, dirección y teléfono son obligatorios");
-                  return;
-                }
-                const clienteObj = {
-                  nombre: nuevoCliente.nombre,
-                  cuit: nuevoCliente.cuit || "",
-                  direccion: nuevoCliente.direccion,
-                  telefono: nuevoCliente.telefono,
-                  email: nuevoCliente.email || "",
-                  localidad: nuevoCliente.localidad || "",
-                  partido: nuevoCliente.partido || "",
-                  barrio: nuevoCliente.barrio || "",
-                  area: nuevoCliente.area || "",
-                  lote: nuevoCliente.lote || "",
-                  descripcion: nuevoCliente.descripcion || "",
-                  esClienteViejo: nuevoCliente.esClienteViejo || false,
-                };
-                const docRef = await addDoc(
-                  collection(db, "clientes"),
-                  clienteObj
-                );
-                setClientesState([
-                  ...clientesState,
-                  { ...clienteObj, id: docRef.id },
-                ]);
-                setClienteId(docRef.id);
-                setNuevoCliente({
-                  nombre: "",
-                  cuit: "",
-                  direccion: "",
-                  telefono: "",
-                  email: "",
-                  localidad: "",
-                  partido: "",
-                  barrio: "",
-                  area: "",
-                  lote: "",
-                  descripcion: "",
-                  esClienteViejo: false,
-                });
-                setOpenNuevoCliente(false);
-                setDropdownClientesOpen(false);
-              }}
-            >
-              Guardar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
