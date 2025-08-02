@@ -2026,7 +2026,7 @@ const VentaDetalle = () => {
                       );
                     }
                     return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         {productosFiltrados.map((prod) => {
                           const yaAgregado = (ventaEdit.productos || []).some(
                             (p) => p.id === prod.id

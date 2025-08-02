@@ -45,6 +45,16 @@ function formatFechaLocal(dateString) {
   return dateObj.toLocaleDateString("es-AR");
 }
 
+// Función para calcular fecha de vencimiento (7 días después de la emisión)
+function calcularFechaVencimiento(fechaEmision) {
+  if (!fechaEmision) return null;
+  
+  const fecha = new Date(fechaEmision);
+  fecha.setDate(fecha.getDate() + 7); // Agregar 7 días
+  
+  return fecha.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+}
+
 const PresupuestoDetalle = () => {
   const params = useParams();
   const router = useRouter();
@@ -611,6 +621,10 @@ const PresupuestoDetalle = () => {
               {presupuesto?.fecha ? formatFechaLocal(presupuesto.fecha) : "-"}
             </div>
             <div className="text-xs text-gray-500">
+              Válido hasta:{" "}
+              {presupuesto?.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuesto.fecha)) : "-"}
+            </div>
+            <div className="text-xs text-gray-500">
               N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
             </div>
           </div>
@@ -743,7 +757,8 @@ const PresupuestoDetalle = () => {
                 {presupuesto.fecha ? formatFechaLocal(presupuesto.fecha) : "-"}
               </div>
               <div>
-                <span className="font-medium">Fecha de vencimiento:</span> -
+                <span className="font-medium">Fecha de vencimiento:</span>{" "}
+                {presupuesto.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuesto.fecha)) : "-"}
               </div>
               <div>
                 <span className="font-medium">Tipo:</span>{" "}
@@ -782,6 +797,31 @@ const PresupuestoDetalle = () => {
                 <p className="text-red-800 text-sm font-medium">{errorForm}</p>
               </div>
             )}
+
+            {/* Información del presupuesto */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-3">Información del Presupuesto</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-blue-700">Fecha de emisión:</span>{" "}
+                  {presupuestoEdit.fecha ? formatFechaLocal(presupuestoEdit.fecha) : "-"}
+                </div>
+                <div>
+                  <span className="font-medium text-blue-700">Fecha de vencimiento:</span>{" "}
+                  {presupuestoEdit.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuestoEdit.fecha)) : "-"}
+                </div>
+                <div>
+                  <span className="font-medium text-blue-700">Número:</span>{" "}
+                  {presupuestoEdit.numeroPedido || presupuestoEdit.id?.slice(-8)}
+                </div>
+                <div>
+                  <span className="font-medium text-blue-700">Estado:</span>{" "}
+                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    Activo
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Información editable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -955,7 +995,7 @@ const PresupuestoDetalle = () => {
                                   }`}
                                   onClick={() => setFiltroTipoMadera("")}
                                 >
-                                  🌲 Todos los tipos
+                                  Todos los tipos
                                 </button>
                                 {tiposMadera.map((tipo) => (
                                   <button
@@ -968,7 +1008,7 @@ const PresupuestoDetalle = () => {
                                     }`}
                                     onClick={() => setFiltroTipoMadera(tipo)}
                                   >
-                                    🌲 {tipo}
+                                    {tipo}
                                   </button>
                                 ))}
                               </div>
@@ -1158,7 +1198,7 @@ const PresupuestoDetalle = () => {
                         );
                       }
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                           {productosFiltrados.map((prod) => {
                             const yaAgregado = (
                               presupuestoEdit.productos || []
