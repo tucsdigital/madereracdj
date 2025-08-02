@@ -139,16 +139,25 @@ const PresupuestoDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      setProductos(
-        snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
+      const productosData = snapProductos.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("=== DEBUG PRESUPUESTO CARGA PRODUCTOS ===");
+      console.log("Productos cargados:", productosData);
+      console.log("Cantidad de productos:", productosData.length);
+      setProductos(productosData);
     };
     fetchClientesYProductos();
   }, []);
 
   // 4. Al activar edición, clonar presupuesto
   useEffect(() => {
+    console.log("=== DEBUG USEEFFECT EDICIÓN PRESUPUESTO ===");
+    console.log("editando:", editando);
+    console.log("presupuesto:", presupuesto);
     if (editando && presupuesto) {
+      console.log("Clonando presupuesto para edición");
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
       // Asegurar que clienteId y cliente estén presentes
       if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
@@ -162,6 +171,7 @@ const PresupuestoDetalle = () => {
         );
         if (clienteObj) presupuestoClonado.cliente = clienteObj;
       }
+      console.log("presupuestoClonado:", presupuestoClonado);
       setPresupuestoEdit(presupuestoClonado);
     }
   }, [editando, presupuesto, clientes]);
@@ -637,7 +647,12 @@ const PresupuestoDetalle = () => {
               </Button>
               {!editando && !convirtiendoVenta && (
                 <Button
-                  onClick={() => setEditando(true)}
+                  onClick={() => {
+                    console.log("=== DEBUG ACTIVAR EDICIÓN PRESUPUESTO ===");
+                    console.log("editando antes:", editando);
+                    setEditando(true);
+                    console.log("editando después: true");
+                  }}
                   className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
                   <span className="hidden sm:inline">Editar</span>
@@ -899,11 +914,19 @@ const PresupuestoDetalle = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                console.log("=== DEBUG CLICK CATEGORÍA ===");
+                                console.log("categoriaId actual:", categoriaId);
+                                console.log("categoria clickeada:", categoria);
                                 if (categoriaId === categoria) {
+                                  console.log("Desactivando categoría");
                                   setCategoriaId("");
                                   setFiltroTipoMadera("");
                                   setFiltroSubCategoria("");
                                 } else {
+                                  console.log(
+                                    "Activando categoría:",
+                                    categoria
+                                  );
                                   setCategoriaId(categoria);
                                   setFiltroTipoMadera("");
                                   setFiltroSubCategoria("");
@@ -1022,15 +1045,31 @@ const PresupuestoDetalle = () => {
                   {/* Lista de productos mejorada */}
                   <div className="max-h-96 overflow-y-auto">
                     {(() => {
-                      const categoriaId = presupuestoEdit.categoriaId;
-                      const busquedaProducto =
-                        presupuestoEdit.busquedaProducto || "";
+                      console.log(
+                        "=== DEBUG PRESUPUESTO FILTRADO PRODUCTOS ==="
+                      );
+                      console.log("productos:", productos);
+                      console.log("categoriaId:", categoriaId);
+                      console.log("busquedaProducto:", busquedaProducto);
+                      console.log("filtroTipoMadera:", filtroTipoMadera);
+                      console.log("filtroSubCategoria:", filtroSubCategoria);
+
                       const productosPorCategoria = {};
                       productos.forEach((p) => {
                         if (!productosPorCategoria[p.categoria])
                           productosPorCategoria[p.categoria] = [];
                         productosPorCategoria[p.categoria].push(p);
                       });
+
+                      console.log(
+                        "productosPorCategoria:",
+                        productosPorCategoria
+                      );
+                      console.log(
+                        "productosPorCategoria[categoriaId]:",
+                        productosPorCategoria[categoriaId]
+                      );
+
                       if (!categoriaId) {
                         return (
                           <div className="p-8 text-center">
@@ -1088,6 +1127,9 @@ const PresupuestoDetalle = () => {
                             cumpleSubCategoria
                           );
                         }) || [];
+
+                      console.log("productosFiltrados:", productosFiltrados);
+
                       if (productosFiltrados.length === 0) {
                         return (
                           <div className="p-8 text-center">

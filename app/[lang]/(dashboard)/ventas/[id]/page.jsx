@@ -126,9 +126,11 @@ const VentaDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      setProductos(
-        snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
+      const productosData = snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      console.log("=== DEBUG CARGA PRODUCTOS ===");
+      console.log("Productos cargados:", productosData);
+      console.log("Cantidad de productos:", productosData.length);
+      setProductos(productosData);
     };
     fetchClientesYProductos();
   }, []);
@@ -1919,12 +1921,23 @@ const VentaDetalle = () => {
                 {/* Lista de productos mejorada */}
                 <div className="max-h-96 overflow-y-auto">
                   {(() => {
+                    console.log("=== DEBUG FILTRADO PRODUCTOS ===");
+                    console.log("productos:", productos);
+                    console.log("categoriaId:", categoriaId);
+                    console.log("busquedaProducto:", busquedaProducto);
+                    console.log("filtroTipoMadera:", filtroTipoMadera);
+                    console.log("filtroSubCategoria:", filtroSubCategoria);
+                    
                     const productosPorCategoria = {};
                     productos.forEach((p) => {
                       if (!productosPorCategoria[p.categoria])
                         productosPorCategoria[p.categoria] = [];
                       productosPorCategoria[p.categoria].push(p);
                     });
+                    
+                    console.log("productosPorCategoria:", productosPorCategoria);
+                    console.log("productosPorCategoria[categoriaId]:", productosPorCategoria[categoriaId]);
+                    
                     if (!categoriaId) {
                       return (
                         <div className="p-8 text-center">
@@ -1982,6 +1995,9 @@ const VentaDetalle = () => {
                           cumpleSubCategoria
                         );
                       }) || [];
+                      
+                    console.log("productosFiltrados:", productosFiltrados);
+                    
                     if (productosFiltrados.length === 0) {
                       return (
                         <div className="p-8 text-center">
