@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Receipt, Plus, Edit, Trash2, Eye } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
@@ -449,43 +448,36 @@ const GastosPage = () => {
             </div>
             
             <div>
-              <Select 
+              <select 
                 value={watch("estado")} 
-                onValueChange={(value) => setValue("estado", value)}
+                onChange={(e) => setValue("estado", e.target.value)}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.estado ? "border-red-500" : ""}`}
               >
-                <SelectTrigger className={errors.estado ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Seleccionar estado *" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(estadosGasto).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>
-                      {value.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Seleccionar estado *</option>
+                {Object.entries(estadosGasto).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value.label}
+                  </option>
+                ))}
+              </select>
               {errors.estado && (
                 <span className="text-red-500 text-xs">{errors.estado.message}</span>
               )}
             </div>
             
             <div>
-              <Select 
+              <select 
                 value={watch("clienteId")} 
-                onValueChange={(value) => setValue("clienteId", value)}
+                onChange={(e) => setValue("clienteId", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar cliente/proveedor (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sin cliente/proveedor</SelectItem>
-                  {clientes.map(cliente => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre} {cliente.cuit ? `(${cliente.cuit})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Sin cliente/proveedor</option>
+                {clientes.map(cliente => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre} {cliente.cuit ? `(${cliente.cuit})` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             
             <div>
