@@ -2017,7 +2017,7 @@ const PresupuestoDetalle = () => {
                             {/* Mostrar tipo de madera para productos de madera - buscado dinámicamente */}
                             {producto.categoria === "Maderas" &&
                               getProductoCompleto(producto.id)?.tipoMadera && (
-                                <div className="mt-1 text-xs text-orange-600 font-medium">
+                                <div className="mt-1 font-bold">
                                   Tipo:{" "}
                                   {getProductoCompleto(producto.id).tipoMadera}
                                 </div>
@@ -2026,7 +2026,7 @@ const PresupuestoDetalle = () => {
                             {producto.categoria === "Ferretería" &&
                               getProductoCompleto(producto.id)
                                 ?.subCategoria && (
-                                <div className="mt-1 text-xs text-blue-600 font-medium">
+                                <div className="mt-1 font-bold">
                                   {" "}
                                   {
                                     getProductoCompleto(producto.id)
@@ -2036,7 +2036,7 @@ const PresupuestoDetalle = () => {
                               )}
                             {/* Mostrar dimensiones y precio por pie para productos de madera */}
                             {producto.categoria === "Maderas" && (
-                              <div className="mt-1 text-xs text-gray-500">
+                              <div className="mt-1">
                                 <div className="flex flex-wrap gap-2">
                                   <span>Alto: {producto.alto || 0} </span>
                                   <span>Ancho: {producto.ancho || 0}</span>

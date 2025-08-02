@@ -1068,7 +1068,7 @@ const VentaDetalle = () => {
               <Button
                 onClick={handlePrintEmpleado}
                 variant="outline"
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
               >
                 <span className="hidden sm:inline">Imprimir Empleado</span>
                 <span className="sm:hidden">👷</span>
@@ -1153,7 +1153,7 @@ const VentaDetalle = () => {
                 <div className="space-y-3">
                   <div>
                     <span className="font-medium">Tipo de envío:</span>{" "}
-                    {venta.tipoEnvio}
+                    {venta.tipoEnvio === "envio_domicilio" ? "Envío a Domicilio" : venta.tipoEnvio}
                   </div>
                   <div>
                     <span className="font-medium">Transportista:</span>{" "}
@@ -1164,18 +1164,18 @@ const VentaDetalle = () => {
                     {venta.cliente?.direccion || "-"}
                   </div>
                   <div>
-                    <span className="font-medium">Fecha de entrega:</span>{" "}
+                    <span className="font-medium">Fecha de envío:</span>{" "}
                     {formatFechaLocal(venta.fechaEntrega)}
                   </div>
                   <div>
                     <span className="font-medium">Rango horario:</span>{" "}
                     {venta.rangoHorario || "-"}
                   </div>
-                  <div>
+                  <div className="no-print">
                     <span className="font-medium">Prioridad:</span>{" "}
                     {venta.prioridad || "-"}
                   </div>
-                  <div>
+                  <div className="no-print">
                     <span className="font-medium">Vendedor:</span>{" "}
                     {venta.vendedor || "-"}
                   </div>
@@ -1287,7 +1287,7 @@ const VentaDetalle = () => {
           <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
 
           {/* Estado de pago */}
-          <div className="mb-4 p-3 bg-card rounded-lg">
+          <div className="mb-4 bg-card rounded-lg">
             <div className="flex justify-between items-center">
               <span className="font-medium">Estado de pago:</span>
               <span
@@ -1399,7 +1399,7 @@ const VentaDetalle = () => {
                           "Producto sin nombre"}
                         {/* Mostrar dimensiones y precio por pie para productos de madera */}
                         {producto.categoria === "Maderas" && (
-                          <div className="mt-1 text-xs text-gray-500">
+                          <div className="mt-1">
                             <div className="flex flex-wrap gap-2">
                               <span>Alto: {producto.alto || 0} </span>
                               <span>Ancho: {producto.ancho || 0} </span>
@@ -1407,7 +1407,7 @@ const VentaDetalle = () => {
                             </div>
                             {/* Mostrar tipo de madera - buscado dinámicamente */}
                             {getProductoCompleto(producto.id)?.tipoMadera && (
-                              <div className="mt-1 text-xs text-orange-600 font-medium">
+                              <div className="mt-1 text-xs font-bold">
                                 Tipo: {getProductoCompleto(producto.id).tipoMadera}
                               </div>
                             )}
