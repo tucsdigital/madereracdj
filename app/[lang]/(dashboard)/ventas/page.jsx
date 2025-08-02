@@ -1081,7 +1081,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             <button
                               key={tipo}
                               type="button"
-                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                              className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                 filtroTipoMadera === tipo
                                   ? "bg-orange-600 text-white"
                                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -1103,7 +1103,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
                             <button
                               type="button"
-                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                              className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                 filtroSubCategoria === ""
                                   ? "bg-blue-600 text-white"
                                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
