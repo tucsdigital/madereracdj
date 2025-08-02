@@ -71,6 +71,8 @@ const PresupuestoDetalle = () => {
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
   // Estado para nuevo cliente en presupuestos
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
@@ -291,6 +293,24 @@ const PresupuestoDetalle = () => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
     return Number(numero).toLocaleString("es-AR");
   };
+
+  // Obtener tipos de madera únicos
+  const tiposMadera = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
 
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
@@ -861,9 +881,7 @@ const PresupuestoDetalle = () => {
                       </div>
                     </div>
                     {/* Filtros mejorados */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {/* Eliminar el checkbox global de cepillado automático */}
-
+                    <div className="flex flex-col gap-3">
                       {/* Filtro de categorías */}
                       <div className="flex-1">
                         <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
@@ -883,8 +901,12 @@ const PresupuestoDetalle = () => {
                                 e.stopPropagation();
                                 if (categoriaId === categoria) {
                                   setCategoriaId("");
+                                  setFiltroTipoMadera("");
+                                  setFiltroSubCategoria("");
                                 } else {
                                   setCategoriaId(categoria);
+                                  setFiltroTipoMadera("");
+                                  setFiltroSubCategoria("");
                                 }
                               }}
                             >
@@ -893,30 +915,106 @@ const PresupuestoDetalle = () => {
                           ))}
                         </div>
                       </div>
-                      {/* Buscador mejorado */}
-                      <div className="flex-1 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg
-                            className="h-5 w-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                          </svg>
+
+                      {/* Filtros específicos por categoría */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Filtro de tipo de madera */}
+                        {categoriaId === "Maderas" &&
+                          tiposMadera.length > 0 && (
+                            <div className="flex-1">
+                              <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                                <button
+                                  type="button"
+                                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                    filtroTipoMadera === ""
+                                      ? "bg-orange-600 text-white"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                  onClick={() => setFiltroTipoMadera("")}
+                                >
+                                  🌲 Todos los tipos
+                                </button>
+                                {tiposMadera.map((tipo) => (
+                                  <button
+                                    key={tipo}
+                                    type="button"
+                                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                      filtroTipoMadera === tipo
+                                        ? "bg-orange-600 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() => setFiltroTipoMadera(tipo)}
+                                  >
+                                    🌲 {tipo}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Filtro de subcategoría de ferretería */}
+                        {categoriaId === "Ferretería" &&
+                          subCategoriasFerreteria.length > 0 && (
+                            <div className="flex-1">
+                              <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                                <button
+                                  type="button"
+                                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                    filtroSubCategoria === ""
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                  onClick={() => setFiltroSubCategoria("")}
+                                >
+                                  🔧 Todas las subcategorías
+                                </button>
+                                {subCategoriasFerreteria.map((subCategoria) => (
+                                  <button
+                                    key={subCategoria}
+                                    type="button"
+                                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                      filtroSubCategoria === subCategoria
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() =>
+                                      setFiltroSubCategoria(subCategoria)
+                                    }
+                                  >
+                                    🔧 {subCategoria}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Buscador mejorado */}
+                        <div className="flex-1 relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg
+                              className="h-5 w-5 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              />
+                            </svg>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar productos..."
+                            value={busquedaProducto}
+                            onChange={(e) =>
+                              setBusquedaProducto(e.target.value)
+                            }
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar productos..."
-                          value={busquedaProducto}
-                          onChange={(e) => setBusquedaProducto(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
-                        />
                       </div>
                     </div>
                   </div>
@@ -962,15 +1060,34 @@ const PresupuestoDetalle = () => {
                         );
                       }
                       const productosFiltrados =
-                        productosPorCategoria[categoriaId]?.filter(
-                          (prod) =>
+                        productosPorCategoria[categoriaId]?.filter((prod) => {
+                          // Filtro por búsqueda de texto
+                          const cumpleBusqueda =
                             prod.nombre
                               .toLowerCase()
                               .includes(busquedaProducto.toLowerCase()) ||
                             (prod.unidadMedida || "")
                               .toLowerCase()
-                              .includes(busquedaProducto.toLowerCase())
-                        ) || [];
+                              .includes(busquedaProducto.toLowerCase());
+
+                          // Filtro específico por tipo de madera
+                          const cumpleTipoMadera =
+                            categoriaId !== "Maderas" ||
+                            filtroTipoMadera === "" ||
+                            prod.tipoMadera === filtroTipoMadera;
+
+                          // Filtro específico por subcategoría de ferretería
+                          const cumpleSubCategoria =
+                            categoriaId !== "Ferretería" ||
+                            filtroSubCategoria === "" ||
+                            prod.subCategoria === filtroSubCategoria;
+
+                          return (
+                            cumpleBusqueda &&
+                            cumpleTipoMadera &&
+                            cumpleSubCategoria
+                          );
+                        }) || [];
                       if (productosFiltrados.length === 0) {
                         return (
                           <div className="p-8 text-center">
@@ -1028,9 +1145,28 @@ const PresupuestoDetalle = () => {
                                             ? "🌲"
                                             : "🔧"}
                                         </div>
-                                        <h4 className="text-sm font-semibold  truncate">
-                                          {prod.nombre}
-                                        </h4>
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="text-sm font-semibold  truncate">
+                                            {prod.nombre}
+                                          </h4>
+                                          {/* Información específica por categoría */}
+                                          {prod.categoria === "Maderas" &&
+                                            prod.tipoMadera && (
+                                              <div className="flex items-center gap-1 mt-1">
+                                                <span className="text-xs text-orange-600 font-medium">
+                                                  🌲 {prod.tipoMadera}
+                                                </span>
+                                              </div>
+                                            )}
+                                          {prod.categoria === "Ferretería" &&
+                                            prod.subCategoria && (
+                                              <div className="flex items-center gap-1 mt-1">
+                                                <span className="text-xs text-blue-600 font-medium">
+                                                  🔧 {prod.subCategoria}
+                                                </span>
+                                              </div>
+                                            )}
+                                        </div>
                                         {yaAgregado && (
                                           <div className="flex items-center gap-1 text-green-600">
                                             <svg
@@ -1130,21 +1266,18 @@ const PresupuestoDetalle = () => {
                                               <span className="font-bold">
                                                 {prod.alto || 0}
                                               </span>{" "}
-                                              cm
                                             </span>
                                             <span>
                                               Ancho:{" "}
                                               <span className="font-bold">
                                                 {prod.ancho || 0}
                                               </span>{" "}
-                                              cm
                                             </span>
                                             <span>
                                               Largo:{" "}
                                               <span className="font-bold">
                                                 {prod.largo || 0}
                                               </span>{" "}
-                                              cm
                                             </span>
                                           </div>
                                         </div>
@@ -1322,6 +1455,10 @@ const PresupuestoDetalle = () => {
                                                   Number(prod.precioPorPie) ||
                                                   0,
                                                 cepilladoAplicado: false, // Agregar propiedad por defecto
+                                                tipoMadera:
+                                                  prod.tipoMadera || "",
+                                                subCategoria:
+                                                  prod.subCategoria || "",
                                               },
                                             ],
                                           }))
@@ -1400,6 +1537,22 @@ const PresupuestoDetalle = () => {
                                 <div className="font-semibold text-default-900">
                                   {p.nombre}
                                 </div>
+                                {/* Información específica por categoría */}
+                                {p.categoria === "Maderas" && p.tipoMadera && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-xs text-orange-600 font-medium">
+                                      🌲 {p.tipoMadera}
+                                    </span>
+                                  </div>
+                                )}
+                                {p.categoria === "Ferretería" &&
+                                  p.subCategoria && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🔧 {p.subCategoria}
+                                      </span>
+                                    </div>
+                                  )}
                                 {p.categoria === "Maderas" && (
                                   <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
                                     <span className="font-medium text-gray-500">
@@ -1410,21 +1563,18 @@ const PresupuestoDetalle = () => {
                                       <span className="font-bold">
                                         {p.alto}
                                       </span>{" "}
-                                      cm
                                     </span>
                                     <span>
                                       Ancho:{" "}
                                       <span className="font-bold">
                                         {p.ancho}
                                       </span>{" "}
-                                      cm
                                     </span>
                                     <span>
                                       Largo:{" "}
                                       <span className="font-bold">
                                         {p.largo}
                                       </span>{" "}
-                                      cm
                                     </span>
                                     <span>
                                       $/pie:{" "}
@@ -1809,13 +1959,9 @@ const PresupuestoDetalle = () => {
                                 {producto.categoria === "Maderas" && (
                                   <div className="mt-1 text-xs text-gray-500">
                                     <div className="flex flex-wrap gap-2">
-                                      <span>Alto: {producto.alto || 0} cm</span>
-                                      <span>
-                                        Ancho: {producto.ancho || 0} cm
-                                      </span>
-                                      <span>
-                                        Largo: {producto.largo || 0} cm
-                                      </span>
+                                      <span>Alto: {producto.alto || 0} </span>
+                                      <span>Ancho: {producto.ancho || 0}</span>
+                                      <span>Largo: {producto.largo || 0}</span>
                                     </div>
                                   </div>
                                 )}

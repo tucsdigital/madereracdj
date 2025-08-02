@@ -42,7 +42,6 @@ const PreciosPage = () => {
   const [editForm, setEditForm] = useState({
     costo: "",
     valorVenta: "",
-    precioCompra: "",
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -86,7 +85,6 @@ const PreciosPage = () => {
     setEditForm({
       costo: prod.costo ?? "",
       valorVenta: prod.valorVenta ?? "",
-      precioCompra: prod.precioCompra ?? "",
     });
     setMsg("");
     setModalOpen(true);
@@ -95,7 +93,7 @@ const PreciosPage = () => {
   const handleActualizacionGlobal = (tipo) => {
     setModalTipo(tipo);
     setEditProd(null);
-    setEditForm({ costo: "", valorVenta: "", precioCompra: "" });
+    setEditForm({ costo: "", valorVenta: "" });
     setPorcentajeAumento("");
     setTipoMaderaSeleccionado("");
     setProveedorSeleccionado("");
@@ -111,8 +109,6 @@ const PreciosPage = () => {
       if (editForm.costo !== "") updates.costo = Number(editForm.costo);
       if (editForm.valorVenta !== "")
         updates.valorVenta = Number(editForm.valorVenta);
-      if (editForm.precioCompra !== "")
-        updates.precioCompra = Number(editForm.precioCompra);
 
       await updateDoc(doc(db, "productos", editProd.id), updates);
       setMsg("Precios actualizados correctamente.");
@@ -484,24 +480,6 @@ const PreciosPage = () => {
                         setEditForm((f) => ({
                           ...f,
                           valorVenta: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Precio de Compra
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      placeholder="Ingrese el precio de compra"
-                      value={editForm.precioCompra}
-                      onChange={(e) =>
-                        setEditForm((f) => ({
-                          ...f,
-                          precioCompra: e.target.value,
                         }))
                       }
                     />

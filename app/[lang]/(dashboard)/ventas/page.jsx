@@ -231,6 +231,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
   const handleAgregarProducto = (producto) => {
     const real = productosState.find((p) => p.id === producto.id);
@@ -301,6 +303,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
           cepilladoAplicado: false, // Por defecto sin cepillado
+          tipoMadera: real.tipoMadera || "",
+          subCategoria: real.subCategoria || "",
         },
       ]);
     }
@@ -412,6 +416,24 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       })
     );
   };
+
+  // Obtener tipos de madera únicos
+  const tiposMadera = [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
 
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -674,7 +696,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('datos');
+  const [activeTab, setActiveTab] = useState("datos");
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
@@ -1003,7 +1025,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
 
                 {/* Filtros mejorados */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col gap-3">
                   {/* Filtro de categorías */}
                   <div className="flex-1">
                     <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
@@ -1021,8 +1043,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             e.stopPropagation();
                             if (categoriaId === categoria) {
                               setCategoriaId("");
+                              setFiltroTipoMadera("");
+                              setFiltroSubCategoria("");
                             } else {
                               setCategoriaId(categoria);
+                              setFiltroTipoMadera("");
+                              setFiltroSubCategoria("");
                             }
                           }}
                           disabled={isSubmitting}
@@ -1033,30 +1059,106 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </div>
                   </div>
 
-                  {/* Buscador mejorado */}
-                  <div className="flex-1 relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
+                  {/* Filtros específicos por categoría */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Filtro de tipo de madera */}
+                    {categoriaId === "Maderas" && tiposMadera.length > 0 && (
+                      <div className="flex-1">
+                        <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
+                          <button
+                            type="button"
+                            className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                              filtroTipoMadera === ""
+                                ? "bg-orange-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                            onClick={() => setFiltroTipoMadera("")}
+                            disabled={isSubmitting}
+                          >
+                            Todos los tipos
+                          </button>
+                          {tiposMadera.map((tipo) => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                filtroTipoMadera === tipo
+                                  ? "bg-orange-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                              onClick={() => setFiltroTipoMadera(tipo)}
+                              disabled={isSubmitting}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Filtro de subcategoría de ferretería */}
+                    {categoriaId === "Ferretería" &&
+                      subCategoriasFerreteria.length > 0 && (
+                        <div className="flex-1">
+                          <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
+                            <button
+                              type="button"
+                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                filtroSubCategoria === ""
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                              onClick={() => setFiltroSubCategoria("")}
+                              disabled={isSubmitting}
+                            >
+                              Todas las subcategorías
+                            </button>
+                            {subCategoriasFerreteria.map((subCategoria) => (
+                              <button
+                                key={subCategoria}
+                                type="button"
+                                className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                  filtroSubCategoria === subCategoria
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
+                                onClick={() =>
+                                  setFiltroSubCategoria(subCategoria)
+                                }
+                                disabled={isSubmitting}
+                              >
+                                {subCategoria}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Buscador mejorado */}
+                    <div className="flex-1 relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Buscar productos..."
+                        value={busquedaProducto}
+                        onChange={(e) => setBusquedaProducto(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                      />
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar productos..."
-                      value={busquedaProducto}
-                      onChange={(e) => setBusquedaProducto(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
-                    />
                   </div>
                 </div>
               </div>
@@ -1111,15 +1213,32 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Elige una categoría para ver los productos disponibles
                     </p>
                   </div>
-                ) : productosPorCategoria[categoriaId]?.filter(
-                    (prod) =>
+                ) : productosPorCategoria[categoriaId]?.filter((prod) => {
+                    // Filtro por búsqueda de texto
+                    const cumpleBusqueda =
                       prod.nombre
                         .toLowerCase()
                         .includes(busquedaProducto.toLowerCase()) ||
                       (prod.unidadMedida || "")
                         .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase())
-                  ).length === 0 ? (
+                        .includes(busquedaProducto.toLowerCase());
+
+                    // Filtro específico por tipo de madera
+                    const cumpleTipoMadera =
+                      categoriaId !== "Maderas" ||
+                      filtroTipoMadera === "" ||
+                      prod.tipoMadera === filtroTipoMadera;
+
+                    // Filtro específico por subcategoría de ferretería
+                    const cumpleSubCategoria =
+                      categoriaId !== "Ferretería" ||
+                      filtroSubCategoria === "" ||
+                      prod.subCategoria === filtroSubCategoria;
+
+                    return (
+                      cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
+                    );
+                  }).length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
                       <svg
@@ -1146,15 +1265,34 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4">
                     {productosPorCategoria[categoriaId]
-                      ?.filter(
-                        (prod) =>
+                      ?.filter((prod) => {
+                        // Filtro por búsqueda de texto
+                        const cumpleBusqueda =
                           prod.nombre
                             .toLowerCase()
                             .includes(busquedaProducto.toLowerCase()) ||
                           (prod.unidadMedida || "")
                             .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase())
-                      )
+                            .includes(busquedaProducto.toLowerCase());
+
+                        // Filtro específico por tipo de madera
+                        const cumpleTipoMadera =
+                          categoriaId !== "Maderas" ||
+                          filtroTipoMadera === "" ||
+                          prod.tipoMadera === filtroTipoMadera;
+
+                        // Filtro específico por subcategoría de ferretería
+                        const cumpleSubCategoria =
+                          categoriaId !== "Ferretería" ||
+                          filtroSubCategoria === "" ||
+                          prod.subCategoria === filtroSubCategoria;
+
+                        return (
+                          cumpleBusqueda &&
+                          cumpleTipoMadera &&
+                          cumpleSubCategoria
+                        );
+                      })
                       .map((prod) => {
                         const yaAgregado = productosSeleccionados.some(
                           (p) => p.id === prod.id
@@ -1200,9 +1338,28 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         ? "🌲"
                                         : "🔧"}
                                     </div>
-                                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                      {prod.nombre}
-                                    </h4>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                        {prod.nombre}
+                                      </h4>
+                                      {/* Información específica por categoría */}
+                                      {prod.categoria === "Maderas" &&
+                                        prod.tipoMadera && (
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                                              🌲 {prod.tipoMadera}
+                                            </span>
+                                          </div>
+                                        )}
+                                      {prod.categoria === "Ferretería" &&
+                                        prod.subCategoria && (
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                              🔧 {prod.subCategoria}
+                                            </span>
+                                          </div>
+                                        )}
+                                    </div>
                                     {yaAgregado && (
                                       <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                                         <svg
@@ -1297,21 +1454,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           <span className="font-bold">
                                             {prod.alto || 0}
                                           </span>{" "}
-                                          cm
                                         </span>
                                         <span>
                                           Ancho:{" "}
                                           <span className="font-bold">
                                             {prod.ancho || 0}
                                           </span>{" "}
-                                          cm
                                         </span>
                                         <span>
                                           Largo:{" "}
                                           <span className="font-bold">
                                             {prod.largo || 0}
                                           </span>{" "}
-                                          cm
                                         </span>
                                       </div>
                                     </div>
@@ -1560,6 +1714,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 p.nombre
                               )}
                             </div>
+                            {/* Información específica por categoría */}
+                            {p.categoria === "Maderas" && p.tipoMadera && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                                  🌲 {p.tipoMadera}
+                                </span>
+                              </div>
+                            )}
+                            {p.categoria === "Ferretería" && p.subCategoria && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                  🔧 {p.subCategoria}
+                                </span>
+                              </div>
+                            )}
                             {p.categoria === "Maderas" && (
                               <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
                                 <span className="font-medium text-gray-500">
@@ -1567,17 +1736,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 </span>
                                 <span>
                                   Alto:{" "}
-                                  <span className="font-bold">{p.alto}</span> cm
+                                  <span className="font-bold">{p.alto}</span>
                                 </span>
                                 <span>
                                   Ancho:{" "}
                                   <span className="font-bold">{p.ancho}</span>{" "}
-                                  cm
                                 </span>
                                 <span>
                                   Largo:{" "}
                                   <span className="font-bold">{p.largo}</span>{" "}
-                                  cm
                                 </span>
                                 <span>
                                   $/pie:{" "}
@@ -2140,47 +2307,47 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" /> 
+              <Icon icon="heroicons:user-plus" className="w-6 h-6" />
               Agregar Cliente
             </DialogTitle>
             <DialogDescription className="text-base text-default-600">
               Complete los datos del nuevo cliente para agregarlo al sistema.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex flex-col h-full">
             {/* Pestañas */}
             <div className="flex border-b border-gray-200 mb-4">
               <button
                 type="button"
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'datos' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                  activeTab === "datos"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
-                onClick={() => setActiveTab('datos')}
+                onClick={() => setActiveTab("datos")}
               >
                 Datos Básicos
               </button>
               <button
                 type="button"
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'ubicacion' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                  activeTab === "ubicacion"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
-                onClick={() => setActiveTab('ubicacion')}
+                onClick={() => setActiveTab("ubicacion")}
               >
                 Ubicación
               </button>
               <button
                 type="button"
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'adicional' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                  activeTab === "adicional"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
-                onClick={() => setActiveTab('adicional')}
+                onClick={() => setActiveTab("adicional")}
               >
                 Adicional
               </button>
@@ -2188,7 +2355,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             {/* Contenido de las pestañas */}
             <div className="flex-1 overflow-y-auto">
-              {activeTab === 'datos' && (
+              {activeTab === "datos" && (
                 <div className="space-y-4">
                   {/* Checkbox para cliente antiguo */}
                   <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -2211,7 +2378,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ¿Es un cliente antiguo?
                     </label>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -2222,7 +2389,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.nombre}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            nombre: e.target.value,
+                          })
                         }
                         required
                       />
@@ -2236,7 +2406,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.cuit || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            cuit: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2249,7 +2422,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.telefono}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            telefono: e.target.value,
+                          })
                         }
                         required
                       />
@@ -2264,7 +2440,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.email}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, email: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            email: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2277,7 +2456,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.direccion}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            direccion: e.target.value,
+                          })
                         }
                         required
                       />
@@ -2286,7 +2468,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
               )}
 
-              {activeTab === 'ubicacion' && (
+              {activeTab === "ubicacion" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -2298,7 +2480,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.localidad || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            localidad: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2311,7 +2496,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.partido || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            partido: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2324,7 +2512,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.barrio || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            barrio: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2337,7 +2528,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.area || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, area: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            area: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2350,7 +2544,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         className="w-full"
                         value={nuevoCliente.lote || ""}
                         onChange={(e) =>
-                          setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
+                          setNuevoCliente({
+                            ...nuevoCliente,
+                            lote: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -2358,7 +2555,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 </div>
               )}
 
-              {activeTab === 'adicional' && (
+              {activeTab === "adicional" && (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -2383,30 +2580,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             {/* Navegación y botones */}
             <div className="flex items-center justify-between pt-4 border-t border-gray-200">
               <div className="flex gap-2">
-                {activeTab !== 'datos' && (
+                {activeTab !== "datos" && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      if (activeTab === 'ubicacion') setActiveTab('datos');
-                      if (activeTab === 'adicional') setActiveTab('ubicacion');
+                      if (activeTab === "ubicacion") setActiveTab("datos");
+                      if (activeTab === "adicional") setActiveTab("ubicacion");
                     }}
                     className="text-sm"
                   >
                     Anterior
                   </Button>
                 )}
-                {activeTab !== 'adicional' && (
+                {activeTab !== "adicional" && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      if (activeTab === 'datos') setActiveTab('ubicacion');
-                      if (activeTab === 'ubicacion') setActiveTab('adicional');
+                      if (activeTab === "datos") setActiveTab("ubicacion");
+                      if (activeTab === "ubicacion") setActiveTab("adicional");
                     }}
                     disabled={
-                      (activeTab === 'datos' && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono)) ||
-                      (activeTab === 'ubicacion' && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono))
+                      (activeTab === "datos" &&
+                        (!nuevoCliente.nombre ||
+                          !nuevoCliente.direccion ||
+                          !nuevoCliente.telefono)) ||
+                      (activeTab === "ubicacion" &&
+                        (!nuevoCliente.nombre ||
+                          !nuevoCliente.direccion ||
+                          !nuevoCliente.telefono))
                     }
                     className="text-sm"
                   >
@@ -2414,7 +2617,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </Button>
                 )}
               </div>
-              
+
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -2475,8 +2678,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     setDropdownClientesOpen(false);
                   }}
                   disabled={
-                    !nuevoCliente.nombre || 
-                    !nuevoCliente.direccion || 
+                    !nuevoCliente.nombre ||
+                    !nuevoCliente.direccion ||
                     !nuevoCliente.telefono
                   }
                   className="text-sm"
