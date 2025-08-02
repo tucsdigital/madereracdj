@@ -126,7 +126,10 @@ const VentaDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      const productosData = snapProductos.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const productosData = snapProductos.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       console.log("=== DEBUG CARGA PRODUCTOS ===");
       console.log("Productos cargados:", productosData);
       console.log("Cantidad de productos:", productosData.length);
@@ -1086,8 +1089,8 @@ const VentaDetalle = () => {
           </div>
         </div>
         {/* 1. Información del cliente y venta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-2 ">
               Información del Cliente
             </h3>
@@ -1150,10 +1153,12 @@ const VentaDetalle = () => {
                 Información de Envío y Pago
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
+                <div className="space-y-2 text-sm">
                   <div>
                     <span className="font-medium">Tipo de envío:</span>{" "}
-                    {venta.tipoEnvio === "envio_domicilio" ? "Envío a Domicilio" : venta.tipoEnvio}
+                    {venta.tipoEnvio === "envio_domicilio"
+                      ? "Envío a Domicilio"
+                      : venta.tipoEnvio}
                   </div>
                   <div>
                     <span className="font-medium">Transportista:</span>{" "}
@@ -1180,7 +1185,7 @@ const VentaDetalle = () => {
                     {venta.vendedor || "-"}
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 text-sm">
                   <div>
                     <span className="font-medium">Forma de pago:</span>{" "}
                     <span className="forma-pago-empleado">
@@ -1197,38 +1202,10 @@ const VentaDetalle = () => {
                       </div>
                     )}
                 </div>
-                {/* Estado de la venta */}
-                <div className="estado-pago-empleado">
-                  <span className="font-medium">Estado de la venta:</span>{" "}
-                  {(() => {
-                    // Usar el estadoPago de la base de datos, no recalcular
-                    const estadoPago = venta.estadoPago || "pendiente";
-
-                    if (estadoPago === "pagado") {
-                      return (
-                        <span className="text-green-700 font-bold ml-2">
-                          Pagado
-                        </span>
-                      );
-                    } else if (estadoPago === "parcial") {
-                      return (
-                        <span className="text-yellow-700 font-bold ml-2">
-                          Parcial
-                        </span>
-                      );
-                    } else {
-                      return (
-                        <span className="text-red-700 font-bold ml-2">
-                          Pendiente
-                        </span>
-                      );
-                    }
-                  })()}
-                </div>
               </div>
             </div>
           ) : (
-            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
               <h3 className="font-semibold text-lg mb-2 ">
                 Información de Envío y Pago
               </h3>
@@ -1250,32 +1227,34 @@ const VentaDetalle = () => {
                   {venta.formaPago || "-"}
                 </div>
                 {/* Estado de la venta */}
-                <div>
-                  <span className="font-medium">Estado de la venta:</span>{" "}
-                  {(() => {
-                    // Usar el estadoPago de la base de datos, no recalcular
-                    const estadoPago = venta.estadoPago || "pendiente";
+                <div className="estado-pago-empleado space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Estado de la venta:</span>{" "}
+                    {(() => {
+                      // Usar el estadoPago de la base de datos, no recalcular
+                      const estadoPago = venta.estadoPago || "pendiente";
 
-                    if (estadoPago === "pagado") {
-                      return (
-                        <span className="text-green-700 font-bold ml-2">
-                          Pagado
-                        </span>
-                      );
-                    } else if (estadoPago === "parcial") {
-                      return (
-                        <span className="text-yellow-700 font-bold ml-2">
-                          Parcial
-                        </span>
-                      );
-                    } else {
-                      return (
-                        <span className="text-red-700 font-bold ml-2">
-                          Pendiente
-                        </span>
-                      );
-                    }
-                  })()}
+                      if (estadoPago === "pagado") {
+                        return (
+                          <span className="text-green-700 font-bold ml-2">
+                            Pagado
+                          </span>
+                        );
+                      } else if (estadoPago === "parcial") {
+                        return (
+                          <span className="text-yellow-700 font-bold ml-2">
+                            Parcial
+                          </span>
+                        );
+                      } else {
+                        return (
+                          <span className="text-red-700 font-bold ml-2">
+                            Pendiente
+                          </span>
+                        );
+                      }
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1283,7 +1262,7 @@ const VentaDetalle = () => {
         </div>
 
         {/* 3. Información de Pagos */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-4 no-print">
           <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
 
           {/* Estado de pago */}
@@ -1309,7 +1288,7 @@ const VentaDetalle = () => {
           </div>
 
           {/* Detalles de pagos */}
-          <div className="space-y-3">
+          <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="">Total de la venta:</span>
               <span className="font-semibold total-empleado">
@@ -1368,7 +1347,7 @@ const VentaDetalle = () => {
         {/* Productos y Servicios */}
         {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
         (Array.isArray(venta.items) && venta.items.length > 0) ? (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
             <h3 className="font-semibold text-lg mb-4 ">
               Productos y Servicios
             </h3>
@@ -1408,7 +1387,8 @@ const VentaDetalle = () => {
                             {/* Mostrar tipo de madera - buscado dinámicamente */}
                             {getProductoCompleto(producto.id)?.tipoMadera && (
                               <div className="mt-1 text-xs font-bold">
-                                Tipo: {getProductoCompleto(producto.id).tipoMadera}
+                                Tipo:{" "}
+                                {getProductoCompleto(producto.id).tipoMadera}
                               </div>
                             )}
                           </div>
@@ -1504,7 +1484,7 @@ const VentaDetalle = () => {
 
         {/* 5. Observaciones */}
         {venta.observaciones && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-2">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-2">
             <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
             <p className="text-gray-700 whitespace-pre-wrap">
               {venta.observaciones}
@@ -1933,17 +1913,23 @@ const VentaDetalle = () => {
                     console.log("busquedaProducto:", busquedaProducto);
                     console.log("filtroTipoMadera:", filtroTipoMadera);
                     console.log("filtroSubCategoria:", filtroSubCategoria);
-                    
+
                     const productosPorCategoria = {};
                     productos.forEach((p) => {
                       if (!productosPorCategoria[p.categoria])
                         productosPorCategoria[p.categoria] = [];
                       productosPorCategoria[p.categoria].push(p);
                     });
-                    
-                    console.log("productosPorCategoria:", productosPorCategoria);
-                    console.log("productosPorCategoria[categoriaId]:", productosPorCategoria[categoriaId]);
-                    
+
+                    console.log(
+                      "productosPorCategoria:",
+                      productosPorCategoria
+                    );
+                    console.log(
+                      "productosPorCategoria[categoriaId]:",
+                      productosPorCategoria[categoriaId]
+                    );
+
                     if (!categoriaId) {
                       return (
                         <div className="p-8 text-center">
@@ -2001,9 +1987,9 @@ const VentaDetalle = () => {
                           cumpleSubCategoria
                         );
                       }) || [];
-                      
+
                     console.log("productosFiltrados:", productosFiltrados);
-                    
+
                     if (productosFiltrados.length === 0) {
                       return (
                         <div className="p-8 text-center">
@@ -2061,18 +2047,28 @@ const VentaDetalle = () => {
                                         </h4>
                                         {/* Información específica por categoría - buscada dinámicamente desde la BD */}
                                         {prod.categoria === "Maderas" &&
-                                          getProductoCompleto(prod.id)?.tipoMadera && (
+                                          getProductoCompleto(prod.id)
+                                            ?.tipoMadera && (
                                             <div className="flex items-center gap-1 mt-1">
                                               <span className="text-xs text-orange-600 font-medium">
-                                                🌲 {getProductoCompleto(prod.id).tipoMadera}
+                                                🌲{" "}
+                                                {
+                                                  getProductoCompleto(prod.id)
+                                                    .tipoMadera
+                                                }
                                               </span>
                                             </div>
                                           )}
                                         {prod.categoria === "Ferretería" &&
-                                          getProductoCompleto(prod.id)?.subCategoria && (
+                                          getProductoCompleto(prod.id)
+                                            ?.subCategoria && (
                                             <div className="flex items-center gap-1 mt-1">
                                               <span className="text-xs text-blue-600 font-medium">
-                                                🔧 {getProductoCompleto(prod.id).subCategoria}
+                                                🔧{" "}
+                                                {
+                                                  getProductoCompleto(prod.id)
+                                                    .subCategoria
+                                                }
                                               </span>
                                             </div>
                                           )}

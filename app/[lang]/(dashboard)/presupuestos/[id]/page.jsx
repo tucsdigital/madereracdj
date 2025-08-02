@@ -753,8 +753,8 @@ const PresupuestoDetalle = () => {
         </div>
 
         {/* 1. Información del cliente y venta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-3 ">
               Información del Cliente
             </h3>
@@ -813,7 +813,7 @@ const PresupuestoDetalle = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col gap-4">
             <h3 className="font-semibold text-lg mb-3 ">
               Información del Presupuesto
             </h3>
@@ -2137,7 +2137,7 @@ const PresupuestoDetalle = () => {
 
         {/* Observaciones */}
         {presupuesto.observaciones && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
             <h3 className="font-semibold text-lg mb-3 ">Observaciones</h3>
             <p className="text-gray-700 whitespace-pre-wrap">
               {presupuesto.observaciones}
