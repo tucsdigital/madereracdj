@@ -48,11 +48,11 @@ function formatFechaLocal(dateString) {
 // Función para calcular fecha de vencimiento (7 días después de la emisión)
 function calcularFechaVencimiento(fechaEmision) {
   if (!fechaEmision) return null;
-  
+
   const fecha = new Date(fechaEmision);
   fecha.setDate(fecha.getDate() + 7); // Agregar 7 días
-  
-  return fecha.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+  return fecha.toISOString().split("T")[0]; // Formato YYYY-MM-DD
 }
 
 const PresupuestoDetalle = () => {
@@ -181,10 +181,45 @@ const PresupuestoDetalle = () => {
         );
         if (clienteObj) presupuestoClonado.cliente = clienteObj;
       }
+
+      // Enriquecer productos con información de la base de datos
+      if (presupuestoClonado.productos && productos.length > 0) {
+        presupuestoClonado.productos = presupuestoClonado.productos.map(
+          (productoPresupuesto) => {
+            const productoDB = productos.find(
+              (p) => p.id === productoPresupuesto.id
+            );
+            if (productoDB) {
+              return {
+                ...productoPresupuesto,
+                // Preservar campos específicos de categoría
+                tipoMadera:
+                  productoDB.tipoMadera || productoPresupuesto.tipoMadera || "",
+                subCategoria:
+                  productoDB.subCategoria ||
+                  productoPresupuesto.subCategoria ||
+                  "",
+                // Actualizar dimensiones para maderas si no están presentes
+                alto: Number(productoDB.alto) || productoPresupuesto.alto || 0,
+                ancho:
+                  Number(productoDB.ancho) || productoPresupuesto.ancho || 0,
+                largo:
+                  Number(productoDB.largo) || productoPresupuesto.largo || 0,
+                precioPorPie:
+                  Number(productoDB.precioPorPie) ||
+                  productoPresupuesto.precioPorPie ||
+                  0,
+              };
+            }
+            return productoPresupuesto;
+          }
+        );
+      }
+
       console.log("presupuestoClonado:", presupuestoClonado);
       setPresupuestoEdit(presupuestoClonado);
     }
-  }, [editando, presupuesto, clientes]);
+  }, [editando, presupuesto, clientes, productos]);
 
   // 5. Función para actualizar precios
   const handleActualizarPrecios = async () => {
@@ -232,6 +267,30 @@ const PresupuestoDetalle = () => {
           return {
             ...productoPresupuesto,
             precio: nuevoPrecio,
+            // Preservar campos específicos de categoría
+            tipoMadera:
+              productoActualizado.tipoMadera ||
+              productoPresupuesto.tipoMadera ||
+              "",
+            subCategoria:
+              productoActualizado.subCategoria ||
+              productoPresupuesto.subCategoria ||
+              "",
+            // Actualizar dimensiones para maderas
+            alto:
+              Number(productoActualizado.alto) || productoPresupuesto.alto || 0,
+            ancho:
+              Number(productoActualizado.ancho) ||
+              productoPresupuesto.ancho ||
+              0,
+            largo:
+              Number(productoActualizado.largo) ||
+              productoPresupuesto.largo ||
+              0,
+            precioPorPie:
+              Number(productoActualizado.precioPorPie) ||
+              productoPresupuesto.precioPorPie ||
+              0,
           };
         }
         return productoPresupuesto;
@@ -622,7 +681,9 @@ const PresupuestoDetalle = () => {
             </div>
             <div className="text-xs text-gray-500">
               Válido hasta:{" "}
-              {presupuesto?.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuesto.fecha)) : "-"}
+              {presupuesto?.fecha
+                ? formatFechaLocal(calcularFechaVencimiento(presupuesto.fecha))
+                : "-"}
             </div>
             <div className="text-xs text-gray-500">
               N°: {presupuesto?.numeroPedido || presupuesto?.id?.slice(-8)}
@@ -758,7 +819,11 @@ const PresupuestoDetalle = () => {
               </div>
               <div>
                 <span className="font-medium">Fecha de vencimiento:</span>{" "}
-                {presupuesto.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuesto.fecha)) : "-"}
+                {presupuesto.fecha
+                  ? formatFechaLocal(
+                      calcularFechaVencimiento(presupuesto.fecha)
+                    )
+                  : "-"}
               </div>
               <div>
                 <span className="font-medium">Tipo:</span>{" "}
@@ -797,31 +862,6 @@ const PresupuestoDetalle = () => {
                 <p className="text-red-800 text-sm font-medium">{errorForm}</p>
               </div>
             )}
-
-            {/* Información del presupuesto */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-800 mb-3">Información del Presupuesto</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-blue-700">Fecha de emisión:</span>{" "}
-                  {presupuestoEdit.fecha ? formatFechaLocal(presupuestoEdit.fecha) : "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-blue-700">Fecha de vencimiento:</span>{" "}
-                  {presupuestoEdit.fecha ? formatFechaLocal(calcularFechaVencimiento(presupuestoEdit.fecha)) : "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-blue-700">Número:</span>{" "}
-                  {presupuestoEdit.numeroPedido || presupuestoEdit.id?.slice(-8)}
-                </div>
-                <div>
-                  <span className="font-medium text-blue-700">Estado:</span>{" "}
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                    Activo
-                  </span>
-                </div>
-              </div>
-            </div>
 
             {/* Información editable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -2037,16 +2077,20 @@ const PresupuestoDetalle = () => {
                                 {producto.descripcion ||
                                   producto.nombre ||
                                   "Producto sin nombre"}
-                                {/* Mostrar dimensiones y precio por pie para productos de madera */}
-                                {producto.categoria === "Maderas" && (
-                                  <div className="mt-1 text-xs text-gray-500">
-                                    <div className="flex flex-wrap gap-2">
-                                      <span>Alto: {producto.alto || 0} </span>
-                                      <span>Ancho: {producto.ancho || 0}</span>
-                                      <span>Largo: {producto.largo || 0}</span>
+                                {/* Mostrar tipo de madera para productos de madera */}
+                                {producto.categoria === "Maderas" &&
+                                  producto.tipoMadera && (
+                                    <div className="mt-1 text-xs text-orange-600 font-medium">
+                                      🌲 Tipo: {producto.tipoMadera}
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                                {/* Mostrar subcategoría para productos de ferretería */}
+                                {producto.categoria === "Ferretería" &&
+                                  producto.subCategoria && (
+                                    <div className="mt-1 text-xs text-blue-600 font-medium">
+                                      🔧 {producto.subCategoria}
+                                    </div>
+                                  )}
                               </td>
                               <td className="p-3 text-center">
                                 {safeNumber(producto.cantidad)}
@@ -2074,6 +2118,20 @@ const PresupuestoDetalle = () => {
                               {producto.descripcion ||
                                 producto.nombre ||
                                 "Producto sin nombre"}
+                              {/* Mostrar tipo de madera para productos de madera */}
+                              {producto.categoria === "Maderas" &&
+                                producto.tipoMadera && (
+                                  <div className="mt-1 text-xs text-orange-600 font-medium">
+                                    🌲 Tipo: {producto.tipoMadera}
+                                  </div>
+                                )}
+                              {/* Mostrar subcategoría para productos de ferretería */}
+                              {producto.categoria === "Ferretería" &&
+                                producto.subCategoria && (
+                                  <div className="mt-1 text-xs text-blue-600 font-medium">
+                                    🔧 {producto.subCategoria}
+                                  </div>
+                                )}
                             </td>
                             <td className="p-3 text-center">
                               {safeNumber(producto.cantidad)}
