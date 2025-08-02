@@ -218,10 +218,10 @@ export const columnsPresupuestos = [
     ),
   },
   {
-    accessorKey: "fecha",
+    accessorKey: "fechaCreacion",
     header: "Fecha",
     cell: ({ row }) => {
-      const fecha = row.getValue("fecha");
+      const fecha = row.getValue("fechaCreacion");
       return (
         <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
           {formatDate(fecha)}
