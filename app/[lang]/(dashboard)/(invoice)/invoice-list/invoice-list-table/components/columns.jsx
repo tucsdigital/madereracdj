@@ -119,13 +119,16 @@ export const columns = [
     ),
   },
   {
-    accessorKey: "fecha",
+    accessorKey: "fechaCreacion",
     header: "Fecha",
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap text-sm">
-        {formatDate(row.getValue("fecha"))}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const fecha = row.getValue("fechaCreacion");
+      return (
+        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
+          {formatDate(fecha)}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "total",
@@ -219,13 +222,9 @@ export const columnsPresupuestos = [
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha)
-        return <span className="text-gray-400 dark:text-gray-500">-</span>;
-      // Corregir el cálculo de la fecha para evitar el problema de zona horaria
-      const dateObj = new Date(fecha + "T00:00:00");
       return (
         <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString("es-AR")}
+          {formatDate(fecha)}
         </span>
       );
     },
@@ -290,17 +289,13 @@ export const columnsVentas = [
     ),
   },
   {
-    accessorKey: "fecha",
+    accessorKey: "fechaCreacion",
     header: "Fecha",
     cell: ({ row }) => {
-      const fecha = row.getValue("fecha");
-      if (!fecha)
-        return <span className="text-gray-400 dark:text-gray-500">-</span>;
-      // Corregir el cálculo de la fecha para evitar el problema de zona horaria
-      const dateObj = new Date(fecha + "T00:00:00");
+      const fecha = row.getValue("fechaCreacion");
       return (
         <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString("es-AR")}
+          {formatDate(fecha)}
         </span>
       );
     },
