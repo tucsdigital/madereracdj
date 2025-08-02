@@ -1681,19 +1681,16 @@ const VentaDetalle = () => {
                   <span className="text-sm font-medium">
                     Vendedor responsable
                   </span>
-                  <select
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                  <input
+                    type="text"
                     value={ventaEdit.vendedor || ""}
-                    onChange={(e) =>
-                      setVentaEdit({ ...ventaEdit, vendedor: e.target.value })
-                    }
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="coco">coco</option>
-                    <option value="damian">damian</option>
-                    <option value="lauti">lauti</option>
-                    <option value="jose">jose</option>
-                  </select>
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    placeholder="Vendedor (no editable)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    El vendedor no se puede modificar una vez creada la venta
+                  </p>
                 </label>
                 <label className="block">
                   <span className="text-sm font-medium">Prioridad</span>
