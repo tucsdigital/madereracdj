@@ -12,9 +12,24 @@ import Link from "next/link";
 const formatDate = (dateString) => {
   if (!dateString) return "-";
   try {
-    // Corregir el cálculo de la fecha para evitar el problema de zona horaria
-    const fecha = new Date(dateString + 'T00:00:00');
-    return fecha.toLocaleDateString('es-AR');
+    // Si la fecha incluye 'T' (formato ISO), mostrar fecha y hora en horario argentino
+    if (dateString.includes("T")) {
+      const fecha = new Date(dateString);
+      // Convertir a horario argentino (UTC-3)
+      const fechaArgentina = new Date(fecha.getTime() - 3 * 60 * 60 * 1000);
+      return (
+        fechaArgentina.toLocaleDateString("es-AR") +
+        " " +
+        fechaArgentina.toLocaleTimeString("es-AR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "America/Argentina/Buenos_Aires",
+        })
+      );
+    }
+    // Si es solo fecha (formato YYYY-MM-DD), mostrar solo fecha
+    const fecha = new Date(dateString + "T00:00:00");
+    return fecha.toLocaleDateString("es-AR");
   } catch {
     return dateString;
   }
@@ -23,16 +38,16 @@ const formatDate = (dateString) => {
 // Función para obtener el color del estado
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
-    case 'pagado':
-    case 'paid':
-    case 'confirmed':
-      return 'success';
-    case 'pendiente':
-    case 'pending':
-    case 'closed':
-      return 'warning';
+    case "pagado":
+    case "paid":
+    case "confirmed":
+      return "success";
+    case "pendiente":
+    case "pending":
+    case "closed":
+      return "warning";
     default:
-      return 'default';
+      return "default";
   }
 };
 
@@ -78,14 +93,15 @@ export const columns = [
     accessorKey: "nombre",
     header: "Nombre",
     cell: ({ row }) => (
-        <div className="flex flex-col">
+      <div className="flex flex-col">
         <span className="text-sm font-medium text-default-600 whitespace-nowrap">
-          {row.getValue("nombre") || `Documento ${row.getValue("id")?.slice(-8)}`}
+          {row.getValue("nombre") ||
+            `Documento ${row.getValue("id")?.slice(-8)}`}
         </span>
         <span className="text-xs text-default-500 whitespace-nowrap">
           {row.original?.tipo || "Documento"}
         </span>
-        </div>
+      </div>
     ),
   },
   {
@@ -126,13 +142,13 @@ export const columns = [
     cell: ({ row }) => {
       const status = row.getValue("estadoPago") || row.getValue("status");
       return (
-      <Badge
-        className="rounded capitalize whitespace-nowrap"
-        variant="soft"
+        <Badge
+          className="rounded capitalize whitespace-nowrap"
+          variant="soft"
           color={getStatusColor(status)}
-      >
+        >
           {status || "No especificado"}
-      </Badge>
+        </Badge>
       );
     },
   },
@@ -151,28 +167,28 @@ export const columns = [
     cell: ({ row }) => {
       return (
         <div className="flex gap-2 items-center justify-end">
-        <Button
-          size="icon"
+          <Button
+            size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground hover:bg-primary hover:text-white"
             title="Ver detalle"
-        >
+          >
             <Icon icon="heroicons:eye" className="w-4 h-4" />
-        </Button>
-        <Button
-          size="icon"
+          </Button>
+          <Button
+            size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
             title="Editar"
-        >
+          >
             <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
-        </Button>
-        <Button
-          size="icon"
+          </Button>
+          <Button
+            size="icon"
             className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
             title="Eliminar"
-        >
+          >
             <Icon icon="heroicons:trash" className="w-4 h-4" />
-        </Button>
-      </div>
+          </Button>
+        </div>
       );
     },
   },
@@ -187,7 +203,7 @@ export const columnsPresupuestos = [
       <span className="font-mono text-sm px-2 py-1 rounded bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-300 inline-block">
         {row.getValue("numeroPedido") || row.getValue("id")}
       </span>
-    )
+    ),
   },
   {
     accessorKey: "cliente",
@@ -196,22 +212,23 @@ export const columnsPresupuestos = [
       <span className="font-semibold text-gray-800 dark:text-gray-200">
         {row.original.cliente?.nombre || "-"}
       </span>
-    )
+    ),
   },
   {
     accessorKey: "fecha",
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return <span className="text-gray-400 dark:text-gray-500">-</span>;
+      if (!fecha)
+        return <span className="text-gray-400 dark:text-gray-500">-</span>;
       // Corregir el cálculo de la fecha para evitar el problema de zona horaria
-      const dateObj = new Date(fecha + 'T00:00:00');
+      const dateObj = new Date(fecha + "T00:00:00");
       return (
         <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString('es-AR')}
+          {dateObj.toLocaleDateString("es-AR")}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "total",
@@ -220,10 +237,10 @@ export const columnsPresupuestos = [
       const total = row.original.total ?? 0;
       return (
         <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
-          {`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
+          {`$${total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "costoEnvio",
@@ -232,12 +249,23 @@ export const columnsPresupuestos = [
       const costo = row.getValue("costoEnvio");
       return costo && !isNaN(Number(costo)) ? (
         <span className="inline-block px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400 font-medium">
-          ${Number(costo).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+          ${Number(costo).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </span>
       ) : (
-        <span className="inline-block px-2 py-1 rounded bg-card text-gray-400 dark:text-gray-500">-</span>
+        <span className="inline-block px-2 py-1 rounded bg-card text-gray-400 dark:text-gray-500">
+          -
+        </span>
       );
-    }
+    },
+  },
+  {
+    accessorKey: "vendedor",
+    header: "Vendedor",
+    cell: ({ row }) => (
+      <span className="text-gray-700 dark:text-gray-300">
+        {row.getValue("vendedor") || "-"}
+      </span>
+    ),
   },
 ];
 
@@ -250,7 +278,7 @@ export const columnsVentas = [
       <span className="font-mono text-sm px-2 py-1 rounded bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-300 inline-block">
         {row.getValue("numeroPedido") || row.getValue("id")}
       </span>
-    )
+    ),
   },
   {
     accessorKey: "cliente.nombre",
@@ -259,22 +287,23 @@ export const columnsVentas = [
       <span className="font-semibold text-gray-800 dark:text-gray-200">
         {row.original.cliente?.nombre || "-"}
       </span>
-    )
+    ),
   },
   {
     accessorKey: "fecha",
     header: "Fecha",
     cell: ({ row }) => {
       const fecha = row.getValue("fecha");
-      if (!fecha) return <span className="text-gray-400 dark:text-gray-500">-</span>;
+      if (!fecha)
+        return <span className="text-gray-400 dark:text-gray-500">-</span>;
       // Corregir el cálculo de la fecha para evitar el problema de zona horaria
-      const dateObj = new Date(fecha + 'T00:00:00');
+      const dateObj = new Date(fecha + "T00:00:00");
       return (
         <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
-          {dateObj.toLocaleDateString('es-AR')}
+          {dateObj.toLocaleDateString("es-AR")}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "total",
@@ -283,10 +312,12 @@ export const columnsVentas = [
       const total = row.original.total ?? 0;
       return (
         <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
-          {total ? `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : "-"}
+          {total
+            ? `$${total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
+            : "-"}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "estadoPago",
@@ -294,34 +325,45 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const venta = row.original;
       const total = venta.total || 0;
-      
+
       // Calcular monto abonado correctamente: priorizar array pagos, sino usar montoAbonado
-      const montoAbonado = Array.isArray(venta.pagos) && venta.pagos.length > 0
-        ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-        : Number(venta.montoAbonado || 0);
-      
+      const montoAbonado =
+        Array.isArray(venta.pagos) && venta.pagos.length > 0
+          ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+          : Number(venta.montoAbonado || 0);
+
       const saldoPendiente = total - montoAbonado;
-      
+
       // Determinar estado de pago
-      let color = "", texto = "";
-      
+      let color = "",
+        texto = "";
+
       if (montoAbonado >= total) {
-        color = "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700";
+        color =
+          "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700";
         texto = "Completo";
       } else if (montoAbonado > 0) {
-        color = "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-700";
-        texto = `Parcial (Falta $${saldoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })})`;
+        color =
+          "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-700";
+        texto = `Parcial (Falta $${saldoPendiente.toLocaleString("es-AR", {
+          minimumFractionDigits: 2,
+        })})`;
       } else {
-        color = "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
-        texto = `Pendiente ($${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })})`;
+        color =
+          "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
+        texto = `Pendiente ($${total.toLocaleString("es-AR", {
+          minimumFractionDigits: 2,
+        })})`;
       }
-      
+
       return (
-        <span className={`inline-block px-2 py-1 rounded border ${color} font-medium text-xs`}>
+        <span
+          className={`inline-block px-2 py-1 rounded border ${color} font-medium text-xs`}
+        >
           {texto}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "tipoEnvio",
@@ -339,14 +381,16 @@ export const columnsVentas = [
           {tipos[tipo] || tipo}
         </span>
       );
-    }
+    },
   },
   {
     accessorKey: "vendedor",
     header: "Vendedor",
     cell: ({ row }) => (
-      <span className="text-gray-700 dark:text-gray-300">{row.getValue("vendedor") || "-"}</span>
-    )
+      <span className="text-gray-700 dark:text-gray-300">
+        {row.getValue("vendedor") || "-"}
+      </span>
+    ),
   },
   {
     accessorKey: "prioridad",
@@ -355,16 +399,7 @@ export const columnsVentas = [
       <span className="inline-block px-2 py-1 rounded bg-yellow-600 text-white dark:bg-yellow-400 dark:text-yellow-900 font-medium">
         {row.getValue("prioridad") || "-"}
       </span>
-    )
-  },
-  {
-    accessorKey: "estado",
-    header: "Estado",
-    cell: ({ row }) => (
-      <span className="inline-block px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium">
-        {row.getValue("estado") || "-"}
-      </span>
-    )
+    ),
   },
 ];
 
@@ -412,9 +447,7 @@ export const columnsObras = [
       <DataTableColumnHeader column={column} title="Fecha" />
     ),
     cell: ({ row }) => (
-      <div className="w-[100px]">
-        {formatDate(row.getValue("fecha"))}
-      </div>
+      <div className="w-[100px]">{formatDate(row.getValue("fecha"))}</div>
     ),
     enableSorting: true,
   },
@@ -456,7 +489,12 @@ export const columnsObras = [
       const total = row.getValue("total");
       return (
         <div className="text-right font-medium">
-          ${total ? Number(total).toLocaleString("es-AR", { minimumFractionDigits: 2 }) : "0.00"}
+          $
+          {total
+            ? Number(total).toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })
+            : "0.00"}
         </div>
       );
     },
@@ -470,11 +508,7 @@ export const columnsObras = [
     cell: ({ row }) => {
       const estado = row.getValue("estado");
       const color = getStatusColor(estado);
-      return (
-        <Badge variant={color}>
-          {estado || "Pendiente"}
-        </Badge>
-      );
+      return <Badge variant={color}>{estado || "Pendiente"}</Badge>;
     },
     enableSorting: true,
   },
@@ -485,20 +519,12 @@ export const columnsObras = [
       const obra = row.original;
       return (
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-          >
+          <Button variant="ghost" size="sm" asChild>
             <Link href={`/es/obras-proyectos/${obra.id}`}>
               <Icon icon="heroicons:eye" className="w-4 h-4" />
             </Link>
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-          >
+          <Button variant="ghost" size="sm" asChild>
             <Link href={`/es/obras-proyectos/${obra.id}?edit=true`}>
               <Icon icon="heroicons:pencil" className="w-4 h-4" />
             </Link>
