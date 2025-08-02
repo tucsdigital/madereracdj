@@ -306,6 +306,11 @@ const VentaDetalle = () => {
     return Number(numero).toLocaleString("es-AR");
   };
 
+  // Función para obtener información completa del producto desde la base de datos
+  const getProductoCompleto = (productoId) => {
+    return productos.find((p) => p.id === productoId);
+  };
+
   // Obtener tipos de madera únicos
   const tiposMadera = [
     ...new Set(
@@ -1400,20 +1405,21 @@ const VentaDetalle = () => {
                               <span>Ancho: {producto.ancho || 0} </span>
                               <span>Largo: {producto.largo || 0} </span>
                             </div>
-                            {/* Mostrar tipo de madera */}
-                            {producto.tipoMadera && (
+                            {/* Mostrar tipo de madera - buscado dinámicamente */}
+                            {getProductoCompleto(producto.id)?.tipoMadera && (
                               <div className="mt-1 text-xs text-orange-600 font-medium">
-                                🌲 Tipo: {producto.tipoMadera}
+                                Tipo: {getProductoCompleto(producto.id).tipoMadera}
                               </div>
                             )}
                           </div>
                         )}
-                        {/* Mostrar subcategoría para productos de ferretería */}
-                        {producto.categoria === "Ferretería" && producto.subCategoria && (
-                          <div className="mt-1 text-xs text-blue-600 font-medium">
-                            🔧 {producto.subCategoria}
-                          </div>
-                        )}
+                        {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
+                        {producto.categoria === "Ferretería" &&
+                          getProductoCompleto(producto.id)?.subCategoria && (
+                            <div className="mt-1 text-xs text-blue-600 font-medium">
+                              {getProductoCompleto(producto.id).subCategoria}
+                            </div>
+                          )}
                       </td>
                       <td className="p-3 text-center">
                         {Number(producto.cantidad)}
@@ -2053,20 +2059,20 @@ const VentaDetalle = () => {
                                         <h4 className="text-sm font-semibold  truncate">
                                           {prod.nombre}
                                         </h4>
-                                        {/* Información específica por categoría */}
+                                        {/* Información específica por categoría - buscada dinámicamente desde la BD */}
                                         {prod.categoria === "Maderas" &&
-                                          prod.tipoMadera && (
+                                          getProductoCompleto(prod.id)?.tipoMadera && (
                                             <div className="flex items-center gap-1 mt-1">
                                               <span className="text-xs text-orange-600 font-medium">
-                                                🌲 {prod.tipoMadera}
+                                                🌲 {getProductoCompleto(prod.id).tipoMadera}
                                               </span>
                                             </div>
                                           )}
                                         {prod.categoria === "Ferretería" &&
-                                          prod.subCategoria && (
+                                          getProductoCompleto(prod.id)?.subCategoria && (
                                             <div className="flex items-center gap-1 mt-1">
                                               <span className="text-xs text-blue-600 font-medium">
-                                                🔧 {prod.subCategoria}
+                                                🔧 {getProductoCompleto(prod.id).subCategoria}
                                               </span>
                                             </div>
                                           )}

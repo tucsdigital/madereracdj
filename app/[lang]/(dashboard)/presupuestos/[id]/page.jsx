@@ -602,6 +602,11 @@ const PresupuestoDetalle = () => {
     return isNaN(n) ? 0 : n;
   }
 
+  // Función para obtener información completa del producto desde la base de datos
+  const getProductoCompleto = (productoId) => {
+    return productos.find((p) => p.id === productoId);
+  };
+
   return (
     <div className="min-h-screen py-8">
       <style>{`
@@ -1659,91 +1664,25 @@ const PresupuestoDetalle = () => {
                                 <div className="font-semibold text-default-900">
                                   {p.nombre}
                                 </div>
-                                {/* Información específica por categoría */}
-                                {p.categoria === "Maderas" && p.tipoMadera && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-xs text-orange-600 font-medium">
-                                      🌲 {p.tipoMadera}
-                                    </span>
-                                  </div>
-                                )}
-                                {p.categoria === "Ferretería" &&
-                                  p.subCategoria && (
+                                {/* Información específica por categoría - buscada dinámicamente desde la BD */}
+                                {p.categoria === "Maderas" &&
+                                  getProductoCompleto(p.id)?.tipoMadera && (
                                     <div className="flex items-center gap-1 mt-1">
-                                      <span className="text-xs text-blue-600 font-medium">
-                                        🔧 {p.subCategoria}
+                                      <span className="text-xs text-orange-600 font-medium">
+                                        🌲{" "}
+                                        {getProductoCompleto(p.id).tipoMadera}
                                       </span>
                                     </div>
                                   )}
-                                {p.categoria === "Maderas" && (
-                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                    <span className="font-medium text-gray-500">
-                                      Dimensiones:
-                                    </span>
-                                    <span>
-                                      Alto:{" "}
-                                      <span className="font-bold">
-                                        {p.alto}
-                                      </span>{" "}
-                                    </span>
-                                    <span>
-                                      Ancho:{" "}
-                                      <span className="font-bold">
-                                        {p.ancho}
-                                      </span>{" "}
-                                    </span>
-                                    <span>
-                                      Largo:{" "}
-                                      <span className="font-bold">
-                                        {p.largo}
-                                      </span>{" "}
-                                    </span>
-                                    <span>
-                                      $/pie:{" "}
-                                      <div className="inline-flex items-center gap-1">
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
-                                          value={p.precioPorPie}
-                                          onChange={(e) =>
-                                            handlePrecioPorPieChange(
-                                              p.id,
-                                              e.target.value
-                                            )
-                                          }
-                                          className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                          disabled={loadingPrecios}
-                                          placeholder="0.00"
-                                          title="Editar precio por pie"
-                                        />
-                                        <svg
-                                          className="w-3 h-3 text-blue-500"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="2"
-                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                          />
-                                        </svg>
-                                      </div>
-                                    </span>
-                                    {p.stock <= 0 && (
-                                      <span className="text-red-600 font-semibold ml-2">
-                                        ¡Sin stock! Se permitirá avanzar igual.
+                                {p.categoria === "Ferretería" &&
+                                  getProductoCompleto(p.id)?.subCategoria && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🔧{" "}
+                                        {getProductoCompleto(p.id).subCategoria}
                                       </span>
-                                    )}
-                                    {p.stock > 0 && p.stock <= 3 && (
-                                      <span className="text-yellow-600 font-semibold ml-2">
-                                        Stock bajo: quedan {p.stock} unidades.
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                    </div>
+                                  )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <div className="flex items-center justify-center">
@@ -2055,8 +1994,7 @@ const PresupuestoDetalle = () => {
             </h3>
 
             {/* Usar productos si existe, sino usar items */}
-            {(safeArray(presupuesto.productos).length > 0 ||
-              safeArray(presupuesto.items).length > 0) && (
+            {safeArray(presupuesto.productos).length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -2069,92 +2007,64 @@ const PresupuestoDetalle = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {safeArray(presupuesto.productos).length > 0
-                      ? safeArray(presupuesto.productos).map(
-                          (producto, idx) => (
-                            <tr key={idx} className="border-b hover:bg-card">
-                              <td className="p-3 font-medium">
-                                {producto.descripcion ||
-                                  producto.nombre ||
-                                  "Producto sin nombre"}
-                                {/* Mostrar tipo de madera para productos de madera */}
-                                {producto.categoria === "Maderas" &&
-                                  producto.tipoMadera && (
-                                    <div className="mt-1 text-xs text-orange-600 font-medium">
-                                      🌲 Tipo: {producto.tipoMadera}
-                                    </div>
-                                  )}
-                                {/* Mostrar subcategoría para productos de ferretería */}
-                                {producto.categoria === "Ferretería" &&
-                                  producto.subCategoria && (
-                                    <div className="mt-1 text-xs text-blue-600 font-medium">
-                                      🔧 {producto.subCategoria}
-                                    </div>
-                                  )}
-                              </td>
-                              <td className="p-3 text-center">
-                                {safeNumber(producto.cantidad)}
-                              </td>
-                              <td className="p-3 text-center">
-                                {producto.unidad || "-"}
-                              </td>
-                              <td className="p-3 text-right">
-                                {safeNumber(producto.descuento).toFixed(2)}%
-                              </td>
-                              <td className="p-3 text-right font-medium">
-                                $
-                                {formatearNumeroArgentino(
-                                  safeNumber(producto.precio) *
-                                    safeNumber(producto.cantidad) *
-                                    (1 - safeNumber(producto.descuento) / 100)
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        )
-                      : safeArray(presupuesto.items).map((producto, idx) => (
-                          <tr key={idx} className="border-b hover:bg-card">
-                            <td className="p-3 font-medium">
-                              {producto.descripcion ||
-                                producto.nombre ||
-                                "Producto sin nombre"}
-                              {/* Mostrar tipo de madera para productos de madera */}
-                              {producto.categoria === "Maderas" &&
-                                producto.tipoMadera && (
-                                  <div className="mt-1 text-xs text-orange-600 font-medium">
-                                    🌲 Tipo: {producto.tipoMadera}
-                                  </div>
-                                )}
-                              {/* Mostrar subcategoría para productos de ferretería */}
-                              {producto.categoria === "Ferretería" &&
-                                producto.subCategoria && (
-                                  <div className="mt-1 text-xs text-blue-600 font-medium">
-                                    🔧 {producto.subCategoria}
-                                  </div>
-                                )}
-                            </td>
-                            <td className="p-3 text-center">
-                              {safeNumber(producto.cantidad)}
-                            </td>
-                            <td className="p-3 text-center">
-                              {producto.unidad || "-"}
-                            </td>
-                            <td className="p-3 text-right">
-                              ${safeNumber(producto.precio).toFixed(2)}
-                            </td>
-                            <td className="p-3 text-right">
-                              {safeNumber(producto.descuento).toFixed(2)}%
-                            </td>
-                            <td className="p-3 text-right font-medium">
-                              $
-                              {(
-                                safeNumber(producto.precio) *
+                    {safeArray(presupuesto.productos).map(
+                      (producto, idx) => (
+                        <tr key={idx} className="border-b hover:bg-card">
+                          <td className="p-3 font-medium">
+                            {producto.descripcion ||
+                              producto.nombre ||
+                              "Producto sin nombre"}
+                            {/* Mostrar tipo de madera para productos de madera - buscado dinámicamente */}
+                            {producto.categoria === "Maderas" &&
+                              getProductoCompleto(producto.id)?.tipoMadera && (
+                                <div className="mt-1 text-xs text-orange-600 font-medium">
+                                  Tipo:{" "}
+                                  {getProductoCompleto(producto.id).tipoMadera}
+                                </div>
+                              )}
+                            {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
+                            {producto.categoria === "Ferretería" &&
+                              getProductoCompleto(producto.id)
+                                ?.subCategoria && (
+                                <div className="mt-1 text-xs text-blue-600 font-medium">
+                                  {" "}
+                                  {
+                                    getProductoCompleto(producto.id)
+                                      .subCategoria
+                                  }
+                                </div>
+                              )}
+                            {/* Mostrar dimensiones y precio por pie para productos de madera */}
+                            {producto.categoria === "Maderas" && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                <div className="flex flex-wrap gap-2">
+                                  <span>Alto: {producto.alto || 0} </span>
+                                  <span>Ancho: {producto.ancho || 0}</span>
+                                  <span>Largo: {producto.largo || 0}</span>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            {safeNumber(producto.cantidad)}
+                          </td>
+                          <td className="p-3 text-center">
+                            {producto.unidad || "-"}
+                          </td>
+                          <td className="p-3 text-right">
+                            {safeNumber(producto.descuento).toFixed(2)}%
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            $
+                            {formatearNumeroArgentino(
+                              safeNumber(producto.precio) *
                                 safeNumber(producto.cantidad) *
                                 (1 - safeNumber(producto.descuento) / 100)
-                              ).toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
