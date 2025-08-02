@@ -938,6 +938,28 @@ const VentaDetalle = () => {
         width: 100% !important;
         background: white !important;
       }
+      
+      /* Header que aparece en todas las páginas */
+      #venta-print .print-header {
+        position: running(header) !important;
+        display: block !important;
+        margin-bottom: 30px !important;
+        padding-bottom: 15px !important;
+        border-bottom: 2px solid #e5e7eb !important;
+      }
+      
+      /* Aplicar el header a todas las páginas */
+      @page {
+        @top-center {
+          content: element(header);
+        }
+      }
+      
+      /* Contenido principal con margen superior para el header */
+      #venta-print .print-content {
+        margin-top: 120px !important; /* Espacio para el header */
+      }
+      
       /* Layout de 2 columnas para impresión */
       #venta-print .grid { 
         display: grid !important;
@@ -950,6 +972,7 @@ const VentaDetalle = () => {
         padding: 15px !important;
         border-radius: 8px !important;
       }
+      
       /* Reducir tamaños de fuente para que quepa todo */
       #venta-print h3 {
         font-size: 14px !important;
@@ -960,6 +983,26 @@ const VentaDetalle = () => {
       }
       #venta-print .space-y-2 > div {
         margin-bottom: 4px !important;
+      }
+      
+      /* Mejorar la tabla de productos para impresión */
+      #venta-print table {
+        page-break-inside: auto !important;
+      }
+      #venta-print tr {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+      }
+      
+      /* Totales siempre en la misma página que la tabla */
+      #venta-print .totales-section {
+        page-break-inside: avoid !important;
+        page-break-before: auto !important;
+      }
+      
+      /* Evitar que se corten secciones importantes */
+      #venta-print .bg-card {
+        page-break-inside: avoid !important;
       }
       
       /* Estilos específicos para impresión de empleados */
@@ -1024,860 +1067,721 @@ const VentaDetalle = () => {
             </div>
           </div>
         </div>
-        {/* Mensaje para empleados (solo visible en impresión) */}
-        <div className="mensaje-empleado hidden">
-          <div className="text-center">
-            {/* <h3 className="text-lg font-bold mb-2">📋 LISTA DE PRODUCTOS PARA EMPLEADO</h3>
-            <p className="text-sm">Esta versión oculta los precios para uso interno del empleado</p> */}
-            <p className="text-sm font-medium mt-2">
-              Venta N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
-            </p>
-            <p className="text-sm">Cliente: {venta.cliente?.nombre || "-"}</p>
-            <p className="text-sm">
-              Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}
-            </p>
-          </div>
-        </div>
-        {/* Header con botones */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-            <div className="flex-1">
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
-              </h1>
-              {/* Mostrar observaciones si existen */}
-              {venta.observaciones && (
-                <p className="text-gray-600 mt-1 whitespace-pre-line">
-                  {venta.observaciones}
-                </p>
-              )}
+        
+        {/* Contenido principal */}
+        <div className="print-content">
+          {/* Mensaje para empleados (solo visible en impresión) */}
+          <div className="mensaje-empleado hidden">
+            <div className="text-center">
+              <p className="text-sm font-medium mt-2">
+                Venta N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+              </p>
+              <p className="text-sm">Cliente: {venta.cliente?.nombre || "-"}</p>
+              <p className="text-sm">
+                Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}
+              </p>
             </div>
-            <div className="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
-              <Button
-                variant="outline"
-                onClick={() => router.back()}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
-                <span className="hidden sm:inline">Volver</span>
-              </Button>
-              <Button
-                onClick={handlePrint}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-              >
-                <span className="hidden sm:inline">Imprimir</span>
-                <span className="sm:hidden">🖨️</span>
-              </Button>
-              <Button
-                onClick={handlePrintEmpleado}
-                variant="outline"
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-              >
-                <span className="hidden sm:inline">Imprimir Empleado</span>
-                <span className="sm:hidden">👷</span>
-              </Button>
-              {!editando && (
+          </div>
+          {/* Header con botones */}
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+              <div className="flex-1">
+                <h1 className="text-2xl lg:text-3xl font-bold">
+                  N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+                </h1>
+                {/* Mostrar observaciones si existen */}
+                {venta.observaciones && (
+                  <p className="text-gray-600 mt-1 whitespace-pre-line">
+                    {venta.observaciones}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
                 <Button
-                  onClick={() => setEditando(true)}
+                  variant="outline"
+                  onClick={() => router.back()}
                   className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
-                  <span className="hidden sm:inline">Editar</span>
-                  <span className="sm:hidden">✏️</span>
+                  <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                  <span className="hidden sm:inline">Volver</span>
                 </Button>
-              )}
-            </div>
-          </div>
-        </div>
-        {/* 1. Información del cliente y venta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-          <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 ">
-              Información del Cliente
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Nombre:</span>{" "}
-                {venta.cliente?.nombre || "-"}
-              </div>
-              <div>
-                <span className="font-medium">CUIT / DNI:</span>{" "}
-                {venta.cliente?.cuit || "-"}
-              </div>
-              <div>
-                <span className="font-medium">Dirección:</span>{" "}
-                {venta.cliente?.direccion || "-"}
-              </div>
-              <div>
-                <span className="font-medium">Teléfono:</span>{" "}
-                {venta.cliente?.telefono || "-"}
-              </div>
-              {venta.cliente?.partido && (
-                <div>
-                  <span className="font-medium">Partido:</span>{" "}
-                  {venta.cliente.partido}
-                </div>
-              )}
-              {venta.cliente?.barrio && (
-                <div>
-                  <span className="font-medium">Barrio:</span>{" "}
-                  {venta.cliente.barrio}
-                </div>
-              )}
-              {venta.cliente?.area && (
-                <div>
-                  <span className="font-medium">Área:</span>{" "}
-                  {venta.cliente.area}
-                </div>
-              )}
-              {venta.cliente?.lote && (
-                <div>
-                  <span className="font-medium">Lote:</span>{" "}
-                  {venta.cliente.lote}
-                </div>
-              )}
-              {venta.cliente?.descripcion && (
-                <div>
-                  <span className="font-medium">Descripción:</span>{" "}
-                  {venta.cliente.descripcion}
-                </div>
-              )}
-              <div>
-                <span className="font-medium">Email:</span>{" "}
-                {venta.cliente?.email || "-"}
+                <Button
+                  onClick={handlePrint}
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
+                  <span className="hidden sm:inline">Imprimir</span>
+                  <span className="sm:hidden">🖨️</span>
+                </Button>
+                <Button
+                  onClick={handlePrintEmpleado}
+                  variant="outline"
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
+                  <span className="hidden sm:inline">Imprimir Empleado</span>
+                  <span className="sm:hidden">👷</span>
+                </Button>
+                {!editando && (
+                  <Button
+                    onClick={() => setEditando(true)}
+                    className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                  >
+                    <span className="hidden sm:inline">Editar</span>
+                    <span className="sm:hidden">✏️</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
-          {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
-            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
-              <h3 className="font-semibold text-lg mb-2 ">
-                Información de Envío y Pago
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">Tipo de envío:</span>{" "}
-                    {venta.tipoEnvio === "envio_domicilio"
-                      ? "Envío a Domicilio"
-                      : venta.tipoEnvio}
-                  </div>
-                  <div>
-                    <span className="font-medium">Transportista:</span>{" "}
-                    {venta.transportista || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Dirección:</span>{" "}
-                    {venta.cliente?.direccion || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Fecha de envío:</span>{" "}
-                    {formatFechaLocal(venta.fechaEntrega)}
-                  </div>
-                  <div>
-                    <span className="font-medium">Rango horario:</span>{" "}
-                    {venta.rangoHorario || "-"}
-                  </div>
-                  <div className="no-print">
-                    <span className="font-medium">Prioridad:</span>{" "}
-                    {venta.prioridad || "-"}
-                  </div>
-                  <div className="no-print">
-                    <span className="font-medium">Vendedor:</span>{" "}
-                    {venta.vendedor || "-"}
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium">Forma de pago:</span>{" "}
-                    <span className="forma-pago-empleado">
-                      {venta.formaPago || "-"}
-                    </span>
-                  </div>
-                  {venta.costoEnvio !== undefined &&
-                    Number(venta.costoEnvio) > 0 && (
-                      <div className="costo-envio-empleado">
-                        <span className="font-medium">Costo de envío:</span> $
-                        {Number(venta.costoEnvio).toLocaleString("es-AR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </div>
-                    )}
-                </div>
-              </div>
-            </div>
-          ) : (
+          {/* 1. Información del cliente y venta */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
             <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
               <h3 className="font-semibold text-lg mb-2 ">
-                Información de Envío y Pago
+                Información del Cliente
               </h3>
               <div className="space-y-2 text-sm">
                 <div>
-                  <span className="font-medium">Tipo de entrega:</span> Retiro
-                  en local
+                  <span className="font-medium">Nombre:</span>{" "}
+                  {venta.cliente?.nombre || "-"}
                 </div>
                 <div>
-                  <span className="font-medium">Fecha de retiro:</span>{" "}
-                  {formatFechaLocal(venta.fechaEntrega)}
+                  <span className="font-medium">CUIT / DNI:</span>{" "}
+                  {venta.cliente?.cuit || "-"}
                 </div>
                 <div>
-                  <span className="font-medium">Vendedor:</span>{" "}
-                  {venta.vendedor || "-"}
+                  <span className="font-medium">Dirección:</span>{" "}
+                  {venta.cliente?.direccion || "-"}
                 </div>
                 <div>
-                  <span className="font-medium">Forma de pago:</span>{" "}
-                  {venta.formaPago || "-"}
+                  <span className="font-medium">Teléfono:</span>{" "}
+                  {venta.cliente?.telefono || "-"}
                 </div>
-                {/* Estado de la venta */}
-                <div className="estado-pago-empleado space-y-2 text-sm">
+                {venta.cliente?.partido && (
                   <div>
-                    <span className="font-medium">Estado de la venta:</span>{" "}
-                    {(() => {
-                      // Usar el estadoPago de la base de datos, no recalcular
-                      const estadoPago = venta.estadoPago || "pendiente";
-
-                      if (estadoPago === "pagado") {
-                        return (
-                          <span className="text-green-700 font-bold ml-2">
-                            Pagado
-                          </span>
-                        );
-                      } else if (estadoPago === "parcial") {
-                        return (
-                          <span className="text-yellow-700 font-bold ml-2">
-                            Parcial
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="text-red-700 font-bold ml-2">
-                            Pendiente
-                          </span>
-                        );
-                      }
-                    })()}
+                    <span className="font-medium">Partido:</span>{" "}
+                    {venta.cliente.partido}
                   </div>
+                )}
+                {venta.cliente?.barrio && (
+                  <div>
+                    <span className="font-medium">Barrio:</span>{" "}
+                    {venta.cliente.barrio}
+                  </div>
+                )}
+                {venta.cliente?.area && (
+                  <div>
+                    <span className="font-medium">Área:</span>{" "}
+                    {venta.cliente.area}
+                  </div>
+                )}
+                {venta.cliente?.lote && (
+                  <div>
+                    <span className="font-medium">Lote:</span>{" "}
+                    {venta.cliente.lote}
+                  </div>
+                )}
+                {venta.cliente?.descripcion && (
+                  <div>
+                    <span className="font-medium">Descripción:</span>{" "}
+                    {venta.cliente.descripcion}
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium">Email:</span>{" "}
+                  {venta.cliente?.email || "-"}
                 </div>
               </div>
             </div>
-          )}
-        </div>
+            {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
+              <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+                <h3 className="font-semibold text-lg mb-2 ">
+                  Información de Envío y Pago
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium">Tipo de envío:</span>{" "}
+                      {venta.tipoEnvio === "envio_domicilio"
+                        ? "Envío a Domicilio"
+                        : venta.tipoEnvio}
+                    </div>
+                    <div>
+                      <span className="font-medium">Transportista:</span>{" "}
+                      {venta.transportista || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Dirección:</span>{" "}
+                      {venta.cliente?.direccion || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Fecha de envío:</span>{" "}
+                      {formatFechaLocal(venta.fechaEntrega)}
+                    </div>
+                    <div>
+                      <span className="font-medium">Rango horario:</span>{" "}
+                      {venta.rangoHorario || "-"}
+                    </div>
+                    <div className="no-print">
+                      <span className="font-medium">Prioridad:</span>{" "}
+                      {venta.prioridad || "-"}
+                    </div>
+                    <div className="no-print">
+                      <span className="font-medium">Vendedor:</span>{" "}
+                      {venta.vendedor || "-"}
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium">Forma de pago:</span>{" "}
+                      <span className="forma-pago-empleado">
+                        {venta.formaPago || "-"}
+                      </span>
+                    </div>
+                    {venta.costoEnvio !== undefined &&
+                      Number(venta.costoEnvio) > 0 && (
+                        <div className="costo-envio-empleado">
+                          <span className="font-medium">Costo de envío:</span> $
+                          {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
+                <h3 className="font-semibold text-lg mb-2 ">
+                  Información de Envío y Pago
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Tipo de entrega:</span> Retiro
+                    en local
+                  </div>
+                  <div>
+                    <span className="font-medium">Fecha de retiro:</span>{" "}
+                    {formatFechaLocal(venta.fechaEntrega)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Vendedor:</span>{" "}
+                    {venta.vendedor || "-"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Forma de pago:</span>{" "}
+                    {venta.formaPago || "-"}
+                  </div>
+                  {/* Estado de la venta */}
+                  <div className="estado-pago-empleado space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium">Estado de la venta:</span>{" "}
+                      {(() => {
+                        // Usar el estadoPago de la base de datos, no recalcular
+                        const estadoPago = venta.estadoPago || "pendiente";
 
-        {/* 3. Información de Pagos */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-4 no-print">
-          <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
-
-          {/* Estado de pago */}
-          <div className="mb-4 bg-card rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Estado de pago:</span>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  venta.estadoPago === "pagado"
-                    ? "bg-green-100 text-green-800"
-                    : venta.estadoPago === "parcial"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {venta.estadoPago === "pagado"
-                  ? "Pagado"
-                  : venta.estadoPago === "parcial"
-                  ? "Pago Parcial"
-                  : "Pendiente"}
-              </span>
-            </div>
-          </div>
-
-          {/* Detalles de pagos */}
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="">Total de la venta:</span>
-              <span className="font-semibold total-empleado">
-                ${formatearNumeroArgentino(venta.total || 0)}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="">Monto abonado:</span>
-              <span className="font-semibold text-green-600 monto-abonado-empleado">
-                ${formatearNumeroArgentino(montoAbonado)}
-              </span>
-            </div>
-
-            {saldoPendiente > 0 && (
-              <div className="flex justify-between border-t pt-2">
-                <span className="">Saldo pendiente:</span>
-                <span className="font-semibold text-red-600 saldo-pendiente-empleado">
-                  ${formatearNumeroArgentino(saldoPendiente)}
-                </span>
+                        if (estadoPago === "pagado") {
+                          return (
+                            <span className="text-green-700 font-bold ml-2">
+                              Pagado
+                            </span>
+                          );
+                        } else if (estadoPago === "parcial") {
+                          return (
+                            <span className="text-yellow-700 font-bold ml-2">
+                              Parcial
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span className="text-red-700 font-bold ml-2">
+                              Pendiente
+                            </span>
+                          );
+                        }
+                      })()}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Historial de pagos si existe */}
-          {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
-            <div className="mt-4 historial-pagos-empleado">
-              <h4 className="font-medium mb-2">Historial de pagos:</h4>
-              <div className="bg-card rounded-lg p-3">
+          {/* 3. Información de Pagos */}
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 no-print">
+            <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
+
+            {/* Estado de pago */}
+            <div className="mb-4 bg-card rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Estado de pago:</span>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    venta.estadoPago === "pagado"
+                      ? "bg-green-100 text-green-800"
+                      : venta.estadoPago === "parcial"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {venta.estadoPago === "pagado"
+                    ? "Pagado"
+                    : venta.estadoPago === "parcial"
+                    ? "Pago Parcial"
+                    : "Pendiente"}
+                </span>
+              </div>
+            </div>
+
+            {/* Detalles de pagos */}
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="">Total de la venta:</span>
+                <span className="font-semibold total-empleado">
+                  ${formatearNumeroArgentino(venta.total || 0)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="">Monto abonado:</span>
+                <span className="font-semibold text-green-600 monto-abonado-empleado">
+                  ${formatearNumeroArgentino(montoAbonado)}
+                </span>
+              </div>
+
+              {saldoPendiente > 0 && (
+                <div className="flex justify-between border-t pt-2">
+                  <span className="">Saldo pendiente:</span>
+                  <span className="font-semibold text-red-600 saldo-pendiente-empleado">
+                    ${formatearNumeroArgentino(saldoPendiente)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Historial de pagos si existe */}
+            {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
+              <div className="mt-4 historial-pagos-empleado">
+                <h4 className="font-medium mb-2">Historial de pagos:</h4>
+                <div className="bg-card rounded-lg p-3">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-card border-b">
+                        <th className="text-left py-1">Fecha</th>
+                        <th className="text-left py-1">Método</th>
+                        <th className="text-right py-1">Monto</th>
+                        <th className="text-left py-1">Usuario</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {venta.pagos.map((pago, idx) => (
+                        <tr key={idx} className="border-b border-gray-200">
+                          <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
+                          <td className="py-1">{pago.metodo}</td>
+                          <td className="py-1 text-right">
+                            ${Number(pago.monto).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Productos y Servicios */}
+          {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
+          (Array.isArray(venta.items) && venta.items.length > 0) ? (
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
+              <h3 className="font-semibold text-lg mb-4 ">
+                Productos y Servicios
+              </h3>
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-card border-b">
-                      <th className="text-left py-1">Fecha</th>
-                      <th className="text-left py-1">Método</th>
-                      <th className="text-right py-1">Monto</th>
-                      <th className="text-left py-1">Usuario</th>
+                      <th className="text-left p-3 font-medium">Producto</th>
+                      <th className="text-center p-3 font-medium">Cantidad</th>
+                      <th className="text-center p-3 font-medium">Unidad</th>
+                      <th className="text-right p-3 font-medium precio-empleado">
+                        Precio Unit.
+                      </th>
+                      <th className="text-right p-3 font-medium descuento-empleado">
+                        Descuento
+                      </th>
+                      <th className="text-right p-3 font-medium subtotal-empleado">
+                        Subtotal
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {venta.pagos.map((pago, idx) => (
-                      <tr key={idx} className="border-b border-gray-200">
-                        <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
-                        <td className="py-1">{pago.metodo}</td>
-                        <td className="py-1 text-right">
-                          ${Number(pago.monto).toFixed(2)}
+                    {(venta.productos || venta.items).map((producto, idx) => (
+                      <tr key={idx} className="border-b hover:bg-card">
+                        <td className="p-3 font-medium">
+                          {producto.descripcion ||
+                            producto.nombre ||
+                            "Producto sin nombre"}
+                          {/* Mostrar dimensiones y precio por pie para productos de madera */}
+                          {producto.categoria === "Maderas" && (
+                            <div className="mt-1">
+                              <div className="flex flex-wrap gap-2">
+                                <span>Alto: {producto.alto || 0} </span>
+                                <span>Ancho: {producto.ancho || 0} </span>
+                                <span>Largo: {producto.largo || 0} </span>
+                              </div>
+                              {/* Mostrar tipo de madera - buscado dinámicamente */}
+                              {getProductoCompleto(producto.id)?.tipoMadera && (
+                                <div className="mt-1 text-xs font-bold">
+                                  Tipo:{" "}
+                                  {getProductoCompleto(producto.id).tipoMadera}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
+                          {producto.categoria === "Ferretería" &&
+                            getProductoCompleto(producto.id)?.subCategoria && (
+                              <div className="mt-1 text-xs text-blue-600 font-medium">
+                                {getProductoCompleto(producto.id).subCategoria}
+                              </div>
+                            )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {Number(producto.cantidad)}
+                        </td>
+                        <td className="p-3 text-center">
+                          {producto.unidad || "-"}
+                        </td>
+                        <td className="p-3 text-right precio-empleado">
+                          ${formatearNumeroArgentino(Number(producto.precio))}
+                        </td>
+                        <td className="p-3 text-right descuento-empleado">
+                          {Number(producto.descuento || 0).toFixed(2)}%
+                        </td>
+                        <td className="p-3 text-right font-medium subtotal-empleado">
+                          $
+                          {formatearNumeroArgentino(
+                            Number(producto.precio) *
+                              Number(producto.cantidad) *
+                              (1 - Number(producto.descuento || 0) / 100)
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Productos y Servicios */}
-        {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
-        (Array.isArray(venta.items) && venta.items.length > 0) ? (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
-            <h3 className="font-semibold text-lg mb-4 ">
-              Productos y Servicios
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-card border-b">
-                    <th className="text-left p-3 font-medium">Producto</th>
-                    <th className="text-center p-3 font-medium">Cantidad</th>
-                    <th className="text-center p-3 font-medium">Unidad</th>
-                    <th className="text-right p-3 font-medium precio-empleado">
-                      Precio Unit.
-                    </th>
-                    <th className="text-right p-3 font-medium descuento-empleado">
-                      Descuento
-                    </th>
-                    <th className="text-right p-3 font-medium subtotal-empleado">
-                      Subtotal
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(venta.productos || venta.items).map((producto, idx) => (
-                    <tr key={idx} className="border-b hover:bg-card">
-                      <td className="p-3 font-medium">
-                        {producto.descripcion ||
-                          producto.nombre ||
-                          "Producto sin nombre"}
-                        {/* Mostrar dimensiones y precio por pie para productos de madera */}
-                        {producto.categoria === "Maderas" && (
-                          <div className="mt-1">
-                            <div className="flex flex-wrap gap-2">
-                              <span>Alto: {producto.alto || 0} </span>
-                              <span>Ancho: {producto.ancho || 0} </span>
-                              <span>Largo: {producto.largo || 0} </span>
-                            </div>
-                            {/* Mostrar tipo de madera - buscado dinámicamente */}
-                            {getProductoCompleto(producto.id)?.tipoMadera && (
-                              <div className="mt-1 text-xs font-bold">
-                                Tipo:{" "}
-                                {getProductoCompleto(producto.id).tipoMadera}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
-                        {producto.categoria === "Ferretería" &&
-                          getProductoCompleto(producto.id)?.subCategoria && (
-                            <div className="mt-1 text-xs text-blue-600 font-medium">
-                              {getProductoCompleto(producto.id).subCategoria}
-                            </div>
-                          )}
-                      </td>
-                      <td className="p-3 text-center">
-                        {Number(producto.cantidad)}
-                      </td>
-                      <td className="p-3 text-center">
-                        {producto.unidad || "-"}
-                      </td>
-                      <td className="p-3 text-right precio-empleado">
-                        ${formatearNumeroArgentino(Number(producto.precio))}
-                      </td>
-                      <td className="p-3 text-right descuento-empleado">
-                        {Number(producto.descuento || 0).toFixed(2)}%
-                      </td>
-                      <td className="p-3 text-right font-medium subtotal-empleado">
+              {/* Totales */}
+              <div className="mt-6 flex justify-end totales-section">
+                <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between subtotal-empleado">
+                      <span>Subtotal:</span>
+                      <span>
                         $
-                        {formatearNumeroArgentino(
-                          Number(producto.precio) *
-                            Number(producto.cantidad) *
-                            (1 - Number(producto.descuento || 0) / 100)
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Totales */}
-            <div className="mt-6 flex justify-end">
-              <div className="bg-card rounded-lg p-4 min-w-[300px]">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between subtotal-empleado">
-                    <span>Subtotal:</span>
-                    <span>
-                      $
-                      {Number(venta.subtotal || 0).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between descuento-empleado">
-                    <span>Descuento total:</span>
-                    <span>
-                      $
-                      {Number(venta.descuentoTotal || 0).toLocaleString(
-                        "es-AR",
-                        {
+                        {Number(venta.subtotal || 0).toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
-                        }
-                      )}
-                    </span>
-                  </div>
-                  {venta.costoEnvio !== undefined &&
-                    venta.costoEnvio !== "" &&
-                    !isNaN(Number(venta.costoEnvio)) &&
-                    Number(venta.costoEnvio) > 0 && (
-                      <div className="flex justify-between costo-envio-empleado">
-                        <span>Cotización de envío:</span>
-                        <span>
-                          $
-                          {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between descuento-empleado">
+                      <span>Descuento total:</span>
+                      <span>
+                        $
+                        {Number(venta.descuentoTotal || 0).toLocaleString(
+                          "es-AR",
+                          {
                             minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                    )}
-                  <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
-                    <span>Total:</span>
-                    <span className="text-primary">
-                      $
-                      {(
-                        Number(venta.subtotal || 0) -
-                        Number(venta.descuentoTotal || 0) +
-                        (Number(venta.costoEnvio) || 0)
-                      ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                    </span>
+                          }
+                        )}
+                      </span>
+                    </div>
+                    {venta.costoEnvio !== undefined &&
+                      venta.costoEnvio !== "" &&
+                      !isNaN(Number(venta.costoEnvio)) &&
+                      Number(venta.costoEnvio) > 0 && (
+                        <div className="flex justify-between costo-envio-empleado">
+                          <span>Cotización de envío:</span>
+                          <span>
+                            $
+                            {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
+                      <span>Total:</span>
+                      <span className="text-primary">
+                        $
+                        {(
+                          Number(venta.subtotal || 0) -
+                          Number(venta.descuentoTotal || 0) +
+                          (Number(venta.costoEnvio) || 0)
+                        ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {/* 5. Observaciones */}
-        {venta.observaciones && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-2">
-            <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
-            <p className="text-gray-700 whitespace-pre-wrap">
-              {venta.observaciones}
-            </p>
-          </div>
-        )}
+          {/* 5. Observaciones */}
+          {venta.observaciones && (
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-2">
+              <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
+              <p className="text-gray-700 whitespace-pre-wrap">
+                {venta.observaciones}
+              </p>
+            </div>
+          )}
 
-        {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
-        {editando && ventaEdit && (
-          <div className="flex flex-col gap-8 mt-8">
-            {/* Información de envío */}
-            <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold  mb-2">
-                Información de envío
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-medium">Tipo de envío</span>
-                  <select
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.tipoEnvio || ""}
-                    onChange={(e) => {
-                      const nuevoTipoEnvio = e.target.value;
-                      setVentaEdit((prev) => {
-                        const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
+          {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
+          {editando && ventaEdit && (
+            <div className="flex flex-col gap-8 mt-8">
+              {/* Información de envío */}
+              <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold  mb-2">
+                  Información de envío
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-sm font-medium">Tipo de envío</span>
+                    <select
+                      className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                      value={ventaEdit.tipoEnvio || ""}
+                      onChange={(e) => {
+                        const nuevoTipoEnvio = e.target.value;
+                        setVentaEdit((prev) => {
+                          const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
 
-                        // Si cambia de envío a retiro local, limpiar costo de envío
-                        if (nuevoTipoEnvio === "retiro_local") {
-                          updated.costoEnvio = "";
-                          updated.direccionEnvio = "";
-                          updated.localidadEnvio = "";
-                          updated.transportista = "";
-                          updated.rangoHorario = "";
-                          updated.prioridad = "";
-                        }
+                          // Si cambia de envío a retiro local, limpiar costo de envío
+                          if (nuevoTipoEnvio === "retiro_local") {
+                            updated.costoEnvio = "";
+                            updated.direccionEnvio = "";
+                            updated.localidadEnvio = "";
+                            updated.transportista = "";
+                            updated.rangoHorario = "";
+                            updated.prioridad = "";
+                          }
 
-                        // Si cambia de retiro local a envío, inicializar campos
-                        if (
-                          nuevoTipoEnvio !== "retiro_local" &&
-                          prev.tipoEnvio === "retiro_local"
-                        ) {
-                          updated.usarDireccionCliente = true;
-                          updated.costoEnvio = "0";
-                        }
+                          // Si cambia de retiro local a envío, inicializar campos
+                          if (
+                            nuevoTipoEnvio !== "retiro_local" &&
+                            prev.tipoEnvio === "retiro_local"
+                          ) {
+                            updated.usarDireccionCliente = true;
+                            updated.costoEnvio = "0";
+                          }
 
-                        return updated;
-                      });
-                    }}
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="retiro_local">Retiro en local</option>
-                    <option value="envio_domicilio">Envío a domicilio</option>
-                  </select>
-                </label>
-                {ventaEdit.tipoEnvio &&
-                  ventaEdit.tipoEnvio !== "retiro_local" && (
-                    <>
-                      <label className="block col-span-2">
-                        <span className="text-sm font-medium">
-                          ¿Usar dirección del cliente?
-                        </span>
-                        <input
-                          type="checkbox"
-                          className="ml-2"
-                          checked={ventaEdit.usarDireccionCliente !== false}
+                          return updated;
+                        });
+                      }}
+                    >
+                      <option value="">Selecciona...</option>
+                      <option value="retiro_local">Retiro en local</option>
+                      <option value="envio_domicilio">Envío a domicilio</option>
+                    </select>
+                  </label>
+                  {ventaEdit.tipoEnvio &&
+                    ventaEdit.tipoEnvio !== "retiro_local" && (
+                      <>
+                        <label className="block col-span-2">
+                          <span className="text-sm font-medium">
+                            ¿Usar dirección del cliente?
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="ml-2"
+                            checked={ventaEdit.usarDireccionCliente !== false}
+                            onChange={(e) =>
+                              setVentaEdit({
+                                ...ventaEdit,
+                                usarDireccionCliente: e.target.checked,
+                              })
+                            }
+                          />
+                        </label>
+                        {ventaEdit.usarDireccionCliente === false ? (
+                          <>
+                            <input
+                              className="border rounded px-2 py-2 w-full"
+                              value={ventaEdit.direccionEnvio || ""}
+                              onChange={(e) =>
+                                setVentaEdit({
+                                  ...ventaEdit,
+                                  direccionEnvio: e.target.value,
+                                })
+                              }
+                              placeholder="Dirección de envío"
+                            />
+                            <input
+                              className="border rounded px-2 py-2 w-full"
+                              value={ventaEdit.localidadEnvio || ""}
+                              onChange={(e) =>
+                                setVentaEdit({
+                                  ...ventaEdit,
+                                  localidadEnvio: e.target.value,
+                                })
+                              }
+                              placeholder="Localidad/Ciudad"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              className="border rounded px-2 py-2 w-full"
+                              value={ventaEdit.cliente?.direccion || ""}
+                              readOnly
+                              placeholder="Dirección del cliente"
+                            />
+                            <input
+                              className="border rounded px-2 py-2 w-full"
+                              value={ventaEdit.cliente?.localidad || ""}
+                              readOnly
+                              placeholder="Localidad del cliente"
+                            />
+                          </>
+                        )}
+                        <select
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.transportista || ""}
                           onChange={(e) =>
                             setVentaEdit({
                               ...ventaEdit,
-                              usarDireccionCliente: e.target.checked,
+                              transportista: e.target.value,
                             })
                           }
-                        />
-                      </label>
-                      {ventaEdit.usarDireccionCliente === false ? (
-                        <>
-                          <input
-                            className="border rounded px-2 py-2 w-full"
-                            value={ventaEdit.direccionEnvio || ""}
-                            onChange={(e) =>
-                              setVentaEdit({
-                                ...ventaEdit,
-                                direccionEnvio: e.target.value,
-                              })
-                            }
-                            placeholder="Dirección de envío"
-                          />
-                          <input
-                            className="border rounded px-2 py-2 w-full"
-                            value={ventaEdit.localidadEnvio || ""}
-                            onChange={(e) =>
-                              setVentaEdit({
-                                ...ventaEdit,
-                                localidadEnvio: e.target.value,
-                              })
-                            }
-                            placeholder="Localidad/Ciudad"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <input
-                            className="border rounded px-2 py-2 w-full"
-                            value={ventaEdit.cliente?.direccion || ""}
-                            readOnly
-                            placeholder="Dirección del cliente"
-                          />
-                          <input
-                            className="border rounded px-2 py-2 w-full"
-                            value={ventaEdit.cliente?.localidad || ""}
-                            readOnly
-                            placeholder="Localidad del cliente"
-                          />
-                        </>
-                      )}
-                      <select
-                        className="border rounded px-2 py-2 w-full"
-                        value={ventaEdit.transportista || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            transportista: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Transportista...</option>
-                        <option value="camion">camion</option>
-                        <option value="camioneta 1">camioneta 1</option>
-                        <option value="camioneta 2">camioneta 2</option>
-                      </select>
-                      <input
-                        className="border rounded px-2 py-2 w-full"
-                        value={ventaEdit.costoEnvio || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            costoEnvio: e.target.value,
-                          })
-                        }
-                        placeholder="Costo de envío"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                      />
-                      <input
-                        className="border rounded px-2 py-2 w-full"
-                        type="date"
-                        value={ventaEdit.fechaEntrega || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            fechaEntrega: e.target.value,
-                          })
-                        }
-                        placeholder="Fecha de entrega"
-                      />
-                      <input
-                        className="border rounded px-2 py-2 w-full"
-                        value={ventaEdit.rangoHorario || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            rangoHorario: e.target.value,
-                          })
-                        }
-                        placeholder="Rango horario (ej: 8-12, 14-18)"
-                      />
-                    </>
-                  )}
-                {/* Solo mostrar fecha de retiro si es retiro local */}
-                {ventaEdit.tipoEnvio === "retiro_local" && (
-                  <input
-                    className="border rounded px-2 py-2 w-full"
-                    type="date"
-                    value={ventaEdit.fechaEntrega || ""}
-                    onChange={(e) =>
-                      setVentaEdit({
-                        ...ventaEdit,
-                        fechaEntrega: e.target.value,
-                      })
-                    }
-                    placeholder="Fecha de retiro"
-                  />
-                )}
-              </div>
-            </section>
-
-            {/* Información adicional */}
-            <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-semibold  mb-2">
-                Información adicional
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-sm font-medium">
-                    Vendedor responsable
-                  </span>
-                  <input
-                    type="text"
-                    value={ventaEdit.vendedor || ""}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                    placeholder="Vendedor (no editable)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    El vendedor no se puede modificar una vez creada la venta
-                  </p>
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium">Prioridad</span>
-                  <select
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.prioridad || ""}
-                    onChange={(e) =>
-                      setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
-                    }
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
-                </label>
-                <label className="block col-span-2">
-                  <span className="text-sm font-medium">Observaciones</span>
-                  <textarea
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.observaciones || ""}
-                    onChange={(e) =>
-                      setVentaEdit({
-                        ...ventaEdit,
-                        observaciones: e.target.value,
-                      })
-                    }
-                    placeholder="Observaciones"
-                  />
-                </label>
-              </div>
-            </section>
-
-            {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
-            <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-              <h3 className="font-semibold text-lg mb-4 ">
-                Editar productos de la venta
-              </h3>
-              {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
-              <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
-                {/* Header con estadísticas */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <svg
-                          className="w-6 h-6 text-blue-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold ">Productos</h3>
-                        <p className="text-sm ">
-                          Selecciona los productos para tu venta
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {(ventaEdit.productos || []).length}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        productos agregados
-                      </div>
-                    </div>
-                  </div>
-                  {/* Filtros mejorados */}
-                  <div className="flex flex-col gap-3">
-                    {/* Filtro de categorías */}
-                    <div className="flex-1">
-                      <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                        {Array.from(
-                          new Set(productos.map((p) => p.categoria))
-                        ).map((categoria) => (
-                          <button
-                            key={categoria}
-                            type="button"
-                            className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                              categoriaId === categoria
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (categoriaId === categoria) {
-                                setCategoriaId("");
-                                setFiltroTipoMadera("");
-                                setFiltroSubCategoria("");
-                              } else {
-                                setCategoriaId(categoria);
-                                setFiltroTipoMadera("");
-                                setFiltroSubCategoria("");
-                              }
-                            }}
-                          >
-                            {categoria}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                          <option value="">Transportista...</option>
+                          <option value="camion">camion</option>
+                          <option value="camioneta 1">camioneta 1</option>
+                          <option value="camioneta 2">camioneta 2</option>
+                        </select>
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.costoEnvio || ""}
+                          onChange={(e) =>
+                            setVentaEdit({
+                              ...ventaEdit,
+                              costoEnvio: e.target.value,
+                            })
+                          }
+                          placeholder="Costo de envío"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          type="date"
+                          value={ventaEdit.fechaEntrega || ""}
+                          onChange={(e) =>
+                            setVentaEdit({
+                              ...ventaEdit,
+                              fechaEntrega: e.target.value,
+                            })
+                          }
+                          placeholder="Fecha de entrega"
+                        />
+                        <input
+                          className="border rounded px-2 py-2 w-full"
+                          value={ventaEdit.rangoHorario || ""}
+                          onChange={(e) =>
+                            setVentaEdit({
+                              ...ventaEdit,
+                              rangoHorario: e.target.value,
+                            })
+                          }
+                          placeholder="Rango horario (ej: 8-12, 14-18)"
+                        />
+                      </>
+                    )}
+                  {/* Solo mostrar fecha de retiro si es retiro local */}
+                  {ventaEdit.tipoEnvio === "retiro_local" && (
+                    <input
+                      className="border rounded px-2 py-2 w-full"
+                      type="date"
+                      value={ventaEdit.fechaEntrega || ""}
+                      onChange={(e) =>
+                        setVentaEdit({
+                          ...ventaEdit,
+                          fechaEntrega: e.target.value,
+                        })
+                      }
+                      placeholder="Fecha de retiro"
+                    />
+                  )}
+                </div>
+              </section>
 
-                    {/* Filtros específicos por categoría */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {/* Filtro de tipo de madera */}
-                      {categoriaId === "Maderas" && tiposMadera.length > 0 && (
-                        <div className="flex-1">
-                          <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                            <button
-                              type="button"
-                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                filtroTipoMadera === ""
-                                  ? "bg-orange-600 text-white"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                              onClick={() => setFiltroTipoMadera("")}
-                            >
-                              Todos los tipos
-                            </button>
-                            {tiposMadera.map((tipo) => (
-                              <button
-                                key={tipo}
-                                type="button"
-                                className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                  filtroTipoMadera === tipo
-                                    ? "bg-orange-600 text-white"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                                onClick={() => setFiltroTipoMadera(tipo)}
-                              >
-                                {tipo}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+              {/* Información adicional */}
+              <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-semibold  mb-2">
+                  Información adicional
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-sm font-medium">
+                      Vendedor responsable
+                    </span>
+                    <input
+                      type="text"
+                      value={ventaEdit.vendedor || ""}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                      placeholder="Vendedor (no editable)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      El vendedor no se puede modificar una vez creada la venta
+                    </p>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium">Prioridad</span>
+                    <select
+                      className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                      value={ventaEdit.prioridad || ""}
+                      onChange={(e) =>
+                        setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
+                      }
+                    >
+                      <option value="">Selecciona...</option>
+                      <option value="alta">Alta</option>
+                      <option value="media">Media</option>
+                      <option value="baja">Baja</option>
+                    </select>
+                  </label>
+                  <label className="block col-span-2">
+                    <span className="text-sm font-medium">Observaciones</span>
+                    <textarea
+                      className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                      value={ventaEdit.observaciones || ""}
+                      onChange={(e) =>
+                        setVentaEdit({
+                          ...ventaEdit,
+                          observaciones: e.target.value,
+                        })
+                      }
+                      placeholder="Observaciones"
+                    />
+                  </label>
+                </div>
+              </section>
 
-                      {/* Filtro de subcategoría de ferretería */}
-                      {categoriaId === "Ferretería" &&
-                        subCategoriasFerreteria.length > 0 && (
-                          <div className="flex-1">
-                            <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                              <button
-                                type="button"
-                                className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                  filtroSubCategoria === ""
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                                onClick={() => setFiltroSubCategoria("")}
-                              >
-                                Todas las subcategorías
-                              </button>
-                              {subCategoriasFerreteria.map((subCategoria) => (
-                                <button
-                                  key={subCategoria}
-                                  type="button"
-                                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                    filtroSubCategoria === subCategoria
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-gray-100 text-gray-700"
-                                  }`}
-                                  onClick={() =>
-                                    setFiltroSubCategoria(subCategoria)
-                                  }
-                                >
-                                  {subCategoria}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Buscador mejorado */}
-                      <div className="flex-1 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
+              <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+                <h3 className="font-semibold text-lg mb-4 ">
+                  Editar productos de la venta
+                </h3>
+                {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
+                <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
+                  {/* Header con estadísticas */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                           <svg
-                            className="h-5 w-5 text-gray-400"
+                            className="w-6 h-6 text-blue-600"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1886,113 +1790,138 @@ const VentaDetalle = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth="2"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                             />
                           </svg>
                         </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar productos..."
-                          value={busquedaProducto}
-                          onChange={(e) => setBusquedaProducto(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Lista de productos mejorada */}
-                <div className="max-h-96 overflow-y-auto">
-                  {(() => {
-                    console.log("=== DEBUG FILTRADO PRODUCTOS ===");
-                    console.log("productos:", productos);
-                    console.log("categoriaId:", categoriaId);
-                    console.log("busquedaProducto:", busquedaProducto);
-                    console.log("filtroTipoMadera:", filtroTipoMadera);
-                    console.log("filtroSubCategoria:", filtroSubCategoria);
-
-                    const productosPorCategoria = {};
-                    productos.forEach((p) => {
-                      if (!productosPorCategoria[p.categoria])
-                        productosPorCategoria[p.categoria] = [];
-                      productosPorCategoria[p.categoria].push(p);
-                    });
-
-                    console.log(
-                      "productosPorCategoria:",
-                      productosPorCategoria
-                    );
-                    console.log(
-                      "productosPorCategoria[categoriaId]:",
-                      productosPorCategoria[categoriaId]
-                    );
-
-                    if (!categoriaId) {
-                      return (
-                        <div className="p-8 text-center">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-8 h-8 text-blue-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                          </div>
-                          <h3 className="text-lg font-medium  mb-2">
-                            Selecciona una categoría
-                          </h3>
-                          <p className="text-gray-500">
-                            Elige una categoría para ver los productos
-                            disponibles
+                        <div>
+                          <h3 className="text-lg font-semibold ">Productos</h3>
+                          <p className="text-sm ">
+                            Selecciona los productos para tu venta
                           </p>
                         </div>
-                      );
-                    }
-                    const productosFiltrados =
-                      productosPorCategoria[categoriaId]?.filter((prod) => {
-                        // Filtro por búsqueda de texto
-                        const cumpleBusqueda =
-                          prod.nombre
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase()) ||
-                          (prod.unidadMedida || "")
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase());
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {(ventaEdit.productos || []).length}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          productos agregados
+                        </div>
+                      </div>
+                    </div>
+                    {/* Filtros mejorados */}
+                    <div className="flex flex-col gap-3">
+                      {/* Filtro de categorías */}
+                      <div className="flex-1">
+                        <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                          {Array.from(
+                            new Set(productos.map((p) => p.categoria))
+                          ).map((categoria) => (
+                            <button
+                              key={categoria}
+                              type="button"
+                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                categoriaId === categoria
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (categoriaId === categoria) {
+                                  setCategoriaId("");
+                                  setFiltroTipoMadera("");
+                                  setFiltroSubCategoria("");
+                                } else {
+                                  setCategoriaId(categoria);
+                                  setFiltroTipoMadera("");
+                                  setFiltroSubCategoria("");
+                                }
+                              }}
+                            >
+                              {categoria}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                        // Filtro específico por tipo de madera
-                        const cumpleTipoMadera =
-                          categoriaId !== "Maderas" ||
-                          filtroTipoMadera === "" ||
-                          prod.tipoMadera === filtroTipoMadera;
+                      {/* Filtros específicos por categoría */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Filtro de tipo de madera */}
+                        {categoriaId === "Maderas" && tiposMadera.length > 0 && (
+                          <div className="flex-1">
+                            <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                              <button
+                                type="button"
+                                className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                  filtroTipoMadera === ""
+                                    ? "bg-orange-600 text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                                onClick={() => setFiltroTipoMadera("")}
+                              >
+                                Todos los tipos
+                              </button>
+                              {tiposMadera.map((tipo) => (
+                                <button
+                                  key={tipo}
+                                  type="button"
+                                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                    filtroTipoMadera === tipo
+                                      ? "bg-orange-600 text-white"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                  onClick={() => setFiltroTipoMadera(tipo)}
+                                >
+                                  {tipo}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                        // Filtro específico por subcategoría de ferretería
-                        const cumpleSubCategoria =
-                          categoriaId !== "Ferretería" ||
-                          filtroSubCategoria === "" ||
-                          prod.subCategoria === filtroSubCategoria;
+                        {/* Filtro de subcategoría de ferretería */}
+                        {categoriaId === "Ferretería" &&
+                          subCategoriasFerreteria.length > 0 && (
+                            <div className="flex-1">
+                              <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                                <button
+                                  type="button"
+                                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                    filtroSubCategoria === ""
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                  onClick={() => setFiltroSubCategoria("")}
+                                >
+                                  Todas las subcategorías
+                                </button>
+                                {subCategoriasFerreteria.map((subCategoria) => (
+                                  <button
+                                    key={subCategoria}
+                                    type="button"
+                                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                                      filtroSubCategoria === subCategoria
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() =>
+                                      setFiltroSubCategoria(subCategoria)
+                                    }
+                                  >
+                                    {subCategoria}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-                        return (
-                          cumpleBusqueda &&
-                          cumpleTipoMadera &&
-                          cumpleSubCategoria
-                        );
-                      }) || [];
-
-                    console.log("productosFiltrados:", productosFiltrados);
-
-                    if (productosFiltrados.length === 0) {
-                      return (
-                        <div className="p-8 text-center">
-                          <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+                        {/* Buscador mejorado */}
+                        <div className="flex-1 relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg
-                              className="w-8 h-8 text-yellow-600"
+                              className="h-5 w-5 text-gray-400"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -2005,462 +1934,616 @@ const VentaDetalle = () => {
                               />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-medium  mb-2">
-                            No se encontraron productos
-                          </h3>
-                          <p className="text-gray-500">
-                            Intenta cambiar los filtros o la búsqueda
-                          </p>
+                          <input
+                            type="text"
+                            placeholder="Buscar productos..."
+                            value={busquedaProducto}
+                            onChange={(e) => setBusquedaProducto(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                          />
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Lista de productos mejorada */}
+                  <div className="max-h-96 overflow-y-auto">
+                    {(() => {
+                      console.log("=== DEBUG FILTRADO PRODUCTOS ===");
+                      console.log("productos:", productos);
+                      console.log("categoriaId:", categoriaId);
+                      console.log("busquedaProducto:", busquedaProducto);
+                      console.log("filtroTipoMadera:", filtroTipoMadera);
+                      console.log("filtroSubCategoria:", filtroSubCategoria);
+
+                      const productosPorCategoria = {};
+                      productos.forEach((p) => {
+                        if (!productosPorCategoria[p.categoria])
+                          productosPorCategoria[p.categoria] = [];
+                        productosPorCategoria[p.categoria].push(p);
+                      });
+
+                      console.log(
+                        "productosPorCategoria:",
+                        productosPorCategoria
                       );
-                    }
-                    return (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                        {productosFiltrados.map((prod) => {
-                          const yaAgregado = (ventaEdit.productos || []).some(
-                            (p) => p.id === prod.id
-                          );
+                      console.log(
+                        "productosPorCategoria[categoriaId]:",
+                        productosPorCategoria[categoriaId]
+                      );
+
+                      if (!categoriaId) {
+                        return (
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-8 h-8 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-medium  mb-2">
+                              Selecciona una categoría
+                            </h3>
+                            <p className="text-gray-500">
+                              Elige una categoría para ver los productos
+                              disponibles
+                            </p>
+                          </div>
+                        );
+                      }
+                      const productosFiltrados =
+                        productosPorCategoria[categoriaId]?.filter((prod) => {
+                          // Filtro por búsqueda de texto
+                          const cumpleBusqueda =
+                            prod.nombre
+                              .toLowerCase()
+                              .includes(busquedaProducto.toLowerCase()) ||
+                            (prod.unidadMedida || "")
+                              .toLowerCase()
+                              .includes(busquedaProducto.toLowerCase());
+
+                          // Filtro específico por tipo de madera
+                          const cumpleTipoMadera =
+                            categoriaId !== "Maderas" ||
+                            filtroTipoMadera === "" ||
+                            prod.tipoMadera === filtroTipoMadera;
+
+                          // Filtro específico por subcategoría de ferretería
+                          const cumpleSubCategoria =
+                            categoriaId !== "Ferretería" ||
+                            filtroSubCategoria === "" ||
+                            prod.subCategoria === filtroSubCategoria;
+
                           return (
-                            <div
-                              key={prod.id}
-                              className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                                yaAgregado
-                                  ? "border-green-200 bg-green-50"
-                                  : "border-gray-200 hover:border-blue-300"
-                              }`}
-                            >
-                              <div className="p-4 flex-1 flex flex-col">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
-                                        {prod.categoria === "Maderas"
-                                          ? "🌲"
-                                          : "🔧"}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-semibold  truncate">
-                                          {prod.nombre}
-                                        </h4>
-                                        {/* Información específica por categoría - buscada dinámicamente desde la BD */}
-                                        {prod.categoria === "Maderas" &&
-                                          getProductoCompleto(prod.id)
-                                            ?.tipoMadera && (
-                                            <div className="flex items-center gap-1 mt-1">
-                                              <span className="text-xs text-orange-600 font-medium">
-                                                🌲{" "}
-                                                {
-                                                  getProductoCompleto(prod.id)
-                                                    .tipoMadera
-                                                }
-                                              </span>
-                                            </div>
-                                          )}
-                                        {prod.categoria === "Ferretería" &&
-                                          getProductoCompleto(prod.id)
-                                            ?.subCategoria && (
-                                            <div className="flex items-center gap-1 mt-1">
-                                              <span className="text-xs text-blue-600 font-medium">
-                                                🔧{" "}
-                                                {
-                                                  getProductoCompleto(prod.id)
-                                                    .subCategoria
-                                                }
-                                              </span>
-                                            </div>
-                                          )}
-                                        {prod.categoria === "Maderas" && (
-                                          <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                            <span className="font-medium text-gray-500">
-                                              Dimensiones:
-                                            </span>
-                                            <span>
-                                              Alto:{" "}
-                                              <span className="font-bold">
-                                                {prod.alto}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Ancho:{" "}
-                                              <span className="font-bold">
-                                                {prod.ancho}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Largo:{" "}
-                                              <span className="font-bold">
-                                                {prod.largo}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              $/pie:{" "}
-                                              <div className="inline-flex items-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  min="0"
-                                                  step="0.01"
-                                                  value={prod.precioPorPie}
-                                                  onChange={(e) =>
-                                                    handlePrecioPorPieChange(
-                                                      prod.id,
-                                                      e.target.value
-                                                    )
+                            cumpleBusqueda &&
+                            cumpleTipoMadera &&
+                            cumpleSubCategoria
+                          );
+                        }) || [];
+
+                      console.log("productosFiltrados:", productosFiltrados);
+
+                      if (productosFiltrados.length === 0) {
+                        return (
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-8 h-8 text-yellow-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                              </svg>
+                            </div>
+                            <h3 className="text-lg font-medium  mb-2">
+                              No se encontraron productos
+                            </h3>
+                            <p className="text-gray-500">
+                              Intenta cambiar los filtros o la búsqueda
+                            </p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+                          {productosFiltrados.map((prod) => {
+                            const yaAgregado = (ventaEdit.productos || []).some(
+                              (p) => p.id === prod.id
+                            );
+                            return (
+                              <div
+                                key={prod.id}
+                                className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
+                                  yaAgregado
+                                    ? "border-green-200 bg-green-50"
+                                    : "border-gray-200 hover:border-blue-300"
+                                }`}
+                              >
+                                <div className="p-4 flex-1 flex flex-col">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
+                                          {prod.categoria === "Maderas"
+                                            ? "🌲"
+                                            : "🔧"}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <h4 className="text-sm font-semibold  truncate">
+                                            {prod.nombre}
+                                          </h4>
+                                          {/* Información específica por categoría - buscada dinámicamente desde la BD */}
+                                          {prod.categoria === "Maderas" &&
+                                            getProductoCompleto(prod.id)
+                                              ?.tipoMadera && (
+                                              <div className="flex items-center gap-1 mt-1">
+                                                <span className="text-xs text-orange-600 font-medium">
+                                                  🌲{" "}
+                                                  {
+                                                    getProductoCompleto(prod.id)
+                                                      .tipoMadera
                                                   }
-                                                  className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                                  disabled={loadingPrecios}
-                                                  placeholder="0.00"
-                                                  title="Editar precio por pie"
-                                                />
-                                                <svg
-                                                  className="w-3 h-3 text-blue-500"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                  />
-                                                </svg>
+                                                </span>
                                               </div>
-                                            </span>
-                                            {prod.stock <= 0 && (
-                                              <span className="text-red-600 font-semibold ml-2">
-                                                ¡Sin stock! Se permitirá avanzar
-                                                igual.
-                                              </span>
                                             )}
-                                            {prod.stock > 0 &&
-                                              prod.stock <= 3 && (
-                                                <span className="text-yellow-600 font-semibold ml-2">
-                                                  Stock bajo: quedan{" "}
-                                                  {prod.stock} unidades.
+                                          {prod.categoria === "Ferretería" &&
+                                            getProductoCompleto(prod.id)
+                                              ?.subCategoria && (
+                                              <div className="flex items-center gap-1 mt-1">
+                                                <span className="text-xs text-blue-600 font-medium">
+                                                  🔧{" "}
+                                                  {
+                                                    getProductoCompleto(prod.id)
+                                                      .subCategoria
+                                                  }
+                                                </span>
+                                              </div>
+                                            )}
+                                          {prod.categoria === "Maderas" && (
+                                            <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                              <span className="font-medium text-gray-500">
+                                                Dimensiones:
+                                              </span>
+                                              <span>
+                                                Alto:{" "}
+                                                <span className="font-bold">
+                                                  {prod.alto}
+                                                </span>{" "}
+                                              </span>
+                                              <span>
+                                                Ancho:{" "}
+                                                <span className="font-bold">
+                                                  {prod.ancho}
+                                                </span>{" "}
+                                              </span>
+                                              <span>
+                                                Largo:{" "}
+                                                <span className="font-bold">
+                                                  {prod.largo}
+                                                </span>{" "}
+                                              </span>
+                                              <span>
+                                                $/pie:{" "}
+                                                <div className="inline-flex items-center gap-1">
+                                                  <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={prod.precioPorPie}
+                                                    onChange={(e) =>
+                                                      handlePrecioPorPieChange(
+                                                        prod.id,
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                                    disabled={loadingPrecios}
+                                                    placeholder="0.00"
+                                                    title="Editar precio por pie"
+                                                  />
+                                                  <svg
+                                                    className="w-3 h-3 text-blue-500"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth="2"
+                                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                    />
+                                                  </svg>
+                                                </div>
+                                              </span>
+                                              {prod.stock <= 0 && (
+                                                <span className="text-red-600 font-semibold ml-2">
+                                                  ¡Sin stock! Se permitirá avanzar
+                                                  igual.
                                                 </span>
                                               )}
+                                              {prod.stock > 0 &&
+                                                prod.stock <= 3 && (
+                                                  <span className="text-yellow-600 font-semibold ml-2">
+                                                    Stock bajo: quedan{" "}
+                                                    {prod.stock} unidades.
+                                                  </span>
+                                                )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        {yaAgregado && (
+                                          <div className="flex items-center gap-1 text-green-600">
+                                            <svg
+                                              className="w-4 h-4"
+                                              fill="currentColor"
+                                              viewBox="0 0 20 20"
+                                            >
+                                              <path
+                                                fillRule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clipRule="evenodd"
+                                              />
+                                            </svg>
+                                            <span className="text-xs font-medium">
+                                              Agregado
+                                            </span>
                                           </div>
                                         )}
                                       </div>
-                                      {yaAgregado && (
-                                        <div className="flex items-center gap-1 text-green-600">
-                                          <svg
-                                            className="w-4 h-4"
-                                            fill="currentColor"
-                                            viewBox="0 0 20 20"
-                                          >
-                                            <path
-                                              fillRule="evenodd"
-                                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                              clipRule="evenodd"
-                                            />
-                                          </svg>
-                                          <span className="text-xs font-medium">
-                                            Agregado
+                                      <div className="grid grid-cols-2 gap-4 text-xs ">
+                                        <div>
+                                          <span className="font-medium">
+                                            Precio:
+                                          </span>
+                                          <span className="ml-1 font-bold text-blue-600">
+                                            $
+                                            {prod.precioPorPie ||
+                                              prod.valorVenta ||
+                                              prod.precioUnidad ||
+                                              0}
                                           </span>
                                         </div>
-                                      )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 text-xs ">
-                                      <div>
-                                        <span className="font-medium">
-                                          Precio:
-                                        </span>
-                                        <span className="ml-1 font-bold text-blue-600">
-                                          $
-                                          {prod.precioPorPie ||
-                                            prod.valorVenta ||
-                                            prod.precioUnidad ||
-                                            0}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="font-medium">
-                                          Unidad:
-                                        </span>
-                                        <span className="ml-1">
-                                          {prod.unidadMedida ||
-                                            prod.unidadVenta ||
-                                            prod.unidadVentaHerraje ||
-                                            prod.unidadVentaQuimico ||
-                                            prod.unidadVentaHerramienta}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="font-medium">
-                                          Stock:
-                                        </span>
-                                        <span
-                                          className={`ml-1 font-bold ${
-                                            prod.stock > 10
-                                              ? "text-green-600"
-                                              : prod.stock > 0
-                                              ? "text-yellow-600"
-                                              : "text-red-600"
-                                          }`}
-                                        >
-                                          {prod.stock}
-                                        </span>
+                                        <div>
+                                          <span className="font-medium">
+                                            Unidad:
+                                          </span>
+                                          <span className="ml-1">
+                                            {prod.unidadMedida ||
+                                              prod.unidadVenta ||
+                                              prod.unidadVentaHerraje ||
+                                              prod.unidadVentaQuimico ||
+                                              prod.unidadVentaHerramienta}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                            Stock:
+                                          </span>
+                                          <span
+                                            className={`ml-1 font-bold ${
+                                              prod.stock > 10
+                                                ? "text-green-600"
+                                                : prod.stock > 0
+                                                ? "text-yellow-600"
+                                                : "text-red-600"
+                                            }`}
+                                          >
+                                            {prod.stock}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                {/* Controles de acción al final */}
-                                <div className="mt-auto">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
+                                  {/* Controles de acción al final */}
+                                  <div className="mt-auto">
+                                    {yaAgregado ? (
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map((p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad: Math.max(
+                                                        1,
+                                                        p.cantidad - 1
+                                                      ),
+                                                    }
+                                                  : p
+                                              ),
+                                            }))
+                                          }
+                                          disabled={
+                                            ventaEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad <= 1
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                        >
+                                          -
+                                        </button>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          value={
+                                            ventaEdit.productos.find(
+                                              (p) => p.id === prod.id
+                                            )?.cantidad || 1
+                                          }
+                                          onChange={(e) =>
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map((p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad: Number(
+                                                        e.target.value
+                                                      ),
+                                                    }
+                                                  : p
+                                              ),
+                                            }))
+                                          }
+                                          className="w-12 text-center border rounded"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.map((p) =>
+                                                p.id === prod.id
+                                                  ? {
+                                                      ...p,
+                                                      cantidad: p.cantidad + 1,
+                                                    }
+                                                  : p
+                                              ),
+                                            }))
+                                          }
+                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                        >
+                                          +
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: prev.productos.filter(
+                                                (p) => p.id !== prod.id
+                                              ),
+                                            }))
+                                          }
+                                          className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    ) : (
                                       <button
                                         type="button"
                                         onClick={() =>
                                           setVentaEdit((prev) => ({
                                             ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: Math.max(
-                                                      1,
-                                                      p.cantidad - 1
-                                                    ),
-                                                  }
-                                                : p
-                                            ),
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio:
+                                                  prod.precioPorPie ||
+                                                  prod.valorVenta ||
+                                                  prod.precioUnidad ||
+                                                  0,
+                                                unidad:
+                                                  prod.unidadMedida ||
+                                                  prod.unidadVenta ||
+                                                  prod.unidadVentaHerraje ||
+                                                  prod.unidadVentaQuimico ||
+                                                  prod.unidadVentaHerramienta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                                alto: Number(prod.alto) || 0,
+                                                ancho: Number(prod.ancho) || 0,
+                                                largo: Number(prod.largo) || 0,
+                                                precioPorPie:
+                                                  Number(prod.precioPorPie) || 0,
+                                                cepilladoAplicado: false, // Agregar propiedad por defecto
+                                                tipoMadera: prod.tipoMadera || "",
+                                                subCategoria:
+                                                  prod.subCategoria || "",
+                                              },
+                                            ],
                                           }))
                                         }
-                                        disabled={
-                                          ventaEdit.productos.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad <= 1
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                                        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                                       >
-                                        -
+                                        Agregar
                                       </button>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                          ventaEdit.productos.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad || 1
-                                        }
-                                        onChange={(e) =>
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: Number(
-                                                      e.target.value
-                                                    ),
-                                                  }
-                                                : p
-                                            ),
-                                          }))
-                                        }
-                                        className="w-12 text-center border rounded"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: p.cantidad + 1,
-                                                  }
-                                                : p
-                                            ),
-                                          }))
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                      >
-                                        +
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: prev.productos.filter(
-                                              (p) => p.id !== prod.id
-                                            ),
-                                          }))
-                                        }
-                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setVentaEdit((prev) => ({
-                                          ...prev,
-                                          productos: [
-                                            ...(prev.productos || []),
-                                            {
-                                              id: prod.id,
-                                              nombre: prod.nombre,
-                                              precio:
-                                                prod.precioPorPie ||
-                                                prod.valorVenta ||
-                                                prod.precioUnidad ||
-                                                0,
-                                              unidad:
-                                                prod.unidadMedida ||
-                                                prod.unidadVenta ||
-                                                prod.unidadVentaHerraje ||
-                                                prod.unidadVentaQuimico ||
-                                                prod.unidadVentaHerramienta,
-                                              stock: prod.stock,
-                                              cantidad: 1,
-                                              descuento: 0,
-                                              categoria: prod.categoria,
-                                              alto: Number(prod.alto) || 0,
-                                              ancho: Number(prod.ancho) || 0,
-                                              largo: Number(prod.largo) || 0,
-                                              precioPorPie:
-                                                Number(prod.precioPorPie) || 0,
-                                              cepilladoAplicado: false, // Agregar propiedad por defecto
-                                              tipoMadera: prod.tipoMadera || "",
-                                              subCategoria:
-                                                prod.subCategoria || "",
-                                            },
-                                          ],
-                                        }))
-                                      }
-                                      className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    >
-                                      Agregar
-                                    </button>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </section>
-
-              {/* Tabla de productos seleccionados en modo edición */}
-              {(ventaEdit.productos || []).length > 0 && (
-                <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm mt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-default-900">
-                      Productos Seleccionados
-                    </h3>
-                    <span className="text-sm text-default-600">
-                      {(ventaEdit.productos || []).length} producto
-                      {(ventaEdit.productos || []).length !== 1 ? "s" : ""}
-                    </span>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
+                </section>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full caption-top text-sm overflow-hidden">
-                      <thead className="[&_tr]:border-b bg-default-">
-                        <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Categoría
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Producto
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Cant.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Precio unit.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Desc.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Subtotal
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Cepillado
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Acción
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(ventaEdit.productos || []).map((p, idx) => (
-                          <tr
-                            key={p.id}
-                            className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
-                          >
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              {p.categoria}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <div className="font-semibold text-default-900">
-                                {p.nombre}
-                              </div>
-                              {/* Información específica por categoría */}
-                              {p.categoria === "Maderas" && p.tipoMadera && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <span className="text-xs text-orange-600 font-medium">
-                                    🌲 {p.tipoMadera}
-                                  </span>
+                {/* Tabla de productos seleccionados en modo edición */}
+                {(ventaEdit.productos || []).length > 0 && (
+                  <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm mt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-default-900">
+                        Productos Seleccionados
+                      </h3>
+                      <span className="text-sm text-default-600">
+                        {(ventaEdit.productos || []).length} producto
+                        {(ventaEdit.productos || []).length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full caption-top text-sm overflow-hidden">
+                        <thead className="[&_tr]:border-b bg-default-">
+                          <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Categoría
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Producto
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Cant.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Precio unit.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Desc.
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Subtotal
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Cepillado
+                            </th>
+                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              Acción
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(ventaEdit.productos || []).map((p, idx) => (
+                            <tr
+                              key={p.id}
+                              className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
+                            >
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                {p.categoria}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                <div className="font-semibold text-default-900">
+                                  {p.nombre}
                                 </div>
-                              )}
-                              {p.categoria === "Ferretería" &&
-                                p.subCategoria && (
+                                {/* Información específica por categoría */}
+                                {p.categoria === "Maderas" && p.tipoMadera && (
                                   <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-xs text-blue-600 font-medium">
-                                      🔧 {p.subCategoria}
+                                    <span className="text-xs text-orange-600 font-medium">
+                                      🌲 {p.tipoMadera}
                                     </span>
                                   </div>
                                 )}
-                              {p.categoria === "Maderas" && (
-                                <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                  <span className="font-medium text-gray-500">
-                                    Dimensiones:
-                                  </span>
-                                  <span>
-                                    Alto:{" "}
-                                    <span className="font-bold">{p.alto}</span>{" "}
-                                  </span>
-                                  <span>
-                                    Ancho:{" "}
-                                    <span className="font-bold">{p.ancho}</span>{" "}
-                                  </span>
-                                  <span>
-                                    Largo:{" "}
-                                    <span className="font-bold">{p.largo}</span>{" "}
-                                  </span>
-                                  <span>
-                                    $/pie:{" "}
-                                    <div className="inline-flex items-center gap-1">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={p.precioPorPie}
-                                        onChange={(e) =>
-                                          handlePrecioPorPieChange(
-                                            p.id,
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                        disabled={loadingPrecios}
-                                        placeholder="0.00"
-                                        title="Editar precio por pie"
-                                      />
+                                {p.categoria === "Ferretería" &&
+                                  p.subCategoria && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🔧 {p.subCategoria}
+                                      </span>
+                                    </div>
+                                  )}
+                                {p.categoria === "Maderas" && (
+                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                    <span className="font-medium text-gray-500">
+                                      Dimensiones:
+                                    </span>
+                                    <span>
+                                      Alto:{" "}
+                                      <span className="font-bold">{p.alto}</span>{" "}
+                                    </span>
+                                    <span>
+                                      Ancho:{" "}
+                                      <span className="font-bold">{p.ancho}</span>{" "}
+                                    </span>
+                                    <span>
+                                      Largo:{" "}
+                                      <span className="font-bold">{p.largo}</span>{" "}
+                                    </span>
+                                    <span>
+                                      $/pie:{" "}
+                                      <div className="inline-flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.precioPorPie}
+                                          onChange={(e) =>
+                                            handlePrecioPorPieChange(
+                                              p.id,
+                                              e.target.value
+                                            )
+                                          }
+                                          className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                          disabled={loadingPrecios}
+                                          placeholder="0.00"
+                                          title="Editar precio por pie"
+                                        />
+                                        <svg
+                                          className="w-3 h-3 text-blue-500"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          />
+                                        </svg>
+                                      </div>
+                                    </span>
+                                    {p.stock <= 0 && (
+                                      <span className="text-red-600 font-semibold ml-2">
+                                        ¡Sin stock! Se permitirá avanzar igual.
+                                      </span>
+                                    )}
+                                    {p.stock > 0 && p.stock <= 3 && (
+                                      <span className="text-yellow-600 font-semibold ml-2">
+                                        Stock bajo: quedan {p.stock} unidades.
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDecrementarCantidad(p.id)
+                                      }
+                                      disabled={loadingPrecios || p.cantidad <= 1}
+                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                    >
                                       <svg
-                                        className="w-3 h-3 text-blue-500"
+                                        className="w-4 h-4"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -2469,421 +2552,383 @@ const VentaDetalle = () => {
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
                                           strokeWidth="2"
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          d="M20 12H4"
                                         />
                                       </svg>
-                                    </div>
-                                  </span>
-                                  {p.stock <= 0 && (
-                                    <span className="text-red-600 font-semibold ml-2">
-                                      ¡Sin stock! Se permitirá avanzar igual.
-                                    </span>
-                                  )}
-                                  {p.stock > 0 && p.stock <= 3 && (
-                                    <span className="text-yellow-600 font-semibold ml-2">
-                                      Stock bajo: quedan {p.stock} unidades.
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <div className="flex items-center justify-center">
-                                <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDecrementarCantidad(p.id)
-                                    }
-                                    disabled={loadingPrecios || p.cantidad <= 1}
-                                    className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M20 12H4"
-                                      />
-                                    </svg>
-                                  </button>
+                                    </button>
 
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={p.cantidad}
-                                    onChange={(e) =>
-                                      handleCantidadChange(p.id, e.target.value)
-                                    }
-                                    className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
-                                    disabled={loadingPrecios}
-                                  />
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={p.cantidad}
+                                      onChange={(e) =>
+                                        handleCantidadChange(p.id, e.target.value)
+                                      }
+                                      className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                      disabled={loadingPrecios}
+                                    />
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleIncrementarCantidad(p.id)
-                                    }
-                                    disabled={loadingPrecios}
-                                    className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleIncrementarCantidad(p.id)
+                                      }
+                                      disabled={loadingPrecios}
+                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M12 4v16m8-8H4"
-                                      />
-                                    </svg>
-                                  </button>
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth="2"
+                                          d="M12 4v16m8-8H4"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              ${formatearNumeroArgentino(p.precio)}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={p.descuento || 0}
-                                onChange={(e) =>
-                                  handleDescuentoChange(p.id, e.target.value)
-                                }
-                                className="w-20 mx-auto text-center border rounded px-2 py-1"
-                                disabled={loadingPrecios}
-                              />
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                              $
-                              {formatearNumeroArgentino(
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                ${formatearNumeroArgentino(p.precio)}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={p.descuento || 0}
+                                  onChange={(e) =>
+                                    handleDescuentoChange(p.id, e.target.value)
+                                  }
+                                  className="w-20 mx-auto text-center border rounded px-2 py-1"
+                                  disabled={loadingPrecios}
+                                />
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
+                                $
+                                {formatearNumeroArgentino(
+                                  Number(p.precio) *
+                                    Number(p.cantidad) *
+                                    (1 - Number(p.descuento || 0) / 100)
+                                )}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                {p.categoria === "Maderas" ? (
+                                  <div className="flex items-center justify-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={p.cepilladoAplicado || false}
+                                      onChange={(e) => {
+                                        recalcularPreciosMadera(
+                                          p.id,
+                                          e.target.checked
+                                        );
+                                      }}
+                                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                      disabled={loadingPrecios}
+                                      title="Aplicar cepillado (+6.6%)"
+                                    />
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuitarProducto(p.id)}
+                                  disabled={loadingPrecios}
+                                  className="text-lg font-bold text-red-500 hover:text-red-700"
+                                  title="Quitar producto"
+                                >
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                {/* Totales y botones por debajo de la tabla */}
+                {(ventaEdit.productos || []).length > 0 && (
+                  <div className="flex flex-col items-end gap-2 mt-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                      <div>
+                        Subtotal:{" "}
+                        <span className="font-bold">
+                          $
+                          {ventaEdit.productos
+                            .reduce(
+                              (acc, p) =>
+                                acc + Number(p.precio) * Number(p.cantidad),
+                              0
+                            )
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        Descuento:{" "}
+                        <span className="font-bold">
+                          $
+                          {ventaEdit.productos
+                            .reduce(
+                              (acc, p) =>
+                                acc +
                                 Number(p.precio) *
                                   Number(p.cantidad) *
-                                  (1 - Number(p.descuento || 0) / 100)
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              {p.categoria === "Maderas" ? (
-                                <div className="flex items-center justify-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={p.cepilladoAplicado || false}
-                                    onChange={(e) => {
-                                      recalcularPreciosMadera(
-                                        p.id,
-                                        e.target.checked
-                                      );
-                                    }}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    disabled={loadingPrecios}
-                                    title="Aplicar cepillado (+6.6%)"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <button
-                                type="button"
-                                onClick={() => handleQuitarProducto(p.id)}
-                                disabled={loadingPrecios}
-                                className="text-lg font-bold text-red-500 hover:text-red-700"
-                                title="Quitar producto"
-                              >
-                                ×
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              )}
-
-              {/* Totales y botones por debajo de la tabla */}
-              {(ventaEdit.productos || []).length > 0 && (
-                <div className="flex flex-col items-end gap-2 mt-4">
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                    <div>
-                      Subtotal:{" "}
-                      <span className="font-bold">
-                        $
-                        {ventaEdit.productos
-                          .reduce(
-                            (acc, p) =>
-                              acc + Number(p.precio) * Number(p.cantidad),
-                            0
-                          )
-                          .toFixed(2)}
-                      </span>
-                    </div>
-                    <div>
-                      Descuento:{" "}
-                      <span className="font-bold">
-                        $
-                        {ventaEdit.productos
-                          .reduce(
-                            (acc, p) =>
-                              acc +
-                              Number(p.precio) *
-                                Number(p.cantidad) *
-                                (Number(p.descuento || 0) / 100),
-                            0
-                          )
-                          .toFixed(2)}
-                      </span>
-                    </div>
-                    {ventaEdit.tipoEnvio &&
-                      ventaEdit.tipoEnvio !== "retiro_local" &&
-                      Number(ventaEdit.costoEnvio) > 0 && (
-                        <div>
-                          Costo de envío:{" "}
-                          <span className="font-bold">
-                            ${Number(ventaEdit.costoEnvio).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    <div>
-                      Total:{" "}
-                      <span className="font-bold text-primary">
-                        $
-                        {(
-                          ventaEdit.productos.reduce(
-                            (acc, p) =>
-                              acc + Number(p.precio) * Number(p.cantidad),
-                            0
-                          ) -
-                          ventaEdit.productos.reduce(
-                            (acc, p) =>
-                              acc +
-                              Number(p.precio) *
-                                Number(p.cantidad) *
-                                (Number(p.descuento || 0) / 100),
-                            0
-                          ) +
-                          (ventaEdit.tipoEnvio &&
-                          ventaEdit.tipoEnvio !== "retiro_local"
-                            ? Number(ventaEdit.costoEnvio) || 0
-                            : 0)
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(() => {
-                // Calcula el saldo pendiente en modo edición con lógica mejorada
-                const subtotal = (ventaEdit.productos || []).reduce(
-                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-                  0
-                );
-                const descuento = (ventaEdit.productos || []).reduce(
-                  (acc, p) =>
-                    acc +
-                    Number(p.precio) *
-                      Number(p.cantidad) *
-                      (Number(p.descuento || 0) / 100),
-                  0
-                );
-
-                // Calcular costo de envío basado en el tipo de envío actual
-                const envio =
-                  ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
-                    ? Number(ventaEdit.costoEnvio) || 0
-                    : 0;
-
-                const total = subtotal - descuento + envio;
-                const abonado = Array.isArray(ventaEdit.pagos)
-                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-                  : Number(ventaEdit.montoAbonado || 0);
-                const saldo = total - abonado;
-
-                console.log("=== CÁLCULO SALDO PENDIENTE ===");
-                console.log("Subtotal:", subtotal);
-                console.log("Descuento:", descuento);
-                console.log("Tipo envío:", ventaEdit.tipoEnvio);
-                console.log("Costo envío:", envio);
-                console.log("Total:", total);
-                console.log("Abonado:", abonado);
-                console.log("Saldo pendiente:", saldo);
-
-                if (saldo > 0) {
-                  return (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">
-                        Saldo pendiente: ${saldo.toFixed(2)}
-                      </h4>
-                      <div className="text-sm text-yellow-700 mb-3">
-                        <div>Subtotal: ${subtotal.toFixed(2)}</div>
-                        <div>Descuento: ${descuento.toFixed(2)}</div>
-                        {envio > 0 && (
-                          <div>Costo envío: ${envio.toFixed(2)}</div>
+                                  (Number(p.descuento || 0) / 100),
+                              0
+                            )
+                            .toFixed(2)}
+                        </span>
+                      </div>
+                      {ventaEdit.tipoEnvio &&
+                        ventaEdit.tipoEnvio !== "retiro_local" &&
+                        Number(ventaEdit.costoEnvio) > 0 && (
+                          <div>
+                            Costo de envío:{" "}
+                            <span className="font-bold">
+                              ${Number(ventaEdit.costoEnvio).toFixed(2)}
+                            </span>
+                          </div>
                         )}
-                        <div className="font-bold">
-                          Total: ${total.toFixed(2)}
-                        </div>
-                        <div>Abonado: ${abonado.toFixed(2)}</div>
+                      <div>
+                        Total:{" "}
+                        <span className="font-bold text-primary">
+                          $
+                          {(
+                            ventaEdit.productos.reduce(
+                              (acc, p) =>
+                                acc + Number(p.precio) * Number(p.cantidad),
+                              0
+                            ) -
+                            ventaEdit.productos.reduce(
+                              (acc, p) =>
+                                acc +
+                                Number(p.precio) *
+                                  Number(p.cantidad) *
+                                  (Number(p.descuento || 0) / 100),
+                              0
+                            ) +
+                            (ventaEdit.tipoEnvio &&
+                            ventaEdit.tipoEnvio !== "retiro_local"
+                              ? Number(ventaEdit.costoEnvio) || 0
+                              : 0)
+                          ).toFixed(2)}
+                        </span>
                       </div>
-                      <div className="flex flex-col md:flex-row gap-2 items-end">
-                        <input
-                          type="number"
-                          min={1}
-                          max={saldo}
-                          placeholder="Monto a abonar"
-                          className="border rounded px-2 py-1"
-                          value={ventaEdit.nuevoPagoMonto || ""}
-                          onChange={(e) =>
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              nuevoPagoMonto: e.target.value,
-                            }))
-                          }
-                          disabled={registrandoPago}
-                        />
-                        <select
-                          className="border rounded px-2 py-1"
-                          value={ventaEdit.nuevoPagoMetodo || ""}
-                          onChange={(e) =>
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              nuevoPagoMetodo: e.target.value,
-                            }))
-                          }
-                          disabled={registrandoPago}
-                        >
-                          <option value="">Método de pago</option>
-                          <option value="efectivo">Efectivo</option>
-                          <option value="transferencia">Transferencia</option>
-                          <option value="tarjeta">Tarjeta</option>
-                          <option value="cheque">Cheque</option>
-                          <option value="otro">Otro</option>
-                        </select>
-                        <button
-                          type="button"
-                          className={`bg-green-600 text-white px-4 py-1 rounded flex items-center gap-2 ${
-                            registrandoPago
-                              ? "opacity-70 cursor-not-allowed"
-                              : ""
-                          }`}
-                          onClick={async () => {
-                            setRegistrandoPago(true);
-                            // Simular un pequeño delay para UX
-                            await new Promise((res) => setTimeout(res, 600));
-                            if (Array.isArray(ventaEdit.pagos)) {
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                pagos: [
-                                  ...prev.pagos,
-                                  {
-                                    fecha: new Date()
-                                      .toISOString()
-                                      .split("T")[0],
-                                    monto: Number(prev.nuevoPagoMonto),
-                                    metodo: prev.nuevoPagoMetodo,
-                                    usuario: "usuario", // puedes poner el usuario real si lo tienes
-                                  },
-                                ],
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
-                            } else {
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                montoAbonado:
-                                  Number(prev.montoAbonado || 0) +
-                                  Number(prev.nuevoPagoMonto),
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
-                            }
-                            setPagoExitoso(true);
-                            setRegistrandoPago(false);
-                            setTimeout(() => setPagoExitoso(false), 2200);
-                          }}
-                          disabled={
-                            registrandoPago ||
-                            !ventaEdit.nuevoPagoMonto ||
-                            !ventaEdit.nuevoPagoMetodo ||
-                            Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                            Number(ventaEdit.nuevoPagoMonto) > saldo
-                          }
-                        >
-                          {registrandoPago && (
-                            <svg
-                              className="animate-spin h-5 w-5 mr-1 text-white"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8z"
-                              />
-                            </svg>
-                          )}
-                          {registrandoPago
-                            ? "Registrando..."
-                            : "Registrar pago"}
-                        </button>
-                      </div>
-                      {pagoExitoso && (
-                        <div className="mt-3 px-4 py-2 rounded bg-green-100 text-green-800 font-semibold shadow text-center animate-fade-in">
-                          ¡Pago registrado exitosamente!
-                        </div>
-                      )}
                     </div>
+                  </div>
+                )}
+
+                {(() => {
+                  // Calcula el saldo pendiente en modo edición con lógica mejorada
+                  const subtotal = (ventaEdit.productos || []).reduce(
+                    (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                    0
                   );
-                }
-                return null;
-              })()}
-              <div className="flex flex-wrap gap-2 mt-6">
-                <Button
-                  variant="default"
-                  onClick={handleGuardarCambios}
-                  disabled={loadingPrecios}
-                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-                >
-                  <span className="hidden sm:inline">Guardar cambios</span>
-                  <span className="sm:hidden">💾</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setEditando(false)}
-                  disabled={loadingPrecios}
-                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-                >
-                  <span className="hidden sm:inline">Cancelar</span>
-                  <span className="sm:hidden">❌</span>
-                </Button>
+                  const descuento = (ventaEdit.productos || []).reduce(
+                    (acc, p) =>
+                      acc +
+                      Number(p.precio) *
+                        Number(p.cantidad) *
+                        (Number(p.descuento || 0) / 100),
+                    0
+                  );
+
+                  // Calcular costo de envío basado en el tipo de envío actual
+                  const envio =
+                    ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
+                      ? Number(ventaEdit.costoEnvio) || 0
+                      : 0;
+
+                  const total = subtotal - descuento + envio;
+                  const abonado = Array.isArray(ventaEdit.pagos)
+                    ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                    : Number(ventaEdit.montoAbonado || 0);
+                  const saldo = total - abonado;
+
+                  console.log("=== CÁLCULO SALDO PENDIENTE ===");
+                  console.log("Subtotal:", subtotal);
+                  console.log("Descuento:", descuento);
+                  console.log("Tipo envío:", ventaEdit.tipoEnvio);
+                  console.log("Costo envío:", envio);
+                  console.log("Total:", total);
+                  console.log("Abonado:", abonado);
+                  console.log("Saldo pendiente:", saldo);
+
+                  if (saldo > 0) {
+                    return (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
+                        <h4 className="font-semibold text-yellow-800 mb-2">
+                          Saldo pendiente: ${saldo.toFixed(2)}
+                        </h4>
+                        <div className="text-sm text-yellow-700 mb-3">
+                          <div>Subtotal: ${subtotal.toFixed(2)}</div>
+                          <div>Descuento: ${descuento.toFixed(2)}</div>
+                          {envio > 0 && (
+                            <div>Costo envío: ${envio.toFixed(2)}</div>
+                          )}
+                          <div className="font-bold">
+                            Total: ${total.toFixed(2)}
+                          </div>
+                          <div>Abonado: ${abonado.toFixed(2)}</div>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-2 items-end">
+                          <input
+                            type="number"
+                            min={1}
+                            max={saldo}
+                            placeholder="Monto a abonar"
+                            className="border rounded px-2 py-1"
+                            value={ventaEdit.nuevoPagoMonto || ""}
+                            onChange={(e) =>
+                              setVentaEdit((prev) => ({
+                                ...prev,
+                                nuevoPagoMonto: e.target.value,
+                              }))
+                            }
+                            disabled={registrandoPago}
+                          />
+                          <select
+                            className="border rounded px-2 py-1"
+                            value={ventaEdit.nuevoPagoMetodo || ""}
+                            onChange={(e) =>
+                              setVentaEdit((prev) => ({
+                                ...prev,
+                                nuevoPagoMetodo: e.target.value,
+                              }))
+                            }
+                            disabled={registrandoPago}
+                          >
+                            <option value="">Método de pago</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="otro">Otro</option>
+                          </select>
+                          <button
+                            type="button"
+                            className={`bg-green-600 text-white px-4 py-1 rounded flex items-center gap-2 ${
+                              registrandoPago
+                                ? "opacity-70 cursor-not-allowed"
+                                : ""
+                            }`}
+                            onClick={async () => {
+                              setRegistrandoPago(true);
+                              // Simular un pequeño delay para UX
+                              await new Promise((res) => setTimeout(res, 600));
+                              if (Array.isArray(ventaEdit.pagos)) {
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  pagos: [
+                                    ...prev.pagos,
+                                    {
+                                      fecha: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      monto: Number(prev.nuevoPagoMonto),
+                                      metodo: prev.nuevoPagoMetodo,
+                                      usuario: "usuario", // puedes poner el usuario real si lo tienes
+                                    },
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              } else {
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  montoAbonado:
+                                    Number(prev.montoAbonado || 0) +
+                                    Number(prev.nuevoPagoMonto),
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              }
+                              setPagoExitoso(true);
+                              setRegistrandoPago(false);
+                              setTimeout(() => setPagoExitoso(false), 2200);
+                            }}
+                            disabled={
+                              registrandoPago ||
+                              !ventaEdit.nuevoPagoMonto ||
+                              !ventaEdit.nuevoPagoMetodo ||
+                              Number(ventaEdit.nuevoPagoMonto) <= 0 ||
+                              Number(ventaEdit.nuevoPagoMonto) > saldo
+                            }
+                          >
+                            {registrandoPago && (
+                              <svg
+                                className="animate-spin h-5 w-5 mr-1 text-white"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  fill="none"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8v8z"
+                                />
+                              </svg>
+                            )}
+                            {registrandoPago
+                              ? "Registrando..."
+                              : "Registrar pago"}
+                          </button>
+                        </div>
+                        {pagoExitoso && (
+                          <div className="mt-3 px-4 py-2 rounded bg-green-100 text-green-800 font-semibold shadow text-center animate-fade-in">
+                            ¡Pago registrado exitosamente!
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                <div className="flex flex-wrap gap-2 mt-6">
+                  <Button
+                    variant="default"
+                    onClick={handleGuardarCambios}
+                    disabled={loadingPrecios}
+                    className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                  >
+                    <span className="hidden sm:inline">Guardar cambios</span>
+                    <span className="sm:hidden">💾</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditando(false)}
+                    disabled={loadingPrecios}
+                    className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                  >
+                    <span className="hidden sm:inline">Cancelar</span>
+                    <span className="sm:hidden">❌</span>
+                  </Button>
+                </div>
+                {errorForm && (
+                  <div className="text-red-500 mt-2">{errorForm}</div>
+                )}
               </div>
-              {errorForm && (
-                <div className="text-red-500 mt-2">{errorForm}</div>
-              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
