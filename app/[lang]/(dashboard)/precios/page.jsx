@@ -106,9 +106,9 @@ const PreciosPage = () => {
     setMsg("");
     try {
       const updates = {};
-      if (editForm.costo !== "") updates.costo = Number(editForm.costo);
+      if (editForm.costo !== "") updates.costo = Math.round(Number(editForm.costo) * 100) / 100;
       if (editForm.valorVenta !== "")
-        updates.valorVenta = Number(editForm.valorVenta);
+        updates.valorVenta = Math.round(Number(editForm.valorVenta) * 100) / 100;
 
       await updateDoc(doc(db, "productos", editProd.id), updates);
       setMsg("Precios actualizados correctamente.");
@@ -149,10 +149,10 @@ const PreciosPage = () => {
         const updates = {};
 
         if (producto.valorVenta) {
-          updates.valorVenta = producto.valorVenta * (1 + porcentaje);
+          updates.valorVenta = Math.round((producto.valorVenta * (1 + porcentaje)) * 100) / 100;
         }
         if (producto.precioPorPie) {
-          updates.precioPorPie = producto.precioPorPie * (1 + porcentaje);
+          updates.precioPorPie = Math.round((producto.precioPorPie * (1 + porcentaje)) * 100) / 100;
         }
 
         await updateDoc(doc(db, "productos", producto.id), updates);
