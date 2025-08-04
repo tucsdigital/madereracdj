@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -28,7 +29,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { Loader2, Pencil, TrendingUp, Package, Settings } from "lucide-react";
+import { Loader2, Pencil, TrendingUp, Package, Settings, CheckSquare, Square } from "lucide-react";
 import { Icon } from "@iconify/react";
 
 const PreciosPage = () => {
@@ -50,17 +51,33 @@ const PreciosPage = () => {
   const [porcentajeAumento, setPorcentajeAumento] = useState("");
   const [tipoMaderaSeleccionado, setTipoMaderaSeleccionado] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+  
+  // Nuevos estados para selección múltiple
+  const [productosSeleccionados, setProductosSeleccionados] = useState(new Set());
+  const [modalSeleccionMultiple, setModalSeleccionMultiple] = useState(false);
+  const [porcentajeSeleccionMultiple, setPorcentajeSeleccionMultiple] = useState("");
 
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
-      const q = query(collection(db, "productos"), orderBy("nombre"));
-      const snap = await getDocs(q);
-      setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
+      try {
+        const q = query(collection(db, "productos"), orderBy("nombre"));
+        const snap = await getDocs(q);
+        setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error("Error al cargar productos:", error);
+        setMsg("Error al cargar productos: " + error.message);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchProductos();
   }, []);
+
+  // Limpiar selección cuando cambian los filtros
+  useEffect(() => {
+    setProductosSeleccionados(new Set());
+  }, [filtro, categoriaSeleccionada, filtroTipoMadera, filtroSubCategoria]);
 
   const categorias = [...new Set(productos.map((p) => p.categoria))].filter(
     Boolean
@@ -82,20 +99,123 @@ const PreciosPage = () => {
     ),
   ].filter(Boolean);
   
-  // Debug: mostrar tipos de madera disponibles
-  console.log("Tipos de madera disponibles:", tiposMadera);
-  console.log("Productos de maderas:", productos.filter(p => p.categoria === "Maderas"));
-  
   const proveedores = [
     ...new Set(productos.filter((p) => p.proveedor).map((p) => p.proveedor)),
   ].filter(Boolean);
 
+  // Función para redondear decimales correctamente
+  const redondearDecimal = (numero) => {
+    if (typeof numero !== 'number' || isNaN(numero)) return 0;
+    return Math.round(numero * 100) / 100;
+  };
+
+  // Funciones para manejo de selección múltiple
+  const handleSeleccionarProducto = (productoId) => {
+    if (!productoId) return;
+    
+    setProductosSeleccionados(prev => {
+      const nuevosSeleccionados = new Set(prev);
+      if (nuevosSeleccionados.has(productoId)) {
+        nuevosSeleccionados.delete(productoId);
+      } else {
+        nuevosSeleccionados.add(productoId);
+      }
+      return nuevosSeleccionados;
+    });
+  };
+
+  const handleSeleccionarTodos = () => {
+    if (productosFiltrados.length === 0) return;
+    
+    setProductosSeleccionados(prev => {
+      if (prev.size === productosFiltrados.length) {
+        return new Set();
+      } else {
+        return new Set(productosFiltrados.map(p => p.id));
+      }
+    });
+  };
+
+  const handleActualizarSeleccionMultiple = async () => {
+    if (!porcentajeSeleccionMultiple || productosSeleccionados.size === 0) {
+      setMsg("Por favor selecciona productos y un porcentaje válido.");
+      return;
+    }
+
+    const porcentaje = Number(porcentajeSeleccionMultiple);
+    if (isNaN(porcentaje) || porcentaje < -100 || porcentaje > 100) {
+      setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
+      return;
+    }
+
+    setSaving(true);
+    setMsg("");
+    
+    try {
+      const factorAumento = porcentaje / 100;
+      const productosAActualizar = productos.filter(p => productosSeleccionados.has(p.id));
+      let actualizados = 0;
+      let errores = 0;
+
+      for (const producto of productosAActualizar) {
+        try {
+          const updates = {};
+          
+          if (producto.categoria === "Maderas" && producto.precioPorPie) {
+            const nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
+            if (nuevoPrecio > 0) {
+              updates.precioPorPie = nuevoPrecio;
+            }
+          } else if (producto.valorVenta) {
+            const nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
+            if (nuevoPrecio > 0) {
+              updates.valorVenta = nuevoPrecio;
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await updateDoc(doc(db, "productos", producto.id), updates);
+            actualizados++;
+          }
+        } catch (error) {
+          console.error(`Error al actualizar producto ${producto.id}:`, error);
+          errores++;
+        }
+      }
+
+      if (errores > 0) {
+        setMsg(`${actualizados} productos actualizados correctamente. ${errores} errores.`);
+      } else {
+        setMsg(`${actualizados} productos actualizados correctamente.`);
+      }
+
+      // Limpiar selección y recargar productos
+      setProductosSeleccionados(new Set());
+      setPorcentajeSeleccionMultiple("");
+
+      const q = query(collection(db, "productos"), orderBy("nombre"));
+      const snap = await getDocs(q);
+      setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      
+      setTimeout(() => {
+        setModalSeleccionMultiple(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Error general:", error);
+      setMsg("Error al actualizar productos: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleEditarIndividual = (prod) => {
+    if (!prod) return;
+    
     setModalTipo("individual");
     setEditProd(prod);
     setEditForm({
-      costo: prod.costo ?? "",
-      valorVenta: prod.valorVenta ?? "",
+      costo: prod.costo ? String(prod.costo) : "",
+      valorVenta: prod.valorVenta ? String(prod.valorVenta) : "",
     });
     setMsg("");
     setModalOpen(true);
@@ -113,13 +233,35 @@ const PreciosPage = () => {
   };
 
   const handleGuardarIndividual = async () => {
+    if (!editProd) {
+      setMsg("Error: No hay producto seleccionado.");
+      return;
+    }
+
     setSaving(true);
     setMsg("");
+    
     try {
       const updates = {};
-      if (editForm.costo !== "") updates.costo = Math.round(Number(editForm.costo) * 100) / 100;
-      if (editForm.valorVenta !== "")
-        updates.valorVenta = Math.round(Number(editForm.valorVenta) * 100) / 100;
+      
+      if (editForm.costo !== "") {
+        const costo = Number(editForm.costo);
+        if (!isNaN(costo) && costo >= 0) {
+          updates.costo = redondearDecimal(costo);
+        }
+      }
+      
+      if (editForm.valorVenta !== "") {
+        const valorVenta = Number(editForm.valorVenta);
+        if (!isNaN(valorVenta) && valorVenta >= 0) {
+          updates.valorVenta = redondearDecimal(valorVenta);
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        setMsg("Por favor ingresa al menos un valor válido.");
+        return;
+      }
 
       await updateDoc(doc(db, "productos", editProd.id), updates);
       setMsg("Precios actualizados correctamente.");
@@ -127,26 +269,40 @@ const PreciosPage = () => {
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
       setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      
       setTimeout(() => {
         setModalOpen(false);
         setEditProd(null);
       }, 1000);
-    } catch (e) {
-      setMsg("Error al guardar: " + e.message);
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      setMsg("Error al guardar: " + error.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleGuardarGlobal = async () => {
+    if (!porcentajeAumento || (!tipoMaderaSeleccionado && !proveedorSeleccionado)) {
+      setMsg("Por favor completa todos los campos requeridos.");
+      return;
+    }
+
+    const porcentaje = Number(porcentajeAumento);
+    if (isNaN(porcentaje) || porcentaje < -100 || porcentaje > 100) {
+      setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
+      return;
+    }
+
     setSaving(true);
     setMsg("");
+    
     try {
       let productosAActualizar = [];
 
       if (modalTipo === "maderas") {
         productosAActualizar = productos.filter(
-          (p) =>
-            p.categoria === "Maderas" && p.tipoMadera === tipoMaderaSeleccionado
+          (p) => p.categoria === "Maderas" && p.tipoMadera === tipoMaderaSeleccionado
         );
       } else if (modalTipo === "proveedor") {
         productosAActualizar = productos.filter(
@@ -154,40 +310,62 @@ const PreciosPage = () => {
         );
       }
 
-      const porcentaje = Number(porcentajeAumento) / 100;
-
-      for (const producto of productosAActualizar) {
-        const updates = {};
-
-        if (producto.valorVenta) {
-          updates.valorVenta = Math.round((producto.valorVenta * (1 + porcentaje)) * 100) / 100;
-        }
-        if (producto.precioPorPie) {
-          updates.precioPorPie = Math.round((producto.precioPorPie * (1 + porcentaje)) * 100) / 100;
-        }
-
-        await updateDoc(doc(db, "productos", producto.id), updates);
+      if (productosAActualizar.length === 0) {
+        setMsg("No se encontraron productos para actualizar.");
+        return;
       }
 
-      setMsg(
-        `${productosAActualizar.length} productos actualizados correctamente.`
-      );
+      const factorAumento = porcentaje / 100;
+      let actualizados = 0;
+
+      for (const producto of productosAActualizar) {
+        try {
+          const updates = {};
+
+          if (producto.valorVenta) {
+            const nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
+            if (nuevoPrecio > 0) {
+              updates.valorVenta = nuevoPrecio;
+            }
+          }
+          
+          if (producto.precioPorPie) {
+            const nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
+            if (nuevoPrecio > 0) {
+              updates.precioPorPie = nuevoPrecio;
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await updateDoc(doc(db, "productos", producto.id), updates);
+            actualizados++;
+          }
+        } catch (error) {
+          console.error(`Error al actualizar producto ${producto.id}:`, error);
+        }
+      }
+
+      setMsg(`${actualizados} productos actualizados correctamente.`);
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
       setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      
       setTimeout(() => {
         setModalOpen(false);
       }, 1000);
-    } catch (e) {
-      setMsg("Error al guardar: " + e.message);
+    } catch (error) {
+      console.error("Error general:", error);
+      setMsg("Error al guardar: " + error.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const productosFiltrados = productos.filter((p) => {
     // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
     const normalizarTexto = (texto) => {
+      if (!texto) return "";
       return texto.toLowerCase().replace(/\s+/g, '');
     };
 
@@ -195,10 +373,10 @@ const PreciosPage = () => {
     const filtroNormalizado = normalizarTexto(filtro);
     
     // Normalizar el nombre del producto
-    const nombreNormalizado = normalizarTexto(p.nombre || "");
+    const nombreNormalizado = normalizarTexto(p.nombre);
     
     // Normalizar la categoría
-    const categoriaNormalizada = normalizarTexto(p.categoria || "");
+    const categoriaNormalizada = normalizarTexto(p.categoria);
 
     // Filtro por búsqueda de texto (ahora más flexible)
     const cumpleBusqueda =
@@ -254,6 +432,10 @@ const PreciosPage = () => {
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
+
+  // Verificar si todos los productos filtrados están seleccionados
+  const todosSeleccionados = productosFiltrados.length > 0 && 
+    productosSeleccionados.size === productosFiltrados.length;
 
   return (
     <div className="py-8 px-2 max-w-7xl mx-auto">
@@ -449,7 +631,7 @@ const PreciosPage = () => {
                 )}
             </div>
 
-            {/* Indicador de productos filtrados */}
+            {/* Indicador de productos filtrados y botón de selección múltiple */}
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 Mostrando {productosFiltrados.length} de {productos.length} productos
@@ -458,22 +640,39 @@ const PreciosPage = () => {
                     (filtros aplicados)
                   </span>
                 )}
+                {productosSeleccionados.size > 0 && (
+                  <span className="ml-2 text-green-600 font-medium">
+                    • {productosSeleccionados.size} seleccionados
+                  </span>
+                )}
               </div>
-              {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setFiltro("");
-                    setCategoriaSeleccionada("");
-                    setFiltroTipoMadera("");
-                    setFiltroSubCategoria("");
-                  }}
-                  className="text-xs"
-                >
-                  Limpiar filtros
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {productosSeleccionados.size > 0 && (
+                  <Button
+                    onClick={() => setModalSeleccionMultiple(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    size="sm"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Actualizar {productosSeleccionados.size} productos
+                  </Button>
+                )}
+                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFiltro("");
+                      setCategoriaSeleccionada("");
+                      setFiltroTipoMadera("");
+                      setFiltroSubCategoria("");
+                    }}
+                    className="text-xs"
+                  >
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -486,6 +685,21 @@ const PreciosPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={handleSeleccionarTodos}
+                        className="p-1 hover:bg-gray-100 rounded"
+                        disabled={productosFiltrados.length === 0}
+                      >
+                        {todosSeleccionados ? (
+                          <CheckSquare className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead>Unidad</TableHead>
@@ -497,6 +711,15 @@ const PreciosPage = () => {
               <TableBody>
                 {productosFiltrados.map((p) => (
                   <TableRow key={p.id} className="hover:bg-gray-50">
+                    <TableCell>
+                      <div className="flex items-center justify-center">
+                        <Checkbox
+                          checked={productosSeleccionados.has(p.id)}
+                          onCheckedChange={() => handleSeleccionarProducto(p.id)}
+                          className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{p.nombre}</div>
@@ -537,20 +760,20 @@ const PreciosPage = () => {
                             : "text-red-600"
                         }`}
                       >
-                        {p.stock}
+                        {p.stock || 0}
                       </span>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
                         {p.valorVenta && (
-                          <div>Venta: ${p.valorVenta.toFixed(2)}</div>
+                          <div>Venta: ${redondearDecimal(p.valorVenta).toFixed(2)}</div>
                         )}
                         {p.precioPorPie && (
-                          <div>$/pie: ${p.precioPorPie.toFixed(2)}</div>
+                          <div>$/pie: ${redondearDecimal(p.precioPorPie).toFixed(2)}</div>
                         )}
                         {p.costo && (
                           <div className="text-gray-500">
-                            Costo: ${p.costo.toFixed(2)}
+                            Costo: ${redondearDecimal(p.costo).toFixed(2)}
                           </div>
                         )}
                       </div>
@@ -573,6 +796,99 @@ const PreciosPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal para actualización de selección múltiple */}
+      <Dialog open={modalSeleccionMultiple} onOpenChange={setModalSeleccionMultiple}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Actualizar Productos Seleccionados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="font-bold text-lg mb-2">
+                📊 Actualización Personalizada
+              </div>
+              <div className="text-sm text-gray-600">
+                Se actualizarán {productosSeleccionados.size} productos seleccionados.
+                {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria === "Maderas").length > 0 && (
+                  <div className="mt-2 text-purple-700">
+                    • Maderas: se actualizará precioPorPie
+                  </div>
+                )}
+                {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria !== "Maderas").length > 0 && (
+                  <div className="mt-1 text-purple-700">
+                    • Otros: se actualizará valorVenta
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Porcentaje de Aumento
+              </label>
+              <Input
+                type="number"
+                min={-100}
+                max={100}
+                step={0.1}
+                placeholder="Porcentaje de aumento (ej: 15 para 15%)"
+                value={porcentajeSeleccionMultiple}
+                onChange={(e) => setPorcentajeSeleccionMultiple(e.target.value)}
+              />
+            </div>
+
+            {porcentajeSeleccionMultiple && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="font-medium text-blue-800 mb-2">
+                  Resumen de la operación:
+                </div>
+                <div className="text-sm text-blue-700">
+                  <div>• Productos seleccionados: {productosSeleccionados.size}</div>
+                  <div>• Aumento: {porcentajeSeleccionMultiple}%</div>
+                  <div>• Maderas: {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria === "Maderas").length} productos</div>
+                  <div>• Otros: {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria !== "Maderas").length} productos</div>
+                </div>
+              </div>
+            )}
+
+            {msg && (
+              <div
+                className={`p-3 rounded-lg text-sm ${
+                  msg.startsWith("Error")
+                    ? "bg-red-50 text-red-800 border border-red-200"
+                    : "bg-green-50 text-green-800 border border-green-200"
+                }`}
+              >
+                {msg}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalSeleccionMultiple(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleActualizarSeleccionMultiple}
+              disabled={saving || !porcentajeSeleccionMultiple}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                "Aplicar Actualización"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {modalTipo === "individual" && (
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
