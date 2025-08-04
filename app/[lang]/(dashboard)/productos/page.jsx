@@ -857,7 +857,7 @@ const ProductosPage = () => {
       const cumpleSubCategoria =
         cat !== "Ferretería" ||
         filtroSubCategoria === "" ||
-        p.subcategoria === filtroSubCategoria;
+        p.subCategoria === filtroSubCategoria;
 
       return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
     }
@@ -876,8 +876,8 @@ const ProductosPage = () => {
   const subCategoriasFerreteria = [
     ...new Set(
       productos
-        .filter((p) => p.categoria === "Ferretería" && p.subcategoria)
-        .map((p) => p.subcategoria)
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
     ),
   ].filter(Boolean);
 
