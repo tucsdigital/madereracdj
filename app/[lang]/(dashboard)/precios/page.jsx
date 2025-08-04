@@ -106,6 +106,17 @@ const PreciosPage = () => {
   // Función para redondear decimales correctamente
   const redondearDecimal = (numero) => {
     if (typeof numero !== 'number' || isNaN(numero)) return 0;
+    
+    // Si el número es muy cercano a un entero, redondear al entero
+    const entero = Math.round(numero);
+    const diferencia = Math.abs(numero - entero);
+    
+    // Si la diferencia es menor a 0.01, considerar como entero
+    if (diferencia < 0.01) {
+      return entero;
+    }
+    
+    // Para otros casos, redondear a 2 decimales
     return Math.round(numero * 100) / 100;
   };
 
