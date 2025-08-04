@@ -39,6 +39,7 @@ const PreciosPage = () => {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  const [filtroSubCategoriaMaderas, setFiltroSubCategoriaMaderas] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState("");
   const [editProd, setEditProd] = useState(null);
@@ -79,7 +80,7 @@ const PreciosPage = () => {
   // Limpiar selección cuando cambian los filtros
   useEffect(() => {
     setProductosSeleccionados(new Set());
-  }, [filtro, categoriaSeleccionada, filtroTipoMadera, filtroSubCategoria]);
+  }, [filtro, categoriaSeleccionada, filtroTipoMadera, filtroSubCategoria, filtroSubCategoriaMaderas]);
 
   const categorias = [...new Set(productos.map((p) => p.categoria))].filter(
     Boolean
@@ -98,6 +99,15 @@ const PreciosPage = () => {
       productos
         .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
         .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+  
+  // Obtener subcategorías de maderas únicas
+  const subCategoriasMaderas = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Maderas" && p.subcategoria)
+        .map((p) => p.subcategoria)
     ),
   ].filter(Boolean);
   
@@ -495,13 +505,19 @@ const PreciosPage = () => {
       filtroTipoMadera === "" ||
       p.tipoMadera === filtroTipoMadera;
 
+    // Filtro específico por subcategoría de maderas
+    const cumpleSubCategoriaMaderas =
+      categoriaSeleccionada !== "Maderas" ||
+      filtroSubCategoriaMaderas === "" ||
+      p.subcategoria === filtroSubCategoriaMaderas;
+
     // Filtro específico por subcategoría de ferretería
     const cumpleSubCategoria =
       categoriaSeleccionada !== "Ferretería" ||
       filtroSubCategoria === "" ||
       p.subCategoria === filtroSubCategoria;
 
-    return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoria;
+    return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoriaMaderas && cumpleSubCategoria;
   });
 
   const getIconoCategoria = (categoria) => {
@@ -697,6 +713,39 @@ const PreciosPage = () => {
                 </div>
               )}
 
+              {/* Filtro de subcategoría de maderas */}
+              {categoriaSeleccionada === "Maderas" && subCategoriasMaderas.length > 0 && (
+                <div className="flex-1">
+                  <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                    <button
+                      type="button"
+                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        filtroSubCategoriaMaderas === ""
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setFiltroSubCategoriaMaderas("")}
+                    >
+                      Todas las subcategorías
+                    </button>
+                    {subCategoriasMaderas.map((subCategoria) => (
+                      <button
+                        key={subCategoria}
+                        type="button"
+                        className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                          filtroSubCategoriaMaderas === subCategoria
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                        onClick={() => setFiltroSubCategoriaMaderas(subCategoria)}
+                      >
+                        {subCategoria}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Filtro de subcategoría de ferretería */}
               {categoriaSeleccionada === "Ferretería" &&
                 subCategoriasFerreteria.length > 0 && (
@@ -736,7 +785,7 @@ const PreciosPage = () => {
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 Mostrando {productosFiltrados.length} de {productos.length} productos
-                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
+                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria || filtroSubCategoriaMaderas) && (
                   <span className="ml-2 text-blue-600">
                     (filtros aplicados)
                   </span>
@@ -758,7 +807,7 @@ const PreciosPage = () => {
                     Actualizar {productosSeleccionados.size} productos
                   </Button>
                 )}
-                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
+                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria || filtroSubCategoriaMaderas) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -767,6 +816,7 @@ const PreciosPage = () => {
                       setCategoriaSeleccionada("");
                       setFiltroTipoMadera("");
                       setFiltroSubCategoria("");
+                      setFiltroSubCategoriaMaderas("");
                     }}
                     className="text-xs"
                   >
