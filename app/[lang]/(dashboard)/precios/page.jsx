@@ -56,6 +56,8 @@ const PreciosPage = () => {
   const [productosSeleccionados, setProductosSeleccionados] = useState(new Set());
   const [modalSeleccionMultiple, setModalSeleccionMultiple] = useState(false);
   const [porcentajeSeleccionMultiple, setPorcentajeSeleccionMultiple] = useState("");
+  const [modoActualizacion, setModoActualizacion] = useState("porcentaje"); // "porcentaje" o "valor"
+  const [valorEspecifico, setValorEspecifico] = useState("");
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -111,13 +113,36 @@ const PreciosPage = () => {
     const entero = Math.round(numero);
     const diferencia = Math.abs(numero - entero);
     
-    // Si la diferencia es menor a 0.01, considerar como entero
-    if (diferencia < 0.01) {
+    // Si la diferencia es menor a 0.005, considerar como entero
+    if (diferencia < 0.005) {
       return entero;
     }
     
     // Para otros casos, redondear a 2 decimales
     return Math.round(numero * 100) / 100;
+  };
+
+  // Función para validar y formatear números de entrada
+  const validarNumero = (valor) => {
+    if (!valor || valor === "") return null;
+    const numero = Number(valor);
+    if (isNaN(numero) || numero < 0) return null;
+    return redondearDecimal(numero);
+  };
+
+  // Función para validar porcentaje
+  const validarPorcentaje = (valor) => {
+    if (!valor || valor === "") return null;
+    const numero = Number(valor);
+    if (isNaN(numero) || numero < -100 || numero > 100) return null;
+    return numero;
+  };
+
+  // Función para calcular el porcentaje necesario para llegar a un valor objetivo
+  const calcularPorcentajeParaObjetivo = (valorActual, valorObjetivo) => {
+    if (!valorActual || !valorObjetivo || valorActual <= 0) return null;
+    const porcentaje = ((valorObjetivo - valorActual) / valorActual) * 100;
+    return redondearDecimal(porcentaje);
   };
 
   // Funciones para manejo de selección múltiple
@@ -148,37 +173,68 @@ const PreciosPage = () => {
   };
 
   const handleActualizarSeleccionMultiple = async () => {
-    if (!porcentajeSeleccionMultiple || productosSeleccionados.size === 0) {
-      setMsg("Por favor selecciona productos y un porcentaje válido.");
+    if (productosSeleccionados.size === 0) {
+      setMsg("Por favor selecciona productos.");
       return;
     }
 
-    const porcentaje = Number(porcentajeSeleccionMultiple);
-    if (isNaN(porcentaje) || porcentaje < -100 || porcentaje > 100) {
-      setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
-      return;
+    let porcentaje = null;
+    let valorObjetivo = null;
+
+    if (modoActualizacion === "porcentaje") {
+      if (!porcentajeSeleccionMultiple) {
+        setMsg("Por favor ingresa un porcentaje válido.");
+        return;
+      }
+      porcentaje = validarPorcentaje(porcentajeSeleccionMultiple);
+      if (porcentaje === null) {
+        setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
+        return;
+      }
+    } else {
+      if (!valorEspecifico) {
+        setMsg("Por favor ingresa un valor específico.");
+        return;
+      }
+      valorObjetivo = validarNumero(valorEspecifico);
+      if (valorObjetivo === null) {
+        setMsg("Por favor ingresa un valor válido mayor a 0.");
+        return;
+      }
     }
 
     setSaving(true);
     setMsg("");
     
     try {
-      const factorAumento = porcentaje / 100;
       const productosAActualizar = productos.filter(p => productosSeleccionados.has(p.id));
       let actualizados = 0;
       let errores = 0;
+      let sinCambios = 0;
 
       for (const producto of productosAActualizar) {
         try {
           const updates = {};
           
           if (producto.categoria === "Maderas" && producto.precioPorPie) {
-            const nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
+            let nuevoPrecio;
+            if (modoActualizacion === "porcentaje") {
+              const factorAumento = porcentaje / 100;
+              nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
+            } else {
+              nuevoPrecio = valorObjetivo;
+            }
             if (nuevoPrecio > 0) {
               updates.precioPorPie = nuevoPrecio;
             }
           } else if (producto.valorVenta) {
-            const nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
+            let nuevoPrecio;
+            if (modoActualizacion === "porcentaje") {
+              const factorAumento = porcentaje / 100;
+              nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
+            } else {
+              nuevoPrecio = valorObjetivo;
+            }
             if (nuevoPrecio > 0) {
               updates.valorVenta = nuevoPrecio;
             }
@@ -187,6 +243,8 @@ const PreciosPage = () => {
           if (Object.keys(updates).length > 0) {
             await updateDoc(doc(db, "productos", producto.id), updates);
             actualizados++;
+          } else {
+            sinCambios++;
           }
         } catch (error) {
           console.error(`Error al actualizar producto ${producto.id}:`, error);
@@ -194,15 +252,20 @@ const PreciosPage = () => {
         }
       }
 
-      if (errores > 0) {
-        setMsg(`${actualizados} productos actualizados correctamente. ${errores} errores.`);
-      } else {
-        setMsg(`${actualizados} productos actualizados correctamente.`);
+      // Mensaje detallado del resultado
+      let mensaje = `${actualizados} productos actualizados correctamente.`;
+      if (sinCambios > 0) {
+        mensaje += ` ${sinCambios} sin cambios (sin precio válido).`;
       }
+      if (errores > 0) {
+        mensaje += ` ${errores} errores.`;
+      }
+      setMsg(mensaje);
 
       // Limpiar selección y recargar productos
       setProductosSeleccionados(new Set());
       setPorcentajeSeleccionMultiple("");
+      setValorEspecifico("");
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
@@ -243,6 +306,15 @@ const PreciosPage = () => {
     setModalOpen(true);
   };
 
+  // Función para abrir modal de selección múltiple
+  const abrirModalSeleccionMultiple = () => {
+    setModoActualizacion("porcentaje");
+    setPorcentajeSeleccionMultiple("");
+    setValorEspecifico("");
+    setMsg("");
+    setModalSeleccionMultiple(true);
+  };
+
   const handleGuardarIndividual = async () => {
     if (!editProd) {
       setMsg("Error: No hay producto seleccionado.");
@@ -256,21 +328,30 @@ const PreciosPage = () => {
       const updates = {};
       
       if (editForm.costo !== "") {
-        const costo = Number(editForm.costo);
-        if (!isNaN(costo) && costo >= 0) {
-          updates.costo = redondearDecimal(costo);
+        const costo = validarNumero(editForm.costo);
+        if (costo !== null) {
+          updates.costo = costo;
+        } else {
+          setMsg("Por favor ingresa un costo válido (número mayor o igual a 0).");
+          setSaving(false);
+          return;
         }
       }
       
       if (editForm.valorVenta !== "") {
-        const valorVenta = Number(editForm.valorVenta);
-        if (!isNaN(valorVenta) && valorVenta >= 0) {
-          updates.valorVenta = redondearDecimal(valorVenta);
+        const valorVenta = validarNumero(editForm.valorVenta);
+        if (valorVenta !== null) {
+          updates.valorVenta = valorVenta;
+        } else {
+          setMsg("Por favor ingresa un precio de venta válido (número mayor o igual a 0).");
+          setSaving(false);
+          return;
         }
       }
 
       if (Object.keys(updates).length === 0) {
         setMsg("Por favor ingresa al menos un valor válido.");
+        setSaving(false);
         return;
       }
 
@@ -299,8 +380,8 @@ const PreciosPage = () => {
       return;
     }
 
-    const porcentaje = Number(porcentajeAumento);
-    if (isNaN(porcentaje) || porcentaje < -100 || porcentaje > 100) {
+    const porcentaje = validarPorcentaje(porcentajeAumento);
+    if (porcentaje === null) {
       setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
       return;
     }
@@ -323,11 +404,13 @@ const PreciosPage = () => {
 
       if (productosAActualizar.length === 0) {
         setMsg("No se encontraron productos para actualizar.");
+        setSaving(false);
         return;
       }
 
       const factorAumento = porcentaje / 100;
       let actualizados = 0;
+      let sinCambios = 0;
 
       for (const producto of productosAActualizar) {
         try {
@@ -350,13 +433,20 @@ const PreciosPage = () => {
           if (Object.keys(updates).length > 0) {
             await updateDoc(doc(db, "productos", producto.id), updates);
             actualizados++;
+          } else {
+            sinCambios++;
           }
         } catch (error) {
           console.error(`Error al actualizar producto ${producto.id}:`, error);
         }
       }
 
-      setMsg(`${actualizados} productos actualizados correctamente.`);
+      // Mensaje detallado del resultado
+      let mensaje = `${actualizados} productos actualizados correctamente.`;
+      if (sinCambios > 0) {
+        mensaje += ` ${sinCambios} sin cambios (sin precio válido).`;
+      }
+      setMsg(mensaje);
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
@@ -660,7 +750,7 @@ const PreciosPage = () => {
               <div className="flex gap-2">
                 {productosSeleccionados.size > 0 && (
                   <Button
-                    onClick={() => setModalSeleccionMultiple(true)}
+                    onClick={abrirModalSeleccionMultiple}
                     className="bg-purple-600 hover:bg-purple-700 text-white"
                     size="sm"
                   >
@@ -787,6 +877,9 @@ const PreciosPage = () => {
                             Costo: ${redondearDecimal(p.costo).toFixed(2)}
                           </div>
                         )}
+                        {!p.valorVenta && !p.precioPorPie && !p.costo && (
+                          <div className="text-gray-400 italic">Sin precio</div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -837,29 +930,108 @@ const PreciosPage = () => {
               </div>
             </div>
 
+            {/* Selector de modo de actualización */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                Porcentaje de Aumento
+                Modo de Actualización
               </label>
-              <Input
-                type="number"
-                min={-100}
-                max={100}
-                step={0.1}
-                placeholder="Porcentaje de aumento (ej: 15 para 15%)"
-                value={porcentajeSeleccionMultiple}
-                onChange={(e) => setPorcentajeSeleccionMultiple(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModoActualizacion("porcentaje")}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    modoActualizacion === "porcentaje"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  📊 Por Porcentaje
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoActualizacion("valor")}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    modoActualizacion === "valor"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  💰 Valor Específico
+                </button>
+              </div>
             </div>
 
-            {porcentajeSeleccionMultiple && (
+            {/* Campo de entrada según el modo */}
+            {modoActualizacion === "porcentaje" ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Porcentaje de Aumento
+                </label>
+                <Input
+                  type="number"
+                  min={-100}
+                  max={100}
+                  step={0.1}
+                  placeholder="Porcentaje de aumento (ej: 15 para 15%)"
+                  value={porcentajeSeleccionMultiple}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    // Solo permitir números, punto decimal, signo negativo y backspace
+                    if (valor === "" || /^-?\d*\.?\d{0,1}$/.test(valor)) {
+                      setPorcentajeSeleccionMultiple(valor);
+                    }
+                  }}
+                />
+                <div className="text-xs text-gray-500">
+                  💡 Para calcular el porcentaje correcto: 
+                  <br />
+                  • De 825 a 1000 = 21.21% (no 45.45%)
+                  <br />
+                  • Fórmula: ((valor objetivo - valor actual) / valor actual) × 100
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Valor Específico
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="Valor específico (ej: 1000)"
+                  value={valorEspecifico}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    // Solo permitir números, punto decimal y backspace
+                    if (valor === "" || /^\d*\.?\d{0,2}$/.test(valor)) {
+                      setValorEspecifico(valor);
+                    }
+                  }}
+                />
+                <div className="text-xs text-gray-500">
+                  💡 Todos los productos seleccionados tendrán este valor específico.
+                  <br />
+                  • Maderas: se actualizará precioPorPie
+                  <br />
+                  • Otros: se actualizará valorVenta
+                </div>
+              </div>
+            )}
+
+            {/* Resumen de la operación */}
+            {(porcentajeSeleccionMultiple || valorEspecifico) && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="font-medium text-blue-800 mb-2">
                   Resumen de la operación:
                 </div>
                 <div className="text-sm text-blue-700">
                   <div>• Productos seleccionados: {productosSeleccionados.size}</div>
-                  <div>• Aumento: {porcentajeSeleccionMultiple}%</div>
+                  {modoActualizacion === "porcentaje" ? (
+                    <div>• Aumento: {porcentajeSeleccionMultiple}%</div>
+                  ) : (
+                    <div>• Valor específico: ${valorEspecifico}</div>
+                  )}
                   <div>• Maderas: {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria === "Maderas").length} productos</div>
                   <div>• Otros: {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria !== "Maderas").length} productos</div>
                 </div>
@@ -885,7 +1057,7 @@ const PreciosPage = () => {
             <Button
               variant="default"
               onClick={handleActualizarSeleccionMultiple}
-              disabled={saving || !porcentajeSeleccionMultiple}
+              disabled={saving || (modoActualizacion === "porcentaje" ? !porcentajeSeleccionMultiple : !valorEspecifico)}
               className="bg-purple-600 hover:bg-purple-700"
             >
               {saving ? (
@@ -894,7 +1066,7 @@ const PreciosPage = () => {
                   Actualizando...
                 </>
               ) : (
-                "Aplicar Actualización"
+                `Aplicar ${modoActualizacion === "porcentaje" ? "Porcentaje" : "Valor Específico"}`
               )}
             </Button>
           </DialogFooter>
@@ -934,9 +1106,13 @@ const PreciosPage = () => {
                       step={0.01}
                       placeholder="Ingrese el costo"
                       value={editForm.costo}
-                      onChange={(e) =>
-                        setEditForm((f) => ({ ...f, costo: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        // Solo permitir números, punto decimal y backspace
+                        if (valor === "" || /^\d*\.?\d{0,2}$/.test(valor)) {
+                          setEditForm((f) => ({ ...f, costo: valor }));
+                        }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -949,12 +1125,16 @@ const PreciosPage = () => {
                       step={0.01}
                       placeholder="Ingrese el precio de venta"
                       value={editForm.valorVenta}
-                      onChange={(e) =>
-                        setEditForm((f) => ({
-                          ...f,
-                          valorVenta: e.target.value,
-                        }))
-                      }
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        // Solo permitir números, punto decimal y backspace
+                        if (valor === "" || /^\d*\.?\d{0,2}$/.test(valor)) {
+                          setEditForm((f) => ({
+                            ...f,
+                            valorVenta: valor,
+                          }));
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -1075,8 +1255,21 @@ const PreciosPage = () => {
                 step={0.1}
                 placeholder="Porcentaje de aumento (ej: 15 para 15%)"
                 value={porcentajeAumento}
-                onChange={(e) => setPorcentajeAumento(e.target.value)}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  // Solo permitir números, punto decimal, signo negativo y backspace
+                  if (valor === "" || /^-?\d*\.?\d{0,1}$/.test(valor)) {
+                    setPorcentajeAumento(valor);
+                  }
+                }}
               />
+              <div className="text-xs text-gray-500">
+                💡 Para calcular el porcentaje correcto: 
+                <br />
+                • De 825 a 1000 = 21.21% (no 45.45%)
+                <br />
+                • Fórmula: ((valor objetivo - valor actual) / valor actual) × 100
+              </div>
 
               {porcentajeAumento &&
                 (tipoMaderaSeleccionado || proveedorSeleccionado) && (
