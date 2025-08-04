@@ -409,7 +409,20 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
               {categoriaId && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
                   {productosPorCategoria[categoriaId]
-                    .filter(p => p.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()))
+                    .filter(p => {
+                      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+                      const normalizarTexto = (texto) => {
+                        return texto.toLowerCase().replace(/\s+/g, '');
+                      };
+
+                      // Normalizar el término de búsqueda
+                      const busquedaNormalizada = normalizarTexto(busquedaProducto || "");
+                      
+                      // Normalizar el nombre del producto
+                      const nombreNormalizado = normalizarTexto(p.nombre || "");
+
+                      return nombreNormalizado.includes(busquedaNormalizada);
+                    })
                     .map(producto => (
                       <button
                         key={producto.id}

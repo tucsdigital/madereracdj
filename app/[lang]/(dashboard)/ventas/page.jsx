@@ -1214,14 +1214,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </p>
                   </div>
                 ) : productosPorCategoria[categoriaId]?.filter((prod) => {
-                    // Filtro por búsqueda de texto
+                    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+                    const normalizarTexto = (texto) => {
+                      return texto.toLowerCase().replace(/\s+/g, '');
+                    };
+
+                    // Normalizar el término de búsqueda
+                    const busquedaNormalizada = normalizarTexto(busquedaProducto);
+                    
+                    // Normalizar el nombre del producto
+                    const nombreNormalizado = normalizarTexto(prod.nombre);
+                    
+                    // Normalizar la unidad de medida
+                    const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+
+                    // Filtro por búsqueda de texto (ahora más flexible)
                     const cumpleBusqueda =
-                      prod.nombre
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase()) ||
-                      (prod.unidadMedida || "")
-                        .toLowerCase()
-                        .includes(busquedaProducto.toLowerCase());
+                      busquedaNormalizada === "" ||
+                      nombreNormalizado.includes(busquedaNormalizada) ||
+                      unidadNormalizada.includes(busquedaNormalizada);
 
                     // Filtro específico por tipo de madera
                     const cumpleTipoMadera =
@@ -1266,14 +1277,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                     {productosPorCategoria[categoriaId]
                       ?.filter((prod) => {
-                        // Filtro por búsqueda de texto
+                        // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+                        const normalizarTexto = (texto) => {
+                          return texto.toLowerCase().replace(/\s+/g, '');
+                        };
+
+                        // Normalizar el término de búsqueda
+                        const busquedaNormalizada = normalizarTexto(busquedaProducto);
+                        
+                        // Normalizar el nombre del producto
+                        const nombreNormalizado = normalizarTexto(prod.nombre);
+                        
+                        // Normalizar la unidad de medida
+                        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+
+                        // Filtro por búsqueda de texto (ahora más flexible)
                         const cumpleBusqueda =
-                          prod.nombre
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase()) ||
-                          (prod.unidadMedida || "")
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase());
+                          busquedaNormalizada === "" ||
+                          nombreNormalizado.includes(busquedaNormalizada) ||
+                          unidadNormalizada.includes(busquedaNormalizada);
 
                         // Filtro específico por tipo de madera
                         const cumpleTipoMadera =
@@ -1288,9 +1310,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           prod.subCategoria === filtroSubCategoria;
 
                         return (
-                          cumpleBusqueda &&
-                          cumpleTipoMadera &&
-                          cumpleSubCategoria
+                          cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
                         );
                       })
                       .map((prod) => {

@@ -759,12 +759,29 @@ const ProductosPage = () => {
 
   // Filtro profesional
   const productosFiltrados = productos.filter(
-    (p) =>
-      (cat ? p.categoria === cat : true) &&
-      (filtro
-        ? p.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
-          p.codigo?.toLowerCase().includes(filtro.toLowerCase())
-        : true)
+    (p) => {
+      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+      const normalizarTexto = (texto) => {
+        return texto.toLowerCase().replace(/\s+/g, '');
+      };
+
+      // Normalizar el término de búsqueda
+      const filtroNormalizado = normalizarTexto(filtro || "");
+      
+      // Normalizar el nombre del producto
+      const nombreNormalizado = normalizarTexto(p.nombre || "");
+      
+      // Normalizar el código del producto
+      const codigoNormalizado = normalizarTexto(p.codigo || "");
+
+      const cumpleCategoria = cat ? p.categoria === cat : true;
+      const cumpleFiltro = 
+        !filtro || 
+        nombreNormalizado.includes(filtroNormalizado) ||
+        codigoNormalizado.includes(filtroNormalizado);
+
+      return cumpleCategoria && cumpleFiltro;
+    }
   );
 
   // Función para procesar archivo Excel/CSV

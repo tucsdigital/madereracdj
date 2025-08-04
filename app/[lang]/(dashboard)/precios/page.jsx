@@ -175,9 +175,24 @@ const PreciosPage = () => {
   };
 
   const productosFiltrados = productos.filter((p) => {
+    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+    const normalizarTexto = (texto) => {
+      return texto.toLowerCase().replace(/\s+/g, '');
+    };
+
+    // Normalizar el término de búsqueda
+    const filtroNormalizado = normalizarTexto(filtro);
+    
+    // Normalizar el nombre del producto
+    const nombreNormalizado = normalizarTexto(p.nombre || "");
+    
+    // Normalizar la categoría
+    const categoriaNormalizada = normalizarTexto(p.categoria || "");
+
     const cumpleFiltro =
-      p.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
-      (p.categoria || "").toLowerCase().includes(filtro.toLowerCase());
+      filtroNormalizado === "" ||
+      nombreNormalizado.includes(filtroNormalizado) ||
+      categoriaNormalizada.includes(filtroNormalizado);
     const cumpleCategoria =
       !categoriaSeleccionada || p.categoria === categoriaSeleccionada;
     return cumpleFiltro && cumpleCategoria;

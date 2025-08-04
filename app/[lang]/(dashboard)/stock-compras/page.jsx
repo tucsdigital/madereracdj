@@ -120,7 +120,20 @@ function StockComprasPage() {
   }
 
   // Inventario filtrado
-  const productosFiltrados = productos.filter(p => p.nombre?.toLowerCase().includes(filtro.toLowerCase()));
+  const productosFiltrados = productos.filter(p => {
+    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+    const normalizarTexto = (texto) => {
+      return texto.toLowerCase().replace(/\s+/g, '');
+    };
+
+    // Normalizar el término de búsqueda
+    const filtroNormalizado = normalizarTexto(filtro || "");
+    
+    // Normalizar el nombre del producto
+    const nombreNormalizado = normalizarTexto(p.nombre || "");
+
+    return nombreNormalizado.includes(filtroNormalizado);
+  });
 
   // Movimientos con join de nombre de producto
   const movimientosFiltrados = movimientos
@@ -128,16 +141,44 @@ function StockComprasPage() {
       ...m,
       productoNombre: productos.find(p => p.id === m.productoId)?.nombre || "(eliminado)"
     }))
-    .filter(m =>
-      m.productoNombre.toLowerCase().includes(filtroMov.toLowerCase()) ||
-      (m.usuario || "").toLowerCase().includes(filtroMov.toLowerCase())
-    );
+    .filter(m => {
+      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+      const normalizarTexto = (texto) => {
+        return texto.toLowerCase().replace(/\s+/g, '');
+      };
+
+      // Normalizar el término de búsqueda
+      const filtroNormalizado = normalizarTexto(filtroMov || "");
+      
+      // Normalizar el nombre del producto
+      const nombreNormalizado = normalizarTexto(m.productoNombre || "");
+      
+      // Normalizar el usuario
+      const usuarioNormalizado = normalizarTexto(m.usuario || "");
+
+      return nombreNormalizado.includes(filtroNormalizado) ||
+             usuarioNormalizado.includes(filtroNormalizado);
+    });
 
   // Filtrar productos en buscador dinámico
-  const productosMovFiltrados = productos.filter(p =>
-    p.nombre.toLowerCase().includes(buscadorMov.toLowerCase()) ||
-    p.id.toLowerCase().includes(buscadorMov.toLowerCase())
-  );
+  const productosMovFiltrados = productos.filter(p => {
+    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+    const normalizarTexto = (texto) => {
+      return texto.toLowerCase().replace(/\s+/g, '');
+    };
+
+    // Normalizar el término de búsqueda
+    const buscadorNormalizado = normalizarTexto(buscadorMov || "");
+    
+    // Normalizar el nombre del producto
+    const nombreNormalizado = normalizarTexto(p.nombre || "");
+    
+    // Normalizar el ID del producto
+    const idNormalizado = normalizarTexto(p.id || "");
+
+    return nombreNormalizado.includes(buscadorNormalizado) ||
+           idNormalizado.includes(buscadorNormalizado);
+  });
 
   // Handlers para formularios
   const handleMovGuardar = async () => {
