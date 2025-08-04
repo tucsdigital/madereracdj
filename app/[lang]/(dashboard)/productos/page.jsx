@@ -589,10 +589,38 @@ const ProductosPage = () => {
   const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+  const [editForm, setEditForm] = useState({
+    nombre: "",
+    descripcion: "",
+    proveedor: "",
+    unidadMedida: "",
+    estado: "",
+    subcategoria: "",
+    tipoMadera: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editMessage, setEditMessage] = useState("");
   const [reload, setReload] = useState(false);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Estados para datos precargados de Firebase
+  const [proveedores, setProveedores] = useState([]);
+  const [subcategorias, setSubcategorias] = useState([]);
+  const [tiposMadera, setTiposMadera] = useState([]);
+  const [unidadesMedida, setUnidadesMedida] = useState([]);
+
+  // Estados para agregar nuevos valores
+  const [showAddProveedor, setShowAddProveedor] = useState(false);
+  const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
+  const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
+  const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
+  const [newValue, setNewValue] = useState("");
 
   // Estados para carga masiva
   const [bulkStatus, setBulkStatus] = useState(null);
@@ -611,129 +639,166 @@ const ProductosPage = () => {
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
 
-  // Funciones para manejar cambios en productos
-  const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
-    try {
-      const productoRef = doc(db, "productos", id);
-      const producto = productos.find((p) => p.id === id);
+  // Función para cargar datos precargados de Firebase
+  const cargarDatosPrecargados = () => {
+    // Extraer proveedores únicos
+    const proveedoresUnicos = [...new Set(
+      productos
+        .filter(p => p.proveedor)
+        .map(p => p.proveedor)
+    )].sort();
+    setProveedores(proveedoresUnicos);
 
-      if (producto && producto.categoria === "Maderas") {
-        // Calcular el nuevo precio con el nuevo precio por pie
-        const precioBase = calcularPrecioCorteMadera({
-          alto: Number(producto.alto) || 0,
-          ancho: Number(producto.ancho) || 0,
-          largo: Number(producto.largo) || 0,
-          precioPorPie: Number(nuevoPrecioPorPie),
-        });
+    // Extraer subcategorías únicas
+    const subcategoriasUnicas = [...new Set(
+      productos
+        .filter(p => p.subcategoria)
+        .map(p => p.subcategoria)
+    )].sort();
+    setSubcategorias(subcategoriasUnicas);
 
-        const precioConCepillado = precioBase * 1.066;
-        const precioFinal = producto.cepilladoAplicado
-          ? precioConCepillado
-          : precioBase;
+    // Extraer tipos de madera únicos
+    const tiposMaderaUnicos = [...new Set(
+      productos
+        .filter(p => p.tipoMadera)
+        .map(p => p.tipoMadera)
+    )].sort();
+    setTiposMadera(tiposMaderaUnicos);
 
-        // Redondear a centenas (múltiplos de 100)
-        const precioRedondeado = Math.round(precioFinal / 100) * 100;
-
-        await updateDoc(productoRef, {
-          precioPorPie: Number(nuevoPrecioPorPie),
-          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
-          fechaActualizacion: new Date().toISOString(),
-        });
-
-        console.log(
-          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}. Precio calculado: ${precioRedondeado}`
-        );
-      } else {
-        await updateDoc(productoRef, {
-          precioPorPie: Number(nuevoPrecioPorPie),
-          fechaActualizacion: new Date().toISOString(),
-        });
-        console.log(
-          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}`
-        );
-      }
-    } catch (error) {
-      console.error("Error al actualizar precio por pie:", error);
-      alert("Error al actualizar el precio por pie: " + error.message);
-    }
+    // Extraer unidades de medida únicas
+    const unidadesMedidaUnicas = [...new Set(
+      productos
+        .filter(p => p.unidadMedida)
+        .map(p => p.unidadMedida)
+    )].sort();
+    setUnidadesMedida(unidadesMedidaUnicas);
   };
 
-  const handleCepilladoChange = async (id, aplicarCepillado) => {
-    try {
-      const productoRef = doc(db, "productos", id);
-      const producto = productos.find((p) => p.id === id);
-
-      if (producto && producto.categoria === "Maderas") {
-        // Calcular el nuevo precio con o sin cepillado
-        const precioBase = calcularPrecioCorteMadera({
-          alto: Number(producto.alto) || 0,
-          ancho: Number(producto.ancho) || 0,
-          largo: Number(producto.largo) || 0,
-          precioPorPie: Number(producto.precioPorPie) || 0,
-        });
-
-        const precioConCepillado = precioBase * 1.066;
-        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
-
-        // Redondear a centenas (múltiplos de 100)
-        const precioRedondeado = Math.round(precioFinal / 100) * 100;
-
-        await updateDoc(productoRef, {
-          cepilladoAplicado: aplicarCepillado,
-          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
-          fechaActualizacion: new Date().toISOString(),
-        });
-
-        console.log(
-          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}. Precio: ${precioRedondeado}`
-        );
-      } else {
-        await updateDoc(productoRef, {
-          cepilladoAplicado: aplicarCepillado,
-          fechaActualizacion: new Date().toISOString(),
-        });
-        console.log(
-          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}`
-        );
-      }
-    } catch (error) {
-      console.error("Error al actualizar cepillado:", error);
-      alert("Error al actualizar el cepillado: " + error.message);
+  // Funciones para agregar nuevos valores
+  const handleAddNewValue = (tipo, valor) => {
+    if (!valor.trim()) return;
+    
+    switch (tipo) {
+      case 'proveedor':
+        if (!proveedores.includes(valor)) {
+          setProveedores(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, proveedor: valor }));
+        setShowAddProveedor(false);
+        break;
+      case 'subcategoria':
+        if (!subcategorias.includes(valor)) {
+          setSubcategorias(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, subcategoria: valor }));
+        setShowAddSubcategoria(false);
+        break;
+      case 'tipoMadera':
+        if (!tiposMadera.includes(valor)) {
+          setTiposMadera(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, tipoMadera: valor }));
+        setShowAddTipoMadera(false);
+        break;
+      case 'unidadMedida':
+        if (!unidadesMedida.includes(valor)) {
+          setUnidadesMedida(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, unidadMedida: valor }));
+        setShowAddUnidadMedida(false);
+        break;
     }
+    setNewValue("");
   };
 
-  const handleCantidadChange = async (id, nuevaCantidad) => {
-    try {
-      const cantidad = Math.max(1, parseInt(nuevaCantidad) || 1);
-      const productoRef = doc(db, "productos", id);
-      await updateDoc(productoRef, {
-        cantidad: cantidad,
-        fechaActualizacion: new Date().toISOString(),
-      });
-      console.log(`Cantidad actualizada para producto ${id}: ${cantidad}`);
-    } catch (error) {
-      console.error("Error al actualizar cantidad:", error);
-      alert("Error al actualizar la cantidad: " + error.message);
-    }
+  // Funciones para edición de productos
+  const handleEditProduct = (producto) => {
+    setEditProduct(producto);
+    setEditForm({
+      nombre: producto.nombre || "",
+      descripcion: producto.descripcion || "",
+      proveedor: producto.proveedor || "",
+      unidadMedida: producto.unidadMedida || "",
+      estado: producto.estado || "Activo",
+      subcategoria: producto.subcategoria || "",
+      tipoMadera: producto.tipoMadera || "",
+    });
+    setEditMessage("");
+    setEditModalOpen(true);
   };
 
-  const handleValorVentaChange = async (id, nuevoValorVenta) => {
+  const handleSaveEdit = async () => {
+    setEditLoading(true);
+    setEditMessage("");
+    
     try {
-      const productoRef = doc(db, "productos", id);
-      const producto = productos.find((p) => p.id === id);
-
-      if (producto && producto.categoria === "Ferretería") {
-        await updateDoc(productoRef, {
-          valorVenta: Number(nuevoValorVenta),
-          fechaActualizacion: new Date().toISOString(),
-        });
-        console.log(
-          `Valor de venta actualizado para producto ${id}: ${nuevoValorVenta}`
-        );
+      // Validación de campos obligatorios
+      const camposObligatorios = ['nombre', 'descripcion', 'unidadMedida', 'estado'];
+      
+      // Agregar campos específicos según categoría
+      if (editProduct.categoria === "Ferretería") {
+        camposObligatorios.push('subcategoria', 'proveedor');
+      } else if (editProduct.categoria === "Maderas") {
+        camposObligatorios.push('subcategoria', 'tipoMadera');
       }
+      
+      // Verificar campos vacíos
+      const camposVacios = camposObligatorios.filter(campo => !editForm[campo]);
+      
+      if (camposVacios.length > 0) {
+        setEditMessage(`Error: Los siguientes campos son obligatorios: ${camposVacios.join(', ')}`);
+        setEditLoading(false);
+        return;
+      }
+      
+      const productoRef = doc(db, "productos", editProduct.id);
+      const updates = {};
+      
+      // Solo actualizar campos que han cambiado
+      if (editForm.nombre !== editProduct.nombre) {
+        updates.nombre = editForm.nombre;
+      }
+      if (editForm.descripcion !== editProduct.descripcion) {
+        updates.descripcion = editForm.descripcion;
+      }
+      if (editForm.proveedor !== editProduct.proveedor) {
+        updates.proveedor = editForm.proveedor;
+      }
+      if (editForm.unidadMedida !== editProduct.unidadMedida) {
+        updates.unidadMedida = editForm.unidadMedida;
+      }
+      if (editForm.estado !== editProduct.estado) {
+        updates.estado = editForm.estado;
+      }
+      if (editForm.subcategoria !== editProduct.subcategoria) {
+        updates.subcategoria = editForm.subcategoria;
+      }
+      if (editForm.tipoMadera !== editProduct.tipoMadera) {
+        updates.tipoMadera = editForm.tipoMadera;
+      }
+      
+      updates.fechaActualizacion = new Date().toISOString();
+
+      await updateDoc(productoRef, updates);
+      
+      setEditMessage("Producto actualizado correctamente");
+      setTimeout(() => {
+        setEditModalOpen(false);
+        setEditProduct(null);
+        setEditForm({ 
+          nombre: "", 
+          descripcion: "", 
+          proveedor: "", 
+          unidadMedida: "", 
+          estado: "", 
+          subcategoria: "", 
+          tipoMadera: "" 
+        });
+      }, 1500);
     } catch (error) {
-      console.error("Error al actualizar valor de venta:", error);
-      alert("Error al actualizar el valor de venta: " + error.message);
+      setEditMessage("Error al actualizar: " + error.message);
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -748,6 +813,8 @@ const ProductosPage = () => {
           snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
         );
         setLoading(false);
+        // Cargar datos precargados después de obtener los productos
+        cargarDatosPrecargados();
       },
       (err) => {
         setError("Error al cargar productos: " + err.message);
@@ -780,9 +847,39 @@ const ProductosPage = () => {
         nombreNormalizado.includes(filtroNormalizado) ||
         codigoNormalizado.includes(filtroNormalizado);
 
-      return cumpleCategoria && cumpleFiltro;
+      // Filtro específico por tipo de madera
+      const cumpleTipoMadera =
+        cat !== "Maderas" ||
+        filtroTipoMadera === "" ||
+        p.tipoMadera === filtroTipoMadera;
+
+      // Filtro específico por subcategoría de ferretería
+      const cumpleSubCategoria =
+        cat !== "Ferretería" ||
+        filtroSubCategoria === "" ||
+        p.subcategoria === filtroSubCategoria;
+
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
     }
   );
+
+  // Obtener tipos de madera únicos
+  const tiposMaderaUnicos = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Ferretería" && p.subcategoria)
+        .map((p) => p.subcategoria)
+    ),
+  ].filter(Boolean);
 
   // Función para procesar archivo Excel/CSV
   const processExcelFile = (file) => {
@@ -1406,6 +1503,132 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
     window.URL.revokeObjectURL(url);
   };
 
+  // Función para manejar cambios en productos
+  const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Maderas") {
+        // Calcular el nuevo precio con el nuevo precio por pie
+        const precioBase = calcularPrecioCorteMadera({
+          alto: Number(producto.alto) || 0,
+          ancho: Number(producto.ancho) || 0,
+          largo: Number(producto.largo) || 0,
+          precioPorPie: Number(nuevoPrecioPorPie),
+        });
+
+        const precioConCepillado = precioBase * 1.066;
+        const precioFinal = producto.cepilladoAplicado
+          ? precioConCepillado
+          : precioBase;
+
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+        await updateDoc(productoRef, {
+          precioPorPie: Number(nuevoPrecioPorPie),
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
+          fechaActualizacion: new Date().toISOString(),
+        });
+
+        console.log(
+          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}. Precio calculado: ${precioRedondeado}`
+        );
+      } else {
+        await updateDoc(productoRef, {
+          precioPorPie: Number(nuevoPrecioPorPie),
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar precio por pie:", error);
+      alert("Error al actualizar el precio por pie: " + error.message);
+    }
+  };
+
+  const handleCepilladoChange = async (id, aplicarCepillado) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Maderas") {
+        // Calcular el nuevo precio con o sin cepillado
+        const precioBase = calcularPrecioCorteMadera({
+          alto: Number(producto.alto) || 0,
+          ancho: Number(producto.ancho) || 0,
+          largo: Number(producto.largo) || 0,
+          precioPorPie: Number(producto.precioPorPie) || 0,
+        });
+
+        const precioConCepillado = precioBase * 1.066;
+        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
+
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+        await updateDoc(productoRef, {
+          cepilladoAplicado: aplicarCepillado,
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
+          fechaActualizacion: new Date().toISOString(),
+        });
+
+        console.log(
+          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}. Precio: ${precioRedondeado}`
+        );
+      } else {
+        await updateDoc(productoRef, {
+          cepilladoAplicado: aplicarCepillado,
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar cepillado:", error);
+      alert("Error al actualizar el cepillado: " + error.message);
+    }
+  };
+
+  const handleCantidadChange = async (id, nuevaCantidad) => {
+    try {
+      const cantidad = Math.max(1, parseInt(nuevaCantidad) || 1);
+      const productoRef = doc(db, "productos", id);
+      await updateDoc(productoRef, {
+        cantidad: cantidad,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      console.log(`Cantidad actualizada para producto ${id}: ${cantidad}`);
+    } catch (error) {
+      console.error("Error al actualizar cantidad:", error);
+      alert("Error al actualizar la cantidad: " + error.message);
+    }
+  };
+
+  const handleValorVentaChange = async (id, nuevoValorVenta) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Ferretería") {
+        await updateDoc(productoRef, {
+          valorVenta: Number(nuevoValorVenta),
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Valor de venta actualizado para producto ${id}: ${nuevoValorVenta}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar valor de venta:", error);
+      alert("Error al actualizar el valor de venta: " + error.message);
+    }
+  };
+
   return (
     <div className="py-8 px-2 max-w-8xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
@@ -1418,40 +1641,143 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
         </div>
       </div>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle>Listado de Productos</CardTitle>
-          <div className="flex gap-2">
-            <select
-              value={cat}
-              onChange={(e) => setCat(e.target.value)}
-              className="border rounded px-2 py-2"
-            >
-              <option value="">Todas las categorías</option>
-              {categorias.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            <Input
-              placeholder="Buscar producto..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              className="w-48"
-            />
-            <Button variant="default" onClick={() => setOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              Agregar Producto
-            </Button>
-            <Button variant="outline" onClick={() => setOpenBulk(true)}>
-              <Upload className="w-4 h-4 mr-1" />
-              Carga Masiva
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setOpenBulkFerreteria(true)}
-            >
-              <Upload className="w-4 h-4 mr-1" />
-              Carga Masiva Ferretería
-            </Button>
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <CardTitle>Listado de Productos</CardTitle>
+            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <select
+                value={cat}
+                onChange={(e) => {
+                  setCat(e.target.value);
+                  // Limpiar filtros específicos al cambiar categoría
+                  setFiltroTipoMadera("");
+                  setFiltroSubCategoria("");
+                }}
+                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas las categorías</option>
+                {categorias.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <Input
+                placeholder="Buscar producto..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="w-full md:w-64"
+              />
+              <Button variant="default" onClick={() => setOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Agregar Producto
+              </Button>
+              <Button variant="outline" onClick={() => setOpenBulk(true)}>
+                <Upload className="w-4 h-4 mr-1" />
+                Carga Masiva
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setOpenBulkFerreteria(true)}
+              >
+                <Upload className="w-4 h-4 mr-1" />
+                Carga Masiva Ferretería
+              </Button>
+            </div>
+          </div>
+
+          {/* Filtros específicos por categoría */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Filtro de tipo de madera */}
+            {cat === "Maderas" && tiposMaderaUnicos.length > 0 && (
+              <div className="flex-1">
+                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                  <button
+                    type="button"
+                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      filtroTipoMadera === ""
+                        ? "bg-orange-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    onClick={() => setFiltroTipoMadera("")}
+                  >
+                    Todos los tipos
+                  </button>
+                  {tiposMaderaUnicos.map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        filtroTipoMadera === tipo
+                          ? "bg-orange-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setFiltroTipoMadera(tipo)}
+                    >
+                      {tipo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filtro de subcategoría de ferretería */}
+            {cat === "Ferretería" && subCategoriasFerreteria.length > 0 && (
+              <div className="flex-1">
+                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                  <button
+                    type="button"
+                    className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      filtroSubCategoria === ""
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    onClick={() => setFiltroSubCategoria("")}
+                  >
+                    Todas las subcategorías
+                  </button>
+                  {subCategoriasFerreteria.map((subCategoria) => (
+                    <button
+                      key={subCategoria}
+                      type="button"
+                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        filtroSubCategoria === subCategoria
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setFiltroSubCategoria(subCategoria)}
+                    >
+                      {subCategoria}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Indicador de productos filtrados */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Mostrando {productosFiltrados.length} de {productos.length} productos
+              {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
+                <span className="ml-2 text-blue-600">
+                  (filtros aplicados)
+                </span>
+              )}
+            </div>
+            {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFiltro("");
+                  setCat("");
+                  setFiltroTipoMadera("");
+                  setFiltroSubCategoria("");
+                }}
+                className="text-xs"
+              >
+                Limpiar filtros
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -1496,6 +1822,9 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Estado
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Acciones
                     </th>
                   </tr>
                 </thead>
@@ -1750,13 +2079,31 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                           {p.estado}
                         </span>
                       </td>
-                      {/* <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditProduct(p)}
+                            className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
                             Editar
                           </Button>
                         </div>
-                      </td> */}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -2063,6 +2410,513 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                   <Upload className="w-4 h-4 mr-2" />
                   Cargar Productos
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edición de Producto */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              Editar Producto
+            </DialogTitle>
+          </DialogHeader>
+          
+          {editProduct && (
+            <div className="flex flex-col gap-6 py-4">
+              {/* Información del producto */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    editProduct.categoria === "Maderas" 
+                      ? "bg-orange-100 text-orange-600" 
+                      : "bg-blue-100 text-blue-600"
+                  }`}>
+                    {editProduct.categoria === "Maderas" ? "🌲" : "🔧"}
+                  </div>
+                  <div>
+                    <div className="font-bold text-lg text-gray-900">
+                      {editProduct.codigo}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Categoría: {editProduct.categoria}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <span className="font-medium">Stock:</span> 
+                      <span className={`ml-1 font-bold ${
+                        editProduct.stock > 10 ? "text-green-600" : 
+                        editProduct.stock > 0 ? "text-yellow-600" : "text-red-600"
+                      }`}>
+                        {editProduct.stock || 0}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Estado:</span> 
+                      <span className={`ml-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                        editProduct.estado === "Activo" ? "bg-green-100 text-green-800" :
+                        editProduct.estado === "Inactivo" ? "bg-yellow-100 text-yellow-800" :
+                        "bg-red-100 text-red-800"
+                      }`}>
+                        {editProduct.estado}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Unidad:</span> 
+                      <span className="ml-1 font-semibold">
+                        {editProduct.unidadMedida || "No definida"}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Información específica por categoría */}
+                  {editProduct.categoria === "Maderas" && (
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="font-medium">Tipo de Madera:</span> 
+                          <span className="ml-1 font-semibold text-orange-600">
+                            {editProduct.tipoMadera || "No definido"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Subcategoría:</span> 
+                          <span className="ml-1 font-semibold">
+                            {editProduct.subcategoria || "No definida"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {editProduct.categoria === "Ferretería" && (
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="font-medium">Subcategoría:</span> 
+                          <span className="ml-1 font-semibold text-blue-600">
+                            {editProduct.subcategoria || "No definida"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Proveedor:</span> 
+                          <span className="ml-1 font-semibold">
+                            {editProduct.proveedor || "No definido"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Formulario de edición */}
+              <div className="space-y-4">
+                {/* Indicador de campos obligatorios */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-amber-800">
+                      Campos obligatorios marcados con *
+                    </span>
+                  </div>
+                  <div className="text-xs text-amber-700">
+                    {editProduct.categoria === "Maderas" 
+                      ? "Para maderas: nombre, descripción, unidad de medida, estado, subcategoría y tipo de madera"
+                      : "Para ferretería: nombre, descripción, unidad de medida, estado, subcategoría y proveedor"
+                    }
+                  </div>
+                </div>
+
+                {/* Campos comunes para todas las categorías */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Nombre del Producto *
+                    </label>
+                    <Input
+                      value={editForm.nombre}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, nombre: e.target.value }))}
+                      placeholder="Nombre del producto"
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Estado *
+                    </label>
+                    <select
+                      value={editForm.estado}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, estado: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="Activo">Activo</option>
+                      <option value="Inactivo">Inactivo</option>
+                      <option value="Descontinuado">Descontinuado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Descripción *
+                  </label>
+                  <textarea
+                    value={editForm.descripcion}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
+                    placeholder="Descripción detallada del producto"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Unidad de Medida *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={editForm.unidadMedida}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedida.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-3"
+                    >
+                      +
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Campos específicos para Ferretería */}
+                {editProduct.categoria === "Ferretería" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Subcategoría *
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={editForm.subcategoria}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Seleccionar subcategoría</option>
+                          {subcategorias.map((subcat) => (
+                            <option key={subcat} value={subcat}>
+                              {subcat}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddSubcategoria(true)}
+                          className="px-3"
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddSubcategoria && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nueva subcategoría"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('subcategoria', newValue)}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddSubcategoria(false);
+                              setNewValue("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Proveedor *
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={editForm.proveedor}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, proveedor: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Seleccionar proveedor</option>
+                          {proveedores.map((prov) => (
+                            <option key={prov} value={prov}>
+                              {prov}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddProveedor(true)}
+                          className="px-3"
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddProveedor && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nuevo proveedor"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('proveedor', newValue)}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddProveedor(false);
+                              setNewValue("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos específicos para Maderas */}
+                {editProduct.categoria === "Maderas" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Subcategoría *
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={editForm.subcategoria}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Seleccionar subcategoría</option>
+                          {subcategorias.map((subcat) => (
+                            <option key={subcat} value={subcat}>
+                              {subcat}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddSubcategoria(true)}
+                          className="px-3"
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddSubcategoria && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nueva subcategoría"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('subcategoria', newValue)}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddSubcategoria(false);
+                              setNewValue("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Tipo de Madera *
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={editForm.tipoMadera}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, tipoMadera: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Seleccionar tipo de madera</option>
+                          {tiposMaderaUnicos.map((tipo) => (
+                            <option key={tipo} value={tipo}>
+                              {tipo}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddTipoMadera(true)}
+                          className="px-3"
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddTipoMadera && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nuevo tipo de madera"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('tipoMadera', newValue)}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddTipoMadera(false);
+                              setNewValue("");
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mensaje de estado */}
+              {editMessage && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  editMessage.startsWith("Error")
+                    ? "bg-red-50 text-red-800 border border-red-200"
+                    : "bg-green-50 text-green-800 border border-green-200"
+                }`}>
+                  {editMessage}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEditModalOpen(false)}
+              disabled={editLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSaveEdit}
+              disabled={editLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar Cambios"
               )}
             </Button>
           </DialogFooter>

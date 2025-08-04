@@ -36,6 +36,8 @@ const PreciosPage = () => {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState("");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState("");
   const [editProd, setEditProd] = useState(null);
@@ -68,6 +70,15 @@ const PreciosPage = () => {
       productos
         .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
         .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+  
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
     ),
   ].filter(Boolean);
   
@@ -189,13 +200,29 @@ const PreciosPage = () => {
     // Normalizar la categoría
     const categoriaNormalizada = normalizarTexto(p.categoria || "");
 
-    const cumpleFiltro =
+    // Filtro por búsqueda de texto (ahora más flexible)
+    const cumpleBusqueda =
       filtroNormalizado === "" ||
       nombreNormalizado.includes(filtroNormalizado) ||
       categoriaNormalizada.includes(filtroNormalizado);
+
+    // Filtro por categoría principal
     const cumpleCategoria =
       !categoriaSeleccionada || p.categoria === categoriaSeleccionada;
-    return cumpleFiltro && cumpleCategoria;
+
+    // Filtro específico por tipo de madera
+    const cumpleTipoMadera =
+      categoriaSeleccionada !== "Maderas" ||
+      filtroTipoMadera === "" ||
+      p.tipoMadera === filtroTipoMadera;
+
+    // Filtro específico por subcategoría de ferretería
+    const cumpleSubCategoria =
+      categoriaSeleccionada !== "Ferretería" ||
+      filtroSubCategoria === "" ||
+      p.subCategoria === filtroSubCategoria;
+
+    return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoria;
   });
 
   const getIconoCategoria = (categoria) => {
@@ -322,27 +349,131 @@ const PreciosPage = () => {
 
       <Card className="mb-6">
         <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <CardTitle>Listado de Productos</CardTitle>
-            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <select
-                value={categoriaSeleccionada}
-                onChange={(e) => setCategoriaSeleccionada(e.target.value)}
-                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Todas las categorías</option>
-                {categorias.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {getIconoCategoria(cat)} {cat}
-                  </option>
-                ))}
-              </select>
-              <Input
-                placeholder="Buscar producto..."
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                className="w-full md:w-64"
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <CardTitle>Listado de Productos</CardTitle>
+              <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                <select
+                  value={categoriaSeleccionada}
+                  onChange={(e) => {
+                    setCategoriaSeleccionada(e.target.value);
+                    // Limpiar filtros específicos al cambiar categoría
+                    setFiltroTipoMadera("");
+                    setFiltroSubCategoria("");
+                  }}
+                  className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Todas las categorías</option>
+                  {categorias.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {getIconoCategoria(cat)} {cat}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  placeholder="Buscar producto..."
+                  value={filtro}
+                  onChange={(e) => setFiltro(e.target.value)}
+                  className="w-full md:w-64"
+                />
+              </div>
+            </div>
+
+            {/* Filtros específicos por categoría */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Filtro de tipo de madera */}
+              {categoriaSeleccionada === "Maderas" && tiposMadera.length > 0 && (
+                <div className="flex-1">
+                  <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                    <button
+                      type="button"
+                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        filtroTipoMadera === ""
+                          ? "bg-orange-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setFiltroTipoMadera("")}
+                    >
+                      Todos los tipos
+                    </button>
+                    {tiposMadera.map((tipo) => (
+                      <button
+                        key={tipo}
+                        type="button"
+                        className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                          filtroTipoMadera === tipo
+                            ? "bg-orange-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                        onClick={() => setFiltroTipoMadera(tipo)}
+                      >
+                        {tipo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Filtro de subcategoría de ferretería */}
+              {categoriaSeleccionada === "Ferretería" &&
+                subCategoriasFerreteria.length > 0 && (
+                  <div className="flex-1">
+                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                      <button
+                        type="button"
+                        className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                          filtroSubCategoria === ""
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                        onClick={() => setFiltroSubCategoria("")}
+                      >
+                        Todas las subcategorías
+                      </button>
+                      {subCategoriasFerreteria.map((subCategoria) => (
+                        <button
+                          key={subCategoria}
+                          type="button"
+                          className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                            filtroSubCategoria === subCategoria
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                          onClick={() => setFiltroSubCategoria(subCategoria)}
+                        >
+                          {subCategoria}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+            </div>
+
+            {/* Indicador de productos filtrados */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Mostrando {productosFiltrados.length} de {productos.length} productos
+                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
+                  <span className="ml-2 text-blue-600">
+                    (filtros aplicados)
+                  </span>
+                )}
+              </div>
+              {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFiltro("");
+                    setCategoriaSeleccionada("");
+                    setFiltroTipoMadera("");
+                    setFiltroSubCategoria("");
+                  }}
+                  className="text-xs"
+                >
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
