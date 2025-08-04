@@ -97,10 +97,14 @@ const PreciosPage = () => {
   const subCategoriasFerreteria = [
     ...new Set(
       productos
-        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-        .map((p) => p.subCategoria)
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria && p.subCategoria.trim() !== "")
+        .map((p) => p.subCategoria.trim())
     ),
   ].filter(Boolean);
+  
+  // Debug: mostrar subcategorías de ferretería
+  console.log("Productos de ferretería:", productos.filter(p => p.categoria === "Ferretería"));
+  console.log("Subcategorías de ferretería:", subCategoriasFerreteria);
   
   // Obtener subcategorías de maderas únicas
   const subCategoriasMaderas = [
@@ -515,7 +519,7 @@ const PreciosPage = () => {
     const cumpleSubCategoria =
       categoriaSeleccionada !== "Ferretería" ||
       filtroSubCategoria === "" ||
-      p.subCategoria === filtroSubCategoria;
+      (p.subCategoria && p.subCategoria.trim() === filtroSubCategoria);
 
     return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoriaMaderas && cumpleSubCategoria;
   });
@@ -779,6 +783,13 @@ const PreciosPage = () => {
                     </div>
                   </div>
                 )}
+              
+              {/* Mensaje cuando no hay subcategorías para ferretería */}
+              {categoriaSeleccionada === "Ferretería" && subCategoriasFerreteria.length === 0 && (
+                <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
+                  No se encontraron subcategorías para productos de ferretería.
+                </div>
+              )}
             </div>
 
             {/* Indicador de productos filtrados y botón de selección múltiple */}
