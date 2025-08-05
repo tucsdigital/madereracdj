@@ -1858,6 +1858,71 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 </span>
                               </div>
                             )}
+                            
+                            {/* Campos editables para maderas */}
+                            {p.categoria === "Maderas" && (
+                              <div className="mt-2 space-y-1">
+                                {/* Para machimbres: alto y ancho editables */}
+                                {p.subCategoria === "machimbre" ? (
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <span className="font-medium text-gray-600">Alto:</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={p.alto || 0}
+                                        onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                        disabled={isSubmitting}
+                                      />
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-600">Ancho:</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={p.ancho || 0}
+                                        onChange={(e) => handleAnchoChange(p.id, e.target.value)}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                        disabled={isSubmitting}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Para otras maderas: solo mostrar valores */
+                                  <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div>
+                                      <span className="font-medium text-gray-600">Alto:</span>
+                                      <span className="font-bold">{p.alto || 0}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-600">Ancho:</span>
+                                      <span className="font-bold">{p.ancho || 0}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-600">Largo:</span>
+                                      <span className="font-bold">{p.largo || 0}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Precio por pie editable para todas las maderas */}
+                                <div>
+                                  <span className="font-medium text-gray-600 text-xs">$/pie:</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.precioPorPie || 0}
+                                    onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                    disabled={isSubmitting}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                             <div className="flex items-center justify-center">
