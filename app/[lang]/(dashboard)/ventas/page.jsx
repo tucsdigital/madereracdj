@@ -253,7 +253,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let precioPorPie = Number(real.precioPorPie) || 0;
 
         // Verificar si es machimbre para usar cálculo especial
-        if (real.subCategoria === "machimbre") {
+        if (real.subcategoria === "machimbre") {
           if (alto > 0 && ancho > 0 && precioPorPie > 0) {
             precio = calcularPrecioMachimbre({
               alto,
@@ -319,7 +319,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           precioPorPie: Number(real.precioPorPie) || 0,
           cepilladoAplicado: false, // Por defecto sin cepillado
           tipoMadera: real.tipoMadera || "",
-          subCategoria: real.subCategoria || "",
+          subcategoria: real.subcategoria || "",
         },
       ]);
     }
@@ -380,7 +380,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
           
-          if (p.subCategoria === "machimbre") {
+          if (p.subcategoria === "machimbre") {
             precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               ancho: p.ancho,
