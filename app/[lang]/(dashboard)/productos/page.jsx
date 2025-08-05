@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Upload,
   FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -1801,20 +1802,227 @@ const ProductosPage = () => {
 
   // Función para descargar CSV de ejemplo para Ferretería
   const downloadExampleCSVFerreteria = () => {
-    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,stockMinimo,unidadMedida,valorCompra,valorVenta,proveedor,ubicacion
-F001,Tornillos Phillips 3x20,Tornillos Phillips cabeza plana,Ferretería,Tornillos,Activo,150.0,50,kg,120.0,180.0,Proveedor A,Estante A1
-F002,Clavos 2 pulgadas,Clavos de construcción,Ferretería,Clavos,Activo,80.0,100,kg,65.0,95.0,Proveedor B,Estante B2
-F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,unidad,160.0,240.0,Proveedor C,Estante C3`;
+    const headers = [
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "unidadMedida",
+      "proveedor",
+      "stockMinimo",
+      "valorCompra",
+      "valorVenta",
+      "estado",
+    ];
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      headers.join(",") +
+      "\n" +
+      "1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,Activo";
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "ejemplo_ferreteria.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `plantilla_carga_masiva_ferreteria_${new Date()
+        .toISOString()
+        .split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar maderas a CSV
+  const exportarMaderasCSV = () => {
+    const maderas = productos.filter(p => p.categoria === "Maderas");
+    
+    if (maderas.length === 0) {
+      alert("No hay productos de maderas para exportar");
+      return;
+    }
+
+    const headers = [
+      "codigo",
+      "nombre", 
+      "descripcion",
+      "categoria",
+      "subcategoria",
+      "tipoMadera",
+      "unidadMedida",
+      "alto",
+      "ancho", 
+      "largo",
+      "precioPorPie",
+      "stock",
+      "estado",
+      "ubicacion"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    maderas.forEach(producto => {
+      const row = [
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Maderas",
+        producto.subcategoria || "",
+        producto.tipoMadera || "",
+        producto.unidadMedida || "pie",
+        producto.alto || "",
+        producto.ancho || "",
+        producto.largo || "",
+        producto.precioPorPie || "",
+        producto.stock || "",
+        producto.estado || "Activo",
+        producto.ubicacion || ""
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_maderas_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar ferretería a CSV
+  const exportarFerreteriaCSV = () => {
+    const ferreteria = productos.filter(p => p.categoria === "Ferretería");
+    
+    if (ferreteria.length === 0) {
+      alert("No hay productos de ferretería para exportar");
+      return;
+    }
+
+    const headers = [
+      "codigo",
+      "nombre",
+      "descripcion", 
+      "categoria",
+      "subCategoria",
+      "unidadMedida",
+      "proveedor",
+      "stockMinimo",
+      "valorCompra",
+      "valorVenta",
+      "stock",
+      "estado"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    ferreteria.forEach(producto => {
+      const row = [
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Ferretería",
+        producto.subCategoria || "",
+        producto.unidadMedida || "",
+        producto.proveedor || "",
+        producto.stockMinimo || "",
+        producto.valorCompra || "",
+        producto.valorVenta || "",
+        producto.stock || "",
+        producto.estado || "Activo"
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_ferreteria_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar todos los productos a CSV
+  const exportarTodosCSV = () => {
+    if (productos.length === 0) {
+      alert("No hay productos para exportar");
+      return;
+    }
+
+    const headers = [
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subcategoria",
+      "subCategoria",
+      "tipoMadera",
+      "unidadMedida",
+      "proveedor",
+      "alto",
+      "ancho",
+      "largo",
+      "precioPorPie",
+      "stockMinimo",
+      "valorCompra",
+      "valorVenta",
+      "stock",
+      "estado",
+      "ubicacion"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    productos.forEach(producto => {
+      const row = [
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "",
+        producto.subcategoria || "",
+        producto.subCategoria || "",
+        producto.tipoMadera || "",
+        producto.unidadMedida || "",
+        producto.proveedor || "",
+        producto.alto || "",
+        producto.ancho || "",
+        producto.largo || "",
+        producto.precioPorPie || "",
+        producto.stockMinimo || "",
+        producto.valorCompra || "",
+        producto.valorVenta || "",
+        producto.stock || "",
+        producto.estado || "Activo",
+        producto.ubicacion || ""
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_todos_productos_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Función para manejar cambios en productos
@@ -1995,6 +2203,30 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                 <Upload className="w-4 h-4 mr-1" />
                 Carga Masiva Ferretería
               </Button>
+              <Button
+                variant="outline"
+                onClick={exportarMaderasCSV}
+                className="bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Exportar Maderas
+              </Button>
+              <Button
+                variant="outline"
+                onClick={exportarFerreteriaCSV}
+                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Exportar Ferretería
+              </Button>
+              <Button
+                variant="outline"
+                onClick={exportarTodosCSV}
+                className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Exportar Todos los Productos
+              </Button>
             </div>
           </div>
 
@@ -2120,7 +2352,10 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                       Producto
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Tipo/Subcategoría
+                      Tipo de Madera
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Subcategoría
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Unidad Medida
@@ -2247,16 +2482,13 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                         )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="flex flex-col">
-                          {p.categoria === "Maderas" ? (
-                            <span className="font-medium text-orange-700">
-                              {p.tipoMadera || "-"}
-                            </span>
-                          ) : (
-                            <span className="font-medium text-blue-700">
-                              {p.subCategoria || "-"}
-                            </span>
-                          )}
+                        <div className="font-medium text-orange-700">
+                          {p.categoria === "Maderas" ? (p.tipoMadera || "-") : "-"}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-medium text-blue-700">
+                          {p.categoria === "Maderas" ? (p.subcategoria || "-") : (p.subCategoria || "-")}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
