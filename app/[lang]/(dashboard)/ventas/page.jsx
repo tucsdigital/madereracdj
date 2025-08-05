@@ -252,21 +252,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let largo = Number(real.largo) || 0;
         let precioPorPie = Number(real.precioPorPie) || 0;
 
-        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-          precio = calcularPrecioCorteMadera({
-            alto,
-            ancho,
-            largo,
-            precioPorPie,
-          });
-
-          // El cepillado se aplicará individualmente por producto
+        // Verificar si es machimbre para usar cálculo especial
+        if (real.subCategoria === "machimbre") {
+          if (alto > 0 && ancho > 0 && precioPorPie > 0) {
+            precio = calcularPrecioMachimbre({
+              alto,
+              ancho,
+              precioPorPie,
+            });
+          } else {
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto machimbre no tiene dimensiones válidas en la base de datos."
+            );
+            return;
+          }
         } else {
-          setSubmitStatus("error");
-          setSubmitMessage(
-            "El producto de madera no tiene dimensiones válidas en la base de datos."
-          );
-          return;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioCorteMadera({
+              alto,
+              ancho,
+              largo,
+              precioPorPie,
+            });
+          } else {
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto de madera no tiene dimensiones válidas en la base de datos."
+            );
+            return;
+          }
         }
       } else {
         if (real.categoria === "Ferretería") {
@@ -363,12 +378,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
-          const precioBase = calcularPrecioCorteMadera({
-            alto: p.alto,
-            ancho: p.ancho,
-            largo: p.largo,
-            precioPorPie: p.precioPorPie,
-          });
+          let precioBase;
+          
+          if (p.subCategoria === "machimbre") {
+            precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              ancho: p.ancho,
+              precioPorPie: p.precioPorPie,
+            });
+          } else {
+            precioBase = calcularPrecioCorteMadera({
+              alto: p.alto,
+              ancho: p.ancho,
+              largo: p.largo,
+              precioPorPie: p.precioPorPie,
+            });
+          }
 
           const precioFinal = aplicarCepillado
             ? precioBase * 1.066
@@ -392,12 +417,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
-          const precioBase = calcularPrecioCorteMadera({
-            alto: p.alto,
-            ancho: p.ancho,
-            largo: p.largo,
-            precioPorPie: Number(nuevoPrecioPorPie),
-          });
+          let precioBase;
+          
+          if (p.subCategoria === "machimbre") {
+            precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              ancho: p.ancho,
+              precioPorPie: Number(nuevoPrecioPorPie),
+            });
+          } else {
+            precioBase = calcularPrecioCorteMadera({
+              alto: p.alto,
+              ancho: p.ancho,
+              largo: p.largo,
+              precioPorPie: Number(nuevoPrecioPorPie),
+            });
+          }
 
           const precioFinal = p.cepilladoAplicado
             ? precioBase * 1.066
@@ -409,6 +444,62 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           return {
             ...p,
             precioPorPie: Number(nuevoPrecioPorPie),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Función para manejar cambios en alto para machimbre
+  const handleAltoChange = (id, nuevoAlto) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.subCategoria === "machimbre") {
+          const precioBase = calcularPrecioMachimbre({
+            alto: Number(nuevoAlto),
+            ancho: p.ancho,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            alto: Number(nuevoAlto),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Función para manejar cambios en ancho para machimbre
+  const handleAnchoChange = (id, nuevoAncho) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.subCategoria === "machimbre") {
+          const precioBase = calcularPrecioMachimbre({
+            alto: p.alto,
+            ancho: Number(nuevoAncho),
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            ancho: Number(nuevoAncho),
             precio: precioRedondeado,
           };
         }
@@ -463,11 +554,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       const clienteObj = clientesState.find((c) => c.id === val);
       if (clienteObj) {
         setValue("cliente", {
-          nombre: clienteObj.nombre || "",
-          email: clienteObj.email || "",
-          telefono: clienteObj.telefono || "",
-          direccion: clienteObj.direccion || "",
-          cuit: clienteObj.cuit || "",
+          nombre: (clienteObj.nombre || "").toUpperCase(),
+          email: (clienteObj.email || "").toUpperCase(),
+          telefono: (clienteObj.telefono || "").toUpperCase(),
+          direccion: (clienteObj.direccion || "").toUpperCase(),
+          cuit: (clienteObj.cuit || "").toUpperCase(),
         });
       }
     }
@@ -476,11 +567,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   React.useEffect(() => {
     if (clienteSeleccionado) {
       setValue("cliente", {
-        nombre: clienteSeleccionado.nombre || "",
-        email: clienteSeleccionado.email || "",
-        telefono: clienteSeleccionado.telefono || "",
-        direccion: clienteSeleccionado.direccion || "",
-        cuit: clienteSeleccionado.cuit || "",
+        nombre: (clienteSeleccionado.nombre || "").toUpperCase(),
+        email: (clienteSeleccionado.email || "").toUpperCase(),
+        telefono: (clienteSeleccionado.telefono || "").toUpperCase(),
+        direccion: (clienteSeleccionado.direccion || "").toUpperCase(),
+        cuit: (clienteSeleccionado.cuit || "").toUpperCase(),
       });
     }
   }, [clienteSeleccionado, setValue]);
@@ -688,6 +779,24 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return Math.round(precio / 100) * 100;
   }
 
+  // Función para calcular precio de machimbre (precio por pie × alto × ancho)
+  function calcularPrecioMachimbre({
+    alto,
+    ancho,
+    precioPorPie,
+  }) {
+    if (
+      [alto, ancho, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    const precio = alto * ancho * precioPorPie;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  }
+
   // Función para formatear números en formato argentino
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
@@ -810,7 +919,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 >
                   <span className="flex-1 truncate">
                     {clienteSeleccionado
-                      ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit} - ${clienteSeleccionado.localidad}`
+                      ? `${(clienteSeleccionado.nombre || "").toUpperCase()} - ${(clienteSeleccionado.cuit || "").toUpperCase()} - ${(clienteSeleccionado.localidad || "").toUpperCase()}`
                       : "Seleccionar cliente..."}
                   </span>
                   <Icon
@@ -861,7 +970,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             role="option"
                             tabIndex={0}
                           >
-                            {c.nombre} - {c.cuit} - {c.localidad}
+                            {c.nombre.toUpperCase()} - {c.cuit.toUpperCase()} - {(c.localidad || "").toUpperCase()}
                           </div>
                         ))}
                       </div>
@@ -885,7 +994,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Input
-                      value={clienteSeleccionado?.nombre || ""}
+                      value={(clienteSeleccionado?.nombre || "").toUpperCase()}
                       placeholder="Nombre del cliente"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -898,7 +1007,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={clienteSeleccionado?.cuit || ""}
+                      value={(clienteSeleccionado?.cuit || "").toUpperCase()}
                       placeholder="CUIT"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -911,7 +1020,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={clienteSeleccionado?.direccion || ""}
+                      value={(clienteSeleccionado?.direccion || "").toUpperCase()}
                       placeholder="Dirección"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -924,7 +1033,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={clienteSeleccionado?.telefono || ""}
+                      value={(clienteSeleccionado?.telefono || "").toUpperCase()}
                       placeholder="Teléfono"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -937,7 +1046,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={clienteSeleccionado?.email || ""}
+                      value={(clienteSeleccionado?.email || "").toUpperCase()}
                       placeholder="Email"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -1746,76 +1855,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                                   🔧 {p.subCategoria}
-                                </span>
-                              </div>
-                            )}
-                            {p.categoria === "Maderas" && (
-                              <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                <span className="font-medium text-gray-500">
-                                  Dimensiones:
-                                </span>
-                                <span>
-                                  Alto:{" "}
-                                  <span className="font-bold">{p.alto}</span>
-                                </span>
-                                <span>
-                                  Ancho:{" "}
-                                  <span className="font-bold">{p.ancho}</span>{" "}
-                                </span>
-                                <span>
-                                  Largo:{" "}
-                                  <span className="font-bold">{p.largo}</span>{" "}
-                                </span>
-                                <span>
-                                  $/pie:{" "}
-                                  <div className="inline-flex items-center gap-1">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={p.precioPorPie}
-                                      onChange={(e) =>
-                                        handlePrecioPorPieChange(
-                                          p.id,
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                      disabled={isSubmitting}
-                                      placeholder="0.00"
-                                      title="Editar precio por pie"
-                                    />
-                                    <svg
-                                      className="w-3 h-3 text-blue-500"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </div>
-                                </span>
-                                {p.stock <= 0 && (
-                                  <span className="text-red-600 font-semibold ml-2">
-                                    ¡Sin stock! Se permitirá avanzar igual.
-                                  </span>
-                                )}
-                                {p.stock > 0 && p.stock <= 3 && (
-                                  <span className="text-yellow-600 font-semibold ml-2">
-                                    Stock bajo: quedan {p.stock} unidades.
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {p.esEditable && (
-                              <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                <span className="text-blue-600 font-medium">
-                                  ✏️ Producto editable
                                 </span>
                               </div>
                             )}
