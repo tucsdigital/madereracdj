@@ -45,7 +45,6 @@ import {
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import toast from "react-hot-toast";
 
 const categorias = ["Maderas", "Ferretería"];
 
@@ -2272,10 +2271,10 @@ const ProductosPage = () => {
       setSelectAll(false);
       setShowDeleteConfirm(false);
       
-      toast.success(`${selectedProducts.length} producto(s) eliminado(s) correctamente`);
+      console.log(`${selectedProducts.length} producto(s) eliminado(s) correctamente`);
     } catch (error) {
       console.error("Error al eliminar productos:", error);
-      toast.error("Error al eliminar productos: " + error.message);
+      alert("Error al eliminar productos: " + error.message);
     } finally {
       setDeleteLoading(false);
     }
