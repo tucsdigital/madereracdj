@@ -27,7 +27,6 @@ import {
   Upload,
   FileSpreadsheet,
   Download,
-  Trash2,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -40,7 +39,6 @@ import {
   doc,
   updateDoc,
   getDocs,
-  deleteDoc,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -914,7 +912,6 @@ const ProductosPage = () => {
     unidadMedida: "",
     estado: "",
     subcategoria: "",
-    subCategoria: "",
     tipoMadera: "",
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -927,14 +924,12 @@ const ProductosPage = () => {
   // Estados para datos precargados de Firebase
   const [proveedores, setProveedores] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
-  const [subCategoriasFerreteria, setSubCategoriasFerreteria] = useState([]);
   const [tiposMadera, setTiposMadera] = useState([]);
   const [unidadesMedida, setUnidadesMedida] = useState([]);
 
   // Estados para agregar nuevos valores
   const [showAddProveedor, setShowAddProveedor] = useState(false);
   const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
-  const [showAddSubcategoriaFerreteria, setShowAddSubcategoriaFerreteria] = useState(false);
   const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
   const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
   const [newValue, setNewValue] = useState("");
@@ -956,19 +951,6 @@ const ProductosPage = () => {
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
 
-  // Estados para selección y eliminación de productos
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Mantener sincronizado el estado del checkbox "Seleccionar todo"
-  useEffect(() => {
-    const allProductIds = productosFiltrados.map(p => p.id);
-    const allSelected = allProductIds.length > 0 && allProductIds.every(id => selectedProducts.includes(id));
-    setSelectAll(allSelected);
-  }, [selectedProducts, productosFiltrados]);
-
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
     // Extraer proveedores únicos
@@ -979,23 +961,13 @@ const ProductosPage = () => {
     )].sort();
     setProveedores(proveedoresUnicos);
 
-    // Extraer subcategorías de maderas (subcategoria)
-    const subcategoriasMaderas = [...new Set(
+    // Extraer subcategorías únicas
+    const subcategoriasUnicas = [...new Set(
       productos
-        .filter(p => p.categoria === "Maderas" && p.subcategoria)
+        .filter(p => p.subcategoria)
         .map(p => p.subcategoria)
     )].sort();
-    setSubcategorias(subcategoriasMaderas);
-
-    // Extraer subcategorías de ferretería (subCategoria)
-    const subcategoriasFerreteria = [
-      ...new Set(
-        productos
-          .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-          .map((p) => p.subCategoria)
-      ),
-    ].filter(Boolean);
-    setSubCategoriasFerreteria(subcategoriasFerreteria);
+    setSubcategorias(subcategoriasUnicas);
 
     // Extraer tipos de madera únicos
     const tiposMaderaUnicos = [...new Set(
@@ -1033,13 +1005,6 @@ const ProductosPage = () => {
         setEditForm(prev => ({ ...prev, subcategoria: valor }));
         setShowAddSubcategoria(false);
         break;
-      case 'subCategoria':
-        if (!subCategoriasFerreteria.includes(valor)) {
-          setSubCategoriasFerreteria(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, subCategoria: valor }));
-        setShowAddSubcategoriaFerreteria(false);
-        break;
       case 'tipoMadera':
         if (!tiposMadera.includes(valor)) {
           setTiposMadera(prev => [...prev, valor].sort());
@@ -1068,7 +1033,6 @@ const ProductosPage = () => {
       unidadMedida: producto.unidadMedida || "",
       estado: producto.estado || "Activo",
       subcategoria: producto.subcategoria || "",
-      subCategoria: producto.subCategoria || "",
       tipoMadera: producto.tipoMadera || "",
     });
     setEditMessage("");
@@ -1088,7 +1052,7 @@ const ProductosPage = () => {
       
       // Agregar campos específicos según categoría
       if (editProduct.categoria === "Ferretería") {
-        camposObligatorios.push('subCategoria', 'proveedor');
+        camposObligatorios.push('subcategoria', 'proveedor');
       } else if (editProduct.categoria === "Maderas") {
         camposObligatorios.push('subcategoria', 'tipoMadera');
       }
@@ -1121,18 +1085,9 @@ const ProductosPage = () => {
       if (editForm.estado !== editProduct.estado) {
         updates.estado = editForm.estado;
       }
-      
-      // Actualizar subcategoría según la categoría del producto
-      if (editProduct.categoria === "Ferretería") {
-        if (editForm.subCategoria !== editProduct.subCategoria) {
-          updates.subCategoria = editForm.subCategoria;
-        }
-      } else {
-        if (editForm.subcategoria !== editProduct.subcategoria) {
-          updates.subcategoria = editForm.subcategoria;
-        }
+      if (editForm.subcategoria !== editProduct.subcategoria) {
+        updates.subcategoria = editForm.subcategoria;
       }
-      
       if (editForm.tipoMadera !== editProduct.tipoMadera) {
         updates.tipoMadera = editForm.tipoMadera;
       }
@@ -1232,8 +1187,8 @@ const ProductosPage = () => {
     ),
   ].filter(Boolean);
 
-  // Obtener subcategorías de ferretería únicas para filtros
-  const subCategoriasFerreteriaFiltro = [
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
     ...new Set(
       productos
         .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
@@ -2196,56 +2151,6 @@ const ProductosPage = () => {
     }
   };
 
-  // Funciones para selección y eliminación de productos
-  const handleSelectProduct = (productId) => {
-    setSelectedProducts(prev => {
-      if (prev.includes(productId)) {
-        return prev.filter(id => id !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedProducts([]);
-      setSelectAll(false);
-    } else {
-      const allProductIds = productosFiltrados.map(p => p.id);
-      setSelectedProducts(allProductIds);
-      setSelectAll(true);
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedProducts.length === 0) return;
-    
-    setDeleteLoading(true);
-    try {
-      // Eliminar productos de Firebase
-      const deletePromises = selectedProducts.map(async (productId) => {
-        const productRef = doc(db, "productos", productId);
-        await deleteDoc(productRef);
-      });
-      
-      await Promise.all(deletePromises);
-      
-      // Actualizar la lista de productos
-      setProductos(prev => prev.filter(p => !selectedProducts.includes(p.id)));
-      setSelectedProducts([]);
-      setSelectAll(false);
-      setShowDeleteConfirm(false);
-      
-      console.log(`${selectedProducts.length} producto(s) eliminado(s) correctamente`);
-    } catch (error) {
-      console.error("Error al eliminar productos:", error);
-      alert("Error al eliminar productos: " + error.message);
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
   return (
     <div className="py-8 px-2 max-w-8xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
@@ -2304,7 +2209,7 @@ const ProductosPage = () => {
                 className="bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
               >
                 <Download className="w-4 h-4 mr-1" />
-                Exportar TODAS las Maderas
+                Exportar Maderas
               </Button>
               <Button
                 variant="outline"
@@ -2312,7 +2217,7 @@ const ProductosPage = () => {
                 className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
               >
                 <Download className="w-4 h-4 mr-1" />
-                Exportar TODA la Ferretería
+                Exportar Ferretería
               </Button>
               <Button
                 variant="outline"
@@ -2320,18 +2225,8 @@ const ProductosPage = () => {
                 className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
               >
                 <Download className="w-4 h-4 mr-1" />
-                Exportar TODOS los Productos
+                Exportar Todos los Productos
               </Button>
-              {selectedProducts.length > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Eliminar ({selectedProducts.length})
-                </Button>
-              )}
             </div>
           </div>
 
@@ -2371,7 +2266,7 @@ const ProductosPage = () => {
             )}
 
             {/* Filtro de subcategoría de ferretería */}
-            {cat === "Ferretería" && subCategoriasFerreteriaFiltro.length > 0 && (
+            {cat === "Ferretería" && subCategoriasFerreteria.length > 0 && (
               <div className="flex-1">
                 <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
                   <button
@@ -2385,7 +2280,7 @@ const ProductosPage = () => {
                   >
                     Todas las subcategorías
                   </button>
-                  {subCategoriasFerreteriaFiltro.map((subCategoria) => (
+                  {subCategoriasFerreteria.map((subCategoria) => (
                     <button
                       key={subCategoria}
                       type="button"
@@ -2448,14 +2343,6 @@ const ProductosPage = () => {
                 <thead className="[&_tr]:border-b bg-default-">
                   <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      <input
-                        type="checkbox"
-                        checked={selectAll}
-                        onChange={handleSelectAll}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                      />
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Código
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -2505,14 +2392,6 @@ const ProductosPage = () => {
                       key={p.id}
                       className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
                     >
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedProducts.includes(p.id)}
-                          onChange={() => handleSelectProduct(p.id)}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                        />
-                      </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="font-semibold text-default-900">
                           {p.codigo}
@@ -2907,16 +2786,12 @@ const ProductosPage = () => {
                 <p className="text-sm text-gray-500 mt-2">
                   Formato soportado: CSV (guarda tu Excel como CSV)
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  💡 Nota: Este botón descarga un archivo de EJEMPLO con datos de muestra. 
-                  Para exportar todos tus productos, usa los botones "Exportar" en la página principal.
-                </p>
                 <button
                   type="button"
                   onClick={downloadExampleCSV}
                   className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
                 >
-                  📥 Descargar archivo de EJEMPLO CSV (solo datos de muestra)
+                  📥 Descargar ejemplo CSV
                 </button>
               </div>
             </div>
@@ -3054,16 +2929,12 @@ const ProductosPage = () => {
                 <p className="text-sm text-gray-500 mt-2">
                   Formato soportado: CSV (guarda tu Excel como CSV)
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  💡 Nota: Este botón descarga un archivo de EJEMPLO con datos de muestra. 
-                  Para exportar todos tus productos, usa los botones "Exportar" en la página principal.
-                </p>
                 <button
                   type="button"
                   onClick={downloadExampleCSVFerreteria}
                   className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
                 >
-                  📥 Descargar archivo de EJEMPLO CSV (solo datos de muestra)
+                  📥 Descargar ejemplo CSV
                 </button>
               </div>
             </div>
@@ -3219,7 +3090,7 @@ const ProductosPage = () => {
                         <div>
                           <span className="font-medium">Subcategoría:</span> 
                           <span className="ml-1 font-semibold text-blue-600">
-                            {editProduct.subCategoria || "No definida"}
+                            {editProduct.subcategoria || "No definida"}
                           </span>
                         </div>
                         <div>
@@ -3362,12 +3233,12 @@ const ProductosPage = () => {
                       </label>
                       <div className="flex gap-2">
                         <select
-                          value={editForm.subCategoria}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, subCategoria: e.target.value }))}
+                          value={editForm.subcategoria}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Seleccionar subcategoría</option>
-                          {subCategoriasFerreteriaFiltro.map((subcat) => (
+                          {subcategorias.map((subcat) => (
                             <option key={subcat} value={subcat}>
                               {subcat}
                             </option>
@@ -3377,13 +3248,13 @@ const ProductosPage = () => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setShowAddSubcategoriaFerreteria(true)}
+                          onClick={() => setShowAddSubcategoria(true)}
                           className="px-3"
                         >
                           +
                         </Button>
                       </div>
-                      {showAddSubcategoriaFerreteria && (
+                      {showAddSubcategoria && (
                         <div className="flex gap-2 mt-2">
                           <Input
                             value={newValue}
@@ -3394,7 +3265,7 @@ const ProductosPage = () => {
                           <Button
                             type="button"
                             size="sm"
-                            onClick={() => handleAddNewValue('subCategoria', newValue)}
+                            onClick={() => handleAddNewValue('subcategoria', newValue)}
                           >
                             Agregar
                           </Button>
@@ -3403,7 +3274,7 @@ const ProductosPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setShowAddSubcategoriaFerreteria(false);
+                              setShowAddSubcategoria(false);
                               setNewValue("");
                             }}
                           >
@@ -3624,55 +3495,6 @@ const ProductosPage = () => {
                 </>
               ) : (
                 "Guardar Cambios"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Confirmación de Eliminación */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="w-[95vw] max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="w-5 h-5" />
-              Confirmar Eliminación
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <p className="text-gray-700 mb-4">
-              ¿Estás seguro de que deseas eliminar <strong>{selectedProducts.length}</strong> producto(s) seleccionado(s)?
-            </p>
-            <p className="text-sm text-red-600 font-medium">
-              ⚠️ Esta acción no se puede deshacer. Los productos se eliminarán permanentemente.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteConfirm(false)}
-              disabled={deleteLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteSelected}
-              disabled={deleteLoading}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleteLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar Productos
-                </>
               )}
             </Button>
           </DialogFooter>
