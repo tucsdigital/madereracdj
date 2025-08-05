@@ -45,7 +45,7 @@ import {
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 const categorias = ["Maderas", "Ferretería"];
 
@@ -85,12 +85,13 @@ const baseSchema = {
     .string()
     .oneOf(["Activo", "Inactivo", "Descontinuado"])
     .required(),
-    costo: yup.number().positive().required("El costo es obligatorio"),
+  costo: yup.number().positive().required("El costo es obligatorio"),
 };
 
 // Esquema para Maderas
 const maderasSchema = yup.object().shape({
   ...baseSchema,
+  subcategoria: yup.string().required("La subcategoría es obligatoria"),
   tipoMadera: yup.string().required("Tipo de madera obligatorio"),
   largo: yup.number().positive().required("Largo obligatorio"),
   ancho: yup.number().positive().required("Ancho obligatorio"),
@@ -98,7 +99,6 @@ const maderasSchema = yup.object().shape({
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
   precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
   ubicacion: yup.string().required("Ubicación obligatoria"),
-  subcategoria: yup.string().required("La subcategoría es obligatoria"),
 });
 
 // Esquema para Ferretería
