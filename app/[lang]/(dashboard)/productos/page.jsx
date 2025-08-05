@@ -81,12 +81,11 @@ const baseSchema = {
   nombre: yup.string().required("El nombre es obligatorio"),
   descripcion: yup.string().required("La descripción es obligatoria"),
   categoria: yup.string().required("La categoría es obligatoria"),
-  subcategoria: yup.string().required("La subcategoría es obligatoria"),
   estado: yup
     .string()
     .oneOf(["Activo", "Inactivo", "Descontinuado"])
     .required(),
-  costo: yup.number().positive().required("El costo es obligatorio"),
+    costo: yup.number().positive().required("El costo es obligatorio"),
 };
 
 // Esquema para Maderas
@@ -99,11 +98,21 @@ const maderasSchema = yup.object().shape({
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
   precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
   ubicacion: yup.string().required("Ubicación obligatoria"),
+  subcategoria: yup.string().required("La subcategoría es obligatoria"),
 });
 
 // Esquema para Ferretería
 const ferreteriaSchema = yup.object().shape({
-  ...baseSchema,
+  codigo: yup.string().required("El código es obligatorio"),
+  nombre: yup.string().required("El nombre es obligatorio"),
+  descripcion: yup.string().required("La descripción es obligatoria"),
+  categoria: yup.string().required("La categoría es obligatoria"),
+  subCategoria: yup.string().required("La subcategoría es obligatoria"),
+  estado: yup
+    .string()
+    .oneOf(["Activo", "Inactivo", "Descontinuado"])
+    .required(),
+  costo: yup.number().positive().required("El costo es obligatorio"),
   stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
   unidadMedida: yup.string().required("Unidad de medida obligatoria"),
   valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
@@ -251,6 +260,10 @@ function FormularioProducto({ onClose, onSuccess }) {
           setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
           setValue('subcategoria', valor.trim());
           break;
+        case 'subCategoria':
+          setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
+          setValue('subCategoria', valor.trim());
+          break;
         case 'unidadMedida':
           setUnidadesMedidaUnicas(prev => [...prev, valor.trim()]);
           setValue('unidadMedida', valor.trim());
@@ -303,10 +316,10 @@ function FormularioProducto({ onClose, onSuccess }) {
       {/* Feedback de guardado */}
       {submitStatus && (
         <div
-          className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${
+          className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
             submitStatus === "success"
-              ? "bg-green-50 text-green-800"
-              : "bg-red-50 text-red-800"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
           }`}
         >
           {submitStatus === "success" ? (
@@ -317,9 +330,12 @@ function FormularioProducto({ onClose, onSuccess }) {
           {submitMessage}
         </div>
       )}
-      {/* Selector de categoría SIEMPRE visible */}
-      <div className="mb-2">
-        <label className="font-semibold text-default-700">Categoría</label>
+
+      {/* Selector de categoría */}
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Categoría del Producto *
+        </label>
         <select
           {...register("categoria")}
           value={categoria}
@@ -327,77 +343,209 @@ function FormularioProducto({ onClose, onSuccess }) {
             setCategoria(e.target.value);
             setValue("categoria", e.target.value);
           }}
-          className="border rounded px-2 py-2 w-full"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           disabled={isSubmitting}
         >
           <option value="">Seleccionar categoría</option>
           {categorias.map((c) => (
-            <option key={c}>{c}</option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
         {errors.categoria && (
-          <span className="text-red-500 text-xs">
+          <span className="text-red-500 text-xs mt-1 block">
             {errors.categoria.message}
           </span>
         )}
       </div>
+
       {/* Solo mostrar el resto del formulario si hay categoría seleccionada */}
       {categoria && (
-        <>
-          <div
-            className="overflow-y-auto flex-1 pr-1"
-            style={{ maxHeight: "60vh" }}
-          >
-            {/* Sección: Datos generales */}
-            <div className="mb-2">
-              <div className="font-semibold text-primary mb-1">
-                Datos generales
+        <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: "70vh" }}>
+          
+          {/* Sección: Información Básica */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-800">Información Básica</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código del Producto *
+                </label>
+                <Input
+                  {...register("codigo")}
+                  placeholder="Ej: 1401"
+                  disabled={isSubmitting}
+                  className="w-full"
+                />
+                {errors.codigo && (
+                  <span className="text-red-500 text-xs mt-1 block">
+                    {errors.codigo.message}
+                  </span>
+                )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del Producto *
+                </label>
+                <Input
+                  {...register("nombre")}
+                  placeholder="Ej: TABLAS 1/2 X 6 X 3"
+                  disabled={isSubmitting}
+                  className="w-full"
+                />
+                {errors.nombre && (
+                  <span className="text-red-500 text-xs mt-1 block">
+                    {errors.nombre.message}
+                  </span>
+                )}
+              </div>
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción *
+                </label>
+                <textarea
+                  {...register("descripcion")}
+                  placeholder="Descripción detallada del producto"
+                  disabled={isSubmitting}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                />
+                {errors.descripcion && (
+                  <span className="text-red-500 text-xs mt-1 block">
+                    {errors.descripcion.message}
+                  </span>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Estado *
+                </label>
+                <select
+                  {...register("estado")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+                {errors.estado && (
+                  <span className="text-red-500 text-xs mt-1 block">
+                    {errors.estado.message}
+                  </span>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Costo Unitario *
+                </label>
+                <Input
+                  {...register("costo")}
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  disabled={isSubmitting}
+                  className="w-full"
+                />
+                {errors.costo && (
+                  <span className="text-red-500 text-xs mt-1 block">
+                    {errors.costo.message}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Sección: Campos Específicos por Categoría */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className={`w-2 h-2 rounded-full ${categoria === "Maderas" ? "bg-orange-500" : "bg-blue-500"}`}></div>
+              <h3 className="text-lg font-semibold text-gray-800">
+                {categoria === "Maderas" ? "Especificaciones de Madera" : "Especificaciones de Ferretería"}
+              </h3>
+            </div>
+            
+            {categoria === "Maderas" ? (
+              // Campos específicos para Maderas
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Input
-                    {...register("codigo")}
-                    placeholder="Código de producto"
-                    disabled={isSubmitting}
-                  />
-                  {errors.codigo && (
-                    <span className="text-red-500 text-xs">
-                      {errors.codigo.message}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Madera *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("tipoMadera")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar tipo</option>
+                      {tiposMaderaUnicos.map((tipo) => (
+                        <option key={tipo} value={tipo}>{tipo}</option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddTipoMadera(true)}
+                      className="px-3"
+                      disabled={isSubmitting}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  {showAddTipoMadera && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nuevo tipo de madera"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('tipoMadera', newValue)}
+                        disabled={isSubmitting}
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddTipoMadera(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.tipoMadera && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.tipoMadera.message}
                     </span>
                   )}
                 </div>
+                
                 <div>
-                  <Input
-                    {...register("nombre")}
-                    placeholder="Nombre"
-                    disabled={isSubmitting}
-                  />
-                  {errors.nombre && (
-                    <span className="text-red-500 text-xs">
-                      {errors.nombre.message}
-                    </span>
-                  )}
-                </div>
-                <div className="md:col-span-2">
-                  <Input
-                    {...register("descripcion")}
-                    placeholder="Descripción"
-                    disabled={isSubmitting}
-                  />
-                  {errors.descripcion && (
-                    <span className="text-red-500 text-xs">
-                      {errors.descripcion.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1">
-                    Subcategoría
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subcategoría *
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("subcategoria")}
-                      className="flex-1 border rounded px-2 py-2"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar subcategoría</option>
@@ -449,451 +597,389 @@ function FormularioProducto({ onClose, onSuccess }) {
                     </div>
                   )}
                   {errors.subcategoria && (
-                    <span className="text-red-500 text-xs">
+                    <span className="text-red-500 text-xs mt-1 block">
                       {errors.subcategoria.message}
                     </span>
                   )}
                 </div>
+                
                 <div>
-                  <select
-                    {...register("estado")}
-                    className="border rounded px-2 py-2 w-full"
-                    disabled={isSubmitting}
-                  >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                    <option value="Descontinuado">Descontinuado</option>
-                  </select>
-                  {errors.estado && (
-                    <span className="text-red-500 text-xs">
-                      {errors.estado.message}
-                    </span>
-                  )}
-                </div>
-                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Largo (metros) *
+                  </label>
                   <Input
-                    {...register("costo")}
+                    {...register("largo")}
                     type="number"
                     step="0.01"
-                    placeholder="Costo unitario"
+                    placeholder="3.0"
                     disabled={isSubmitting}
+                    className="w-full"
                   />
-                  {errors.costo && (
-                    <span className="text-red-500 text-xs">
-                      {errors.costo.message}
+                  {errors.largo && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.largo.message}
                     </span>
                   )}
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ancho (centímetros) *
+                  </label>
+                  <Input
+                    {...register("ancho")}
+                    type="number"
+                    step="0.01"
+                    placeholder="50"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.ancho && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.ancho.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Alto (centímetros) *
+                  </label>
+                  <Input
+                    {...register("alto")}
+                    type="number"
+                    step="0.01"
+                    placeholder="6.0"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.alto && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.alto.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio por Pie *
+                  </label>
+                  <Input
+                    {...register("precioPorPie")}
+                    type="number"
+                    step="0.01"
+                    placeholder="700.00"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.precioPorPie && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.precioPorPie.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ubicación en Depósito
+                  </label>
+                  <Input
+                    {...register("ubicacion")}
+                    placeholder="Ej: Estante A, Nivel 2"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                </div>
               </div>
-            </div>
-            <hr className="my-2" />
-            {/* Sección: Datos específicos */}
-            <div className="mb-2">
-              <div className="font-semibold text-primary mb-1">
-                Datos específicos
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {categoria === "Maderas" && (
-                  <>
-                    <div>
+            ) : (
+              // Campos específicos para Ferretería
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subcategoría *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("subCategoria")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar subcategoría</option>
+                      {subCategoriasUnicas.map((subCategoria) => (
+                        <option key={subCategoria} value={subCategoria}>
+                          {subCategoria}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddSubcategoria(true)}
+                      className="px-3"
+                      disabled={isSubmitting}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  {showAddSubcategoria && (
+                    <div className="flex gap-2 mt-2">
                       <Input
-                        {...register("tipoMadera")}
-                        placeholder="Tipo de madera"
-                        disabled={isSubmitting}
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva subcategoría"
+                        className="flex-1"
                       />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("largo")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Largo (m)"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("ancho")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Ancho (cm)"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("alto")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Alto (cm)"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Unidad de medida de venta
-                      </label>
-                      <input
-                        type="text"
-                        value="pie"
-                        readOnly
-                        className="border rounded px-2 py-2 w-full bg-gray-100"
-                        disabled={isSubmitting}
-                      />
-                      <input
-                        type="hidden"
-                        {...register("unidadMedida")}
-                        value="pie"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("precioPorPie")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor del pie"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Input
-                        {...register("ubicacion")}
-                        placeholder="Ubicación en depósito"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </>
-                )}
-                {categoria === "Ferretería" && (
-                  <>
-                    <div>
-                      <Input
-                        {...register("stockMinimo")}
-                        type="number"
-                        step="1"
-                        placeholder="Stock mínimo"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.stockMinimo && (
-                      <span className="text-red-500 text-xs">
-                        {errors.stockMinimo.message}
-                      </span>
-                    )}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Unidad de medida de venta
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("unidadMedida")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar unidad</option>
-                          {unidadesMedidaUnicas.map((unidad) => (
-                            <option key={unidad} value={unidad}>
-                              {unidad}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddUnidadMedida(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddUnidadMedida && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nueva unidad de medida"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('unidadMedida', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddUnidadMedida(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.unidadMedida && (
-                        <span className="text-red-500 text-xs">
-                          {errors.unidadMedida.message}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Subcategoría
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("subCategoria")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar subcategoría</option>
-                          {subCategoriasUnicas.map((subCategoria) => (
-                            <option key={subCategoria} value={subCategoria}>
-                              {subCategoria}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddSubcategoria(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddSubcategoria && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nueva subcategoría"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('subcategoria', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddSubcategoria(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.subCategoria && (
-                        <span className="text-red-500 text-xs">
-                          {errors.subCategoria.message}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <Input
-                        {...register("valorCompra")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor de compra"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.valorCompra && (
-                      <span className="text-red-500 text-xs">
-                        {errors.valorCompra.message}
-                      </span>
-                    )}
-                    <div>
-                      <Input
-                        {...register("valorVenta")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor de venta"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.valorVenta && (
-                      <span className="text-red-500 text-xs">
-                        {errors.valorVenta.message}
-                      </span>
-                    )}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Proveedor
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("proveedor")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar proveedor</option>
-                          {proveedoresUnicos.map((proveedor) => (
-                            <option key={proveedor} value={proveedor}>
-                              {proveedor}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddProveedor(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddProveedor && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nuevo proveedor"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('proveedor', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddProveedor(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.proveedor && (
-                        <span className="text-red-500 text-xs">
-                          {errors.proveedor.message}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-                {categoria === "Maderas" && (
-                  <div>
-                    <label className="block text-xs font-medium mb-1">
-                      Tipo de Madera
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        {...register("tipoMadera")}
-                        className="flex-1 border rounded px-2 py-2"
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('subCategoria', newValue)}
                         disabled={isSubmitting}
                       >
-                        <option value="">Seleccionar tipo de madera</option>
-                        {tiposMaderaUnicos.map((tipo) => (
-                          <option key={tipo} value={tipo}>
-                            {tipo}
-                          </option>
-                        ))}
-                      </select>
+                        Agregar
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowAddTipoMadera(true)}
-                        className="px-3"
+                        onClick={() => {
+                          setShowAddSubcategoria(false);
+                          setNewValue("");
+                        }}
                         disabled={isSubmitting}
                       >
-                        +
+                        Cancelar
                       </Button>
                     </div>
-                    {showAddTipoMadera && (
-                      <div className="flex gap-2 mt-2">
-                        <Input
-                          value={newValue}
-                          onChange={(e) => setNewValue(e.target.value)}
-                          placeholder="Nuevo tipo de madera"
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleAddNewValue('tipoMadera', newValue)}
-                          disabled={isSubmitting}
-                        >
-                          Agregar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowAddTipoMadera(false);
-                            setNewValue("");
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    )}
-                    {errors.tipoMadera && (
-                      <span className="text-red-500 text-xs">
-                        {errors.tipoMadera.message}
-                      </span>
-                    )}
+                  )}
+                  {errors.subCategoria && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.subCategoria.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proveedor *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("proveedor")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar proveedor</option>
+                      {proveedoresUnicos.map((proveedor) => (
+                        <option key={proveedor} value={proveedor}>
+                          {proveedor}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddProveedor(true)}
+                      className="px-3"
+                      disabled={isSubmitting}
+                    >
+                      +
+                    </Button>
                   </div>
-                )}
+                  {showAddProveedor && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nuevo proveedor"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('proveedor', newValue)}
+                        disabled={isSubmitting}
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddProveedor(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.proveedor && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.proveedor.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidad de Medida *
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-3"
+                      disabled={isSubmitting}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                        disabled={isSubmitting}
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.unidadMedida && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.unidadMedida.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Stock Mínimo *
+                  </label>
+                  <Input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="1"
+                    placeholder="1"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.stockMinimo && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.stockMinimo.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Valor de Compra *
+                  </label>
+                  <Input
+                    {...register("valorCompra")}
+                    type="number"
+                    step="0.01"
+                    placeholder="859.00"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.valorCompra && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.valorCompra.message}
+                    </span>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Valor de Venta *
+                  </label>
+                  <Input
+                    {...register("valorVenta")}
+                    type="number"
+                    step="0.01"
+                    placeholder="1700.00"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  />
+                  {errors.valorVenta && (
+                    <span className="text-red-500 text-xs mt-1 block">
+                      {errors.valorVenta.message}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          {/* Footer fijo */}
-          <DialogFooter className="bg-white pt-4 sticky bottom-0 z-10">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button variant="default" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar"
-              )}
-            </Button>
-          </DialogFooter>
-        </>
+        </div>
       )}
+
+      {/* Botones de acción */}
+      <div className="flex gap-3 pt-4 border-t border-gray-200">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="flex-1"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !categoria}
+          className="flex-1 bg-blue-600 hover:bg-blue-700"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Producto
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -1028,32 +1114,20 @@ const ProductosPage = () => {
         setShowAddProveedor(false);
         break;
       case 'subcategoria':
-        if (!subcategorias.includes(valor)) {
-          setSubcategorias(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, subcategoria: valor }));
-        setShowAddSubcategoria(false);
+        setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
+        setValue('subcategoria', valor.trim());
         break;
       case 'subCategoria':
-        if (!subCategoriasFerreteria.includes(valor)) {
-          setSubCategoriasFerreteria(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, subCategoria: valor }));
-        setShowAddSubcategoriaFerreteria(false);
-        break;
-      case 'tipoMadera':
-        if (!tiposMadera.includes(valor)) {
-          setTiposMadera(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, tipoMadera: valor }));
-        setShowAddTipoMadera(false);
+        setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
+        setValue('subCategoria', valor.trim());
         break;
       case 'unidadMedida':
-        if (!unidadesMedida.includes(valor)) {
-          setUnidadesMedida(prev => [...prev, valor].sort());
-        }
-        setEditForm(prev => ({ ...prev, unidadMedida: valor }));
-        setShowAddUnidadMedida(false);
+        setUnidadesMedidaUnicas(prev => [...prev, valor.trim()]);
+        setValue('unidadMedida', valor.trim());
+        break;
+      case 'proveedor':
+        setProveedoresUnicos(prev => [...prev, valor.trim()]);
+        setValue('proveedor', valor.trim());
         break;
     }
     setNewValue("");

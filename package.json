@@ -123,6 +123,7 @@
     "react-select": "^5.8.0",
     "react-shepherd": "^4.2.0",
     "react-syntax-highlighter": "^15.5.0",
+    "react-toastify": "^11.0.5",
     "react-wrap-balancer": "^1.1.0",
     "reactflow": "^11.10.4",
     "recharts": "^2.9.3",
