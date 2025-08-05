@@ -37,6 +37,7 @@ import {
   orderBy,
   doc,
   updateDoc,
+  getDocs,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -169,6 +170,20 @@ function FormularioProducto({ onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
   const [submitMessage, setSubmitMessage] = useState("");
+  
+  // Estados para agregar nuevos valores
+  const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
+  const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
+  const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
+  const [showAddProveedor, setShowAddProveedor] = useState(false);
+  const [newValue, setNewValue] = useState("");
+  
+  // Estados para valores precargados
+  const [tiposMaderaUnicos, setTiposMaderaUnicos] = useState([]);
+  const [subCategoriasUnicas, setSubCategoriasUnicas] = useState([]);
+  const [unidadesMedidaUnicas, setUnidadesMedidaUnicas] = useState([]);
+  const [proveedoresUnicos, setProveedoresUnicos] = useState([]);
+  
   const schema =
     esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
   const {
@@ -177,10 +192,81 @@ function FormularioProducto({ onClose, onSuccess }) {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { estado: "Activo" },
   });
+
+  // Cargar datos precargados cuando cambie la categoría
+  useEffect(() => {
+    if (categoria) {
+      cargarDatosPrecargados();
+    }
+  }, [categoria]);
+
+  const cargarDatosPrecargados = async () => {
+    try {
+      const productosSnap = await getDocs(collection(db, "productos"));
+      const productos = productosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Filtrar por categoría
+      const productosCategoria = productos.filter(p => p.categoria === categoria);
+      
+      if (categoria === "Maderas") {
+        // Para maderas: tipoMadera y subcategoria
+        const tiposMadera = [...new Set(productosCategoria.map(p => p.tipoMadera).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subcategoria).filter(Boolean))];
+        setTiposMaderaUnicos(tiposMadera);
+        setSubCategoriasUnicas(subCategorias);
+      } else if (categoria === "Ferretería") {
+        // Para ferretería: unidadMedida, subCategoria y proveedor
+        const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
+        const proveedores = [...new Set(productosCategoria.map(p => p.proveedor).filter(Boolean))];
+        setUnidadesMedidaUnicas(unidadesMedida);
+        setSubCategoriasUnicas(subCategorias);
+        setProveedoresUnicos(proveedores);
+      }
+    } catch (error) {
+      console.error("Error al cargar datos precargados:", error);
+    }
+  };
+
+  const handleAddNewValue = async (tipo, valor) => {
+    if (!valor.trim()) return;
+    
+    try {
+      // Agregar el nuevo valor a la lista correspondiente
+      switch (tipo) {
+        case 'tipoMadera':
+          setTiposMaderaUnicos(prev => [...prev, valor.trim()]);
+          setValue('tipoMadera', valor.trim());
+          break;
+        case 'subcategoria':
+          setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
+          setValue('subcategoria', valor.trim());
+          break;
+        case 'unidadMedida':
+          setUnidadesMedidaUnicas(prev => [...prev, valor.trim()]);
+          setValue('unidadMedida', valor.trim());
+          break;
+        case 'proveedor':
+          setProveedoresUnicos(prev => [...prev, valor.trim()]);
+          setValue('proveedor', valor.trim());
+          break;
+      }
+      
+      // Cerrar el input de agregar
+      setShowAddTipoMadera(false);
+      setShowAddSubcategoria(false);
+      setShowAddUnidadMedida(false);
+      setShowAddProveedor(false);
+      setNewValue("");
+    } catch (error) {
+      console.error("Error al agregar nuevo valor:", error);
+    }
+  };
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -301,11 +387,63 @@ function FormularioProducto({ onClose, onSuccess }) {
                   )}
                 </div>
                 <div>
-                  <Input
-                    {...register("subcategoria")}
-                    placeholder="Subcategoría"
-                    disabled={isSubmitting}
-                  />
+                  <label className="block text-xs font-medium mb-1">
+                    Subcategoría
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("subcategoria")}
+                      className="flex-1 border rounded px-2 py-2"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar subcategoría</option>
+                      {subCategoriasUnicas.map((subCategoria) => (
+                        <option key={subCategoria} value={subCategoria}>
+                          {subCategoria}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddSubcategoria(true)}
+                      className="px-3"
+                      disabled={isSubmitting}
+                    >
+                      +
+                    </Button>
+                  </div>
+                  {showAddSubcategoria && (
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva subcategoría"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('subcategoria', newValue)}
+                        disabled={isSubmitting}
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddSubcategoria(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
                   {errors.subcategoria && (
                     <span className="text-red-500 text-xs">
                       {errors.subcategoria.message}
@@ -442,28 +580,130 @@ function FormularioProducto({ onClose, onSuccess }) {
                       <label className="block text-xs font-medium mb-1">
                         Unidad de medida de venta
                       </label>
-                      <select
-                        {...register("unidadMedida")}
-                        className="border rounded px-2 py-2 w-full"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Seleccionar unidad</option>
-                        <option value="kg">Kg</option>
-                        <option value="cm">Cm</option>
-                        <option value="l">Litro</option>
-                        <option value="m">Metro</option>
-                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          {...register("unidadMedida")}
+                          className="flex-1 border rounded px-2 py-2"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Seleccionar unidad</option>
+                          {unidadesMedidaUnicas.map((unidad) => (
+                            <option key={unidad} value={unidad}>
+                              {unidad}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddUnidadMedida(true)}
+                          className="px-3"
+                          disabled={isSubmitting}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddUnidadMedida && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nueva unidad de medida"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                            disabled={isSubmitting}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddUnidadMedida(false);
+                              setNewValue("");
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
                       {errors.unidadMedida && (
                         <span className="text-red-500 text-xs">
                           {errors.unidadMedida.message}
                         </span>
                       )}
                     </div>
-                    {errors.unidadMedida && (
-                      <span className="text-red-500 text-xs">
-                        {errors.unidadMedida.message}
-                      </span>
-                    )}
+                    <div>
+                      <label className="block text-xs font-medium mb-1">
+                        Subcategoría
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          {...register("subCategoria")}
+                          className="flex-1 border rounded px-2 py-2"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Seleccionar subcategoría</option>
+                          {subCategoriasUnicas.map((subCategoria) => (
+                            <option key={subCategoria} value={subCategoria}>
+                              {subCategoria}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddSubcategoria(true)}
+                          className="px-3"
+                          disabled={isSubmitting}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddSubcategoria && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nueva subcategoría"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('subcategoria', newValue)}
+                            disabled={isSubmitting}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddSubcategoria(false);
+                              setNewValue("");
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                      {errors.subCategoria && (
+                        <span className="text-red-500 text-xs">
+                          {errors.subCategoria.message}
+                        </span>
+                      )}
+                    </div>
                     <div>
                       <Input
                         {...register("valorCompra")}
@@ -493,66 +733,137 @@ function FormularioProducto({ onClose, onSuccess }) {
                       </span>
                     )}
                     <div>
-                      <Input
-                        {...register("proveedor")}
-                        placeholder="Proveedor"
-                        disabled={isSubmitting}
-                      />
+                      <label className="block text-xs font-medium mb-1">
+                        Proveedor
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          {...register("proveedor")}
+                          className="flex-1 border rounded px-2 py-2"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Seleccionar proveedor</option>
+                          {proveedoresUnicos.map((proveedor) => (
+                            <option key={proveedor} value={proveedor}>
+                              {proveedor}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddProveedor(true)}
+                          className="px-3"
+                          disabled={isSubmitting}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddProveedor && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nuevo proveedor"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('proveedor', newValue)}
+                            disabled={isSubmitting}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddProveedor(false);
+                              setNewValue("");
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                      {errors.proveedor && (
+                        <span className="text-red-500 text-xs">
+                          {errors.proveedor.message}
+                        </span>
+                      )}
                     </div>
-                    {errors.proveedor && (
-                      <span className="text-red-500 text-xs">
-                        {errors.proveedor.message}
-                      </span>
-                    )}
                   </>
                 )}
-                {/*
-              {categoria === "Fijaciones" && (<>
-                <div><Input {...register("tipoFijacion")} placeholder="Tipo de fijación" disabled={isSubmitting} /></div>
-                <div><Input {...register("material")} placeholder="Material" disabled={isSubmitting} /></div>
-                <div><Input {...register("largoFijacion")} type="number" step="0.01" placeholder="Largo (mm o pulgadas)" disabled={isSubmitting} /></div>
-                <div><Input {...register("diametro")} type="number" step="0.01" placeholder="Diámetro/Calibre (mm)" disabled={isSubmitting} /></div>
-                <div><Input {...register("tipoCabeza")} placeholder="Tipo de cabeza" disabled={isSubmitting} /></div>
-                <div><Input {...register("tipoRosca")} placeholder="Tipo de rosca" disabled={isSubmitting} /></div>
-                <div><Input {...register("acabado")} placeholder="Acabado" disabled={isSubmitting} /></div>
-                <div><Input {...register("unidadVenta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("contenidoUnidad")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("precioUnidadVenta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div className="md:col-span-2"><Input {...register("ubicacionFijacion")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
-              </>)}
-              {categoria === "Herrajes" && (<>
-                <div><Input {...register("tipoHerraje")} placeholder="Tipo de herraje" disabled={isSubmitting} /></div>
-                <div><Input {...register("materialHerraje")} placeholder="Material" disabled={isSubmitting} /></div>
-                <div><Input {...register("funcion")} placeholder="Función/Uso específico" disabled={isSubmitting} /></div>
-                <div><Input {...register("medidaClave")} placeholder="Medida/Dimensión clave" disabled={isSubmitting} /></div>
-                <div><Input {...register("acabadoHerraje")} placeholder="Acabado/Color" disabled={isSubmitting} /></div>
-                <div><Input {...register("capacidad")} placeholder="Capacidad/Resistencia (opcional)" disabled={isSubmitting} /></div>
-                <div><Input {...register("unidadVentaHerraje")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("contenidoUnidadHerraje")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("precioUnidadHerraje")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div className="md:col-span-2"><Input {...register("ubicacionHerraje")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
-              </>)}
-              {categoria === "Adhesivos" && (<>
-                <div><Input {...register("tipoQuimico")} placeholder="Tipo de producto" disabled={isSubmitting} /></div>
-                <div><Input {...register("funcionQuimico")} placeholder="Función/Uso" disabled={isSubmitting} /></div>
-                <div><Input {...register("marca")} placeholder="Marca" disabled={isSubmitting} /></div>
-                <div><Input {...register("contenidoNeto")} placeholder="Contenido neto/volumen" disabled={isSubmitting} /></div>
-                <div><Input {...register("unidadVentaQuimico")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("precioUnidadQuimico")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div className="md:col-span-2"><Input {...register("ubicacionQuimico")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
-              </>)}
-              {categoria === "Herramientas" && (<>
-                <div><Input {...register("tipoHerramienta")} placeholder="Tipo de herramienta/accesorio" disabled={isSubmitting} /></div>
-                <div><Input {...register("uso")} placeholder="Uso específico" disabled={isSubmitting} /></div>
-                <div><Input {...register("materialHerramienta")} placeholder="Material (opcional)" disabled={isSubmitting} /></div>
-                <div><Input {...register("marcaHerramienta")} placeholder="Marca (opcional)" disabled={isSubmitting} /></div>
-                <div><Input {...register("medidaHerramienta")} placeholder="Medida/Dimensión (opcional)" disabled={isSubmitting} /></div>
-                <div><Input {...register("unidadVentaHerramienta")} placeholder="Unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("contenidoUnidadHerramienta")} type="number" placeholder="Contenido por unidad de venta" disabled={isSubmitting} /></div>
-                <div><Input {...register("precioUnidadHerramienta")} type="number" step="0.01" placeholder="Precio por unidad de venta" disabled={isSubmitting} /></div>
-                <div className="md:col-span-2"><Input {...register("ubicacionHerramienta")} placeholder="Ubicación en depósito" disabled={isSubmitting} /></div>
-              </>)}
-              */}
+                {categoria === "Maderas" && (
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Tipo de Madera
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        {...register("tipoMadera")}
+                        className="flex-1 border rounded px-2 py-2"
+                        disabled={isSubmitting}
+                      >
+                        <option value="">Seleccionar tipo de madera</option>
+                        {tiposMaderaUnicos.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {tipo}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddTipoMadera(true)}
+                        className="px-3"
+                        disabled={isSubmitting}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    {showAddTipoMadera && (
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          value={newValue}
+                          onChange={(e) => setNewValue(e.target.value)}
+                          placeholder="Nuevo tipo de madera"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleAddNewValue('tipoMadera', newValue)}
+                          disabled={isSubmitting}
+                        >
+                          Agregar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowAddTipoMadera(false);
+                            setNewValue("");
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
+                    {errors.tipoMadera && (
+                      <span className="text-red-500 text-xs">
+                        {errors.tipoMadera.message}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -725,6 +1036,9 @@ const ProductosPage = () => {
     });
     setEditMessage("");
     setEditModalOpen(true);
+    
+    // Cargar datos precargados cuando se abre el modal
+    cargarDatosPrecargados();
   };
 
   const handleSaveEdit = async () => {
@@ -1806,6 +2120,15 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                       Producto
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Tipo/Subcategoría
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Unidad Medida
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Proveedor
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Stock
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -1922,6 +2245,29 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                             )}
                           </div>
                         )}
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex flex-col">
+                          {p.categoria === "Maderas" ? (
+                            <span className="font-medium text-orange-700">
+                              {p.tipoMadera || "-"}
+                            </span>
+                          ) : (
+                            <span className="font-medium text-blue-700">
+                              {p.subCategoria || "-"}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-medium text-gray-700">
+                          {p.unidadMedida || "-"}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-medium text-gray-700">
+                          {p.proveedor || "-"}
+                        </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <span
@@ -2834,7 +3180,7 @@ F003,Bisagras 3 pulgadas,Bisagras de acero,Ferretería,Bisagras,Activo,200.0,30,
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Seleccionar tipo de madera</option>
-                          {tiposMaderaUnicos.map((tipo) => (
+                          {tiposMadera.map((tipo) => (
                             <option key={tipo} value={tipo}>
                               {tipo}
                             </option>

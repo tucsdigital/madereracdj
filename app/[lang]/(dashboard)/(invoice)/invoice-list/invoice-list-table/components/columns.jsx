@@ -110,7 +110,7 @@ export const columns = [
     cell: ({ row }) => (
       <div className="flex flex-col">
         <span className="text-sm font-medium text-default-600 whitespace-nowrap">
-          {row?.original?.cliente?.nombre || "-"}
+          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
         </span>
         <span className="text-xs text-default-500 whitespace-nowrap">
           {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
@@ -214,7 +214,7 @@ export const columnsPresupuestos = [
     header: "Cliente",
     cell: ({ row }) => (
       <span className="font-semibold text-gray-800 dark:text-gray-200">
-        {row.original.cliente?.nombre || "-"}
+        {(row.original.cliente?.nombre || "-").toUpperCase()}
       </span>
     ),
     enableSorting: true,
@@ -288,7 +288,7 @@ export const columnsVentas = [
     header: "Cliente",
     cell: ({ row }) => (
       <span className="font-semibold text-gray-800 dark:text-gray-200">
-        {row.original.cliente?.nombre || "-"}
+        {(row.original.cliente?.nombre || "-").toUpperCase()}
       </span>
     ),
     enableSorting: true,
@@ -460,7 +460,7 @@ export const columnsObras = [
     cell: ({ row }) => (
       <div className="flex flex-col">
         <span className="text-sm font-medium text-default-600 whitespace-nowrap">
-          {row?.original?.cliente?.nombre || "-"}
+          {(row?.original?.cliente?.nombre || "-").toUpperCase()}
         </span>
         <span className="text-xs text-default-500 whitespace-nowrap">
           {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
