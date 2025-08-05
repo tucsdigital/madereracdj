@@ -128,59 +128,7 @@ const ferreteriaSchema = yup.object().shape({
   proveedor: yup.string().required("Proveedor obligatorio"),
 });
 
-// Esquemas comentados para uso futuro
-/*
-const fijacionesSchema = yup.object().shape({
-  ...baseSchema,
-  tipoFijacion: yup.string().required("Tipo de fijación obligatorio"),
-  material: yup.string().required("Material obligatorio"),
-  largoFijacion: yup.number().positive().required("Largo obligatorio"),
-  diametro: yup.number().positive().required("Diámetro obligatorio"),
-  tipoCabeza: yup.string().required("Tipo de cabeza obligatorio"),
-  tipoRosca: yup.string().required("Tipo de rosca obligatorio"),
-  acabado: yup.string().required("Acabado obligatorio"),
-  unidadVenta: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadVenta: yup.number().positive().required("Precio obligatorio"),
-  ubicacionFijacion: yup.string().required("Ubicación obligatoria"),
-});
-const herrajesSchema = yup.object().shape({
-  ...baseSchema,
-  tipoHerraje: yup.string().required("Tipo de herraje obligatorio"),
-  materialHerraje: yup.string().required("Material obligatorio"),
-  funcion: yup.string().required("Función obligatoria"),
-  medidaClave: yup.string().required("Medida obligatoria"),
-  acabadoHerraje: yup.string().required("Acabado obligatorio"),
-  capacidad: yup.string(),
-  unidadVentaHerraje: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidadHerraje: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadHerraje: yup.number().positive().required("Precio obligatorio"),
-  ubicacionHerraje: yup.string().required("Ubicación obligatoria"),
-});
-const adhesivosSchema = yup.object().shape({
-  ...baseSchema,
-  tipoQuimico: yup.string().required("Tipo de producto obligatorio"),
-  funcionQuimico: yup.string().required("Función obligatoria"),
-  marca: yup.string().required("Marca obligatoria"),
-  contenidoNeto: yup.string().required("Contenido neto obligatorio"),
-  unidadVentaQuimico: yup.string().required("Unidad de venta obligatoria"),
-  precioUnidadQuimico: yup.number().positive().required("Precio obligatorio"),
-  ubicacionQuimico: yup.string().required("Ubicación obligatoria"),
-});
-const herramientasSchema = yup.object().shape({
-  ...baseSchema,
-  tipoHerramienta: yup.string().required("Tipo de herramienta obligatorio"),
-  uso: yup.string().required("Uso específico obligatorio"),
-  materialHerramienta: yup.string(),
-  marcaHerramienta: yup.string(),
-  medidaHerramienta: yup.string(),
-  unidadVentaHerramienta: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidadHerramienta: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadHerramienta: yup.number().positive().required("Precio obligatorio"),
-  ubicacionHerramienta: yup.string().required("Ubicación obligatoria"),
-});
-*/
-
+// Definir esquemas por categoría después de declarar los esquemas individuales
 const esquemasPorCategoria = {
   Maderas: maderasSchema,
   Ferretería: ferreteriaSchema,
@@ -1122,20 +1070,24 @@ const ProductosPage = () => {
         setShowAddProveedor(false);
         break;
       case 'subcategoria':
-        setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
-        setValue('subcategoria', valor.trim());
+        setSubcategorias(prev => [...prev, valor.trim()].sort());
+        setEditForm(prev => ({ ...prev, subcategoria: valor.trim() }));
+        setShowAddSubcategoria(false);
         break;
       case 'subCategoria':
-        setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
-        setValue('subCategoria', valor.trim());
+        setSubCategoriasFerreteria(prev => [...prev, valor.trim()].sort());
+        setEditForm(prev => ({ ...prev, subCategoria: valor.trim() }));
+        setShowAddSubcategoriaFerreteria(false);
         break;
       case 'unidadMedida':
-        setUnidadesMedidaUnicas(prev => [...prev, valor.trim()]);
-        setValue('unidadMedida', valor.trim());
+        setUnidadesMedida(prev => [...prev, valor.trim()].sort());
+        setEditForm(prev => ({ ...prev, unidadMedida: valor.trim() }));
+        setShowAddUnidadMedida(false);
         break;
-      case 'proveedor':
-        setProveedoresUnicos(prev => [...prev, valor.trim()]);
-        setValue('proveedor', valor.trim());
+      case 'tipoMadera':
+        setTiposMadera(prev => [...prev, valor.trim()].sort());
+        setEditForm(prev => ({ ...prev, tipoMadera: valor.trim() }));
+        setShowAddTipoMadera(false);
         break;
     }
     setNewValue("");
