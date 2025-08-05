@@ -129,6 +129,7 @@ export const columns = [
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     accessorKey: "total",
@@ -216,6 +217,7 @@ export const columnsPresupuestos = [
         {row.original.cliente?.nombre || "-"}
       </span>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "fechaCreacion",
@@ -240,6 +242,7 @@ export const columnsPresupuestos = [
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     accessorKey: "costoEnvio",
@@ -265,6 +268,7 @@ export const columnsPresupuestos = [
         {row.getValue("vendedor") || "-"}
       </span>
     ),
+    enableSorting: true,
   },
 ];
 
@@ -287,6 +291,7 @@ export const columnsVentas = [
         {row.original.cliente?.nombre || "-"}
       </span>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "fechaCreacion",
@@ -299,6 +304,7 @@ export const columnsVentas = [
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     accessorKey: "total",
@@ -313,6 +319,7 @@ export const columnsVentas = [
         </span>
       );
     },
+    enableSorting: true,
   },
   {
     accessorKey: "estadoPago",
@@ -386,6 +393,7 @@ export const columnsVentas = [
         {row.getValue("vendedor") || "-"}
       </span>
     ),
+    enableSorting: true,
   },
   {
     accessorKey: "prioridad",
