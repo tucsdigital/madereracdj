@@ -1840,17 +1840,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   placeholder="Nombre del producto"
                                 />
                               ) : (
-                                p.nombre
+                                <div>
+                                  {p.nombre}
+                                  {p.categoria === "Maderas" && p.tipoMadera && (
+                                    <span className="font-semibold text-default-900"> - {p.tipoMadera.toUpperCase()}</span>
+                                  )}
+                                </div>
                               )}
                             </div>
                             {/* Información específica por categoría */}
-                            {p.categoria === "Maderas" && p.tipoMadera && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                  🌲 {p.tipoMadera}
-                                </span>
-                              </div>
-                            )}
                             {p.categoria === "Ferretería" && p.subCategoria && (
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
