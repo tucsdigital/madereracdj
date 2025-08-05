@@ -90,8 +90,16 @@ const baseSchema = {
 
 // Esquema para Maderas
 const maderasSchema = yup.object().shape({
-  ...baseSchema,
+  codigo: yup.string().required("El código es obligatorio"),
+  nombre: yup.string().required("El nombre es obligatorio"),
+  descripcion: yup.string().required("La descripción es obligatoria"),
+  categoria: yup.string().required("La categoría es obligatoria"),
   subcategoria: yup.string().required("La subcategoría es obligatoria"),
+  estado: yup
+    .string()
+    .oneOf(["Activo", "Inactivo", "Descontinuado"])
+    .required(),
+  costo: yup.number().positive().required("El costo es obligatorio"),
   tipoMadera: yup.string().required("Tipo de madera obligatorio"),
   largo: yup.number().positive().required("Largo obligatorio"),
   ancho: yup.number().positive().required("Ancho obligatorio"),
@@ -367,62 +375,62 @@ function FormularioProducto({ onClose, onSuccess }) {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               <h3 className="text-lg font-semibold text-gray-800">Información Básica</h3>
-            </div>
+              </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+                <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Código del Producto *
                 </label>
-                <Input
-                  {...register("codigo")}
+                  <Input
+                    {...register("codigo")}
                   placeholder="Ej: 1401"
-                  disabled={isSubmitting}
+                    disabled={isSubmitting}
                   className="w-full"
-                />
-                {errors.codigo && (
+                  />
+                  {errors.codigo && (
                   <span className="text-red-500 text-xs mt-1 block">
-                    {errors.codigo.message}
-                  </span>
-                )}
-              </div>
+                      {errors.codigo.message}
+                    </span>
+                  )}
+                </div>
               
-              <div>
+                <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre del Producto *
                 </label>
-                <Input
-                  {...register("nombre")}
+                  <Input
+                    {...register("nombre")}
                   placeholder="Ej: TABLAS 1/2 X 6 X 3"
-                  disabled={isSubmitting}
+                    disabled={isSubmitting}
                   className="w-full"
-                />
-                {errors.nombre && (
+                  />
+                  {errors.nombre && (
                   <span className="text-red-500 text-xs mt-1 block">
-                    {errors.nombre.message}
-                  </span>
-                )}
-              </div>
+                      {errors.nombre.message}
+                    </span>
+                  )}
+                </div>
               
-              <div className="md:col-span-2">
+                <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Descripción *
                 </label>
                 <textarea
-                  {...register("descripcion")}
+                    {...register("descripcion")}
                   placeholder="Descripción detallada del producto"
-                  disabled={isSubmitting}
+                    disabled={isSubmitting}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                />
-                {errors.descripcion && (
+                  />
+                  {errors.descripcion && (
                   <span className="text-red-500 text-xs mt-1 block">
-                    {errors.descripcion.message}
-                  </span>
-                )}
-              </div>
+                      {errors.descripcion.message}
+                    </span>
+                  )}
+                </div>
               
-              <div>
+                <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Estado *
                 </label>
@@ -622,272 +630,272 @@ function FormularioProducto({ onClose, onSuccess }) {
                   )}
                 </div>
                 
-                <div>
+                    <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Ancho (centímetros) *
                   </label>
-                  <Input
-                    {...register("ancho")}
-                    type="number"
-                    step="0.01"
+                      <Input
+                        {...register("ancho")}
+                        type="number"
+                        step="0.01"
                     placeholder="50"
-                    disabled={isSubmitting}
+                        disabled={isSubmitting}
                     className="w-full"
-                  />
+                      />
                   {errors.ancho && (
                     <span className="text-red-500 text-xs mt-1 block">
                       {errors.ancho.message}
                     </span>
                   )}
-                </div>
+                    </div>
                 
-                <div>
+                    <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Alto (centímetros) *
                   </label>
-                  <Input
-                    {...register("alto")}
-                    type="number"
-                    step="0.01"
+                      <Input
+                        {...register("alto")}
+                        type="number"
+                        step="0.01"
                     placeholder="6.0"
-                    disabled={isSubmitting}
+                        disabled={isSubmitting}
                     className="w-full"
-                  />
+                      />
                   {errors.alto && (
                     <span className="text-red-500 text-xs mt-1 block">
                       {errors.alto.message}
                     </span>
                   )}
-                </div>
+                    </div>
                 
-                <div>
+                    <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Precio por Pie *
-                  </label>
-                  <Input
-                    {...register("precioPorPie")}
-                    type="number"
-                    step="0.01"
+                      </label>
+                      <Input
+                        {...register("precioPorPie")}
+                        type="number"
+                        step="0.01"
                     placeholder="700.00"
-                    disabled={isSubmitting}
+                        disabled={isSubmitting}
                     className="w-full"
-                  />
+                      />
                   {errors.precioPorPie && (
                     <span className="text-red-500 text-xs mt-1 block">
                       {errors.precioPorPie.message}
                     </span>
                   )}
-                </div>
+                    </div>
                 
-                <div className="md:col-span-2">
+                    <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Ubicación en Depósito
                   </label>
-                  <Input
-                    {...register("ubicacion")}
+                      <Input
+                        {...register("ubicacion")}
                     placeholder="Ej: Estante A, Nivel 2"
-                    disabled={isSubmitting}
+                        disabled={isSubmitting}
                     className="w-full"
-                  />
-                </div>
-              </div>
+                      />
+                    </div>
+                    </div>
             ) : (
               // Campos específicos para Ferretería
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                    <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Subcategoría *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      {...register("subCategoria")}
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          {...register("subCategoria")}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar subcategoría</option>
-                      {subCategoriasUnicas.map((subCategoria) => (
-                        <option key={subCategoria} value={subCategoria}>
-                          {subCategoria}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddSubcategoria(true)}
-                      className="px-3"
-                      disabled={isSubmitting}
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddSubcategoria && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva subcategoría"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Seleccionar subcategoría</option>
+                          {subCategoriasUnicas.map((subCategoria) => (
+                            <option key={subCategoria} value={subCategoria}>
+                              {subCategoria}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddSubcategoria(true)}
+                          className="px-3"
+                          disabled={isSubmitting}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddSubcategoria && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nueva subcategoría"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
                         onClick={() => handleAddNewValue('subCategoria', newValue)}
-                        disabled={isSubmitting}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddSubcategoria(false);
-                          setNewValue("");
-                        }}
-                        disabled={isSubmitting}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                  {errors.subCategoria && (
+                            disabled={isSubmitting}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddSubcategoria(false);
+                              setNewValue("");
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                      {errors.subCategoria && (
                     <span className="text-red-500 text-xs mt-1 block">
-                      {errors.subCategoria.message}
-                    </span>
-                  )}
-                </div>
+                          {errors.subCategoria.message}
+                        </span>
+                      )}
+                    </div>
                 
-                <div>
+                    <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Proveedor *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      {...register("proveedor")}
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          {...register("proveedor")}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">Seleccionar proveedor</option>
-                      {proveedoresUnicos.map((proveedor) => (
-                        <option key={proveedor} value={proveedor}>
-                          {proveedor}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddProveedor(true)}
-                      className="px-3"
-                      disabled={isSubmitting}
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddProveedor && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nuevo proveedor"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('proveedor', newValue)}
-                        disabled={isSubmitting}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddProveedor(false);
-                          setNewValue("");
-                        }}
-                        disabled={isSubmitting}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                  {errors.proveedor && (
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Seleccionar proveedor</option>
+                          {proveedoresUnicos.map((proveedor) => (
+                            <option key={proveedor} value={proveedor}>
+                              {proveedor}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAddProveedor(true)}
+                          className="px-3"
+                          disabled={isSubmitting}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      {showAddProveedor && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={newValue}
+                            onChange={(e) => setNewValue(e.target.value)}
+                            placeholder="Nuevo proveedor"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleAddNewValue('proveedor', newValue)}
+                            disabled={isSubmitting}
+                          >
+                            Agregar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowAddProveedor(false);
+                              setNewValue("");
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                      {errors.proveedor && (
                     <span className="text-red-500 text-xs mt-1 block">
-                      {errors.proveedor.message}
-                    </span>
-                  )}
-                </div>
+                          {errors.proveedor.message}
+                        </span>
+                      )}
+                    </div>
                 
-                <div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Unidad de Medida *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
+                    </label>
+                    <div className="flex gap-2">
+                      <select
                       {...register("unidadMedida")}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={isSubmitting}
-                    >
+                        disabled={isSubmitting}
+                      >
                       <option value="">Seleccionar unidad</option>
                       {unidadesMedidaUnicas.map((unidad) => (
                         <option key={unidad} value={unidad}>
                           {unidad}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-3"
-                      disabled={isSubmitting}
-                    >
-                      +
-                    </Button>
-                  </div>
-                  {showAddUnidadMedida && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva unidad de medida"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
-                        disabled={isSubmitting}
-                      >
-                        Agregar
-                      </Button>
+                          </option>
+                        ))}
+                      </select>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setShowAddUnidadMedida(false);
-                          setNewValue("");
-                        }}
+                      onClick={() => setShowAddUnidadMedida(true)}
+                        className="px-3"
                         disabled={isSubmitting}
                       >
-                        Cancelar
+                        +
                       </Button>
                     </div>
-                  )}
+                  {showAddUnidadMedida && (
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          value={newValue}
+                          onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                          disabled={isSubmitting}
+                        >
+                          Agregar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                          setShowAddUnidadMedida(false);
+                            setNewValue("");
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
                   {errors.unidadMedida && (
                     <span className="text-red-500 text-xs mt-1 block">
                       {errors.unidadMedida.message}
-                    </span>
-                  )}
-                </div>
+                      </span>
+                    )}
+                  </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -905,8 +913,8 @@ function FormularioProducto({ onClose, onSuccess }) {
                     <span className="text-red-500 text-xs mt-1 block">
                       {errors.stockMinimo.message}
                     </span>
-                  )}
-                </div>
+                )}
+              </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -925,7 +933,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                       {errors.valorCompra.message}
                     </span>
                   )}
-                </div>
+            </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -944,7 +952,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                       {errors.valorVenta.message}
                     </span>
                   )}
-                </div>
+          </div>
               </div>
             )}
           </div>
@@ -953,31 +961,31 @@ function FormularioProducto({ onClose, onSuccess }) {
 
       {/* Botones de acción */}
       <div className="flex gap-3 pt-4 border-t border-gray-200">
-        <Button
-          type="button"
+            <Button
+              type="button"
           variant="outline"
-          onClick={onClose}
-          disabled={isSubmitting}
+              onClick={onClose}
+              disabled={isSubmitting}
           className="flex-1"
-        >
-          Cancelar
-        </Button>
+            >
+              Cancelar
+            </Button>
         <Button
           type="submit"
           disabled={isSubmitting || !categoria}
           className="flex-1 bg-blue-600 hover:bg-blue-700"
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Guardando...
-            </>
-          ) : (
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
             <>
               <Plus className="w-4 h-4 mr-2" />
               Crear Producto
-            </>
-          )}
+        </>
+      )}
         </Button>
       </div>
     </form>
@@ -1077,7 +1085,7 @@ const ProductosPage = () => {
     // Extraer subcategorías de ferretería (subCategoria)
     const subcategoriasFerreteria = [
       ...new Set(
-        productos
+      productos
           .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
           .map((p) => p.subCategoria)
       ),
@@ -1203,9 +1211,9 @@ const ProductosPage = () => {
           updates.subCategoria = editForm.subCategoria;
         }
       } else {
-        if (editForm.subcategoria !== editProduct.subcategoria) {
-          updates.subcategoria = editForm.subcategoria;
-        }
+      if (editForm.subcategoria !== editProduct.subcategoria) {
+        updates.subcategoria = editForm.subcategoria;
+      }
       }
       
       if (editForm.tipoMadera !== editProduct.tipoMadera) {

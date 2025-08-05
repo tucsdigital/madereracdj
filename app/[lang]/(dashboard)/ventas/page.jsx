@@ -254,10 +254,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
         // Verificar si es machimbre para usar cálculo especial
         if (real.subcategoria === "machimbre") {
-          if (alto > 0 && ancho > 0 && precioPorPie > 0) {
+          let cantidadPaquete = Number(real.cantidad) || 1; // Por defecto 1 si no hay cantidad
+          if (
+            ancho > 0 &&
+            largo > 0 &&
+            cantidadPaquete > 0 &&
+            precioPorPie > 0
+          ) {
             precio = calcularPrecioMachimbre({
-              alto,
               ancho,
+              largo,
+              cantidadPaquete,
               precioPorPie,
             });
           } else {
@@ -310,13 +317,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             real.unidadVentaQuimico ||
             real.unidadVentaHerramienta,
           stock: real.stock,
-          cantidad: 1,
+          cantidad: 1, // Cantidad de paquetes (siempre empieza en 1)
           descuento: 0,
           categoria: real.categoria,
           alto: Number(real.alto) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
+          cantidadPaquete:
+            real.subcategoria === "machimbre" ? Number(real.cantidad) || 1 : 1, // Cantidad del paquete
           cepilladoAplicado: false, // Por defecto sin cepillado
           tipoMadera: real.tipoMadera || "",
           subcategoria: real.subcategoria || "",
@@ -379,11 +388,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
-          
+
           if (p.subcategoria === "machimbre") {
             precioBase = calcularPrecioMachimbre({
-              alto: p.alto,
               ancho: p.ancho,
+              largo: p.largo,
+              cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
               precioPorPie: p.precioPorPie,
             });
           } else {
@@ -418,11 +428,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
-          
+
           if (p.subcategoria === "machimbre") {
             precioBase = calcularPrecioMachimbre({
-              alto: p.alto,
               ancho: p.ancho,
+              largo: p.largo,
+              cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
               precioPorPie: Number(nuevoPrecioPorPie),
             });
           } else {
@@ -456,10 +467,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const handleAltoChange = (id, nuevoAlto) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAlto),
             ancho: p.ancho,
+            largo: p.largo,
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
@@ -484,10 +500,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const handleAnchoChange = (id, nuevoAncho) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: p.alto,
             ancho: Number(nuevoAncho),
+            largo: p.largo,
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
@@ -500,6 +521,72 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           return {
             ...p,
             ancho: Number(nuevoAncho),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Función para manejar cambios en largo para machimbre
+  const handleLargoChange = (id, nuevoLargo) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: p.ancho,
+            largo: Number(nuevoLargo),
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            largo: Number(nuevoLargo),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Función para manejar cambios en cantidad del paquete para machimbre
+  const handleCantidadMachimbreChange = (id, nuevaCantidadPaquete) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: p.ancho,
+            largo: p.largo,
+            cantidadPaquete: Number(nuevaCantidadPaquete),
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            cantidadPaquete: Number(nuevaCantidadPaquete),
             precio: precioRedondeado,
           };
         }
@@ -779,20 +866,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return Math.round(precio / 100) * 100;
   }
 
-  // Función para calcular precio de machimbre (precio por pie × alto × ancho)
+  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad del paquete)
   function calcularPrecioMachimbre({
-    alto,
     ancho,
+    largo,
+    cantidadPaquete,
     precioPorPie,
   }) {
     if (
-      [alto, ancho, precioPorPie].some(
+      [ancho, largo, cantidadPaquete, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
       )
     ) {
       return 0;
     }
-    const precio = alto * ancho * precioPorPie;
+    const precio = ancho * largo * cantidadPaquete * precioPorPie;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
   }
@@ -919,7 +1007,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 >
                   <span className="flex-1 truncate">
                     {clienteSeleccionado
-                      ? `${(clienteSeleccionado.nombre || "").toUpperCase()} - ${(clienteSeleccionado.cuit || "").toUpperCase()} - ${(clienteSeleccionado.localidad || "").toUpperCase()}`
+                      ? `${(
+                          clienteSeleccionado.nombre || ""
+                        ).toUpperCase()} - ${(
+                          clienteSeleccionado.cuit || ""
+                        ).toUpperCase()} - ${(
+                          clienteSeleccionado.localidad || ""
+                        ).toUpperCase()}`
                       : "Seleccionar cliente..."}
                   </span>
                   <Icon
@@ -970,7 +1064,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             role="option"
                             tabIndex={0}
                           >
-                            {c.nombre.toUpperCase()} - {c.cuit.toUpperCase()} - {(c.localidad || "").toUpperCase()}
+                            {c.nombre.toUpperCase()} - {c.cuit.toUpperCase()} -{" "}
+                            {(c.localidad || "").toUpperCase()}
                           </div>
                         ))}
                       </div>
@@ -1020,7 +1115,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={(clienteSeleccionado?.direccion || "").toUpperCase()}
+                      value={(
+                        clienteSeleccionado?.direccion || ""
+                      ).toUpperCase()}
                       placeholder="Dirección"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -1033,7 +1130,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   </div>
                   <div>
                     <Input
-                      value={(clienteSeleccionado?.telefono || "").toUpperCase()}
+                      value={(
+                        clienteSeleccionado?.telefono || ""
+                      ).toUpperCase()}
                       placeholder="Teléfono"
                       readOnly
                       className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
@@ -1325,17 +1424,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 ) : productosPorCategoria[categoriaId]?.filter((prod) => {
                     // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
                     const normalizarTexto = (texto) => {
-                      return texto.toLowerCase().replace(/\s+/g, '');
+                      return texto.toLowerCase().replace(/\s+/g, "");
                     };
 
                     // Normalizar el término de búsqueda
-                    const busquedaNormalizada = normalizarTexto(busquedaProducto);
-                    
+                    const busquedaNormalizada =
+                      normalizarTexto(busquedaProducto);
+
                     // Normalizar el nombre del producto
                     const nombreNormalizado = normalizarTexto(prod.nombre);
-                    
+
                     // Normalizar la unidad de medida
-                    const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+                    const unidadNormalizada = normalizarTexto(
+                      prod.unidadMedida || ""
+                    );
 
                     // Filtro por búsqueda de texto (ahora más flexible)
                     const cumpleBusqueda =
@@ -1388,17 +1490,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       ?.filter((prod) => {
                         // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
                         const normalizarTexto = (texto) => {
-                          return texto.toLowerCase().replace(/\s+/g, '');
+                          return texto.toLowerCase().replace(/\s+/g, "");
                         };
 
                         // Normalizar el término de búsqueda
-                        const busquedaNormalizada = normalizarTexto(busquedaProducto);
-                        
+                        const busquedaNormalizada =
+                          normalizarTexto(busquedaProducto);
+
                         // Normalizar el nombre del producto
                         const nombreNormalizado = normalizarTexto(prod.nombre);
-                        
+
                         // Normalizar la unidad de medida
-                        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+                        const unidadNormalizada = normalizarTexto(
+                          prod.unidadMedida || ""
+                        );
 
                         // Filtro por búsqueda de texto (ahora más flexible)
                         const cumpleBusqueda =
@@ -1419,7 +1524,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           prod.subCategoria === filtroSubCategoria;
 
                         return (
-                          cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
+                          cumpleBusqueda &&
+                          cumpleTipoMadera &&
+                          cumpleSubCategoria
                         );
                       })
                       .map((prod) => {
@@ -1842,9 +1949,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               ) : (
                                 <div>
                                   {p.nombre}
-                                  {p.categoria === "Maderas" && p.tipoMadera && (
-                                    <span className="font-semibold text-default-900"> - {p.tipoMadera.toUpperCase()}</span>
-                                  )}
+                                  {p.categoria === "Maderas" &&
+                                    p.tipoMadera && (
+                                      <span className="font-semibold text-default-900">
+                                        {" "}
+                                        - {p.tipoMadera.toUpperCase()}
+                                      </span>
+                                    )}
                                 </div>
                               )}
                             </div>
@@ -1856,31 +1967,48 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 </span>
                               </div>
                             )}
-                            
+
                             {/* Campos editables para maderas */}
                             {p.categoria === "Maderas" && (
                               <div className="mt-2 space-y-2">
                                 {/* Sección de dimensiones */}
                                 <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-700">
                                   <div className="flex items-center gap-1 mb-2">
-                                    <svg className="w-3 h-3 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
+                                    <svg
+                                      className="w-3 h-3 text-orange-600 dark:text-orange-400"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+                                        clipRule="evenodd"
+                                      />
                                     </svg>
-                                    <span className="text-xs font-medium text-orange-700 dark:text-orange-400">Dimensiones</span>
+                                    <span className="text-xs font-medium text-orange-700 dark:text-orange-400">
+                                      Dimensiones
+                                    </span>
                                   </div>
-                                  
-                                  {/* Para machimbres: alto y ancho editables */}
+
+                                  {/* Para machimbres: ancho, largo y cantidad editables */}
                                   {p.subcategoria === "machimbre" ? (
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                       <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">Alto</label>
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Ancho
+                                        </label>
                                         <div className="relative">
                                           <input
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            value={p.alto || 0}
-                                            onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                            value={p.ancho || 0}
+                                            onChange={(e) =>
+                                              handleAnchoChange(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
                                             className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
                                             disabled={isSubmitting}
                                             placeholder="0.00"
@@ -1891,20 +2019,56 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">Ancho</label>
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Largo
+                                        </label>
                                         <div className="relative">
                                           <input
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            value={p.ancho || 0}
-                                            onChange={(e) => handleAnchoChange(p.id, e.target.value)}
+                                            value={p.largo || 0}
+                                            onChange={(e) =>
+                                              handleLargoChange(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
                                             className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
                                             disabled={isSubmitting}
                                             placeholder="0.00"
                                           />
                                           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
                                             m
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Cantidad del Paquete
+                                        </label>
+                                        <div className="relative">
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={
+                                              p.cantidadPaquete ||
+                                              p.cantidad ||
+                                              1
+                                            }
+                                            onChange={(e) =>
+                                              handleCantidadMachimbreChange(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                            disabled={isSubmitting}
+                                            placeholder="1"
+                                          />
+                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
+                                            pkg
                                           </div>
                                         </div>
                                       </div>
@@ -1913,42 +2077,72 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     /* Para otras maderas: solo mostrar valores */
                                     <div className="grid grid-cols-3 gap-2">
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">Alto</span>
+                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Alto
+                                        </span>
                                         <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">{p.alto || 0}</span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">m</span>
+                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
+                                            {p.alto || 0}
+                                          </span>
+                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                            m
+                                          </span>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">Ancho</span>
+                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Ancho
+                                        </span>
                                         <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">{p.ancho || 0}</span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">m</span>
+                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
+                                            {p.ancho || 0}
+                                          </span>
+                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                            m
+                                          </span>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">Largo</span>
+                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                          Largo
+                                        </span>
                                         <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">{p.largo || 0}</span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">m</span>
+                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
+                                            {p.largo || 0}
+                                          </span>
+                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                            m
+                                          </span>
                                         </div>
                                       </div>
                                     </div>
                                   )}
                                 </div>
-                                
+
                                 {/* Sección de precio por pie */}
                                 <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700">
                                   <div className="flex items-center gap-1 mb-2">
-                                    <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg
+                                      className="w-3 h-3 text-green-600 dark:text-green-400"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
                                       <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                                        clipRule="evenodd"
+                                      />
                                     </svg>
-                                    <span className="text-xs font-medium text-green-700 dark:text-green-400">Precio por pie</span>
+                                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                                      Precio por pie
+                                    </span>
                                   </div>
-                                  
+
                                   <div className="space-y-1">
-                                    <label className="block text-xs font-medium text-green-700 dark:text-green-400">Valor</label>
+                                    <label className="block text-xs font-medium text-green-700 dark:text-green-400">
+                                      Valor
+                                    </label>
                                     <div className="relative">
                                       <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600 dark:text-green-400 font-medium">
                                         $
@@ -1958,7 +2152,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         min="0"
                                         step="0.01"
                                         value={p.precioPorPie || 0}
-                                        onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                                        onChange={(e) =>
+                                          handlePrecioPorPieChange(
+                                            p.id,
+                                            e.target.value
+                                          )
+                                        }
                                         className="w-full pl-6 pr-2 py-1 text-xs border border-green-300 dark:border-green-600 rounded bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors"
                                         disabled={isSubmitting}
                                         placeholder="0.00"
