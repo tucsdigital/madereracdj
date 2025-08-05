@@ -2135,7 +2135,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       />
                                     </svg>
                                     <span className="text-xs font-medium text-green-700 dark:text-green-400">
-                                      Precio por pie
+                                      Precio
                                     </span>
                                   </div>
 
