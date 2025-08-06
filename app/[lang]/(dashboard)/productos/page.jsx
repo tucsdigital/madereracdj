@@ -1617,7 +1617,7 @@ const ProductosPage = () => {
                     [
                       "unidad",
                       "stockMinimo",
-                      "precioVenta",
+                      "valorVenta",
                     ].includes(header)
                   ) {
                     // Manejar comas en números (formato argentino)
@@ -2063,12 +2063,12 @@ const ProductosPage = () => {
           !producto.unidad ||
           !producto.stockMinimo ||
           !producto.unidadMedida ||
-          !producto.precioVenta
+          !producto.valorVenta
         ) {
           productosInvalidos.push({
             index: i + 1,
             codigo: producto.codigo,
-            error: `Faltan campos específicos de obras. subCategoria: ${producto.subCategoria}, unidad: ${producto.unidad}, stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, precioVenta: ${producto.precioVenta}`,
+            error: `Faltan campos específicos de obras. subCategoria: ${producto.subCategoria}, unidad: ${producto.unidad}, stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorVenta: ${producto.valorVenta}`,
           });
           continue;
         }
@@ -2077,7 +2077,7 @@ const ProductosPage = () => {
         const valoresNumericos = [
           "unidad",
           "stockMinimo",
-          "precioVenta",
+          "valorVenta",
         ];
         for (const campo of valoresNumericos) {
           if (
@@ -2237,7 +2237,7 @@ const ProductosPage = () => {
       "unidad",
       "stockMinimo",
       "unidadMedida",
-      "precioVenta",
+      "valorVenta",
     ];
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -3494,7 +3494,7 @@ const ProductosPage = () => {
                 <li>• <strong>unidad</strong>: Cantidad de unidades</li>
                 <li>• <strong>stockMinimo</strong>: Stock mínimo requerido</li>
                 <li>• <strong>unidadMedida</strong>: Unidad de medida (M2, etc.)</li>
-                <li>• <strong>precioVenta</strong>: Precio de venta</li>
+                <li>• <strong>valorVenta</strong>: Precio de venta</li>
               </ul>
             </div>
 
