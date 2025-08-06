@@ -39,6 +39,130 @@ import {
   doc,
   updateDoc,
   getDocs,
+  writeBatch,
+} from "firebase/firestore";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+
+const categorias = ["Maderas", "Ferretería"];
+
+// Función para formatear números en formato argentino
+const formatearNumeroArgentino = (numero) => {
+  if (numero === null || numero === undefined || isNaN(numero)) return "0";
+  return Number(numero).toLocaleString("es-AR");
+};
+
+// Función para calcular precio de corte de madera
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+// Esquemas de validación por categoría
+const baseSchema = {
+  codigo: yup.string().required("El código es obligatorio"),
+  nombre: yup.string().required("El nombre es obligatorio"),
+  descripcion: yup.string().required("La descripción es obligatoria"),
+  categoria: yup.string().required("La categoría es obligatoria"),
+  subcategoria: yup.string().required("La subcategoría es obligatoria"),
+  estado: yup
+    .string()
+    .oneOf(["Activo", "Inactivo", "Descontinuado"])
+    .required(),
+  costo: yup.number().positive().required("El costo es obligatorio"),
+};
+
+// Esquema para Maderas
+const maderasSchema = yup.object().shape({
+  ...baseSchema,
+  tipoMadera: yup.string().required("Tipo de madera obligatorio"),
+  largo: yup.number().positive().required("Largo obligatorio"),
+  ancho: yup.number().positive().required("Ancho obligatorio"),
+  alto: yup.number().positive().required("Alto obligatorio"),
+  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
+  precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
+  ubicacion: yup.string().required("Ubicación obligatoria"),
+});
+
+// Esquema para Ferretería
+const ferreteriaSchema = yup.object().shape({
+  ...baseSchema,
+  stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
+  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
+  valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
+  valorVenta: yup.number().positive().required("Valor de venta obligatorio"),
+  proveedor: yup.string().required("Proveedor obligatorio"),
+});
+
+// Esquemas comentados para uso futuro
+/*
+const fijacionesSchema = yup.object().shape({
+  ...baseSchema,
+  tipoFijacion: yup.string().required("Tipo de fijación obligatorio"),
+  material: yup.string().required("Material obligatorio"),
+  largoFijacion: yup.number().positive().required("Largo obligatorio"),
+  diametro: yup.number().positive().required("Diámetro obligatorio"),
+  tipoCabeza: yup.string().required("Tipo de cabeza obligatorio"),
+  tipoRosca: yup.string().required("Tipo de rosca obligatorio"),
+  acabado: yup.string().required("Acabado obligatorio"),
+  unidadVenta: yup.string().required("Unidad de venta obligatoria"),
+  contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
+"use client";
+import React, { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Boxes,
+  Plus,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Upload,
+  FileSpreadsheet,
+  Download,
+} from "lucide-react";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  updateDoc,
+  getDocs,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -951,6 +1075,13 @@ const ProductosPage = () => {
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
 
+  // Estados para selección múltiple
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
     // Extraer proveedores únicos
@@ -984,6 +1115,27 @@ const ProductosPage = () => {
         .map(p => p.unidadMedida)
     )].sort();
     setUnidadesMedida(unidadesMedidaUnicas);
+  };
+
+  // Función para cargar subcategorías específicas por categoría
+  const cargarSubcategoriasPorCategoria = (categoria) => {
+    if (categoria === "Ferretería") {
+      // Para ferretería, usar subCategoria (con C mayúscula)
+      const subcategoriasFerreteria = [...new Set(
+        productos
+          .filter(p => p.categoria === "Ferretería" && p.subCategoria)
+          .map(p => p.subCategoria)
+      )].sort();
+      setSubcategorias(subcategoriasFerreteria);
+    } else if (categoria === "Maderas") {
+      // Para maderas, usar subcategoria (con c minúscula)
+      const subcategoriasMaderas = [...new Set(
+        productos
+          .filter(p => p.categoria === "Maderas" && p.subcategoria)
+          .map(p => p.subcategoria)
+      )].sort();
+      setSubcategorias(subcategoriasMaderas);
+    }
   };
 
   // Funciones para agregar nuevos valores
@@ -1032,7 +1184,7 @@ const ProductosPage = () => {
       proveedor: producto.proveedor || "",
       unidadMedida: producto.unidadMedida || "",
       estado: producto.estado || "Activo",
-      subcategoria: producto.subcategoria || "",
+      subcategoria: producto.subcategoria || producto.subCategoria || "",
       tipoMadera: producto.tipoMadera || "",
     });
     setEditMessage("");
@@ -1040,6 +1192,8 @@ const ProductosPage = () => {
     
     // Cargar datos precargados cuando se abre el modal
     cargarDatosPrecargados();
+    // Cargar subcategorías específicas por categoría
+    cargarSubcategoriasPorCategoria(producto.categoria);
   };
 
   const handleSaveEdit = async () => {
@@ -1058,7 +1212,12 @@ const ProductosPage = () => {
       }
       
       // Verificar campos vacíos
-      const camposVacios = camposObligatorios.filter(campo => !editForm[campo]);
+      const camposVacios = camposObligatorios.filter(campo => {
+        if (campo === 'subcategoria') {
+          return !editForm.subcategoria;
+        }
+        return !editForm[campo];
+      });
       
       if (camposVacios.length > 0) {
         setEditMessage(`Error: Los siguientes campos son obligatorios: ${camposVacios.join(', ')}`);
@@ -1085,9 +1244,18 @@ const ProductosPage = () => {
       if (editForm.estado !== editProduct.estado) {
         updates.estado = editForm.estado;
       }
-      if (editForm.subcategoria !== editProduct.subcategoria) {
-        updates.subcategoria = editForm.subcategoria;
+      
+      // Guardar subcategoría en el campo correcto según la categoría
+      if (editProduct.categoria === "Ferretería") {
+        if (editForm.subcategoria !== (editProduct.subCategoria || editProduct.subcategoria)) {
+          updates.subCategoria = editForm.subcategoria;
+        }
+      } else if (editProduct.categoria === "Maderas") {
+        if (editForm.subcategoria !== (editProduct.subcategoria || editProduct.subCategoria)) {
+          updates.subcategoria = editForm.subcategoria;
+        }
       }
+      
       if (editForm.tipoMadera !== editProduct.tipoMadera) {
         updates.tipoMadera = editForm.tipoMadera;
       }
@@ -2151,6 +2319,75 @@ const ProductosPage = () => {
     }
   };
 
+  // Efecto para actualizar selectAll cuando cambia la selección
+  useEffect(() => {
+    if (productosFiltrados.length > 0) {
+      const allSelected = productosFiltrados.every(p => selectedProducts.includes(p.id));
+      setSelectAll(allSelected);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedProducts, productosFiltrados]);
+
+  // Efecto para limpiar selección cuando cambian los filtros
+  useEffect(() => {
+    setSelectedProducts([]);
+    setSelectAll(false);
+  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria]);
+
+  // Funciones para selección múltiple
+  const handleSelectProduct = (productId) => {
+    setSelectedProducts(prev => {
+      if (prev.includes(productId)) {
+        return prev.filter(id => id !== productId);
+      } else {
+        return [...prev, productId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedProducts([]);
+      setSelectAll(false);
+    } else {
+      setSelectedProducts(productosFiltrados.map(p => p.id));
+      setSelectAll(true);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedProducts.length === 0) return;
+    
+    setDeleteLoading(true);
+    setDeleteMessage("");
+    
+    try {
+      const batch = writeBatch(db);
+      
+      selectedProducts.forEach(productId => {
+        const productRef = doc(db, "productos", productId);
+        batch.delete(productRef);
+      });
+      
+      await batch.commit();
+      
+      setDeleteMessage(`Se eliminaron ${selectedProducts.length} producto(s) correctamente`);
+      setSelectedProducts([]);
+      setSelectAll(false);
+      
+      setTimeout(() => {
+        setDeleteModalOpen(false);
+        setDeleteMessage("");
+      }, 2000);
+      
+    } catch (error) {
+      setDeleteMessage("Error al eliminar productos: " + error.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="py-8 px-2 max-w-8xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
@@ -2227,6 +2464,18 @@ const ProductosPage = () => {
                 <Download className="w-4 h-4 mr-1" />
                 Exportar Todos los Productos
               </Button>
+              {selectedProducts.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Borrar Seleccionados ({selectedProducts.length})
+                </Button>
+              )}
             </div>
           </div>
 
@@ -2308,6 +2557,11 @@ const ProductosPage = () => {
                   (filtros aplicados)
                 </span>
               )}
+              {selectedProducts.length > 0 && (
+                <span className="ml-2 text-green-600 font-semibold">
+                  • {selectedProducts.length} seleccionado(s)
+                </span>
+              )}
             </div>
             {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
               <Button
@@ -2342,6 +2596,16 @@ const ProductosPage = () => {
               <table className="w-full caption-top text-sm overflow-hidden">
                 <thead className="[&_tr]:border-b bg-default-">
                   <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                      </div>
+                    </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Código
                     </th>
@@ -2393,111 +2657,47 @@ const ProductosPage = () => {
                       className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
                     >
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-semibold text-default-900">
-                          {p.codigo}
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedProducts.includes(p.id)}
+                            onChange={() => handleSelectProduct(p.id)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                              p.categoria === "Maderas"
-                                ? "bg-orange-100 text-orange-700"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
-                          >
-                            {p.categoria === "Maderas" ? "🌲" : "🔧"}
-                          </div>
-                          <span>{p.categoria}</span>
+                        <div className="font-semibold text-default-900">
+                          {p.codigo}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="font-semibold text-default-900">
                           {p.nombre}
                         </div>
-                        {p.categoria === "Maderas" && (
-                          <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                            <span className="font-medium text-gray-500">
-                              Dimensiones:
-                            </span>
-                            <span>
-                              Alto:{" "}
-                              <span className="font-bold">{p.alto || 0}</span>{" "}
-                              cm
-                            </span>
-                            <span>
-                              Ancho:{" "}
-                              <span className="font-bold">{p.ancho || 0}</span>{" "}
-                              cm
-                            </span>
-                            <span>
-                              Largo:{" "}
-                              <span className="font-bold">{p.largo || 0}</span>{" "}
-                              cm
-                            </span>
-                            <span>
-                              $/pie:{" "}
-                              <div className="inline-flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.precioPorPie || 0}
-                                  onChange={(e) =>
-                                    handlePrecioPorPieChange(
-                                      p.id,
-                                      e.target.value
-                                    )
-                                  }
-                                  className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                  placeholder="0.00"
-                                  title="Editar precio por pie"
-                                />
-                                <svg
-                                  className="w-3 h-3 text-blue-500"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                  />
-                                </svg>
-                              </div>
-                            </span>
-                            {p.stock <= 0 && (
-                              <span className="text-red-600 font-semibold ml-2">
-                                ¡Sin stock!
-                              </span>
-                            )}
-                            {p.stock > 0 && p.stock <= 3 && (
-                              <span className="text-yellow-600 font-semibold ml-2">
-                                Stock bajo: {p.stock}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-medium text-orange-700">
+                        <div className="font-semibold text-default-900">
+                          {p.categoria}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
                           {p.categoria === "Maderas" ? (p.tipoMadera || "-") : "-"}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-medium text-blue-700">
+                        <div className="font-semibold text-default-900">
                           {p.categoria === "Maderas" ? (p.subcategoria || "-") : (p.subCategoria || "-")}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-medium text-gray-700">
+                        <div className="font-semibold text-default-900">
                           {p.unidadMedida || "-"}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-medium text-gray-700">
+                        <div className="font-semibold text-default-900">
                           {p.proveedor || "-"}
                         </div>
                       </td>
@@ -3495,6 +3695,75 @@ const ProductosPage = () => {
                 </>
               ) : (
                 "Guardar Cambios"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación de borrado */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Confirmar Borrado
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="font-semibold text-red-800">¡Atención!</span>
+              </div>
+              <p className="text-red-700">
+                Estás a punto de eliminar <strong>{selectedProducts.length}</strong> producto(s) de forma permanente.
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+            
+            {deleteMessage && (
+              <div className={`p-3 rounded-lg text-sm mb-4 ${
+                deleteMessage.startsWith("Error")
+                  ? "bg-red-50 text-red-800 border border-red-200"
+                  : "bg-green-50 text-green-800 border border-green-200"
+              }`}>
+                {deleteMessage}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Eliminar Productos
+                </>
               )}
             </Button>
           </DialogFooter>
