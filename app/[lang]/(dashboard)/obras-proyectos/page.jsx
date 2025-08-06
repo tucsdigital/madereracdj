@@ -225,8 +225,8 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       let precio;
 
       if (tipo === "presupuesto") {
-        // Para productos de obras, usar precio directo
-        precio = real.precio || 0;
+        // Para productos de obras, usar valorVenta
+        precio = real.valorVenta || 0;
       } else {
         // Para productos normales, usar lógica existente
         if (real.categoria === "Maderas") {
@@ -1102,7 +1102,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                         );
                         const precio = (() => {
                           if (tipo === "presupuesto") {
-                            return prod.precio || 0;
+                            return prod.valorVenta || 0;
                           } else {
                             if (prod.categoria === "Maderas") {
                               return prod.precioPorPie || 0;
@@ -1436,7 +1436,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
-                                            precio: prod.precio,
+                                            precio: prod.valorVenta,
                                             unidad: prod.unidad,
                                             categoria: prod.categoria,
                                             subcategoria: prod.subcategoria,
