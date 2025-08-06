@@ -2773,32 +2773,15 @@ const ProductosPage = () => {
               </div>
             </div>
             
-            {/* Footer con diseño moderno */}
-            <div className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-t border-gray-200 px-8 py-6">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <span className="font-medium">Tip:</span> Los campos marcados con <span className="text-red-500 font-bold">*</span> son obligatorios
+            {/* Footer con diseño moderno - solo información */}
+            <div className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-t border-gray-200 px-8 py-4">
+              <div className="flex items-center justify-center gap-3 text-sm text-gray-600">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 </div>
-                <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                    className="px-8 py-3 border-2 border-gray-300 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 font-medium"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
-                  >
-                    Guardar Producto
-                  </Button>
-                </div>
+                <span className="font-medium">Tip:</span> Los campos marcados con <span className="text-red-500 font-bold">*</span> son obligatorios
               </div>
             </div>
           </div>
