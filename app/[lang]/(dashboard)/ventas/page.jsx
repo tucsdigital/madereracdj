@@ -233,6 +233,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
 
   const handleAgregarProducto = (producto) => {
     const real = productosState.find((p) => p.id === producto.id);
@@ -841,6 +845,67 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     }
   };
 
+  // Función para normalizar texto (reutilizable)
+  const normalizarTexto = (texto) => {
+    return texto.toLowerCase().replace(/\s+/g, "");
+  };
+
+  // Función para filtrar productos optimizada
+  const obtenerProductosFiltrados = () => {
+    if (!productosPorCategoria[categoriaId]) return [];
+
+    return productosPorCategoria[categoriaId].filter((prod) => {
+      // Normalizar el término de búsqueda
+      const busquedaNormalizada = normalizarTexto(busquedaProducto);
+
+      // Normalizar el nombre del producto
+      const nombreNormalizado = normalizarTexto(prod.nombre);
+
+      // Normalizar la unidad de medida
+      const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+
+      // Filtro por búsqueda de texto
+      const cumpleBusqueda =
+        busquedaNormalizada === "" ||
+        nombreNormalizado.includes(busquedaNormalizada) ||
+        unidadNormalizada.includes(busquedaNormalizada);
+
+      // Filtro específico por tipo de madera
+      const cumpleTipoMadera =
+        categoriaId !== "Maderas" ||
+        filtroTipoMadera === "" ||
+        prod.tipoMadera === filtroTipoMadera;
+
+      // Filtro específico por subcategoría de ferretería
+      const cumpleSubCategoria =
+        categoriaId !== "Ferretería" ||
+        filtroSubCategoria === "" ||
+        prod.subCategoria === filtroSubCategoria;
+
+      return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+    });
+  };
+
+  // Obtener productos filtrados y paginados
+  const productosFiltrados = obtenerProductosFiltrados();
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+  
+  // Calcular productos para la página actual
+  const inicio = (paginaActual - 1) * productosPorPagina;
+  const fin = inicio + productosPorPagina;
+  const productosPaginados = productosFiltrados.slice(inicio, fin);
+
+  // Función para cambiar de página
+  const cambiarPagina = (nuevaPagina) => {
+    setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+  };
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+
   const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
   const [esConFactura, setEsConFactura] = useState(false);
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
@@ -1421,46 +1486,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Elige una categoría para ver los productos disponibles
                     </p>
                   </div>
-                ) : productosPorCategoria[categoriaId]?.filter((prod) => {
-                    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-                    const normalizarTexto = (texto) => {
-                      return texto.toLowerCase().replace(/\s+/g, "");
-                    };
-
-                    // Normalizar el término de búsqueda
-                    const busquedaNormalizada =
-                      normalizarTexto(busquedaProducto);
-
-                    // Normalizar el nombre del producto
-                    const nombreNormalizado = normalizarTexto(prod.nombre);
-
-                    // Normalizar la unidad de medida
-                    const unidadNormalizada = normalizarTexto(
-                      prod.unidadMedida || ""
-                    );
-
-                    // Filtro por búsqueda de texto (ahora más flexible)
-                    const cumpleBusqueda =
-                      busquedaNormalizada === "" ||
-                      nombreNormalizado.includes(busquedaNormalizada) ||
-                      unidadNormalizada.includes(busquedaNormalizada);
-
-                    // Filtro específico por tipo de madera
-                    const cumpleTipoMadera =
-                      categoriaId !== "Maderas" ||
-                      filtroTipoMadera === "" ||
-                      prod.tipoMadera === filtroTipoMadera;
-
-                    // Filtro específico por subcategoría de ferretería
-                    const cumpleSubCategoria =
-                      categoriaId !== "Ferretería" ||
-                      filtroSubCategoria === "" ||
-                      prod.subCategoria === filtroSubCategoria;
-
-                    return (
-                      cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
-                    );
-                  }).length === 0 ? (
+                ) : productosFiltrados.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
                       <svg
@@ -1485,51 +1511,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                    {productosPorCategoria[categoriaId]
-                      ?.filter((prod) => {
-                        // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-                        const normalizarTexto = (texto) => {
-                          return texto.toLowerCase().replace(/\s+/g, "");
-                        };
-
-                        // Normalizar el término de búsqueda
-                        const busquedaNormalizada =
-                          normalizarTexto(busquedaProducto);
-
-                        // Normalizar el nombre del producto
-                        const nombreNormalizado = normalizarTexto(prod.nombre);
-
-                        // Normalizar la unidad de medida
-                        const unidadNormalizada = normalizarTexto(
-                          prod.unidadMedida || ""
-                        );
-
-                        // Filtro por búsqueda de texto (ahora más flexible)
-                        const cumpleBusqueda =
-                          busquedaNormalizada === "" ||
-                          nombreNormalizado.includes(busquedaNormalizada) ||
-                          unidadNormalizada.includes(busquedaNormalizada);
-
-                        // Filtro específico por tipo de madera
-                        const cumpleTipoMadera =
-                          categoriaId !== "Maderas" ||
-                          filtroTipoMadera === "" ||
-                          prod.tipoMadera === filtroTipoMadera;
-
-                        // Filtro específico por subcategoría de ferretería
-                        const cumpleSubCategoria =
-                          categoriaId !== "Ferretería" ||
-                          filtroSubCategoria === "" ||
-                          prod.subCategoria === filtroSubCategoria;
-
-                        return (
-                          cumpleBusqueda &&
-                          cumpleTipoMadera &&
-                          cumpleSubCategoria
-                        );
-                      })
-                      .map((prod) => {
+                  <div className="space-y-4">
+                    {/* Grid de productos paginados */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                      {productosPaginados.map((prod) => {
                         const yaAgregado = productosSeleccionados.some(
                           (p) => p.id === prod.id
                         );
@@ -1615,267 +1600,216 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </div>
                                     )}
                                   </div>
-
-                                  <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 dark:text-gray-400 mb-3">
-                                    <div>
-                                      <span className="font-medium">
-                                        Precio:
-                                      </span>
-                                      <span className="ml-1 font-bold text-blue-600 dark:text-blue-400">
-                                        ${formatearNumeroArgentino(precio)}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">
-                                        Unidad:
-                                      </span>
-                                      <span className="ml-1">
-                                        {prod.unidadMedida ||
-                                          prod.unidadVenta ||
-                                          prod.unidadVentaHerraje ||
-                                          prod.unidadVentaQuimico ||
-                                          prod.unidadVentaHerramienta}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">
-                                        Stock:
-                                      </span>
-                                      <span
-                                        className={`ml-1 font-bold ${
-                                          prod.stock > 10
-                                            ? "text-green-600 dark:text-green-400"
-                                            : prod.stock > 0
-                                            ? "text-yellow-600 dark:text-yellow-400"
-                                            : "text-red-600 dark:text-red-400"
-                                        }`}
-                                      >
-                                        {prod.stock}
-                                      </span>
-                                    </div>
-                                    {prod.categoria === "Maderas" && (
-                                      <div>
-                                        <span className="font-medium">
-                                          $/pie:
-                                        </span>
-                                        <span className="ml-1 font-bold text-orange-600 dark:text-orange-400">
-                                          {prod.precioPorPie}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Dimensiones para maderas */}
-                                  {prod.categoria === "Maderas" && (
-                                    <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
-                                      <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          Dimensiones
-                                        </span>
-                                      </div>
-                                      <div className="flex gap-3 text-xs">
-                                        <span>
-                                          Alto:{" "}
-                                          <span className="font-bold">
-                                            {prod.alto || 0}
-                                          </span>{" "}
-                                        </span>
-                                        <span>
-                                          Ancho:{" "}
-                                          <span className="font-bold">
-                                            {prod.ancho || 0}
-                                          </span>{" "}
-                                        </span>
-                                        <span>
-                                          Largo:{" "}
-                                          <span className="font-bold">
-                                            {prod.largo || 0}
-                                          </span>{" "}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Alertas de stock */}
-                                  {prod.stock <= 0 && (
-                                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 mb-3">
-                                      <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          ¡Sin stock! Se permitirá avanzar
-                                          igual.
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {prod.stock > 0 && prod.stock <= 3 && (
-                                    <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700 mb-3">
-                                      <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        <span className="font-medium">
-                                          Stock bajo: quedan {prod.stock}{" "}
-                                          unidades.
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
 
-                              <div className="mt-auto">
-                                {yaAgregado ? (
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleDecrementarCantidad(prod.id)
-                                      }
-                                      disabled={
-                                        isSubmitting ||
-                                        productosSeleccionados.find(
-                                          (p) => p.id === prod.id
-                                        )?.cantidad <= 1
-                                      }
-                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                    >
-                                      -
-                                    </button>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={
-                                        productosSeleccionados.find(
-                                          (p) => p.id === prod.id
-                                        )?.cantidad || 1
-                                      }
-                                      onChange={(e) =>
-                                        handleCantidadChange(
-                                          prod.id,
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-12 text-center border rounded"
-                                      disabled={isSubmitting}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleIncrementarCantidad(prod.id)
-                                      }
-                                      disabled={isSubmitting}
-                                      className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                    >
-                                      +
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleQuitarProducto(prod.id)
-                                      }
-                                      disabled={isSubmitting}
-                                      className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                    >
-                                      Quitar
-                                    </button>
+                              {/* Información del producto */}
+                              <div className="flex-1 space-y-2">
+                                {/* Precio */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    Precio:
+                                  </span>
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    ${formatearNumeroArgentino(precio)}
+                                  </span>
+                                </div>
+
+                                {/* Unidad de medida */}
+                                {prod.unidadMedida && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      Unidad:
+                                    </span>
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                                      {prod.unidadMedida}
+                                    </span>
                                   </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (prod.categoria === "Maderas") {
-                                        const alto = Number(prod.alto) || 0;
-                                        const ancho = Number(prod.ancho) || 0;
-                                        const largo = Number(prod.largo) || 0;
-                                        const precioPorPie =
-                                          Number(prod.precioPorPie) || 0;
-                                        if (
-                                          alto > 0 &&
-                                          ancho > 0 &&
-                                          largo > 0 &&
-                                          precioPorPie > 0
-                                        ) {
-                                          const precio =
-                                            calcularPrecioCorteMadera({
-                                              alto,
-                                              ancho,
-                                              largo,
-                                              precioPorPie,
-                                            });
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio,
-                                            unidad: prod.unidadMedida,
-                                            stock: prod.stock,
+                                )}
+
+                                {/* Stock */}
+                                {prod.stock !== undefined && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      Stock:
+                                    </span>
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        prod.stock > 10
+                                          ? "text-green-600 dark:text-green-400"
+                                          : prod.stock > 0
+                                          ? "text-yellow-600 dark:text-yellow-400"
+                                          : "text-red-600 dark:text-red-400"
+                                      }`}
+                                    >
+                                      {prod.stock} unidades
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Botón de agregar */}
+                              <div className="mt-4">
+                                <button
+                                  onClick={() => {
+                                    if (prod.categoria === "Maderas") {
+                                      const alto = Number(prod.alto) || 0;
+                                      const ancho = Number(prod.ancho) || 0;
+                                      const largo = Number(prod.largo) || 0;
+                                      const precioPorPie =
+                                        Number(prod.precioPorPie) || 0;
+                                      if (
+                                        alto > 0 &&
+                                        ancho > 0 &&
+                                        largo > 0 &&
+                                        precioPorPie > 0
+                                      ) {
+                                        const precio =
+                                          calcularPrecioCorteMadera({
                                             alto,
                                             ancho,
                                             largo,
                                             precioPorPie,
                                           });
-                                        } else {
-                                          setSubmitStatus("error");
-                                          setSubmitMessage(
-                                            "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                          );
-                                          return;
-                                        }
-                                      } else {
                                         handleAgregarProducto({
                                           id: prod.id,
                                           nombre: prod.nombre,
-                                          precio: precio,
-                                          unidad:
-                                            prod.unidadMedida ||
-                                            prod.unidadVenta ||
-                                            prod.unidadVentaHerraje ||
-                                            prod.unidadVentaQuimico ||
-                                            prod.unidadVentaHerramienta,
+                                          precio,
+                                          unidad: prod.unidadMedida,
                                           stock: prod.stock,
+                                          alto,
+                                          ancho,
+                                          largo,
+                                          precioPorPie,
                                         });
+                                      } else {
+                                        setSubmitStatus("error");
+                                        setSubmitMessage(
+                                          "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                        );
+                                        return;
                                       }
-                                    }}
-                                    disabled={isSubmitting}
-                                    className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                  >
-                                    Agregar
-                                  </button>
-                                )}
+                                    } else {
+                                      handleAgregarProducto({
+                                        id: prod.id,
+                                        nombre: prod.nombre,
+                                        precio: precio,
+                                        unidad:
+                                          prod.unidadMedida ||
+                                          prod.unidadVenta ||
+                                          prod.unidadVentaHerraje ||
+                                          prod.unidadVentaQuimico ||
+                                          prod.unidadVentaHerramienta,
+                                        stock: prod.stock,
+                                      });
+                                    }
+                                  }}
+                                  disabled={yaAgregado || isSubmitting}
+                                  className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                    yaAgregado
+                                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed"
+                                      : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                  }`}
+                                >
+                                  {yaAgregado ? "Ya agregado" : "Agregar"}
+                                </button>
                               </div>
                             </div>
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPaginas > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                        {/* Información de página */}
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          Mostrando {inicio + 1}-{Math.min(fin, totalProductos)} de {totalProductos} productos
+                        </div>
+
+                        {/* Controles de navegación */}
+                        <div className="flex items-center gap-2">
+                          {/* Botón primera página */}
+                          <button
+                            onClick={() => cambiarPagina(1)}
+                            disabled={paginaActual === 1}
+                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Primera página"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            </svg>
+                          </button>
+
+                          {/* Botón página anterior */}
+                          <button
+                            onClick={() => cambiarPagina(paginaActual - 1)}
+                            disabled={paginaActual === 1}
+                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Página anterior"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+
+                          {/* Números de página */}
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                              let pageNum;
+                              if (totalPaginas <= 5) {
+                                pageNum = i + 1;
+                              } else if (paginaActual <= 3) {
+                                pageNum = i + 1;
+                              } else if (paginaActual >= totalPaginas - 2) {
+                                pageNum = totalPaginas - 4 + i;
+                              } else {
+                                pageNum = paginaActual - 2 + i;
+                              }
+
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => cambiarPagina(pageNum)}
+                                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                    paginaActual === pageNum
+                                      ? "bg-blue-600 text-white"
+                                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Botón página siguiente */}
+                          <button
+                            onClick={() => cambiarPagina(paginaActual + 1)}
+                            disabled={paginaActual === totalPaginas}
+                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Página siguiente"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+
+                          {/* Botón última página */}
+                          <button
+                            onClick={() => cambiarPagina(totalPaginas)}
+                            disabled={paginaActual === totalPaginas}
+                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Última página"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3403,3 +3337,4 @@ const getNextPresupuestoNumber = async () => {
   });
   return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
 };
+
