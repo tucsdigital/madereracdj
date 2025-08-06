@@ -109,191 +109,16 @@ const ferreteriaSchema = yup.object().shape({
   proveedor: yup.string().required("Proveedor obligatorio"),
 });
 
-// Esquemas comentados para uso futuro
-/*
-const fijacionesSchema = yup.object().shape({
-  ...baseSchema,
-  tipoFijacion: yup.string().required("Tipo de fijación obligatorio"),
-  material: yup.string().required("Material obligatorio"),
-  largoFijacion: yup.number().positive().required("Largo obligatorio"),
-  diametro: yup.number().positive().required("Diámetro obligatorio"),
-  tipoCabeza: yup.string().required("Tipo de cabeza obligatorio"),
-  tipoRosca: yup.string().required("Tipo de rosca obligatorio"),
-  acabado: yup.string().required("Acabado obligatorio"),
-  unidadVenta: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
-"use client";
-import React, { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Boxes,
-  Plus,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Upload,
-  FileSpreadsheet,
-  Download,
-} from "lucide-react";
-import { db } from "@/lib/firebase";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  onSnapshot,
-  query,
-  orderBy,
-  doc,
-  updateDoc,
-  getDocs,
-} from "firebase/firestore";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-
-const categorias = ["Maderas", "Ferretería"];
-
-// Función para formatear números en formato argentino
-const formatearNumeroArgentino = (numero) => {
-  if (numero === null || numero === undefined || isNaN(numero)) return "0";
-  return Number(numero).toLocaleString("es-AR");
-};
-
-// Función para calcular precio de corte de madera
-function calcularPrecioCorteMadera({
-  alto,
-  ancho,
-  largo,
-  precioPorPie,
-  factor = 0.2734,
-}) {
-  if (
-    [alto, ancho, largo, precioPorPie].some(
-      (v) => typeof v !== "number" || v <= 0
-    )
-  ) {
-    return 0;
-  }
-  const precio = factor * alto * ancho * largo * precioPorPie;
-  // Redondear a centenas (múltiplos de 100)
-  return Math.round(precio / 100) * 100;
-}
-
-// Esquemas de validación por categoría
-const baseSchema = {
-  codigo: yup.string().required("El código es obligatorio"),
-  nombre: yup.string().required("El nombre es obligatorio"),
-  descripcion: yup.string().required("La descripción es obligatoria"),
-  categoria: yup.string().required("La categoría es obligatoria"),
-  subcategoria: yup.string().required("La subcategoría es obligatoria"),
-  estado: yup
-    .string()
-    .oneOf(["Activo", "Inactivo", "Descontinuado"])
-    .required(),
-  costo: yup.number().positive().required("El costo es obligatorio"),
-};
-
-// Esquema para Maderas
-const maderasSchema = yup.object().shape({
-  ...baseSchema,
-  tipoMadera: yup.string().required("Tipo de madera obligatorio"),
-  largo: yup.number().positive().required("Largo obligatorio"),
-  ancho: yup.number().positive().required("Ancho obligatorio"),
-  alto: yup.number().positive().required("Alto obligatorio"),
-  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
-  precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
-  ubicacion: yup.string().required("Ubicación obligatoria"),
-});
-
-// Esquema para Ferretería
-const ferreteriaSchema = yup.object().shape({
-  ...baseSchema,
-  stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
-  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
-  valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
-  valorVenta: yup.number().positive().required("Valor de venta obligatorio"),
-  proveedor: yup.string().required("Proveedor obligatorio"),
-});
-
-// Esquemas comentados para uso futuro
-/*
-const fijacionesSchema = yup.object().shape({
-  ...baseSchema,
-  tipoFijacion: yup.string().required("Tipo de fijación obligatorio"),
-  material: yup.string().required("Material obligatorio"),
-  largoFijacion: yup.number().positive().required("Largo obligatorio"),
-  diametro: yup.number().positive().required("Diámetro obligatorio"),
-  tipoCabeza: yup.string().required("Tipo de cabeza obligatorio"),
-  tipoRosca: yup.string().required("Tipo de rosca obligatorio"),
-  acabado: yup.string().required("Acabado obligatorio"),
-  unidadVenta: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidad: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadVenta: yup.number().positive().required("Precio obligatorio"),
-  ubicacionFijacion: yup.string().required("Ubicación obligatoria"),
-});
-const herrajesSchema = yup.object().shape({
-  ...baseSchema,
-  tipoHerraje: yup.string().required("Tipo de herraje obligatorio"),
-  materialHerraje: yup.string().required("Material obligatorio"),
-  funcion: yup.string().required("Función obligatoria"),
-  medidaClave: yup.string().required("Medida obligatoria"),
-  acabadoHerraje: yup.string().required("Acabado obligatorio"),
-  capacidad: yup.string(),
-  unidadVentaHerraje: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidadHerraje: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadHerraje: yup.number().positive().required("Precio obligatorio"),
-  ubicacionHerraje: yup.string().required("Ubicación obligatoria"),
-});
-const adhesivosSchema = yup.object().shape({
-  ...baseSchema,
-  tipoQuimico: yup.string().required("Tipo de producto obligatorio"),
-  funcionQuimico: yup.string().required("Función obligatoria"),
-  marca: yup.string().required("Marca obligatoria"),
-  contenidoNeto: yup.string().required("Contenido neto obligatorio"),
-  unidadVentaQuimico: yup.string().required("Unidad de venta obligatoria"),
-  precioUnidadQuimico: yup.number().positive().required("Precio obligatorio"),
-  ubicacionQuimico: yup.string().required("Ubicación obligatoria"),
-});
-const herramientasSchema = yup.object().shape({
-  ...baseSchema,
-  tipoHerramienta: yup.string().required("Tipo de herramienta obligatorio"),
-  uso: yup.string().required("Uso específico obligatorio"),
-  materialHerramienta: yup.string(),
-  marcaHerramienta: yup.string(),
-  medidaHerramienta: yup.string(),
-  unidadVentaHerramienta: yup.string().required("Unidad de venta obligatoria"),
-  contenidoUnidadHerramienta: yup.number().positive().required("Contenido por unidad obligatorio"),
-  precioUnidadHerramienta: yup.number().positive().required("Precio obligatorio"),
-  ubicacionHerramienta: yup.string().required("Ubicación obligatoria"),
-});
-*/
-
 const esquemasPorCategoria = {
   Maderas: maderasSchema,
   Ferretería: ferreteriaSchema,
 };
 
+// Componente FormularioProducto mejorado
 function FormularioProducto({ onClose, onSuccess }) {
   const [categoria, setCategoria] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
   
   // Estados para agregar nuevos valores
@@ -309,21 +134,18 @@ function FormularioProducto({ onClose, onSuccess }) {
   const [unidadesMedidaUnicas, setUnidadesMedidaUnicas] = useState([]);
   const [proveedoresUnicos, setProveedoresUnicos] = useState([]);
   
-  const schema =
-    esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
+  const schema = esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { estado: "Activo" },
   });
 
-  // Cargar datos precargados cuando cambie la categoría
   useEffect(() => {
     if (categoria) {
       cargarDatosPrecargados();
@@ -335,17 +157,14 @@ function FormularioProducto({ onClose, onSuccess }) {
       const productosSnap = await getDocs(collection(db, "productos"));
       const productos = productosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // Filtrar por categoría
       const productosCategoria = productos.filter(p => p.categoria === categoria);
       
       if (categoria === "Maderas") {
-        // Para maderas: tipoMadera y subcategoria
         const tiposMadera = [...new Set(productosCategoria.map(p => p.tipoMadera).filter(Boolean))];
         const subCategorias = [...new Set(productosCategoria.map(p => p.subcategoria).filter(Boolean))];
         setTiposMaderaUnicos(tiposMadera);
         setSubCategoriasUnicas(subCategorias);
       } else if (categoria === "Ferretería") {
-        // Para ferretería: unidadMedida, subCategoria y proveedor
         const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
         const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
         const proveedores = [...new Set(productosCategoria.map(p => p.proveedor).filter(Boolean))];
@@ -362,7 +181,6 @@ function FormularioProducto({ onClose, onSuccess }) {
     if (!valor.trim()) return;
     
     try {
-      // Agregar el nuevo valor a la lista correspondiente
       switch (tipo) {
         case 'tipoMadera':
           setTiposMaderaUnicos(prev => [...prev, valor.trim()]);
@@ -382,7 +200,6 @@ function FormularioProducto({ onClose, onSuccess }) {
           break;
       }
       
-      // Cerrar el input de agregar
       setShowAddTipoMadera(false);
       setShowAddSubcategoria(false);
       setShowAddUnidadMedida(false);
@@ -420,111 +237,292 @@ function FormularioProducto({ onClose, onSuccess }) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-      {/* Feedback de guardado */}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Feedback de guardado con animación */}
       {submitStatus && (
         <div
-          className={`mb-2 p-2 rounded flex items-center gap-2 text-sm ${
+          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm shadow-lg transform transition-all duration-300 ${
             submitStatus === "success"
-              ? "bg-green-50 text-green-800"
-              : "bg-red-50 text-red-800"
+              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200"
+              : "bg-gradient-to-r from-red-50 to-pink-50 text-red-800 border border-red-200"
           }`}
         >
-          {submitStatus === "success" ? (
-            <CheckCircle className="w-4 h-4" />
-          ) : (
-            <AlertCircle className="w-4 h-4" />
-          )}
-          {submitMessage}
+          <div className={`p-2 rounded-full ${submitStatus === "success" ? "bg-green-100" : "bg-red-100"}`}>
+            {submitStatus === "success" ? (
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            )}
+          </div>
+          <div>
+            <div className="font-semibold">
+              {submitStatus === "success" ? "¡Éxito!" : "Error"}
+            </div>
+            <div className="text-sm opacity-90">{submitMessage}</div>
+          </div>
         </div>
       )}
-      {/* Selector de categoría SIEMPRE visible */}
-      <div className="mb-2">
-        <label className="font-semibold text-default-700">Categoría</label>
-        <select
-          {...register("categoria")}
-          value={categoria}
-          onChange={(e) => {
-            setCategoria(e.target.value);
-            setValue("categoria", e.target.value);
-          }}
-          className="border rounded px-2 py-2 w-full"
-          disabled={isSubmitting}
-        >
-          <option value="">Seleccionar categoría</option>
-          {categorias.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
+
+      {/* Selector de categoría con diseño moderno */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <label className="text-lg font-semibold text-gray-800">Categoría del Producto</label>
+        </div>
+        <div className="relative">
+          <select
+            {...register("categoria")}
+            value={categoria}
+            onChange={(e) => {
+              setCategoria(e.target.value);
+              setValue("categoria", e.target.value);
+            }}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
+            disabled={isSubmitting}
+          >
+            <option value="">Selecciona una categoría</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
         {errors.categoria && (
-          <span className="text-red-500 text-xs">
+          <div className="flex items-center gap-2 text-red-600 text-sm">
+            <AlertCircle className="w-4 h-4" />
             {errors.categoria.message}
-          </span>
+          </div>
         )}
       </div>
+
       {/* Solo mostrar el resto del formulario si hay categoría seleccionada */}
       {categoria && (
-        <>
-          <div
-            className="overflow-y-auto flex-1 pr-1"
-            style={{ maxHeight: "60vh" }}
-          >
-            {/* Sección: Datos generales */}
-            <div className="mb-2">
-              <div className="font-semibold text-primary mb-1">
-                Datos generales
+        <div className="space-y-8">
+          {/* Sección: Datos generales */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <Input
-                    {...register("codigo")}
-                    placeholder="Código de producto"
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Datos Generales</h3>
+                <p className="text-sm text-gray-600">Información básica del producto</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Código del Producto
+                </label>
+                <Input
+                  {...register("codigo")}
+                  placeholder="Ej: MAD-001"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                />
+                {errors.codigo && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.codigo.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Nombre del Producto
+                </label>
+                <Input
+                  {...register("nombre")}
+                  placeholder="Ej: Tabla de Pino"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                />
+                {errors.nombre && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.nombre.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Descripción
+                </label>
+                <textarea
+                  {...register("descripcion")}
+                  placeholder="Describe las características del producto..."
+                  disabled={isSubmitting}
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50 resize-none"
+                />
+                {errors.descripcion && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.descripcion.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Subcategoría
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    {...register("subcategoria")}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
                     disabled={isSubmitting}
+                  >
+                    <option value="">Seleccionar subcategoría</option>
+                    {subCategoriasUnicas.map((subCategoria) => (
+                      <option key={subCategoria} value={subCategoria}>
+                        {subCategoria}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddSubcategoria(true)}
+                    className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
+                    disabled={isSubmitting}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {showAddSubcategoria && (
+                  <div className="flex gap-2 mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <Input
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      placeholder="Nueva subcategoría"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddNewValue('subcategoria', newValue)}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Agregar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddSubcategoria(false);
+                        setNewValue("");
+                      }}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                {errors.subcategoria && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.subcategoria.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Estado
+                </label>
+                <select
+                  {...register("estado")}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  disabled={isSubmitting}
+                >
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+                {errors.estado && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.estado.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Costo Unitario
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <Input
+                    {...register("costo")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
                   />
-                  {errors.codigo && (
-                    <span className="text-red-500 text-xs">
-                      {errors.codigo.message}
-                    </span>
-                  )}
+                </div>
+                {errors.costo && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.costo.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Sección específica por categoría */}
+          {categoria === "Maderas" && (
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
                 </div>
                 <div>
-                  <Input
-                    {...register("nombre")}
-                    placeholder="Nombre"
-                    disabled={isSubmitting}
-                  />
-                  {errors.nombre && (
-                    <span className="text-red-500 text-xs">
-                      {errors.nombre.message}
-                    </span>
-                  )}
+                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Madera</h3>
+                  <p className="text-sm text-gray-600">Dimensiones y características específicas</p>
                 </div>
-                <div className="md:col-span-2">
-                  <Input
-                    {...register("descripcion")}
-                    placeholder="Descripción"
-                    disabled={isSubmitting}
-                  />
-                  {errors.descripcion && (
-                    <span className="text-red-500 text-xs">
-                      {errors.descripcion.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1">
-                    Subcategoría
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Tipo de Madera
                   </label>
                   <div className="flex gap-2">
                     <select
-                      {...register("subcategoria")}
-                      className="flex-1 border rounded px-2 py-2"
+                      {...register("tipoMadera")}
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
                       disabled={isSubmitting}
                     >
-                      <option value="">Seleccionar subcategoría</option>
-                      {subCategoriasUnicas.map((subCategoria) => (
-                        <option key={subCategoria} value={subCategoria}>
-                          {subCategoria}
+                      <option value="">Seleccionar tipo de madera</option>
+                      {tiposMaderaUnicos.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {tipo}
                         </option>
                       ))}
                     </select>
@@ -532,26 +530,27 @@ function FormularioProducto({ onClose, onSuccess }) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowAddSubcategoria(true)}
-                      className="px-3"
+                      onClick={() => setShowAddTipoMadera(true)}
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition-all duration-200"
                       disabled={isSubmitting}
                     >
-                      +
+                      <Plus className="w-4 h-4" />
                     </Button>
                   </div>
-                  {showAddSubcategoria && (
-                    <div className="flex gap-2 mt-2">
+                  {showAddTipoMadera && (
+                    <div className="flex gap-2 mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
                       <Input
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva subcategoría"
-                        className="flex-1"
+                        placeholder="Nuevo tipo de madera"
+                        className="flex-1 px-3 py-2 border border-amber-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
                       />
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => handleAddNewValue('subcategoria', newValue)}
+                        onClick={() => handleAddNewValue('tipoMadera', newValue)}
                         disabled={isSubmitting}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
                       >
                         Agregar
                       </Button>
@@ -560,460 +559,386 @@ function FormularioProducto({ onClose, onSuccess }) {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setShowAddSubcategoria(false);
+                          setShowAddTipoMadera(false);
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
+                        className="px-4 py-2 border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
                       >
                         Cancelar
                       </Button>
                     </div>
                   )}
-                  {errors.subcategoria && (
-                    <span className="text-red-500 text-xs">
-                      {errors.subcategoria.message}
-                    </span>
+                  {errors.tipoMadera && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.tipoMadera.message}
+                    </div>
                   )}
                 </div>
-                <div>
-                  <select
-                    {...register("estado")}
-                    className="border rounded px-2 py-2 w-full"
-                    disabled={isSubmitting}
-                  >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
-                    <option value="Descontinuado">Descontinuado</option>
-                  </select>
-                  {errors.estado && (
-                    <span className="text-red-500 text-xs">
-                      {errors.estado.message}
-                    </span>
-                  )}
-                </div>
-                <div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Largo (metros)
+                  </label>
                   <Input
-                    {...register("costo")}
+                    {...register("largo")}
                     type="number"
                     step="0.01"
-                    placeholder="Costo unitario"
+                    placeholder="0.00"
                     disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
                   />
-                  {errors.costo && (
-                    <span className="text-red-500 text-xs">
-                      {errors.costo.message}
-                    </span>
+                  {errors.largo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.largo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Ancho (cm)
+                  </label>
+                  <Input
+                    {...register("ancho")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.ancho && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ancho.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Alto (cm)
+                  </label>
+                  <Input
+                    {...register("alto")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.alto && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.alto.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Precio por Pie
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      {...register("precioPorPie")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    />
+                  </div>
+                  {errors.precioPorPie && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.precioPorPie.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Ubicación en Depósito
+                  </label>
+                  <Input
+                    {...register("ubicacion")}
+                    placeholder="Ej: Estante A, Nivel 2"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.ubicacion && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ubicacion.message}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-            <hr className="my-2" />
-            {/* Sección: Datos específicos */}
-            <div className="mb-2">
-              <div className="font-semibold text-primary mb-1">
-                Datos específicos
+          )}
+
+          {categoria === "Ferretería" && (
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Ferretería</h3>
+                  <p className="text-sm text-gray-600">Información de stock y proveedores</p>
+                </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {categoria === "Maderas" && (
-                  <>
-                    <div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Stock Mínimo
+                  </label>
+                  <Input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.stockMinimo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.stockMinimo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
                       <Input
-                        {...register("tipoMadera")}
-                        placeholder="Tipo de madera"
-                        disabled={isSubmitting}
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-100"
                       />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("largo")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Largo (m)"
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
                         disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("ancho")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Ancho (cm)"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("alto")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Alto (cm)"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Unidad de medida de venta
-                      </label>
-                      <input
-                        type="text"
-                        value="pie"
-                        readOnly
-                        className="border rounded px-2 py-2 w-full bg-gray-100"
-                        disabled={isSubmitting}
-                      />
-                      <input
-                        type="hidden"
-                        {...register("unidadMedida")}
-                        value="pie"
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        {...register("precioPorPie")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor del pie"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Input
-                        {...register("ubicacion")}
-                        placeholder="Ubicación en depósito"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </>
-                )}
-                {categoria === "Ferretería" && (
-                  <>
-                    <div>
-                      <Input
-                        {...register("stockMinimo")}
-                        type="number"
-                        step="1"
-                        placeholder="Stock mínimo"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.stockMinimo && (
-                      <span className="text-red-500 text-xs">
-                        {errors.stockMinimo.message}
-                      </span>
-                    )}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Unidad de medida de venta
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("unidadMedida")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar unidad</option>
-                          {unidadesMedidaUnicas.map((unidad) => (
-                            <option key={unidad} value={unidad}>
-                              {unidad}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddUnidadMedida(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddUnidadMedida && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nueva unidad de medida"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('unidadMedida', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddUnidadMedida(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.unidadMedida && (
-                        <span className="text-red-500 text-xs">
-                          {errors.unidadMedida.message}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Subcategoría
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("subCategoria")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar subcategoría</option>
-                          {subCategoriasUnicas.map((subCategoria) => (
-                            <option key={subCategoria} value={subCategoria}>
-                              {subCategoria}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddSubcategoria(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddSubcategoria && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nueva subcategoría"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('subcategoria', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddSubcategoria(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.subCategoria && (
-                        <span className="text-red-500 text-xs">
-                          {errors.subCategoria.message}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <Input
-                        {...register("valorCompra")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor de compra"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.valorCompra && (
-                      <span className="text-red-500 text-xs">
-                        {errors.valorCompra.message}
-                      </span>
-                    )}
-                    <div>
-                      <Input
-                        {...register("valorVenta")}
-                        type="number"
-                        step="0.01"
-                        placeholder="Valor de venta"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.valorVenta && (
-                      <span className="text-red-500 text-xs">
-                        {errors.valorVenta.message}
-                      </span>
-                    )}
-                    <div>
-                      <label className="block text-xs font-medium mb-1">
-                        Proveedor
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          {...register("proveedor")}
-                          className="flex-1 border rounded px-2 py-2"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Seleccionar proveedor</option>
-                          {proveedoresUnicos.map((proveedor) => (
-                            <option key={proveedor} value={proveedor}>
-                              {proveedor}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAddProveedor(true)}
-                          className="px-3"
-                          disabled={isSubmitting}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      {showAddProveedor && (
-                        <div className="flex gap-2 mt-2">
-                          <Input
-                            value={newValue}
-                            onChange={(e) => setNewValue(e.target.value)}
-                            placeholder="Nuevo proveedor"
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleAddNewValue('proveedor', newValue)}
-                            disabled={isSubmitting}
-                          >
-                            Agregar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowAddProveedor(false);
-                              setNewValue("");
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                      {errors.proveedor && (
-                        <span className="text-red-500 text-xs">
-                          {errors.proveedor.message}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-                {categoria === "Maderas" && (
-                  <div>
-                    <label className="block text-xs font-medium mb-1">
-                      Tipo de Madera
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        {...register("tipoMadera")}
-                        className="flex-1 border rounded px-2 py-2"
-                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                       >
-                        <option value="">Seleccionar tipo de madera</option>
-                        {tiposMaderaUnicos.map((tipo) => (
-                          <option key={tipo} value={tipo}>
-                            {tipo}
-                          </option>
-                        ))}
-                      </select>
+                        Agregar
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowAddTipoMadera(true)}
-                        className="px-3"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
                         disabled={isSubmitting}
+                        className="px-4 py-2 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
                       >
-                        +
+                        Cancelar
                       </Button>
                     </div>
-                    {showAddTipoMadera && (
-                      <div className="flex gap-2 mt-2">
-                        <Input
-                          value={newValue}
-                          onChange={(e) => setNewValue(e.target.value)}
-                          placeholder="Nuevo tipo de madera"
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleAddNewValue('tipoMadera', newValue)}
-                          disabled={isSubmitting}
-                        >
-                          Agregar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowAddTipoMadera(false);
-                            setNewValue("");
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    )}
-                    {errors.tipoMadera && (
-                      <span className="text-red-500 text-xs">
-                        {errors.tipoMadera.message}
-                      </span>
-                    )}
+                  )}
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Compra
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      {...register("valorCompra")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    />
                   </div>
-                )}
+                  {errors.valorCompra && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorCompra.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Venta
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      {...register("valorVenta")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    />
+                  </div>
+                  {errors.valorVenta && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorVenta.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Proveedor
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("proveedor")}
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar proveedor</option>
+                      {proveedoresUnicos.map((proveedor) => (
+                        <option key={proveedor} value={proveedor}>
+                          {proveedor}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddProveedor(true)}
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddProveedor && (
+                    <div className="flex gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nuevo proveedor"
+                        className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('proveedor', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddProveedor(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.proveedor && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.proveedor.message}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          {/* Footer fijo */}
-          <DialogFooter className="bg-white pt-4 sticky bottom-0 z-10">
+          )}
+
+          {/* Footer con botones modernos */}
+          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
             <Button
               variant="outline"
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
+              className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
             >
               Cancelar
             </Button>
-            <Button variant="default" type="submit" disabled={isSubmitting}>
+            <Button 
+              variant="default" 
+              type="submit" 
+              disabled={isSubmitting}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Guardando...
                 </>
               ) : (
-                "Guardar"
+                "Guardar Producto"
               )}
             </Button>
-          </DialogFooter>
-        </>
+          </div>
+        </div>
       )}
     </form>
   );
@@ -2123,76 +2048,6 @@ const ProductosPage = () => {
     document.body.removeChild(link);
   };
 
-  // Función para exportar todos los productos a CSV
-  const exportarTodosCSV = () => {
-    if (productos.length === 0) {
-      alert("No hay productos para exportar");
-      return;
-    }
-
-    const headers = [
-      "codigo",
-      "nombre",
-      "descripcion",
-      "categoria",
-      "subcategoria",
-      "subCategoria",
-      "tipoMadera",
-      "unidadMedida",
-      "proveedor",
-      "alto",
-      "ancho",
-      "largo",
-      "precioPorPie",
-      "stockMinimo",
-      "valorCompra",
-      "valorVenta",
-      "stock",
-      "estado",
-      "ubicacion"
-    ];
-
-    const csvRows = [headers.join(",")];
-    
-    productos.forEach(producto => {
-      const row = [
-        producto.codigo || "",
-        producto.nombre || "",
-        producto.descripcion || "",
-        producto.categoria || "",
-        producto.subcategoria || "",
-        producto.subCategoria || "",
-        producto.tipoMadera || "",
-        producto.unidadMedida || "",
-        producto.proveedor || "",
-        producto.alto || "",
-        producto.ancho || "",
-        producto.largo || "",
-        producto.precioPorPie || "",
-        producto.stockMinimo || "",
-        producto.valorCompra || "",
-        producto.valorVenta || "",
-        producto.stock || "",
-        producto.estado || "Activo",
-        producto.ubicacion || ""
-      ].map(field => `"${field}"`).join(",");
-      
-      csvRows.push(row);
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `exportacion_todos_productos_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   // Función para manejar cambios en productos
   const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
     try {
@@ -2454,14 +2309,6 @@ const ProductosPage = () => {
               >
                 <Download className="w-4 h-4 mr-1" />
                 Exportar Ferretería
-              </Button>
-              <Button
-                variant="outline"
-                onClick={exportarTodosCSV}
-                className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Exportar Todos los Productos
               </Button>
               {selectedProducts.length > 0 && (
                 <Button
@@ -2890,22 +2737,71 @@ const ProductosPage = () => {
         </CardContent>
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[520px] p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>Agregar Producto</DialogTitle>
-          </DialogHeader>
-          <div
-            className="px-6 pb-2 pt-0"
-            style={{ maxHeight: "65vh", overflowY: "auto" }}
-          >
-            <FormularioProducto
-              onClose={() => setOpen(false)}
-              onSuccess={() => setReload((r) => !r)}
-            />
+        <DialogContent className="w-[95vw] max-w-[1000px] p-0 overflow-hidden shadow-2xl">
+          <div className="relative">
+            {/* Header con gradiente y diseño moderno */}
+            <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white px-8 py-8 relative overflow-hidden">
+              <div className="absolute inset-0 bg-black/10"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Boxes className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-3xl font-bold text-white mb-1">
+                      Agregar Nuevo Producto
+                    </DialogTitle>
+                    <p className="text-blue-100 text-base">
+                      Complete la información del producto para agregarlo al inventario
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {/* Elementos decorativos animados */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20 animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16 animate-pulse delay-1000"></div>
+              <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-white/3 rounded-full animate-bounce"></div>
+            </div>
+            
+            {/* Contenido del formulario con scroll suave */}
+            <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="px-8 py-8">
+                <FormularioProducto
+                  onClose={() => setOpen(false)}
+                  onSuccess={() => setReload((r) => !r)}
+                />
+              </div>
+            </div>
+            
+            {/* Footer con diseño moderno */}
+            <div className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-t border-gray-200 px-8 py-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="font-medium">Tip:</span> Los campos marcados con <span className="text-red-500 font-bold">*</span> son obligatorios
+                </div>
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    className="px-8 py-3 border-2 border-gray-300 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 font-medium"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
+                  >
+                    Guardar Producto
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
-          <DialogFooter className="bg-white px-6 py-4 border-t bottom-0 z-20 shadow-lg flex justify-end gap-2">
-            {/* Los botones del footer se renderizan dentro del propio FormularioProducto, así que aquí solo se deja el espacio visual */}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

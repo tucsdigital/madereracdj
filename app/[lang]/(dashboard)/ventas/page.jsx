@@ -1992,87 +1992,93 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
                                   {/* Para machimbres: ancho, largo y cantidad editables */}
                                   {p.subcategoria === "machimbre" ? (
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Ancho
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.ancho || 0}
-                                            onChange={(e) =>
-                                              handleAnchoChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="0.00"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            m
+                                    <>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                            Ancho
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={p.ancho || 0}
+                                              onChange={(e) =>
+                                                handleAnchoChange(
+                                                  p.id,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                              disabled={isSubmitting}
+                                              placeholder="0.00"
+                                            />
+                                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
+                                              m
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                            Largo
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={p.largo || 0}
+                                              onChange={(e) =>
+                                                handleLargoChange(
+                                                  p.id,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                              disabled={isSubmitting}
+                                              placeholder="0.00"
+                                            />
+                                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
+                                              m
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                            Cantidad del Paquete
+                                          </label>
+                                          <div className="relative">
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              step="1"
+                                              value={
+                                                p.cantidadPaquete ||
+                                                p.cantidad ||
+                                                1
+                                              }
+                                              onChange={(e) =>
+                                                handleCantidadMachimbreChange(
+                                                  p.id,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                              disabled={isSubmitting}
+                                              placeholder="1"
+                                            />
+                                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
+                                              pkg
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Largo
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.largo || 0}
-                                            onChange={(e) =>
-                                              handleLargoChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="0.00"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            m
-                                          </div>
-                                        </div>
+                                      {/* Mostrar volumen */}
+                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
+                                        M2: {((p.ancho || 0) * (p.largo || 0) * (p.cantidadPaquete || p.cantidad || 1)).toLocaleString()} m²
                                       </div>
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Cantidad del Paquete
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            value={
-                                              p.cantidadPaquete ||
-                                              p.cantidad ||
-                                              1
-                                            }
-                                            onChange={(e) =>
-                                              handleCantidadMachimbreChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="1"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            pkg
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
+                                    </>
                                   ) : (
                                     /* Para otras maderas: solo mostrar valores */
                                     <div className="grid grid-cols-3 gap-2">
