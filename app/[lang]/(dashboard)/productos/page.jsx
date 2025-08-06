@@ -948,6 +948,7 @@ const ProductosPage = () => {
   const [open, setOpen] = useState(false);
   const [openBulk, setOpenBulk] = useState(false);
   const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
+  const [openBulkObras, setOpenBulkObras] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [cat, setCat] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
@@ -999,6 +1000,16 @@ const ProductosPage = () => {
     total: 0,
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
+
+  // Estados para carga masiva Obras
+  const [bulkStatusObras, setBulkStatusObras] = useState(null);
+  const [bulkMessageObras, setBulkMessageObras] = useState("");
+  const [bulkLoadingObras, setBulkLoadingObras] = useState(false);
+  const [bulkProgressObras, setBulkProgressObras] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [bulkFileObras, setBulkFileObras] = useState(null);
 
   // Estados para selección múltiple
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -1534,6 +1545,134 @@ const ProductosPage = () => {
     });
   };
 
+  // Función para procesar archivo Excel/CSV específico para Obras
+  const processExcelFileObras = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log(
+            "Archivo Obras leído:",
+            file.name,
+            "Tamaño:",
+            file.size
+          );
+
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            const lines = content.split("\n");
+            console.log("Líneas CSV Obras encontradas:", lines.length);
+
+            if (lines.length < 2) {
+              reject(
+                new Error(
+                  "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
+                )
+              );
+              return;
+            }
+
+            const headers = lines[0]
+              .split(",")
+              .map((h) => h.trim().replace(/"/g, ""));
+            console.log("Encabezados Obras detectados:", headers);
+
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                // Función para parsear valores CSV correctamente
+                const parseCSVLine = (line) => {
+                  const result = [];
+                  let current = "";
+                  let inQuotes = false;
+
+                  for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                      inQuotes = !inQuotes;
+                    } else if (char === "," && !inQuotes) {
+                      result.push(current.trim());
+                      current = "";
+                    } else {
+                      current += char;
+                    }
+                  }
+                  result.push(current.trim());
+                  return result;
+                };
+
+                const values = parseCSVLine(lines[i]);
+                const producto = {};
+
+                headers.forEach((header, index) => {
+                  let value = values[index] || "";
+
+                  // Limpiar comillas
+                  value = value.replace(/"/g, "");
+
+                  // Convertir valores numéricos
+                  if (
+                    [
+                      "unidad",
+                      "stockMinimo",
+                      "precioVenta",
+                    ].includes(header)
+                  ) {
+                    // Manejar comas en números (formato argentino)
+                    value = value.replace(",", ".");
+                    value = parseFloat(value) || 0;
+                  }
+
+                  producto[header] = value;
+                });
+
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  productos.push(producto);
+                  console.log(
+                    "Producto Obras válido agregado:",
+                    producto.codigo
+                  );
+                } else {
+                  console.log(
+                    "Producto Obras inválido ignorado:",
+                    producto
+                  );
+                }
+              }
+            }
+
+            console.log(
+              "Total de productos Obras válidos:",
+              productos.length
+            );
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(
+              new Error(
+                "Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente."
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error procesando archivo Obras:", error);
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("Error al leer el archivo Obras");
+        reject(new Error("Error al leer el archivo"));
+      };
+
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
   // Función para procesar carga masiva
   const handleBulkUpload = async () => {
     setBulkStatus(null);
@@ -1875,6 +2014,164 @@ const ProductosPage = () => {
     }
   };
 
+  // Función para procesar carga masiva de Obras
+  const handleBulkUploadObras = async () => {
+    setBulkStatusObras(null);
+    setBulkMessageObras("");
+    setBulkLoadingObras(true);
+    setBulkProgressObras({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFileObras) {
+        setBulkStatusObras("error");
+        setBulkMessageObras("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      try {
+        productosData = await processExcelFileObras(bulkFileObras);
+      } catch (e) {
+        setBulkStatusObras("error");
+        setBulkMessageObras("Error al procesar el archivo: " + e.message);
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)",
+          });
+          continue;
+        }
+
+        // Validar campos específicos de obras
+        if (
+          !producto.subCategoria ||
+          !producto.unidad ||
+          !producto.stockMinimo ||
+          !producto.unidadMedida ||
+          !producto.precioVenta
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos de obras. subCategoria: ${producto.subCategoria}, unidad: ${producto.unidad}, stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, precioVenta: ${producto.precioVenta}`,
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = [
+          "unidad",
+          "stockMinimo",
+          "precioVenta",
+        ];
+        for (const campo of valoresNumericos) {
+          if (
+            producto[campo] === null ||
+            producto[campo] === undefined ||
+            isNaN(producto[campo]) ||
+            producto[campo] < 0
+          ) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor o igual a 0. Valor actual: ${producto[campo]}`,
+            });
+            continue;
+          }
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatusObras("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageObras(
+          `Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`
+        );
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      // Procesar productos válidos
+      setBulkProgressObras({ current: 0, total: productosValidos.length });
+
+      for (let i = 0; i < productosValidos.length; i++) {
+        const producto = productosValidos[i];
+
+        try {
+          await addDoc(collection(db, "productos_obras"), producto);
+          setBulkProgressObras({
+            current: i + 1,
+            total: productosValidos.length,
+          });
+        } catch (error) {
+          console.error("Error al guardar producto de obras:", error);
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Error al guardar en Firebase: " + error.message,
+          });
+        }
+      }
+
+      // Mostrar resultado final
+      if (productosInvalidos.length > 0) {
+        setBulkStatusObras("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageObras(
+          `Se procesaron ${productosValidos.length - productosInvalidos.length} productos exitosamente, pero ${productosInvalidos.length} tuvieron errores:\n\n${erroresDetallados}`
+        );
+      } else {
+        setBulkStatusObras("success");
+        setBulkMessageObras(
+          `Se importaron exitosamente ${productosValidos.length} productos de obras.`
+        );
+      }
+
+      setBulkLoadingObras(false);
+
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulkObras(false);
+        setBulkFileObras(null);
+        setBulkStatusObras(null);
+        setBulkMessageObras("");
+        setBulkLoadingObras(false);
+        setBulkProgressObras({ current: 0, total: 0 });
+        setReload((r) => !r);
+      }, 2000);
+    } catch (e) {
+      setBulkStatusObras("error");
+      setBulkMessageObras("Error inesperado: " + e.message);
+      setBulkLoadingObras(false);
+    }
+  };
+
   // Función para descargar CSV de ejemplo
   const downloadExampleCSV = () => {
     const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida
@@ -1920,6 +2217,40 @@ const ProductosPage = () => {
     link.setAttribute(
       "download",
       `plantilla_carga_masiva_ferreteria_${new Date()
+        .toISOString()
+        .split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para descargar CSV de ejemplo para Obras
+  const downloadExampleCSVObras = () => {
+    const headers = [
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "estado",
+      "unidad",
+      "stockMinimo",
+      "unidadMedida",
+      "precioVenta",
+    ];
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      headers.join(",") +
+      "\n" +
+      "7000,Muelle en madera grandis,nada,Muelles,Obras,Activo,1,1,M2,140000";
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `plantilla_carga_masiva_obras_${new Date()
         .toISOString()
         .split("T")[0]}.csv`
     );
@@ -2297,6 +2628,13 @@ const ProductosPage = () => {
               >
                 <Upload className="w-4 h-4 mr-1" />
                 Importar Ferretería
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setOpenBulkObras(true)}
+              >
+                <Upload className="w-4 h-4 mr-1" />
+                Importar Obras
               </Button>
               <Button
                 variant="outline"
@@ -3049,6 +3387,144 @@ const ProductosPage = () => {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva Obras */}
+      <Dialog open={openBulkObras} onOpenChange={setOpenBulkObras}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Importar Obras</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatusObras && (
+              <div
+                className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                  bulkStatusObras === "success"
+                    ? "bg-green-50 text-green-800 border border-green-200"
+                    : "bg-red-50 text-red-800 border border-red-200"
+                }`}
+              >
+                {bulkStatusObras === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                {bulkMessageObras}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoadingObras && bulkProgressObras.total > 0 && (
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>
+                    {bulkProgressObras.current} /{" "}
+                    {bulkProgressObras.total}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        (bulkProgressObras.current /
+                          bulkProgressObras.total) *
+                        100
+                      }%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setBulkFileObras(e.target.files[0])}
+                  className="hidden"
+                  id="file-upload-obras"
+                  disabled={bulkLoadingObras}
+                />
+                <label
+                  htmlFor="file-upload-obras"
+                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFileObras && (
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      ✅ Archivo seleccionado:{" "}
+                      <strong>{bulkFileObras.name}</strong>
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSVObras}
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  📥 Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <h4 className="font-semibold text-yellow-800 mb-2">
+                📋 Formato requerido para Obras:
+              </h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• <strong>codigo</strong>: Código único del producto</li>
+                <li>• <strong>nombre</strong>: Nombre del producto</li>
+                <li>• <strong>descripcion</strong>: Descripción del producto</li>
+                <li>• <strong>categoria</strong>: Categoría del producto</li>
+                <li>• <strong>subCategoria</strong>: Subcategoría del producto</li>
+                <li>• <strong>estado</strong>: Estado del producto (Activo/Inactivo)</li>
+                <li>• <strong>unidad</strong>: Cantidad de unidades</li>
+                <li>• <strong>stockMinimo</strong>: Stock mínimo requerido</li>
+                <li>• <strong>unidadMedida</strong>: Unidad de medida (M2, etc.)</li>
+                <li>• <strong>precioVenta</strong>: Precio de venta</li>
+              </ul>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setOpenBulkObras(false)}
+                disabled={bulkLoadingObras}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleBulkUploadObras}
+                disabled={!bulkFileObras || bulkLoadingObras}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {bulkLoadingObras ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Cargando Productos
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Cargar Productos
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
