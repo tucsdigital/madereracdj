@@ -2285,14 +2285,14 @@ const ProductosPage = () => {
               </Button>
               <Button variant="outline" onClick={() => setOpenBulk(true)}>
                 <Upload className="w-4 h-4 mr-1" />
-                Carga Masiva
+                Importar Maderas
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setOpenBulkFerreteria(true)}
               >
                 <Upload className="w-4 h-4 mr-1" />
-                Carga Masiva Ferretería
+                Importar Ferretería
               </Button>
               <Button
                 variant="outline"
@@ -2792,7 +2792,7 @@ const ProductosPage = () => {
       <Dialog open={openBulk} onOpenChange={setOpenBulk}>
         <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Carga Masiva de Productos</DialogTitle>
+            <DialogTitle>Importar Maderas</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             {bulkStatus && (
@@ -2931,7 +2931,7 @@ const ProductosPage = () => {
       <Dialog open={openBulkFerreteria} onOpenChange={setOpenBulkFerreteria}>
         <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Carga Masiva de Productos Ferretería</DialogTitle>
+            <DialogTitle>Importar Ferretería</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             {bulkStatusFerreteria && (
