@@ -2402,7 +2402,6 @@ const ProductosPage = () => {
       <Card>
         <CardHeader className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <CardTitle>Listado de Productos</CardTitle>
             <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
               <select
                 value={cat}
