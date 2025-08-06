@@ -2625,33 +2625,9 @@ const ProductosPage = () => {
                           </div>
                         ) : (
                           <div className="flex flex-col items-center">
-                            <div className="inline-flex items-center gap-1">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={p.valorVenta || 0}
-                                onChange={(e) =>
-                                  handleValorVentaChange(p.id, e.target.value)
-                                }
-                                className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                placeholder="0.00"
-                                title="Editar valor de venta"
-                              />
-                              <svg
-                                className="w-3 h-3 text-blue-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
-                              </svg>
-                            </div>
+                            <span className="font-bold text-lg">
+                              ${formatearNumeroArgentino(p.valorVenta || 0)}
+                            </span>
                             <span className="text-xs text-gray-500">
                               Valor de venta
                             </span>
