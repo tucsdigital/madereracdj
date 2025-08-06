@@ -2046,7 +2046,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         </div>
                                         <div className="space-y-1">
                                           <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                            Cantidad del Paquete
+                                            Cantidad
                                           </label>
                                           <div className="relative">
                                             <input
@@ -2069,7 +2069,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                               placeholder="1"
                                             />
                                             <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                              pkg
+                                              u
                                             </div>
                                           </div>
                                         </div>
