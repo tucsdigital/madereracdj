@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
@@ -83,6 +83,11 @@ const PresupuestoDetalle = () => {
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+
+  // Estados para paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
 
   // Estado para nuevo cliente en presupuestos
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
@@ -367,11 +372,195 @@ const PresupuestoDetalle = () => {
     }));
   };
 
+  // Funciones para manejar cambios en machimbres
+  const handleAltoChange = (id, nuevoAlto) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          const alto = Number(nuevoAlto) || 0;
+          const ancho = Number(p.ancho) || 0;
+          const largo = Number(p.largo) || 0;
+          const precioPorPie = Number(p.precioPorPie) || 0;
+
+          let nuevoPrecio = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            // Verificar si es machimbre por el nombre
+            if (p.nombre.toLowerCase().includes("machimbre")) {
+              nuevoPrecio = calcularPrecioMachimbre({
+                ancho,
+                largo,
+                cantidadPaquete: p.cantidadPaquete || 1,
+                precioPorPie,
+              });
+            } else {
+              nuevoPrecio = calcularPrecioCorteMadera({
+                alto,
+                ancho,
+                largo,
+                precioPorPie,
+              });
+            }
+          }
+
+          return {
+            ...p,
+            alto,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleAnchoChange = (id, nuevoAncho) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          const alto = Number(p.alto) || 0;
+          const ancho = Number(nuevoAncho) || 0;
+          const largo = Number(p.largo) || 0;
+          const precioPorPie = Number(p.precioPorPie) || 0;
+
+          let nuevoPrecio = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            // Verificar si es machimbre por el nombre
+            if (p.nombre.toLowerCase().includes("machimbre")) {
+              nuevoPrecio = calcularPrecioMachimbre({
+                ancho,
+                largo,
+                cantidadPaquete: p.cantidadPaquete || 1,
+                precioPorPie,
+              });
+            } else {
+              nuevoPrecio = calcularPrecioCorteMadera({
+                alto,
+                ancho,
+                largo,
+                precioPorPie,
+              });
+            }
+          }
+
+          return {
+            ...p,
+            ancho,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleLargoChange = (id, nuevoLargo) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          const alto = Number(p.alto) || 0;
+          const ancho = Number(p.ancho) || 0;
+          const largo = Number(nuevoLargo) || 0;
+          const precioPorPie = Number(p.precioPorPie) || 0;
+
+          let nuevoPrecio = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            // Verificar si es machimbre por el nombre
+            if (p.nombre.toLowerCase().includes("machimbre")) {
+              nuevoPrecio = calcularPrecioMachimbre({
+                ancho,
+                largo,
+                cantidadPaquete: p.cantidadPaquete || 1,
+                precioPorPie,
+              });
+            } else {
+              nuevoPrecio = calcularPrecioCorteMadera({
+                alto,
+                ancho,
+                largo,
+                precioPorPie,
+              });
+            }
+          }
+
+          return {
+            ...p,
+            largo,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleCantidadMachimbreChange = (id, nuevaCantidadPaquete) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.nombre.toLowerCase().includes("machimbre")) {
+          const ancho = Number(p.ancho) || 0;
+          const largo = Number(p.largo) || 0;
+          const precioPorPie = Number(p.precioPorPie) || 0;
+          const cantidadPaquete = Number(nuevaCantidadPaquete) || 1;
+
+          let nuevoPrecio = 0;
+          if (ancho > 0 && largo > 0 && precioPorPie > 0) {
+            nuevoPrecio = calcularPrecioMachimbre({
+              ancho,
+              largo,
+              cantidadPaquete,
+              precioPorPie,
+            });
+          }
+
+          return {
+            ...p,
+            cantidadPaquete,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
   // Función para formatear números en formato argentino
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
     return Number(numero).toLocaleString("es-AR");
   };
+
+  // Función para calcular precio de corte de madera
+  function calcularPrecioCorteMadera({
+    alto,
+    ancho,
+    largo,
+    precioPorPie,
+    factor = 0.2734,
+  }) {
+    if (!alto || !ancho || !largo || !precioPorPie) return 0;
+    const precio = factor * alto * ancho * largo * precioPorPie;
+    return Math.round(precio * 100) / 100;
+  }
+
+  // Función para calcular precio de machimbres
+  function calcularPrecioMachimbre({
+    ancho,
+    largo,
+    cantidadPaquete,
+    precioPorPie,
+  }) {
+    if (!ancho || !largo || !cantidadPaquete || !precioPorPie) return 0;
+    
+    // Fórmula específica para machimbres
+    const metrosCuadrados = (ancho * largo * cantidadPaquete) / 10000; // Convertir a m²
+    const precio = metrosCuadrados * precioPorPie;
+    
+    return Math.round(precio * 100) / 100;
+  }
 
   // Obtener tipos de madera únicos
   const tiposMadera = [
@@ -390,6 +579,79 @@ const PresupuestoDetalle = () => {
         .map((p) => p.subCategoria)
     ),
   ].filter(Boolean);
+
+  // Función para normalizar texto (optimizada)
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }, []);
+
+  // Productos filtrados optimizados con useMemo
+  const productosFiltrados = useMemo(() => {
+    if (!categoriaId) return [];
+
+    const productosPorCategoria = {};
+    productos.forEach((p) => {
+      if (!productosPorCategoria[p.categoria]) productosPorCategoria[p.categoria] = [];
+      productosPorCategoria[p.categoria].push(p);
+    });
+
+    const productosCategoria = productosPorCategoria[categoriaId] || [];
+    const terminoBusqueda = normalizarTexto(busquedaProducto);
+
+    return productosCategoria.filter((prod) => {
+      // Filtro por búsqueda de texto optimizado
+      const cumpleBusqueda = !terminoBusqueda || 
+        normalizarTexto(prod.nombre).includes(terminoBusqueda) ||
+        normalizarTexto(prod.unidadMedida || "").includes(terminoBusqueda);
+
+      // Filtro específico por tipo de madera
+      const cumpleTipoMadera =
+        categoriaId !== "Maderas" ||
+        filtroTipoMadera === "" ||
+        prod.tipoMadera === filtroTipoMadera;
+
+      // Filtro específico por subcategoría de ferretería
+      const cumpleSubCategoria =
+        categoriaId !== "Ferretería" ||
+        filtroSubCategoria === "" ||
+        prod.subCategoria === filtroSubCategoria;
+
+      return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+    });
+  }, [productos, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+
+  // Productos paginados optimizados
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Cálculo de totales optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Función para cambiar página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+    
+    setIsLoadingPagination(true);
+    setPaginaActual(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 300);
+  }, [totalPaginas]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
 
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
@@ -1127,34 +1389,9 @@ const PresupuestoDetalle = () => {
                     </div>
                   </div>
 
-                  {/* Lista de productos mejorada */}
+                  {/* Lista de productos mejorada con paginación optimizada */}
                   <div className="max-h-96 overflow-y-auto">
                     {(() => {
-                      console.log(
-                        "=== DEBUG PRESUPUESTO FILTRADO PRODUCTOS ==="
-                      );
-                      console.log("productos:", productos);
-                      console.log("categoriaId:", categoriaId);
-                      console.log("busquedaProducto:", busquedaProducto);
-                      console.log("filtroTipoMadera:", filtroTipoMadera);
-                      console.log("filtroSubCategoria:", filtroSubCategoria);
-
-                      const productosPorCategoria = {};
-                      productos.forEach((p) => {
-                        if (!productosPorCategoria[p.categoria])
-                          productosPorCategoria[p.categoria] = [];
-                        productosPorCategoria[p.categoria].push(p);
-                      });
-
-                      console.log(
-                        "productosPorCategoria:",
-                        productosPorCategoria
-                      );
-                      console.log(
-                        "productosPorCategoria[categoriaId]:",
-                        productosPorCategoria[categoriaId]
-                      );
-
                       if (!categoriaId) {
                         return (
                           <div className="p-8 text-center">
@@ -1183,37 +1420,6 @@ const PresupuestoDetalle = () => {
                           </div>
                         );
                       }
-                      const productosFiltrados =
-                        productosPorCategoria[categoriaId]?.filter((prod) => {
-                          // Filtro por búsqueda de texto
-                          const cumpleBusqueda =
-                            prod.nombre
-                              .toLowerCase()
-                              .includes(busquedaProducto.toLowerCase()) ||
-                            (prod.unidadMedida || "")
-                              .toLowerCase()
-                              .includes(busquedaProducto.toLowerCase());
-
-                          // Filtro específico por tipo de madera
-                          const cumpleTipoMadera =
-                            categoriaId !== "Maderas" ||
-                            filtroTipoMadera === "" ||
-                            prod.tipoMadera === filtroTipoMadera;
-
-                          // Filtro específico por subcategoría de ferretería
-                          const cumpleSubCategoria =
-                            categoriaId !== "Ferretería" ||
-                            filtroSubCategoria === "" ||
-                            prod.subCategoria === filtroSubCategoria;
-
-                          return (
-                            cumpleBusqueda &&
-                            cumpleTipoMadera &&
-                            cumpleSubCategoria
-                          );
-                        }) || [];
-
-                      console.log("productosFiltrados:", productosFiltrados);
 
                       if (productosFiltrados.length === 0) {
                         return (
@@ -1242,9 +1448,36 @@ const PresupuestoDetalle = () => {
                           </div>
                         );
                       }
+
                       return (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                          {productosFiltrados.map((prod) => {
+                        <>
+                          {/* Indicador de rendimiento */}
+                          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-700">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-blue-700 dark:text-blue-300">
+                                Mostrando {productosPaginados.length} de {totalProductos} productos filtrados
+                              </span>
+                              <span className="text-blue-600 dark:text-blue-400 font-medium">
+                                Página {paginaActual} de {totalPaginas}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Grid de productos paginados */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 relative">
+                            {/* Overlay de carga durante la paginación */}
+                            {isLoadingPagination && (
+                              <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                                <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Cargando productos...
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {productosPaginados.map((prod) => {
                             const yaAgregado = (
                               presupuestoEdit.productos || []
                             ).some((p) => p.id === prod.id);
@@ -1601,10 +1834,108 @@ const PresupuestoDetalle = () => {
                             );
                           })}
                         </div>
-                      );
-                    })()}
-                  </div>
-                </section>
+
+                        {/* Controles de paginación */}
+                        {totalPaginas > 1 && (
+                          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                            {/* Controles de navegación */}
+                            <div className="flex items-center gap-2">
+                              {/* Botón primera página */}
+                              <button
+                                onClick={() => cambiarPagina(1)}
+                                disabled={paginaActual === 1 || isLoadingPagination}
+                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Primera página"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                </svg>
+                              </button>
+
+                              {/* Botón página anterior */}
+                              <button
+                                onClick={() => cambiarPagina(paginaActual - 1)}
+                                disabled={paginaActual === 1 || isLoadingPagination}
+                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Página anterior"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+
+                              {/* Números de página */}
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                                  let pageNum;
+                                  if (totalPaginas <= 5) {
+                                    pageNum = i + 1;
+                                  } else if (paginaActual <= 3) {
+                                    pageNum = i + 1;
+                                  } else if (paginaActual >= totalPaginas - 2) {
+                                    pageNum = totalPaginas - 4 + i;
+                                  } else {
+                                    pageNum = paginaActual - 2 + i;
+                                  }
+
+                                  return (
+                                    <button
+                                      key={pageNum}
+                                      onClick={() => cambiarPagina(pageNum)}
+                                      disabled={isLoadingPagination}
+                                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                                        paginaActual === pageNum
+                                          ? "bg-blue-600 text-white"
+                                          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    >
+                                      {pageNum}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Botón página siguiente */}
+                              <button
+                                onClick={() => cambiarPagina(paginaActual + 1)}
+                                disabled={paginaActual === totalPaginas || isLoadingPagination}
+                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Página siguiente"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+
+                              {/* Botón última página */}
+                              <button
+                                onClick={() => cambiarPagina(totalPaginas)}
+                                disabled={paginaActual === totalPaginas || isLoadingPagination}
+                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Última página"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Información de página */}
+                            <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                              {isLoadingPagination && (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                              )}
+                              <span>
+                                Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </section>
 
                 {/* Tabla de productos seleccionados en modo edición */}
                 {(presupuestoEdit.productos || []).length > 0 && (
@@ -1683,6 +2014,175 @@ const PresupuestoDetalle = () => {
                                       </span>
                                     </div>
                                   )}
+                                
+                                {/* Información de dimensiones editables para maderas */}
+                                {p.categoria === "Maderas" && (
+                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
+                                    <span className="font-medium text-gray-500">
+                                      Dimensiones:
+                                    </span>
+                                    
+                                    {/* Verificar si es machimbre por el nombre */}
+                                    {p.nombre.toLowerCase().includes("machimbre") ? (
+                                      <>
+                                        {/* Campos editables para machimbres */}
+                                        <span>
+                                          Ancho:{" "}
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            value={p.ancho || 0}
+                                            onChange={(e) =>
+                                              handleAnchoChange(p.id, e.target.value)
+                                            }
+                                            className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="0"
+                                            title="Editar ancho (cm)"
+                                          />
+                                        </span>
+                                        <span>
+                                          Largo:{" "}
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            value={p.largo || 0}
+                                            onChange={(e) =>
+                                              handleLargoChange(p.id, e.target.value)
+                                            }
+                                            className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="0"
+                                            title="Editar largo (cm)"
+                                          />
+                                        </span>
+                                        <span>
+                                          Cant. paq:{" "}
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={p.cantidadPaquete || 1}
+                                            onChange={(e) =>
+                                              handleCantidadMachimbreChange(p.id, e.target.value)
+                                            }
+                                            className="w-12 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="1"
+                                            title="Editar cantidad del paquete"
+                                          />
+                                        </span>
+                                        <span>
+                                          $/m²:{" "}
+                                          <div className="inline-flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={p.precioPorPie}
+                                              onChange={(e) =>
+                                                handlePrecioPorPieChange(
+                                                  p.id,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-20 text-center border border-orange-300 rounded px-2 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                                              disabled={loadingPrecios}
+                                              placeholder="0.00"
+                                              title="Editar precio por metro cuadrado"
+                                            />
+                                            <svg
+                                              className="w-3 h-3 text-orange-500"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                              />
+                                            </svg>
+                                          </div>
+                                        </span>
+                                        <div className="w-full mt-1 p-2 bg-orange-50 border border-orange-200 rounded text-xs">
+                                          <span className="font-medium text-orange-700">
+                                            🌲 Machimbre - Fórmula: (Ancho × Largo × Cant. paq) / 10000 × $/m²
+                                          </span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {/* Campos de solo lectura para maderas normales */}
+                                        <span>
+                                          Alto:{" "}
+                                          <span className="font-bold">{p.alto}</span>{" "}
+                                        </span>
+                                        <span>
+                                          Ancho:{" "}
+                                          <span className="font-bold">{p.ancho}</span>{" "}
+                                        </span>
+                                        <span>
+                                          Largo:{" "}
+                                          <span className="font-bold">{p.largo}</span>{" "}
+                                        </span>
+                                        <span>
+                                          $/pie:{" "}
+                                          <div className="inline-flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={p.precioPorPie}
+                                              onChange={(e) =>
+                                                handlePrecioPorPieChange(
+                                                  p.id,
+                                                  e.target.value
+                                                )
+                                              }
+                                              className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                              disabled={loadingPrecios}
+                                              placeholder="0.00"
+                                              title="Editar precio por pie"
+                                            />
+                                            <svg
+                                              className="w-3 h-3 text-blue-500"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                              />
+                                            </svg>
+                                          </div>
+                                        </span>
+                                        <div className="w-full mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                                          <span className="font-medium text-blue-700">
+                                            🌲 Madera - Fórmula: 0.2734 × Alto × Ancho × Largo × $/pie
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
+                                    
+                                    {p.stock <= 0 && (
+                                      <span className="text-red-600 font-semibold ml-2">
+                                        ¡Sin stock! Se permitirá avanzar igual.
+                                      </span>
+                                    )}
+                                    {p.stock > 0 && p.stock <= 3 && (
+                                      <span className="text-yellow-600 font-semibold ml-2">
+                                        Stock bajo: quedan {p.stock} unidades.
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                                 <div className="flex items-center justify-center">
