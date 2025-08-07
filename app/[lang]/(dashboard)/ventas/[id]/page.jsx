@@ -2575,7 +2575,9 @@ const VentaDetalle = () => {
                                               cepilladoAplicado: false, // Agregar propiedad por defecto
                                               tipoMadera: prod.tipoMadera || "",
                                               subcategoria:
-                                                prod.subCategoria || "",
+                                                prod.categoria === "Maderas" 
+                                                  ? (prod.subcategoria || prod.subCategoria || "")
+                                                  : (prod.subCategoria || prod.subcategoria || ""),
                                             },
                                           ],
                                         }))

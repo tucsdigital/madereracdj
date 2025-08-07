@@ -200,10 +200,10 @@ const PresupuestoDetalle = () => {
                 // Preservar campos específicos de categoría
                 tipoMadera:
                   productoDB.tipoMadera || productoPresupuesto.tipoMadera || "",
-                subCategoria:
-                  productoDB.subCategoria ||
-                  productoPresupuesto.subCategoria ||
-                  "",
+                subcategoria:
+                  productoDB.categoria === "Maderas"
+                    ? (productoDB.subcategoria || productoDB.subCategoria || productoPresupuesto.subcategoria || productoPresupuesto.subCategoria || "")
+                    : (productoDB.subCategoria || productoDB.subcategoria || productoPresupuesto.subCategoria || productoPresupuesto.subcategoria || ""),
                 // Actualizar dimensiones para maderas si no están presentes
                 alto: Number(productoDB.alto) || productoPresupuesto.alto || 0,
                 ancho:
@@ -1803,7 +1803,9 @@ const PresupuestoDetalle = () => {
                                                 tipoMadera:
                                                   prod.tipoMadera || "",
                                                 subcategoria:
-                                                  prod.subCategoria || "",
+                                                  prod.categoria === "Maderas" 
+                                                    ? (prod.subcategoria || prod.subCategoria || "")
+                                                    : (prod.subCategoria || prod.subcategoria || ""),
                                               },
                                             ],
                                           }))
