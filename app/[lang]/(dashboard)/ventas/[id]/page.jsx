@@ -49,19 +49,21 @@ function calcularPrecioCorteMadera({
   return Math.round(precio / 100) * 100;
 }
 
-// Función para calcular precio de machimbres
+// Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad del paquete)
 function calcularPrecioMachimbre({
   ancho,
   largo,
   cantidadPaquete,
   precioPorPie,
 }) {
-  if (!ancho || !largo || !cantidadPaquete || !precioPorPie) return 0;
-  
-  // Fórmula específica para machimbres
-  const metrosCuadrados = (ancho * largo * cantidadPaquete) / 10000; // Convertir a m²
-  const precio = metrosCuadrados * precioPorPie;
-  
+  if (
+    [ancho, largo, cantidadPaquete, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = ancho * largo * cantidadPaquete * precioPorPie;
   // Redondear a centenas (múltiplos de 100)
   return Math.round(precio / 100) * 100;
 }
@@ -471,49 +473,33 @@ const VentaDetalle = () => {
     }));
   };
 
-  // Funciones para manejar cambios en machimbres
+  // Función para manejar cambios en alto para machimbre
   const handleAltoChange = (id, nuevoAlto) => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas") {
-          const alto = Number(nuevoAlto) || 0;
-          const ancho = Number(p.ancho) || 0;
-          const largo = Number(p.largo) || 0;
-          const precioPorPie = Number(p.precioPorPie) || 0;
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: p.ancho,
+            largo: p.largo,
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
 
-          let nuevoPrecio = 0;
-          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-            // Verificar si es machimbre por el nombre
-            if (p.nombre.toLowerCase().includes("machimbre")) {
-              nuevoPrecio = calcularPrecioMachimbre({
-                ancho,
-                largo,
-                cantidadPaquete: p.cantidadPaquete || 1,
-                precioPorPie,
-              });
-            } else {
-              nuevoPrecio = calcularPrecioCorteMadera({
-                alto,
-                ancho,
-                largo,
-                precioPorPie,
-              });
-            }
-            
-            // Aplicar cepillado si está habilitado para este producto específico
-            if (p.cepilladoAplicado) {
-              nuevoPrecio = nuevoPrecio * 1.066;
-            }
-            
-            // Redondear a centenas (múltiplos de 100)
-            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
-          }
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
-            alto,
-            precio: nuevoPrecio,
+            alto: Number(nuevoAlto),
+            precio: precioRedondeado,
           };
         }
         return p;
@@ -521,48 +507,33 @@ const VentaDetalle = () => {
     }));
   };
 
+  // Función para manejar cambios en ancho para machimbre
   const handleAnchoChange = (id, nuevoAncho) => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas") {
-          const alto = Number(p.alto) || 0;
-          const ancho = Number(nuevoAncho) || 0;
-          const largo = Number(p.largo) || 0;
-          const precioPorPie = Number(p.precioPorPie) || 0;
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: Number(nuevoAncho),
+            largo: p.largo,
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
 
-          let nuevoPrecio = 0;
-          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-            // Verificar si es machimbre por el nombre
-            if (p.nombre.toLowerCase().includes("machimbre")) {
-              nuevoPrecio = calcularPrecioMachimbre({
-                ancho,
-                largo,
-                cantidadPaquete: p.cantidadPaquete || 1,
-                precioPorPie,
-              });
-            } else {
-              nuevoPrecio = calcularPrecioCorteMadera({
-                alto,
-                ancho,
-                largo,
-                precioPorPie,
-              });
-            }
-            
-            // Aplicar cepillado si está habilitado para este producto específico
-            if (p.cepilladoAplicado) {
-              nuevoPrecio = nuevoPrecio * 1.066;
-            }
-            
-            // Redondear a centenas (múltiplos de 100)
-            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
-          }
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
-            ancho,
-            precio: nuevoPrecio,
+            ancho: Number(nuevoAncho),
+            precio: precioRedondeado,
           };
         }
         return p;
@@ -570,48 +541,33 @@ const VentaDetalle = () => {
     }));
   };
 
+  // Función para manejar cambios en largo para machimbre
   const handleLargoChange = (id, nuevoLargo) => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas") {
-          const alto = Number(p.alto) || 0;
-          const ancho = Number(p.ancho) || 0;
-          const largo = Number(nuevoLargo) || 0;
-          const precioPorPie = Number(p.precioPorPie) || 0;
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: p.ancho,
+            largo: Number(nuevoLargo),
+            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
 
-          let nuevoPrecio = 0;
-          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-            // Verificar si es machimbre por el nombre
-            if (p.nombre.toLowerCase().includes("machimbre")) {
-              nuevoPrecio = calcularPrecioMachimbre({
-                ancho,
-                largo,
-                cantidadPaquete: p.cantidadPaquete || 1,
-                precioPorPie,
-              });
-            } else {
-              nuevoPrecio = calcularPrecioCorteMadera({
-                alto,
-                ancho,
-                largo,
-                precioPorPie,
-              });
-            }
-            
-            // Aplicar cepillado si está habilitado para este producto específico
-            if (p.cepilladoAplicado) {
-              nuevoPrecio = nuevoPrecio * 1.066;
-            }
-            
-            // Redondear a centenas (múltiplos de 100)
-            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
-          }
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
-            largo,
-            precio: nuevoPrecio,
+            largo: Number(nuevoLargo),
+            precio: precioRedondeado,
           };
         }
         return p;
@@ -619,38 +575,33 @@ const VentaDetalle = () => {
     }));
   };
 
+  // Función para manejar cambios en cantidad del paquete para machimbre
   const handleCantidadMachimbreChange = (id, nuevaCantidadPaquete) => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.nombre.toLowerCase().includes("machimbre")) {
-          const ancho = Number(p.ancho) || 0;
-          const largo = Number(p.largo) || 0;
-          const precioPorPie = Number(p.precioPorPie) || 0;
-          const cantidadPaquete = Number(nuevaCantidadPaquete) || 1;
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria === "machimbre"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            ancho: p.ancho,
+            largo: p.largo,
+            cantidadPaquete: Number(nuevaCantidadPaquete),
+            precioPorPie: p.precioPorPie,
+          });
 
-          let nuevoPrecio = 0;
-          if (ancho > 0 && largo > 0 && precioPorPie > 0) {
-            nuevoPrecio = calcularPrecioMachimbre({
-              ancho,
-              largo,
-              cantidadPaquete,
-              precioPorPie,
-            });
-            
-            // Aplicar cepillado si está habilitado para este producto específico
-            if (p.cepilladoAplicado) {
-              nuevoPrecio = nuevoPrecio * 1.066;
-            }
-            
-            // Redondear a centenas (múltiplos de 100)
-            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
-          }
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
 
           return {
             ...p,
-            cantidadPaquete,
-            precio: nuevoPrecio,
+            cantidadPaquete: Number(nuevaCantidadPaquete),
+            precio: precioRedondeado,
           };
         }
         return p;
@@ -2821,8 +2772,8 @@ const VentaDetalle = () => {
                                     Dimensiones:
                                   </span>
                                   
-                                  {/* Verificar si es machimbre por el nombre */}
-                                  {p.nombre.toLowerCase().includes("machimbre") ? (
+                                  {/* Verificar si es machimbre por subcategoria */}
+                                  {p.subcategoria === "machimbre" ? (
                                     <>
                                       {/* Campos editables para machimbres */}
                                       <span>
@@ -2907,7 +2858,10 @@ const VentaDetalle = () => {
                                           </svg>
                                         </div>
                                       </span>
-                                      
+                                      {/* Mostrar volumen */}
+                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
+                                        M2: {((p.ancho || 0) * (p.largo || 0) * (p.cantidadPaquete || p.cantidad || 1)).toLocaleString()} m²
+                                      </div>
                                     </>
                                   ) : (
                                     <>
