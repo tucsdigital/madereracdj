@@ -73,59 +73,6 @@ function calcularPrecioCorteMadera({
   return Math.round(precio / 100) * 100;
 }
 
-// Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-const normalizarTexto = (texto) => {
-  return texto.toLowerCase().replace(/\s+/g, "");
-};
-
-// Función mejorada para normalizar dimensiones específicamente
-const normalizarDimensiones = (texto) => {
-  // Normalizar espacios y convertir a minúsculas
-  let normalizado = texto.toLowerCase().replace(/\s+/g, "");
-  
-  // Normalizar diferentes formatos de X/x
-  normalizado = normalizado.replace(/x/g, "x");
-  
-  // Normalizar diferentes separadores de dimensiones
-  normalizado = normalizado.replace(/[x×]/g, "x");
-  
-  return normalizado;
-};
-
-// Función para extraer dimensiones del nombre del producto
-const extraerDimensiones = (nombre) => {
-  // Buscar patrones como "2 X 3 X 3", "2x3x3", "2×3×3", "1/2 X 6 X 4"
-  const patrones = [
-    // Patrón con espacios: "2 X 3 X 3"
-    /(\d+(?:[.,]\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?(?:\/\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?(?:\/\d+)?)/g,
-    // Patrón sin espacios: "2x3x3"
-    /(\d+(?:[.,]\d+)?(?:\/\d+)?)x(\d+(?:[.,]\d+)?(?:\/\d+)?)x(\d+(?:[.,]\d+)?(?:\/\d+)?)/g,
-    // Patrón con ×: "2×3×3"
-    /(\d+(?:[.,]\d+)?(?:\/\d+)?)×(\d+(?:[.,]\d+)?(?:\/\d+)?)×(\d+(?:[.,]\d+)?(?:\/\d+)?)/g
-  ];
-  
-  for (const patron of patrones) {
-    const match = nombre.match(patron);
-    if (match) {
-      // Convertir fracciones a decimales
-      const convertirFraccion = (valor) => {
-        if (valor.includes('/')) {
-          const [num, den] = valor.split('/');
-          return parseFloat(num) / parseFloat(den);
-        }
-        return parseFloat(valor.replace(',', '.'));
-      };
-      
-      return {
-        dim1: convertirFraccion(match[1]),
-        dim2: convertirFraccion(match[2]),
-        dim3: convertirFraccion(match[3])
-      };
-    }
-  }
-  return null;
-};
-
 // Esquemas de validación por categoría
 const baseSchema = {
   codigo: yup.string().required("El código es obligatorio"),
@@ -1301,49 +1248,32 @@ const ProductosPage = () => {
     return () => unsub();
   }, [reload]);
 
-
+  // Función para normalizar texto (optimizada)
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }, []);
 
   // Productos filtrados optimizados con useMemo
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
       // Normalizar el término de búsqueda
       const filtroNormalizado = normalizarTexto(filtro || "");
-      const filtroDimensiones = normalizarDimensiones(filtro || "");
       
       // Normalizar el nombre del producto
       const nombreNormalizado = normalizarTexto(p.nombre || "");
-      const nombreDimensiones = normalizarDimensiones(p.nombre || "");
       
       // Normalizar el código del producto
       const codigoNormalizado = normalizarTexto(p.codigo || "");
 
       const cumpleCategoria = cat ? p.categoria === cat : true;
-      
-      // Filtro por búsqueda de texto general
-      const cumpleFiltroGeneral = 
+      const cumpleFiltro = 
         !filtro || 
         nombreNormalizado.includes(filtroNormalizado) ||
         codigoNormalizado.includes(filtroNormalizado);
-
-      // Filtro específico para dimensiones
-      let cumpleFiltroDimensiones = true;
-      if (filtro && filtroDimensiones.includes("x")) {
-        // Si la búsqueda parece contener dimensiones, hacer búsqueda más precisa
-        const dimensionesBusqueda = extraerDimensiones(filtro);
-        const dimensionesProducto = extraerDimensiones(p.nombre);
-        
-        if (dimensionesBusqueda && dimensionesProducto) {
-          // Comparar dimensiones específicamente
-          const tolerancia = 0.1; // Tolerancia para diferencias pequeñas
-          cumpleFiltroDimensiones = 
-            Math.abs(dimensionesBusqueda.dim1 - dimensionesProducto.dim1) <= tolerancia &&
-            Math.abs(dimensionesBusqueda.dim2 - dimensionesProducto.dim2) <= tolerancia &&
-            Math.abs(dimensionesBusqueda.dim3 - dimensionesProducto.dim3) <= tolerancia;
-        } else {
-          // Si no se pueden extraer dimensiones, usar búsqueda normal
-          cumpleFiltroDimensiones = nombreDimensiones.includes(filtroDimensiones);
-        }
-      }
 
       // Filtro específico por tipo de madera
       const cumpleTipoMadera =
@@ -1357,9 +1287,9 @@ const ProductosPage = () => {
         filtroSubCategoria === "" ||
         p.subCategoria === filtroSubCategoria;
 
-      return cumpleCategoria && cumpleFiltroGeneral && cumpleFiltroDimensiones && cumpleTipoMadera && cumpleSubCategoria;
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
     });
-  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria]);
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
