@@ -179,10 +179,16 @@ const VentaDetalle = () => {
         ventaClonada.cliente = venta.cliente;
       }
 
+      // Inicializar campos de pago para el formulario
+      ventaClonada.nuevoPagoMonto = "";
+      ventaClonada.nuevoPagoMetodo = "";
+
       // Verificar que los datos se copiaron correctamente
       console.log("venta clonada:", ventaClonada);
       console.log("ventaClonada.clienteId:", ventaClonada.clienteId);
       console.log("ventaClonada.cliente:", ventaClonada.cliente);
+      console.log("ventaClonada.nuevoPagoMonto:", ventaClonada.nuevoPagoMonto);
+      console.log("ventaClonada.nuevoPagoMetodo:", ventaClonada.nuevoPagoMetodo);
 
       setVentaEdit(ventaClonada);
     }
@@ -744,12 +750,21 @@ const VentaDetalle = () => {
     }
 
     // Guardar correctamente los pagos del saldo pendiente
+    console.log("=== DEBUG MANEJO DE PAGOS ===");
+    console.log("ventaEdit.pagos:", ventaEdit.pagos);
+    console.log("Array.isArray(ventaEdit.pagos):", Array.isArray(ventaEdit.pagos));
+    console.log("pagosSimples:", pagosSimples);
+    console.log("ventaEdit.montoAbonado:", ventaEdit.montoAbonado);
+    
     if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+      console.log("✅ Usando array de pagos existente");
       delete ventaEdit.montoAbonado;
     } else if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+      console.log("✅ Convirtiendo pagosSimples a array de pagos");
       ventaEdit.pagos = pagosSimples;
       delete ventaEdit.montoAbonado;
     } else if (!Array.isArray(ventaEdit.pagos) && ventaEdit.montoAbonado > 0) {
+      console.log("✅ Creando array de pagos desde montoAbonado");
       ventaEdit.pagos = [
         {
           fecha: new Date().toISOString().split("T")[0],
@@ -759,7 +774,11 @@ const VentaDetalle = () => {
         },
       ];
       delete ventaEdit.montoAbonado;
+    } else {
+      console.log("⚠️ No se encontraron pagos para procesar");
     }
+    
+    console.log("Pagos finales:", ventaEdit.pagos);
 
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
@@ -1011,6 +1030,13 @@ const VentaDetalle = () => {
     // Actualizar el estado local
     setVenta(ventaActualizada);
     setEditando(false);
+    
+    // Limpiar campos de pago
+    setVentaEdit((prev) => ({
+      ...prev,
+      nuevoPagoMonto: "",
+      nuevoPagoMetodo: "",
+    }));
 
     console.log("✅ Venta actualizada exitosamente");
     console.log("Total final:", total);
@@ -3166,8 +3192,24 @@ const VentaDetalle = () => {
                 console.log("Total:", total);
                 console.log("Abonado:", abonado);
                 console.log("Saldo pendiente:", saldo);
+                console.log("nuevoPagoMonto:", ventaEdit.nuevoPagoMonto);
+                console.log("nuevoPagoMetodo:", ventaEdit.nuevoPagoMetodo);
 
                 if (saldo > 0) {
+                  // Validar que los campos estén inicializados
+                  const montoValido = ventaEdit.nuevoPagoMonto && 
+                    Number(ventaEdit.nuevoPagoMonto) > 0 && 
+                    Number(ventaEdit.nuevoPagoMonto) <= saldo;
+                  const metodoValido = ventaEdit.nuevoPagoMetodo && 
+                    ventaEdit.nuevoPagoMetodo.trim() !== "";
+                  const botonHabilitado = !registrandoPago && montoValido && metodoValido;
+
+                  console.log("=== VALIDACIÓN BOTÓN PAGO ===");
+                  console.log("montoValido:", montoValido);
+                  console.log("metodoValido:", metodoValido);
+                  console.log("registrandoPago:", registrandoPago);
+                  console.log("botonHabilitado:", botonHabilitado);
+
                   return (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
                       <h4 className="font-semibold text-yellow-800 mb-2">
@@ -3184,31 +3226,53 @@ const VentaDetalle = () => {
                         </div>
                         <div>Abonado: ${formatearNumeroArgentino(abonado)}</div>
                       </div>
+                      
+                      {/* Debug info - solo en desarrollo */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div className="bg-gray-100 p-2 rounded text-xs mb-3">
+                          <div>Debug: monto={ventaEdit.nuevoPagoMonto}, método={ventaEdit.nuevoPagoMetodo}</div>
+                          <div>Validaciones: monto={montoValido}, método={metodoValido}, botón={botonHabilitado}</div>
+                        </div>
+                      )}
+
                       <div className="flex flex-col md:flex-row gap-2 items-end">
                         <input
                           type="number"
                           min={1}
                           max={saldo}
+                          step="0.01"
                           placeholder="Monto a abonar"
-                          className="border rounded px-2 py-1"
+                          className={`border rounded px-2 py-1 ${
+                            ventaEdit.nuevoPagoMonto && !montoValido 
+                              ? 'border-red-500 bg-red-50' 
+                              : 'border-gray-300'
+                          }`}
                           value={ventaEdit.nuevoPagoMonto || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            console.log("Cambiando monto de pago:", valor);
                             setVentaEdit((prev) => ({
                               ...prev,
-                              nuevoPagoMonto: e.target.value,
-                            }))
-                          }
+                              nuevoPagoMonto: valor,
+                            }));
+                          }}
                           disabled={registrandoPago}
                         />
                         <select
-                          className="border rounded px-2 py-1"
+                          className={`border rounded px-2 py-1 ${
+                            ventaEdit.nuevoPagoMetodo && !metodoValido 
+                              ? 'border-red-500 bg-red-50' 
+                              : 'border-gray-300'
+                          }`}
                           value={ventaEdit.nuevoPagoMetodo || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            console.log("Cambiando método de pago:", valor);
                             setVentaEdit((prev) => ({
                               ...prev,
-                              nuevoPagoMetodo: e.target.value,
-                            }))
-                          }
+                              nuevoPagoMetodo: valor,
+                            }));
+                          }}
                           disabled={registrandoPago}
                         >
                           <option value="">Método de pago</option>
@@ -3220,53 +3284,77 @@ const VentaDetalle = () => {
                         </select>
                         <button
                           type="button"
-                          className={`bg-green-600 text-white px-4 py-1 rounded flex items-center gap-2 ${
-                            registrandoPago
-                              ? "opacity-70 cursor-not-allowed"
-                              : ""
+                          className={`px-4 py-1 rounded flex items-center gap-2 transition-all ${
+                            botonHabilitado
+                              ? "bg-green-600 text-white hover:bg-green-700"
+                              : "bg-gray-400 text-gray-200 cursor-not-allowed"
                           }`}
                           onClick={async () => {
-                            setRegistrandoPago(true);
-                            // Simular un pequeño delay para UX
-                            await new Promise((res) => setTimeout(res, 600));
-                            if (Array.isArray(ventaEdit.pagos)) {
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                pagos: [
-                                  ...prev.pagos,
-                                  {
-                                    fecha: new Date()
-                                      .toISOString()
-                                      .split("T")[0],
-                                    monto: Number(prev.nuevoPagoMonto),
-                                    metodo: prev.nuevoPagoMetodo,
-                                    usuario: "usuario", // puedes poner el usuario real si lo tienes
-                                  },
-                                ],
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
-                            } else {
-                              setVentaEdit((prev) => ({
-                                ...prev,
-                                montoAbonado:
-                                  Number(prev.montoAbonado || 0) +
-                                  Number(prev.nuevoPagoMonto),
-                                nuevoPagoMonto: "",
-                                nuevoPagoMetodo: "",
-                              }));
+                            console.log("=== INICIANDO REGISTRO DE PAGO ===");
+                            console.log("Monto:", ventaEdit.nuevoPagoMonto);
+                            console.log("Método:", ventaEdit.nuevoPagoMetodo);
+                            console.log("Saldo:", saldo);
+                            
+                            if (!botonHabilitado) {
+                              console.log("Botón deshabilitado, no se puede registrar pago");
+                              return;
                             }
-                            setPagoExitoso(true);
-                            setRegistrandoPago(false);
-                            setTimeout(() => setPagoExitoso(false), 2200);
+
+                            setRegistrandoPago(true);
+                            
+                            try {
+                              // Simular un pequeño delay para UX
+                              await new Promise((res) => setTimeout(res, 600));
+                              
+                              if (Array.isArray(ventaEdit.pagos)) {
+                                console.log("Agregando pago al array de pagos existente");
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  pagos: [
+                                    ...prev.pagos,
+                                    {
+                                      fecha: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      monto: Number(prev.nuevoPagoMonto),
+                                      metodo: prev.nuevoPagoMetodo,
+                                      usuario: "usuario", // puedes poner el usuario real si lo tienes
+                                    },
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              } else {
+                                console.log("Creando array de pagos nuevo");
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  pagos: [
+                                    {
+                                      fecha: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      monto: Number(prev.nuevoPagoMonto),
+                                      metodo: prev.nuevoPagoMetodo,
+                                      usuario: "usuario",
+                                    },
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              }
+                              
+                              setPagoExitoso(true);
+                              console.log("Pago registrado exitosamente");
+                              
+                              // Limpiar mensaje de éxito después de 2.2 segundos
+                              setTimeout(() => setPagoExitoso(false), 2200);
+                            } catch (error) {
+                              console.error("Error al registrar pago:", error);
+                            } finally {
+                              setRegistrandoPago(false);
+                            }
                           }}
-                          disabled={
-                            registrandoPago ||
-                            !ventaEdit.nuevoPagoMonto ||
-                            !ventaEdit.nuevoPagoMetodo ||
-                            Number(ventaEdit.nuevoPagoMonto) <= 0 ||
-                            Number(ventaEdit.nuevoPagoMonto) > saldo
-                          }
+                          disabled={!botonHabilitado}
                         >
                           {registrandoPago && (
                             <svg
@@ -3294,6 +3382,25 @@ const VentaDetalle = () => {
                             : "Registrar pago"}
                         </button>
                       </div>
+                      
+                      {/* Mensajes de validación */}
+                      {ventaEdit.nuevoPagoMonto && !montoValido && (
+                        <div className="text-red-600 text-sm mt-1">
+                          {Number(ventaEdit.nuevoPagoMonto) <= 0 
+                            ? "El monto debe ser mayor a 0" 
+                            : Number(ventaEdit.nuevoPagoMonto) > saldo 
+                              ? `El monto no puede ser mayor al saldo pendiente ($${formatearNumeroArgentino(saldo)})`
+                              : "Monto inválido"
+                          }
+                        </div>
+                      )}
+                      
+                      {ventaEdit.nuevoPagoMetodo && !metodoValido && (
+                        <div className="text-red-600 text-sm mt-1">
+                          Selecciona un método de pago válido
+                        </div>
+                      )}
+                      
                       {pagoExitoso && (
                         <div className="mt-3 px-4 py-2 rounded bg-green-100 text-green-800 font-semibold shadow text-center animate-fade-in">
                           ¡Pago registrado exitosamente!
