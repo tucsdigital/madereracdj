@@ -13,9 +13,10 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Download } from "lucide-react";
+import { ArrowLeft, Printer, Download, Trash2 } from "lucide-react";
 import { SelectorProductosPresupuesto } from "../page";
 import FormularioVentaPresupuesto from "../page";
+import { useAuth } from "@/provider/auth.provider";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -72,6 +73,7 @@ const VentaDetalle = () => {
   const params = useParams();
   const router = useRouter();
   const { id, lang } = params;
+  const { user } = useAuth();
   const [venta, setVenta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -88,6 +90,11 @@ const VentaDetalle = () => {
   // 1. Agregar estado para loader y mensaje de éxito
   const [registrandoPago, setRegistrandoPago] = useState(false);
   const [pagoExitoso, setPagoExitoso] = useState(false);
+
+  // Estados para borrado de pagos
+  const [borrandoPago, setBorrandoPago] = useState(false);
+  const [pagoABorrar, setPagoABorrar] = useState(null);
+  const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
 
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
@@ -1151,6 +1158,56 @@ const VentaDetalle = () => {
         : "pendiente";
     })();
 
+  // Función para borrar pago del historial (solo para mazalautaro.dev@gmail.com)
+  const handleBorrarPago = async (pagoIndex) => {
+    if (user?.email !== "mazalautaro.dev@gmail.com") {
+      console.log("Usuario no autorizado para borrar pagos");
+      return;
+    }
+
+    setBorrandoPago(true);
+    setPagoABorrar(pagoIndex);
+
+    try {
+      // Simular delay para UX
+      await new Promise((res) => setTimeout(res, 500));
+
+      // Crear nueva lista de pagos sin el pago a borrar
+      const nuevosPagos = venta.pagos.filter((_, index) => index !== pagoIndex);
+
+      // Actualizar la venta en el estado local
+      const ventaActualizada = {
+        ...venta,
+        pagos: nuevosPagos,
+      };
+
+      // Actualizar en Firebase
+      const docRef = doc(db, "ventas", venta.id);
+      await updateDoc(docRef, {
+        pagos: nuevosPagos,
+      });
+
+      // Actualizar estado local
+      setVenta(ventaActualizada);
+
+      console.log("✅ Pago borrado exitosamente");
+    } catch (error) {
+      console.error("Error al borrar pago:", error);
+    } finally {
+      setBorrandoPago(false);
+      setPagoABorrar(null);
+    }
+  };
+
+  // Función para confirmar borrado de pago
+  const confirmarBorradoPago = (pagoIndex) => {
+    if (user?.email !== "mazalautaro.dev@gmail.com") {
+      return;
+    }
+    setPagoABorrar(pagoIndex);
+    setMostrarConfirmacionBorrado(true);
+  };
+
   return (
     <div className="min-h-screen py-8">
       <style>{`
@@ -1570,6 +1627,9 @@ const VentaDetalle = () => {
                       <th className="text-left py-1">Método</th>
                       <th className="text-right py-1">Monto</th>
                       <th className="text-left py-1">Usuario</th>
+                      {user?.email === "mazalautaro.dev@gmail.com" && (
+                        <th className="text-center py-1">Acciones</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1580,6 +1640,46 @@ const VentaDetalle = () => {
                         <td className="py-1 text-right">
                           ${Number(pago.monto).toFixed(2)}
                         </td>
+                        <td className="py-1">{pago.usuario || "-"}</td>
+                        {user?.email === "mazalautaro.dev@gmail.com" && (
+                          <td className="py-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => confirmarBorradoPago(idx)}
+                              disabled={borrandoPago}
+                              className={`p-1 rounded text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors ${
+                                borrandoPago && pagoABorrar === idx
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                              }`}
+                              title="Borrar pago"
+                            >
+                              {borrandoPago && pagoABorrar === idx ? (
+                                <svg
+                                  className="animate-spin h-4 w-4"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                    fill="none"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v8z"
+                                  />
+                                </svg>
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -3438,6 +3538,100 @@ const VentaDetalle = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación para borrar pago */}
+      {mostrarConfirmacionBorrado && pagoABorrar !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirmar borrado
+                </h3>
+                <p className="text-sm text-gray-600">
+                  ¿Estás seguro de que quieres borrar este pago?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+              <div className="text-sm text-gray-700">
+                <div className="font-medium">Detalles del pago:</div>
+                <div className="mt-1">
+                  <span className="text-gray-600">Fecha:</span>{" "}
+                  {formatFechaLocal(venta.pagos[pagoABorrar].fecha)}
+                </div>
+                <div>
+                  <span className="text-gray-600">Método:</span>{" "}
+                  {venta.pagos[pagoABorrar].metodo}
+                </div>
+                <div>
+                  <span className="text-gray-600">Monto:</span>{" "}
+                  <span className="font-semibold text-red-600">
+                    ${Number(venta.pagos[pagoABorrar].monto).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarConfirmacionBorrado(false);
+                  setPagoABorrar(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMostrarConfirmacionBorrado(false);
+                  await handleBorrarPago(pagoABorrar);
+                }}
+                disabled={borrandoPago}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  borrandoPago
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {borrandoPago ? (
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                    Borrando...
+                  </div>
+                ) : (
+                  "Borrar pago"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
