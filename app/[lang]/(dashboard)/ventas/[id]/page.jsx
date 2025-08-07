@@ -62,7 +62,8 @@ function calcularPrecioMachimbre({
   const metrosCuadrados = (ancho * largo * cantidadPaquete) / 10000; // Convertir a m²
   const precio = metrosCuadrados * precioPorPie;
   
-  return Math.round(precio * 100) / 100;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
 }
 
 const VentaDetalle = () => {
@@ -3108,29 +3109,31 @@ const VentaDetalle = () => {
                       Subtotal:{" "}
                       <span className="font-bold">
                         $
-                        {ventaEdit.productos
-                          .reduce(
-                            (acc, p) =>
-                              acc + Number(p.precio) * Number(p.cantidad),
-                            0
-                          )
-                          .toFixed(2)}
+                        {formatearNumeroArgentino(
+                          ventaEdit.productos
+                            .reduce(
+                              (acc, p) =>
+                                acc + Number(p.precio) * Number(p.cantidad),
+                              0
+                            )
+                        )}
                       </span>
                     </div>
                     <div>
                       Descuento:{" "}
                       <span className="font-bold">
                         $
-                        {ventaEdit.productos
-                          .reduce(
-                            (acc, p) =>
-                              acc +
-                              Number(p.precio) *
-                                Number(p.cantidad) *
-                                (Number(p.descuento || 0) / 100),
-                            0
-                          )
-                          .toFixed(2)}
+                        {formatearNumeroArgentino(
+                          ventaEdit.productos
+                            .reduce(
+                              (acc, p) =>
+                                acc +
+                                Number(p.precio) *
+                                  Number(p.cantidad) *
+                                  (Number(p.descuento || 0) / 100),
+                              0
+                            )
+                        )}
                       </span>
                     </div>
                     {ventaEdit.tipoEnvio &&
@@ -3139,7 +3142,7 @@ const VentaDetalle = () => {
                         <div>
                           Costo de envío:{" "}
                           <span className="font-bold">
-                            ${Number(ventaEdit.costoEnvio).toFixed(2)}
+                            ${formatearNumeroArgentino(Number(ventaEdit.costoEnvio))}
                           </span>
                         </div>
                       )}
@@ -3147,7 +3150,7 @@ const VentaDetalle = () => {
                       Total:{" "}
                       <span className="font-bold text-primary">
                         $
-                        {(
+                        {formatearNumeroArgentino(
                           ventaEdit.productos.reduce(
                             (acc, p) =>
                               acc + Number(p.precio) * Number(p.cantidad),
@@ -3165,7 +3168,7 @@ const VentaDetalle = () => {
                           ventaEdit.tipoEnvio !== "retiro_local"
                             ? Number(ventaEdit.costoEnvio) || 0
                             : 0)
-                        ).toFixed(2)}
+                        )}
                       </span>
                     </div>
                   </div>
@@ -3212,18 +3215,18 @@ const VentaDetalle = () => {
                   return (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
                       <h4 className="font-semibold text-yellow-800 mb-2">
-                        Saldo pendiente: ${saldo.toFixed(2)}
+                        Saldo pendiente: ${formatearNumeroArgentino(saldo)}
                       </h4>
                       <div className="text-sm text-yellow-700 mb-3">
-                        <div>Subtotal: ${subtotal.toFixed(2)}</div>
-                        <div>Descuento: ${descuento.toFixed(2)}</div>
+                        <div>Subtotal: ${formatearNumeroArgentino(subtotal)}</div>
+                        <div>Descuento: ${formatearNumeroArgentino(descuento)}</div>
                         {envio > 0 && (
-                          <div>Costo envío: ${envio.toFixed(2)}</div>
+                          <div>Costo envío: ${formatearNumeroArgentino(envio)}</div>
                         )}
                         <div className="font-bold">
-                          Total: ${total.toFixed(2)}
+                          Total: ${formatearNumeroArgentino(total)}
                         </div>
-                        <div>Abonado: ${abonado.toFixed(2)}</div>
+                        <div>Abonado: ${formatearNumeroArgentino(abonado)}</div>
                       </div>
                       <div className="flex flex-col md:flex-row gap-2 items-end">
                         <input

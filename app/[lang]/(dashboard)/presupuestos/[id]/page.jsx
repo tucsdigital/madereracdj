@@ -591,7 +591,8 @@ const PresupuestoDetalle = () => {
     const metrosCuadrados = (ancho * largo * cantidadPaquete) / 10000; // Convertir a m²
     const precio = metrosCuadrados * precioPorPie;
     
-    return Math.round(precio * 100) / 100;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
   }
 
   // Obtener tipos de madera únicos
@@ -3611,21 +3612,4 @@ const getNextVentaNumber = async () => {
   return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
 };
 
-function calcularPrecioCorteMadera({
-  alto,
-  ancho,
-  largo,
-  precioPorPie,
-  factor = 0.2734,
-}) {
-  if (
-    [alto, ancho, largo, precioPorPie].some(
-      (v) => typeof v !== "number" || v <= 0
-    )
-  ) {
-    return 0;
-  }
-  const precio = factor * alto * ancho * largo * precioPorPie;
-  // Redondear a centenas (múltiplos de 100)
-  return Math.round(precio / 100) * 100;
-}
+
