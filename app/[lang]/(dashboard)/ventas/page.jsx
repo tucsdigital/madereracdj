@@ -257,8 +257,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let largo = Number(real.largo) || 0;
         let precioPorPie = Number(real.precioPorPie) || 0;
 
-        // Verificar si es machimbre para usar cálculo especial
-        if (real.subcategoria === "machimbre") {
+        // Verificar si es machimbre o deck para usar cálculo especial
+        if (real.subcategoria === "machimbre" || real.subcategoria === "deck") {
           if (
             ancho > 0 &&
             largo > 0 &&
@@ -274,7 +274,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           } else {
             setSubmitStatus("error");
             setSubmitMessage(
-              "El producto machimbre no tiene dimensiones válidas en la base de datos."
+              "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
             );
             return;
           }
@@ -345,8 +345,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id) {
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -379,8 +379,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id) {
           const nuevaCantidad = Number(p.cantidad) + 1;
           
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -413,8 +413,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id) {
           const nuevaCantidad = Math.max(1, Number(p.cantidad) - 1);
           
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -469,7 +469,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre") {
+          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -509,7 +509,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre") {
+          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -543,14 +543,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Función para manejar cambios en alto para machimbre
+  // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
@@ -576,14 +576,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Función para manejar cambios en ancho para machimbre
+  // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: Number(nuevoAncho),
@@ -609,14 +609,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Función para manejar cambios en largo para machimbre
+  // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
@@ -2024,7 +2024,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   </div>
 
                                   {/* Para machimbres: ancho, largo y cantidad editables */}
-                                  {p.subcategoria === "machimbre" ? (
+                                  {(p.subcategoria === "machimbre" || p.subcategoria === "deck") ? (
                                     <>
                                       <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
@@ -2078,9 +2078,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           </div>
                                         </div>
                                       </div>
-                                      {/* Mostrar m2 por unidad */}
+                                      {/* Mostrar m2 total */}
                                       <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                        M2 por unidad: {((p.ancho || 0) * (p.largo || 0)).toFixed(2)} m²
+                                       Total: {((p.ancho || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
                                       </div>
                                     </>
                                   ) : (

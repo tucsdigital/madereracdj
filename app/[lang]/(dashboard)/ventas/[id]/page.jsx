@@ -292,8 +292,8 @@ const VentaDetalle = () => {
         if (p.id === productoId && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre") {
-            // Para machimbres: usar la fórmula específica
+          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+            // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -332,8 +332,8 @@ const VentaDetalle = () => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre") {
-            // Para machimbres: usar la fórmula específica
+          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+            // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -474,8 +474,8 @@ const VentaDetalle = () => {
         if (p.id === id) {
           const nuevaCantidad = Math.max(1, p.cantidad - 1);
           
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -510,8 +510,8 @@ const VentaDetalle = () => {
         if (p.id === id) {
           const nuevaCantidad = p.cantidad + 1;
           
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -544,8 +544,8 @@ const VentaDetalle = () => {
       ...prev,
       productos: prev.productos.map((p) => {
         if (p.id === id) {
-          // Si es machimbre, recalcular precio
-          if (p.categoria === "Maderas" && p.subcategoria === "machimbre") {
+          // Si es machimbre o deck, recalcular precio
+          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
               ancho: p.ancho,
               largo: p.largo,
@@ -589,7 +589,7 @@ const VentaDetalle = () => {
     }));
   };
 
-  // Función para manejar cambios en alto para machimbre
+  // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
     setVentaEdit((prev) => ({
       ...prev,
@@ -597,7 +597,7 @@ const VentaDetalle = () => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
@@ -623,7 +623,7 @@ const VentaDetalle = () => {
     }));
   };
 
-  // Función para manejar cambios en ancho para machimbre
+  // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
     setVentaEdit((prev) => ({
       ...prev,
@@ -631,7 +631,7 @@ const VentaDetalle = () => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: Number(nuevoAncho),
@@ -657,7 +657,7 @@ const VentaDetalle = () => {
     }));
   };
 
-  // Función para manejar cambios en largo para machimbre
+  // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
     setVentaEdit((prev) => ({
       ...prev,
@@ -665,7 +665,7 @@ const VentaDetalle = () => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
+          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
@@ -2962,8 +2962,8 @@ const VentaDetalle = () => {
                                     Dimensiones:
                                   </span>
                                   
-                                  {/* Verificar si es machimbre por subcategoria */}
-                                  {p.subcategoria === "machimbre" ? (
+                                  {/* Verificar si es machimbre o deck por subcategoria */}
+                                  {(p.subcategoria === "machimbre" || p.subcategoria === "deck") ? (
                                     <>
                                       {/* Campos editables para machimbres */}
                                       <span>
@@ -3033,9 +3033,9 @@ const VentaDetalle = () => {
                                           </svg>
                                         </div>
                                       </span>
-                                      {/* Mostrar m2 por unidad */}
+                                      {/* Mostrar m2 total */}
                                       <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                        M2 por unidad: {((p.ancho || 0) * (p.largo || 0)).toFixed(2)} m²
+                                        Total: {((p.ancho || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
                                       </div>
                                     </>
                                   ) : (
