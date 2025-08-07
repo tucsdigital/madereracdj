@@ -2518,16 +2518,6 @@ const PresupuestoDetalle = () => {
                                   }
                                 </div>
                               )}
-                            {/* Mostrar dimensiones y precio por pie para productos de madera */}
-                            {producto.categoria === "Maderas" && (
-                              <div className="mt-1">
-                                <div className="flex flex-wrap gap-2">
-                                  <span>Alto: {producto.alto || 0} </span>
-                                  <span>Ancho: {producto.ancho || 0}</span>
-                                  <span>Largo: {producto.largo || 0}</span>
-                                </div>
-                              </div>
-                            )}
                           </td>
                           <td className="p-3 text-center">
                             {safeNumber(producto.cantidad)}

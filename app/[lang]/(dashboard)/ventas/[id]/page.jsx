@@ -1724,11 +1724,6 @@ const VentaDetalle = () => {
                         {/* Mostrar dimensiones y precio por pie para productos de madera */}
                         {producto.categoria === "Maderas" && (
                           <div className="mt-1">
-                            <div className="flex flex-wrap gap-2">
-                              <span>Alto: {producto.alto || 0} </span>
-                              <span>Ancho: {producto.ancho || 0} </span>
-                              <span>Largo: {producto.largo || 0} </span>
-                            </div>
                             {/* Mostrar tipo de madera - buscado dinámicamente */}
                             {getProductoCompleto(producto.id)?.tipoMadera && (
                               <div className="mt-1 text-xs font-bold">
