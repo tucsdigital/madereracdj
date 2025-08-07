@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1018,6 +1018,11 @@ const ProductosPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
 
+  // Estados para paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina, setProductosPorPagina] = useState(20);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
     // Extraer proveedores únicos
@@ -1243,14 +1248,18 @@ const ProductosPage = () => {
     return () => unsub();
   }, [reload]);
 
-  // Filtro profesional
-  const productosFiltrados = productos.filter(
-    (p) => {
-      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-      const normalizarTexto = (texto) => {
-        return texto.toLowerCase().replace(/\s+/g, '');
-      };
+  // Función para normalizar texto (optimizada)
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }, []);
 
+  // Productos filtrados optimizados con useMemo
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
       // Normalizar el término de búsqueda
       const filtroNormalizado = normalizarTexto(filtro || "");
       
@@ -1279,8 +1288,37 @@ const ProductosPage = () => {
         p.subCategoria === filtroSubCategoria;
 
       return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
-    }
-  );
+    });
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+
+  // Productos paginados optimizados
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Cálculo de totales optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Función para cambiar página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+    
+    setIsLoadingPagination(true);
+    setPaginaActual(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 300);
+  }, [totalPaginas]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria]);
 
   // Obtener tipos de madera únicos
   const tiposMaderaUnicos = [
@@ -2511,13 +2549,13 @@ const ProductosPage = () => {
 
   // Efecto para actualizar selectAll cuando cambia la selección
   useEffect(() => {
-    if (productosFiltrados.length > 0) {
-      const allSelected = productosFiltrados.every(p => selectedProducts.includes(p.id));
+    if (productosPaginados.length > 0) {
+      const allSelected = productosPaginados.every(p => selectedProducts.includes(p.id));
       setSelectAll(allSelected);
     } else {
       setSelectAll(false);
     }
-  }, [selectedProducts, productosFiltrados]);
+  }, [selectedProducts, productosPaginados]);
 
   // Efecto para limpiar selección cuando cambian los filtros
   useEffect(() => {
@@ -2541,7 +2579,7 @@ const ProductosPage = () => {
       setSelectedProducts([]);
       setSelectAll(false);
     } else {
-      setSelectedProducts(productosFiltrados.map(p => p.id));
+      setSelectedProducts(productosPaginados.map(p => p.id));
       setSelectAll(true);
     }
   };
@@ -2838,8 +2876,20 @@ const ProductosPage = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {productosFiltrados.map((p) => (
+                <tbody className="relative">
+                  {/* Overlay de carga durante la paginación */}
+                  {isLoadingPagination && (
+                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                      <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Cargando productos...
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {productosPaginados.map((p) => (
                     <tr
                       key={p.id}
                       className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
@@ -3050,6 +3100,153 @@ const ProductosPage = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          
+          {/* Paginación profesional */}
+          {productosFiltrados.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  Mostrando <span className="font-semibold">
+                    {((paginaActual - 1) * productosPorPagina) + 1}
+                  </span> a <span className="font-semibold">
+                    {Math.min(paginaActual * productosPorPagina, totalProductos)}
+                  </span> de <span className="font-semibold">{totalProductos}</span> productos
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Productos por página:</span>
+                  <select
+                    value={productosPorPagina}
+                    onChange={(e) => {
+                      setProductosPorPagina(Number(e.target.value));
+                      setPaginaActual(1);
+                    }}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const paginas = [];
+                    const paginasAMostrar = 5;
+                    const inicio = Math.max(1, paginaActual - Math.floor(paginasAMostrar / 2));
+                    const fin = Math.min(totalPaginas, inicio + paginasAMostrar - 1);
+                    
+                    // Agregar primera página si no está incluida
+                    if (inicio > 1) {
+                      paginas.push(
+                        <Button
+                          key={1}
+                          variant={paginaActual === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(1)}
+                          className="px-3 py-1"
+                        >
+                          1
+                        </Button>
+                      );
+                      if (inicio > 2) {
+                        paginas.push(
+                          <span key="dots1" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                    }
+                    
+                    // Agregar páginas del rango
+                    for (let i = inicio; i <= fin; i++) {
+                      paginas.push(
+                        <Button
+                          key={i}
+                          variant={paginaActual === i ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(i)}
+                          className="px-3 py-1"
+                        >
+                          {i}
+                        </Button>
+                      );
+                    }
+                    
+                    // Agregar última página si no está incluida
+                    if (fin < totalPaginas) {
+                      if (fin < totalPaginas - 1) {
+                        paginas.push(
+                          <span key="dots2" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                      paginas.push(
+                        <Button
+                          key={totalPaginas}
+                          variant={paginaActual === totalPaginas ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(totalPaginas)}
+                          className="px-3 py-1"
+                        >
+                          {totalPaginas}
+                        </Button>
+                      );
+                    }
+                    
+                    return paginas;
+                  })()}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(totalPaginas)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7" />
+                  </svg>
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,11 @@ const PreciosPage = () => {
   const [porcentajeSeleccionMultiple, setPorcentajeSeleccionMultiple] = useState("");
   const [modoActualizacion, setModoActualizacion] = useState("porcentaje"); // "porcentaje" o "valor"
   const [valorEspecifico, setValorEspecifico] = useState("");
+
+  // Estados para paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina, setProductosPorPagina] = useState(20);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -161,13 +166,13 @@ const PreciosPage = () => {
   };
 
   const handleSeleccionarTodos = () => {
-    if (productosFiltrados.length === 0) return;
+    if (productosPaginados.length === 0) return;
     
     setProductosSeleccionados(prev => {
-      if (prev.size === productosFiltrados.length) {
+      if (prev.size === productosPaginados.length) {
         return new Set();
       } else {
-        return new Set(productosFiltrados.map(p => p.id));
+        return new Set(productosPaginados.map(p => p.id));
       }
     });
   };
@@ -504,6 +509,35 @@ const PreciosPage = () => {
     return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoria;
   });
 
+  // Productos paginados optimizados
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Cálculo de totales optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Función para cambiar página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+    
+    setIsLoadingPagination(true);
+    setPaginaActual(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 300);
+  }, [totalPaginas]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaSeleccionada, filtro, filtroTipoMadera, filtroSubCategoria]);
+
   const getIconoCategoria = (categoria) => {
     switch (categoria) {
       case "Maderas":
@@ -534,9 +568,9 @@ const PreciosPage = () => {
     }
   };
 
-  // Verificar si todos los productos filtrados están seleccionados
-  const todosSeleccionados = productosFiltrados.length > 0 && 
-    productosSeleccionados.size === productosFiltrados.length;
+  // Verificar si todos los productos paginados están seleccionados
+  const todosSeleccionados = productosPaginados.length > 0 && 
+    productosSeleccionados.size === productosPaginados.length;
 
   return (
     <div className="py-8 px-2 max-w-7xl mx-auto">
@@ -791,7 +825,7 @@ const PreciosPage = () => {
                       <button
                         onClick={handleSeleccionarTodos}
                         className="p-1 hover:bg-gray-100 rounded"
-                        disabled={productosFiltrados.length === 0}
+                        disabled={productosPaginados.length === 0}
                       >
                         {todosSeleccionados ? (
                           <CheckSquare className="w-4 h-4 text-blue-600" />
@@ -809,8 +843,20 @@ const PreciosPage = () => {
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {productosFiltrados.map((p) => (
+              <TableBody className="relative">
+                {/* Overlay de carga durante la paginación */}
+                {isLoadingPagination && (
+                  <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                    <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Cargando productos...
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {productosPaginados.map((p) => (
                   <TableRow key={p.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center justify-center">
@@ -897,6 +943,153 @@ const PreciosPage = () => {
                 ))}
               </TableBody>
             </Table>
+          )}
+          
+          {/* Paginación profesional */}
+          {productosFiltrados.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  Mostrando <span className="font-semibold">
+                    {((paginaActual - 1) * productosPorPagina) + 1}
+                  </span> a <span className="font-semibold">
+                    {Math.min(paginaActual * productosPorPagina, totalProductos)}
+                  </span> de <span className="font-semibold">{totalProductos}</span> productos
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Productos por página:</span>
+                  <select
+                    value={productosPorPagina}
+                    onChange={(e) => {
+                      setProductosPorPagina(Number(e.target.value));
+                      setPaginaActual(1);
+                    }}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const paginas = [];
+                    const paginasAMostrar = 5;
+                    const inicio = Math.max(1, paginaActual - Math.floor(paginasAMostrar / 2));
+                    const fin = Math.min(totalPaginas, inicio + paginasAMostrar - 1);
+                    
+                    // Agregar primera página si no está incluida
+                    if (inicio > 1) {
+                      paginas.push(
+                        <Button
+                          key={1}
+                          variant={paginaActual === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(1)}
+                          className="px-3 py-1"
+                        >
+                          1
+                        </Button>
+                      );
+                      if (inicio > 2) {
+                        paginas.push(
+                          <span key="dots1" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                    }
+                    
+                    // Agregar páginas del rango
+                    for (let i = inicio; i <= fin; i++) {
+                      paginas.push(
+                        <Button
+                          key={i}
+                          variant={paginaActual === i ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(i)}
+                          className="px-3 py-1"
+                        >
+                          {i}
+                        </Button>
+                      );
+                    }
+                    
+                    // Agregar última página si no está incluida
+                    if (fin < totalPaginas) {
+                      if (fin < totalPaginas - 1) {
+                        paginas.push(
+                          <span key="dots2" className="px-2 text-gray-500">...</span>
+                        );
+                      }
+                      paginas.push(
+                        <Button
+                          key={totalPaginas}
+                          variant={paginaActual === totalPaginas ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(totalPaginas)}
+                          className="px-3 py-1"
+                        >
+                          {totalPaginas}
+                        </Button>
+                      );
+                    }
+                    
+                    return paginas;
+                  })()}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(totalPaginas)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
