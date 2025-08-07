@@ -1248,18 +1248,16 @@ const ProductosPage = () => {
     return () => unsub();
   }, [reload]);
 
-  // Función para normalizar texto (optimizada)
-  const normalizarTexto = useCallback((texto) => {
-    if (!texto) return "";
-    return texto
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }, []);
 
   // Productos filtrados optimizados con useMemo
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
+      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+      const normalizarTexto = (texto) => {
+        if (!texto) return "";
+        return texto.toLowerCase().replace(/\s+/g, '');
+      };
+
       // Normalizar el término de búsqueda
       const filtroNormalizado = normalizarTexto(filtro || "");
       
@@ -1289,7 +1287,7 @@ const ProductosPage = () => {
 
       return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
     });
-  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
