@@ -768,19 +768,6 @@ const PreciosPage = () => {
 
             {/* Indicador de productos filtrados y botón de selección múltiple */}
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Mostrando {productosFiltrados.length} de {productos.length} productos
-                {(filtro || categoriaSeleccionada || filtroTipoMadera || filtroSubCategoria) && (
-                  <span className="ml-2 text-blue-600">
-                    (filtros aplicados)
-                  </span>
-                )}
-                {productosSeleccionados.size > 0 && (
-                  <span className="ml-2 text-green-600 font-medium">
-                    • {productosSeleccionados.size} seleccionados
-                  </span>
-                )}
-              </div>
               <div className="flex gap-2">
                 {productosSeleccionados.size > 0 && (
                   <Button

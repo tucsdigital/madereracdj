@@ -2776,19 +2776,6 @@ const ProductosPage = () => {
 
           {/* Indicador de productos filtrados */}
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Mostrando {productosFiltrados.length} de {productos.length} productos
-              {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
-                <span className="ml-2 text-blue-600">
-                  (filtros aplicados)
-                </span>
-              )}
-              {selectedProducts.length > 0 && (
-                <span className="ml-2 text-green-600 font-semibold">
-                  • {selectedProducts.length} seleccionado(s)
-                </span>
-              )}
-            </div>
             {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
               <Button
                 variant="outline"
