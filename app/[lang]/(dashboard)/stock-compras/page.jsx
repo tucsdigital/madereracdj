@@ -192,7 +192,7 @@ function StockComprasPage() {
       return;
     }
     
-    if (movCantidad <= 0) {
+    if (movCantidad <= 0 && movTipo !== "ajuste") {
       setMovStatus("error"); 
       setMovMsg("La cantidad debe ser mayor a 0."); 
       return;
@@ -211,12 +211,12 @@ function StockComprasPage() {
     // Validación para ajustes
     if (movTipo === "ajuste") {
       const producto = productos.find(p => p.id === movProductoId);
-      const nuevoStock = producto.stock + movCantidad;
+      const nuevoStock = calcularStockResultante(producto.stock, movTipo, movCantidad);
       if (nuevoStock < 0) {
         setMovStatus("error"); 
         setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
         return;
-    }
+      }
     }
 
     setMovLoading(true);
@@ -247,6 +247,18 @@ function StockComprasPage() {
       setMovMsg("Error: " + e.message); 
       setMovLoading(false);
     }
+  };
+
+  // Función para calcular stock resultante
+  const calcularStockResultante = (stockActual, tipo, cantidad) => {
+    if (tipo === "entrada") {
+      return stockActual + cantidad;
+    } else if (tipo === "salida") {
+      return stockActual - cantidad;
+    } else if (tipo === "ajuste") {
+      return stockActual + cantidad; // cantidad puede ser positiva o negativa
+    }
+    return stockActual;
   };
 
   // Función para prellenar datos inteligentemente
@@ -464,7 +476,7 @@ function StockComprasPage() {
                 </label>
                 <Input 
                   type="number" 
-                  min={1} 
+                  min={movTipo === "ajuste" ? undefined : 1} 
                   max={movTipo === "salida" ? productos.find(p => p.id === movProductoId)?.stock || 0 : undefined}
                   className={`w-full ${movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0) ? 'border-red-500 focus:border-red-500' : ''}`}
                   value={movCantidad} 
@@ -488,7 +500,7 @@ function StockComprasPage() {
               </div>
 
               {/* Resumen del movimiento */}
-              {movProductoId && movCantidad > 0 && (
+              {movProductoId && (movCantidad > 0 || movTipo === "ajuste") && (
                 <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
                   <h5 className="font-medium text-sm mb-2">Resumen del movimiento:</h5>
                   <div className="text-sm">
@@ -502,12 +514,7 @@ function StockComprasPage() {
                           ? "text-red-600" 
                           : "text-blue-600"
                       }`}>
-                        {movTipo === "entrada" 
-                          ? (productos.find(p => p.id === movProductoId)?.stock || 0) + movCantidad
-                          : movTipo === "salida"
-                          ? (productos.find(p => p.id === movProductoId)?.stock || 0) - movCantidad
-                          : (productos.find(p => p.id === movProductoId)?.stock || 0) + movCantidad
-                        }
+                        {calcularStockResultante(productos.find(p => p.id === movProductoId)?.stock || 0, movTipo, movCantidad)}
                       </span>
                     </p>
                   </div>
@@ -519,7 +526,7 @@ function StockComprasPage() {
               <Button 
                 variant="default" 
                 onClick={handleMovGuardar} 
-                disabled={loadingProd || movLoading || !movProductoId || movCantidad <= 0 || (movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0))}
+                disabled={loadingProd || movLoading || !movProductoId || (movCantidad <= 0 && movTipo !== "ajuste") || (movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0))}
               >
                 {movLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Registrar Movimiento
