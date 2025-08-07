@@ -1702,7 +1702,6 @@ const VentaDetalle = () => {
                   <tr className="bg-card border-b">
                     <th className="text-left p-3 font-medium">Producto</th>
                     <th className="text-center p-3 font-medium">Cantidad</th>
-                    <th className="text-center p-3 font-medium">Unidad</th>
                     <th className="text-right p-3 font-medium precio-empleado">
                       Precio Unit.
                     </th>
@@ -1743,9 +1742,6 @@ const VentaDetalle = () => {
                       </td>
                       <td className="p-3 text-center">
                         {Number(producto.cantidad)}
-                      </td>
-                      <td className="p-3 text-center">
-                        {producto.unidad || "-"}
                       </td>
                       <td className="p-3 text-right precio-empleado">
                         ${formatearNumeroArgentino(Number(producto.precio))}

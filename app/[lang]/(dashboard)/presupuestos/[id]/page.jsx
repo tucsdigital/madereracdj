@@ -2485,7 +2485,6 @@ const PresupuestoDetalle = () => {
                     <tr className="bg-card border-b">
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
-                      <th className="text-center p-3 font-medium">Unidad</th>
                       <th className="text-right p-3 font-medium">Descuento</th>
                       <th className="text-right p-3 font-medium">Subtotal</th>
                     </tr>
@@ -2521,9 +2520,6 @@ const PresupuestoDetalle = () => {
                           </td>
                           <td className="p-3 text-center">
                             {safeNumber(producto.cantidad)}
-                          </td>
-                          <td className="p-3 text-center">
-                            {producto.unidad || "-"}
                           </td>
                           <td className="p-3 text-right">
                             {safeNumber(producto.descuento).toFixed(2)}%
