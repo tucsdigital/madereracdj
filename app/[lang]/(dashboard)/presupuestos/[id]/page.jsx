@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/provider/auth.provider";
 import {
   doc,
   getDoc,
@@ -59,6 +60,7 @@ const PresupuestoDetalle = () => {
   const params = useParams();
   const router = useRouter();
   const { id, lang } = params;
+  const { user } = useAuth();
   const [presupuesto, setPresupuesto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2770,7 +2772,7 @@ const PresupuestoDetalle = () => {
                       ventaCampos.usarDireccionCliente || true,
 
                     // Campos adicionales
-                    vendedor: ventaCampos.vendedor,
+                    vendedor: user?.email || "Usuario no identificado",
                     prioridad: ventaCampos.prioridad,
                   };
 
@@ -2841,7 +2843,7 @@ const PresupuestoDetalle = () => {
                       fechaEntrega: cleanVentaData.fechaEntrega,
                       estado: "pendiente",
                       prioridad: cleanVentaData.prioridad || "media",
-                      vendedor: cleanVentaData.vendedor,
+                      vendedor: user?.email || "Usuario no identificado",
                       direccionEnvio: cleanVentaData.direccionEnvio,
                       localidadEnvio: cleanVentaData.localidadEnvio,
                       tipoEnvio: cleanVentaData.tipoEnvio,
@@ -3112,7 +3114,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: (s) => s.required("El rango horario es obligatorio"),
       otherwise: (s) => s.notRequired(),
     }),
-    vendedor: yup.string().required("Selecciona el vendedor"),
     prioridad: yup.string().when("tipoEnvio", {
       is: (val) => val && val !== "retiro_local",
       then: (s) => s.required("Selecciona la prioridad"),
@@ -3143,7 +3144,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       costoEnvio: "",
       fechaEntrega: "",
       rangoHorario: "",
-      vendedor: "",
       prioridad: "",
       direccionEnvio: "",
       localidadEnvio: "",
@@ -3491,28 +3491,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
             Información adicional
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vendedor responsable *
-            </label>
-            <select
-              {...register("vendedor")}
-              className={`w-full border rounded-md px-3 py-2 ${
-                errors.vendedor ? "border-red-500" : "border-gray-300"
-              }`}
-            >
-              <option value="">Seleccionar vendedor...</option>
-              {vendedores.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-            {errors.vendedor && (
-              <span className="text-red-500 text-xs">
-                {errors.vendedor.message}
-              </span>
-            )}
           </div>
         </div>
       </div>
