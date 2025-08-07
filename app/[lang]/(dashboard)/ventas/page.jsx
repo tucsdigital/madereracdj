@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -237,6 +237,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
 
   const handleAgregarProducto = (producto) => {
     const real = productosState.find((p) => p.id === producto.id);
@@ -850,14 +851,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return texto.toLowerCase().replace(/\s+/g, "");
   };
 
-  // Función para filtrar productos optimizada
-  const obtenerProductosFiltrados = () => {
+  // Función para filtrar productos optimizada con useMemo
+  const productosFiltrados = useMemo(() => {
     if (!productosPorCategoria[categoriaId]) return [];
 
-    return productosPorCategoria[categoriaId].filter((prod) => {
-      // Normalizar el término de búsqueda
-      const busquedaNormalizada = normalizarTexto(busquedaProducto);
+    // Normalizar el término de búsqueda una sola vez
+    const busquedaNormalizada = normalizarTexto(busquedaProducto);
 
+    return productosPorCategoria[categoriaId].filter((prod) => {
       // Normalizar el nombre del producto
       const nombreNormalizado = normalizarTexto(prod.nombre);
 
@@ -884,22 +885,29 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
     });
-  };
+  }, [productosPorCategoria, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
 
-  // Obtener productos filtrados y paginados
-  const productosFiltrados = obtenerProductosFiltrados();
+  // Obtener productos filtrados y paginados optimizado
   const totalProductos = productosFiltrados.length;
   const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
   
-  // Calcular productos para la página actual
-  const inicio = (paginaActual - 1) * productosPorPagina;
-  const fin = inicio + productosPorPagina;
-  const productosPaginados = productosFiltrados.slice(inicio, fin);
+  // Calcular productos para la página actual con useMemo
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
 
-  // Función para cambiar de página
-  const cambiarPagina = (nuevaPagina) => {
+  // Función para cambiar de página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    setIsLoadingPagination(true);
     setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
-  };
+    
+    // Simular carga para mejor UX (tiempo mínimo para que se vea el loading)
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 150);
+  }, [totalPaginas]);
 
   // Resetear página cuando cambian los filtros
   useEffect(() => {
@@ -1294,6 +1302,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         productos agregados
                       </div>
                     </div>
+                    {/* Indicador de rendimiento */}
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {productosFiltrados.length} / {productosPorCategoria[categoriaId]?.length || 0}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        productos filtrados
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1513,7 +1530,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 ) : (
                   <div className="space-y-4">
                     {/* Grid de productos paginados */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 relative">
+                      {/* Overlay de carga durante la paginación */}
+                      {isLoadingPagination && (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                          <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Cargando productos...
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
                       {productosPaginados.map((prod) => {
                         const yaAgregado = productosSeleccionados.some(
                           (p) => p.id === prod.id
@@ -1724,8 +1753,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {totalPaginas > 1 && (
                       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                         {/* Información de página */}
-                        <div className="text-sm text-gray-700 dark:text-gray-300">
-                          Mostrando {inicio + 1}-{Math.min(fin, totalProductos)} de {totalProductos} productos
+                        <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                          {isLoadingPagination && (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                          )}
+                          <span>
+                            Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos
+                          </span>
                         </div>
 
                         {/* Controles de navegación */}
@@ -1733,8 +1767,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón primera página */}
                           <button
                             onClick={() => cambiarPagina(1)}
-                            disabled={paginaActual === 1}
-                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paginaActual === 1 || isLoadingPagination}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isLoadingPagination 
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
                             title="Primera página"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1745,8 +1783,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón página anterior */}
                           <button
                             onClick={() => cambiarPagina(paginaActual - 1)}
-                            disabled={paginaActual === 1}
-                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paginaActual === 1 || isLoadingPagination}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isLoadingPagination 
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
                             title="Página anterior"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1772,8 +1814,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 <button
                                   key={pageNum}
                                   onClick={() => cambiarPagina(pageNum)}
+                                  disabled={isLoadingPagination}
                                   className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                    paginaActual === pageNum
+                                    isLoadingPagination
+                                      ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                      : paginaActual === pageNum
                                       ? "bg-blue-600 text-white"
                                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                                   }`}
@@ -1787,8 +1832,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón página siguiente */}
                           <button
                             onClick={() => cambiarPagina(paginaActual + 1)}
-                            disabled={paginaActual === totalPaginas}
-                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paginaActual === totalPaginas || isLoadingPagination}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isLoadingPagination 
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
                             title="Página siguiente"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1799,8 +1848,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón última página */}
                           <button
                             onClick={() => cambiarPagina(totalPaginas)}
-                            disabled={paginaActual === totalPaginas}
-                            className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={paginaActual === totalPaginas || isLoadingPagination}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isLoadingPagination 
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
                             title="Última página"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
