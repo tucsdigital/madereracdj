@@ -1802,7 +1802,7 @@ const PresupuestoDetalle = () => {
                                                 cepilladoAplicado: false, // Agregar propiedad por defecto
                                                 tipoMadera:
                                                   prod.tipoMadera || "",
-                                                subCategoria:
+                                                subcategoria:
                                                   prod.subCategoria || "",
                                               },
                                             ],

@@ -2574,7 +2574,7 @@ const VentaDetalle = () => {
                                                 Number(prod.precioPorPie) || 0,
                                               cepilladoAplicado: false, // Agregar propiedad por defecto
                                               tipoMadera: prod.tipoMadera || "",
-                                              subCategoria:
+                                              subcategoria:
                                                 prod.subCategoria || "",
                                             },
                                           ],
