@@ -909,11 +909,23 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       // Normalizar la unidad de medida
       const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
 
-      // Filtro por búsqueda de texto
-      const cumpleBusqueda =
-        busquedaNormalizada === "" ||
-        nombreNormalizado.includes(busquedaNormalizada) ||
-        unidadNormalizada.includes(busquedaNormalizada);
+      // Filtro por búsqueda de texto con lógica mejorada
+      let cumpleBusqueda = busquedaNormalizada === "";
+      
+      if (busquedaNormalizada !== "") {
+        // Si la búsqueda termina con punto, usar búsqueda dinámica
+        if (busquedaNormalizada.endsWith('.')) {
+          const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
+          cumpleBusqueda = 
+            nombreNormalizado.includes(busquedaSinPunto) ||
+            unidadNormalizada.includes(busquedaSinPunto);
+        } else {
+          // Búsqueda exacta: debe coincidir exactamente
+          cumpleBusqueda = 
+            nombreNormalizado === busquedaNormalizada ||
+            unidadNormalizada === busquedaNormalizada;
+        }
+      }
 
       // Filtro específico por tipo de madera
       const cumpleTipoMadera =
@@ -928,6 +940,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         prod.subCategoria === filtroSubCategoria;
 
       return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+    }).sort((a, b) => {
+      // Ordenar por stock: primero los que tienen stock, luego los que no
+      const stockA = Number(a.stock) || 0;
+      const stockB = Number(b.stock) || 0;
+      
+      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
+      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
+      
+      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+      return 0;
     });
   }, [productosPorCategoria, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
 
