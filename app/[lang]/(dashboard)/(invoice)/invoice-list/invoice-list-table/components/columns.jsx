@@ -12,23 +12,15 @@ import Link from "next/link";
 const formatDate = (dateString) => {
   if (!dateString) return "-";
   try {
-    // Si la fecha incluye 'T' (formato ISO), mostrar fecha y hora en horario argentino
-    if (dateString.includes("T")) {
-      const fecha = new Date(dateString);
-      // Convertir a horario argentino (UTC-3)
-      const fechaArgentina = new Date(fecha.getTime() - 3 * 60 * 60 * 1000);
-      return (
-        fechaArgentina.toLocaleDateString("es-AR") +
-        " " +
-        fechaArgentina.toLocaleTimeString("es-AR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
-    }
-    // Si es solo fecha (formato YYYY-MM-DD), mostrar solo fecha
-    const fecha = new Date(dateString + "T00:00:00");
-    return fecha.toLocaleDateString("es-AR");
+    const fecha = new Date(dateString);
+    return (
+      fecha.toLocaleDateString("es-AR") +
+      " " +
+      fecha.toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
   } catch {
     return dateString;
   }
