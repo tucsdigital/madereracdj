@@ -266,7 +266,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           ) {
             // Para machimbre, el precio se calcula por m2 y luego se multiplica por cantidad
             precio = calcularPrecioMachimbre({
-              ancho,
+              alto,
               largo,
               cantidad: 1, // Cantidad inicial por defecto
               precioPorPie,
@@ -348,7 +348,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           // Si es machimbre o deck, recalcular precio
           if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: Number(cantidad),
               precioPorPie: p.precioPorPie,
@@ -382,7 +382,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           // Si es machimbre o deck, recalcular precio
           if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: nuevaCantidad,
               precioPorPie: p.precioPorPie,
@@ -416,7 +416,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           // Si es machimbre o deck, recalcular precio
           if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
             const precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: nuevaCantidad,
               precioPorPie: p.precioPorPie,
@@ -471,7 +471,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
               precioPorPie: p.precioPorPie,
@@ -553,7 +553,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: p.ancho,
+            alto: Number(nuevoAlto),
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -586,7 +586,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: Number(nuevoAncho),
+            alto: Number(nuevoAncho),
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -619,7 +619,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: p.ancho,
+            alto: p.alto,
             largo: Number(nuevoLargo),
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -985,20 +985,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
   function calcularPrecioMachimbre({
-    ancho,
+    alto,
     largo,
     cantidad,
     precioPorPie,
   }) {
     if (
-      [ancho, largo, cantidad, precioPorPie].some(
+      [alto, largo, cantidad, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
       )
     ) {
       return 0;
     }
-    // Nueva fórmula: (ancho × largo) × precioPorPie × cantidad
-    const metrosCuadrados = ancho * largo;
+    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+    const metrosCuadrados = alto * largo;
     const precio = metrosCuadrados * precioPorPie * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
@@ -2029,16 +2029,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
                                           <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                            Ancho
+                                            Alto
                                           </label>
                                           <div className="relative">
                                             <input
                                               type="number"
                                               min="0"
                                               step="0.01"
-                                              value={p.ancho || 0}
+                                              value={p.alto || 0}
                                               onChange={(e) =>
-                                                handleAnchoChange(
+                                                handleAltoChange(
                                                   p.id,
                                                   e.target.value
                                                 )
@@ -2080,7 +2080,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </div>
                                       {/* Mostrar m2 total */}
                                       <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                       Total: {((p.ancho || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
+                                                                               Total: {((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
                                       </div>
                                     </>
                                   ) : (

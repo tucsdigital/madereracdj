@@ -327,7 +327,7 @@ const PresupuestoDetalle = () => {
           if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
               precioPorPie: p.precioPorPie,
@@ -367,7 +367,7 @@ const PresupuestoDetalle = () => {
           if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
               precioPorPie: Number(nuevoPrecioPorPie),
@@ -408,7 +408,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: p.ancho,
+            alto: Number(nuevoAlto),
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -442,7 +442,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: Number(nuevoAncho),
+            alto: Number(nuevoAncho),
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -476,7 +476,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            ancho: p.ancho,
+            alto: p.alto,
             largo: Number(nuevoLargo),
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -520,22 +520,22 @@ const PresupuestoDetalle = () => {
     return Math.round(precio * 100) / 100;
   }
 
-  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
+  // Función para calcular precio de machimbre (precio por pie × alto × largo × cantidad)
   function calcularPrecioMachimbre({
-    ancho,
+    alto,
     largo,
     cantidad,
     precioPorPie,
   }) {
     if (
-      [ancho, largo, cantidad, precioPorPie].some(
+      [alto, largo, cantidad, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
       )
     ) {
       return 0;
     }
-    // Nueva fórmula: (ancho × largo) × precioPorPie × cantidad
-    const metrosCuadrados = ancho * largo;
+    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+    const metrosCuadrados = alto * largo;
     const precio = metrosCuadrados * precioPorPie * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
@@ -2008,19 +2008,19 @@ const PresupuestoDetalle = () => {
                                       <>
                                         {/* Campos editables para machimbres */}
                                         <span>
-                                          Ancho:{" "}
+                                          Alto:{" "}
                                           <input
                                             type="number"
                                             min="0"
                                             step="0.1"
-                                            value={p.ancho || 0}
+                                            value={p.alto || 0}
                                             onChange={(e) =>
-                                              handleAnchoChange(p.id, e.target.value)
+                                              handleAltoChange(p.id, e.target.value)
                                             }
                                             className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
                                             disabled={loadingPrecios}
                                             placeholder="0"
-                                            title="Editar ancho (cm)"
+                                            title="Editar alto (cm)"
                                           />
                                         </span>
                                         <span>
@@ -2076,7 +2076,7 @@ const PresupuestoDetalle = () => {
                                         </span>
                                         {/* Mostrar m2 total */}
                                         <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                          Total: {((p.ancho || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
+                                          Total: {((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
                                         </div>
                                       </>
                                     ) : (
