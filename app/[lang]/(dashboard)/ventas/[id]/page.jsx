@@ -499,6 +499,14 @@ const VentaDetalle = () => {
                 precioPorPie,
               });
             }
+            
+            // Aplicar cepillado si está habilitado para este producto específico
+            if (p.cepilladoAplicado) {
+              nuevoPrecio = nuevoPrecio * 1.066;
+            }
+            
+            // Redondear a centenas (múltiplos de 100)
+            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
           }
 
           return {
@@ -540,6 +548,14 @@ const VentaDetalle = () => {
                 precioPorPie,
               });
             }
+            
+            // Aplicar cepillado si está habilitado para este producto específico
+            if (p.cepilladoAplicado) {
+              nuevoPrecio = nuevoPrecio * 1.066;
+            }
+            
+            // Redondear a centenas (múltiplos de 100)
+            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
           }
 
           return {
@@ -581,6 +597,14 @@ const VentaDetalle = () => {
                 precioPorPie,
               });
             }
+            
+            // Aplicar cepillado si está habilitado para este producto específico
+            if (p.cepilladoAplicado) {
+              nuevoPrecio = nuevoPrecio * 1.066;
+            }
+            
+            // Redondear a centenas (múltiplos de 100)
+            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
           }
 
           return {
@@ -612,6 +636,14 @@ const VentaDetalle = () => {
               cantidadPaquete,
               precioPorPie,
             });
+            
+            // Aplicar cepillado si está habilitado para este producto específico
+            if (p.cepilladoAplicado) {
+              nuevoPrecio = nuevoPrecio * 1.066;
+            }
+            
+            // Redondear a centenas (múltiplos de 100)
+            nuevoPrecio = Math.round(nuevoPrecio / 100) * 100;
           }
 
           return {
@@ -2874,11 +2906,7 @@ const VentaDetalle = () => {
                                           </svg>
                                         </div>
                                       </span>
-                                      <div className="w-full mt-1 p-2 bg-orange-50 border border-orange-200 rounded text-xs">
-                                        <span className="font-medium text-orange-700">
-                                          🌲 Machimbre - Fórmula: (Ancho × Largo × Cant. paq) / 10000 × $/m²
-                                        </span>
-                                      </div>
+                                      
                                     </>
                                   ) : (
                                     <>
@@ -2929,11 +2957,7 @@ const VentaDetalle = () => {
                                           </svg>
                                         </div>
                                       </span>
-                                      <div className="w-full mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                                        <span className="font-medium text-blue-700">
-                                          🌲 Madera - Fórmula: 0.2734 × Alto × Ancho × Largo × $/pie
-                                        </span>
-                                      </div>
+                                      
                                     </>
                                   )}
                                   
