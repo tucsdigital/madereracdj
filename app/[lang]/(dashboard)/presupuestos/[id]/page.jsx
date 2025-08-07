@@ -322,9 +322,20 @@ const PresupuestoDetalle = () => {
       ...prev,
       productos: (prev.productos || []).map((p) => {
         if (p.id === productoId && p.categoria === "Maderas") {
-          // Recalcular precio base sin cepillado
-          const precioBase =
-            0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+          let precioBase;
+
+          if (p.subcategoria === "machimbre") {
+            // Para machimbres: usar la fórmula específica
+            precioBase = calcularPrecioMachimbre({
+              ancho: p.ancho,
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: p.precioPorPie,
+            });
+          } else {
+            // Para otras maderas: usar la fórmula estándar
+            precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+          }
 
           // Aplicar cepillado si está habilitado
           const precioFinal = aplicarCepillado
@@ -351,9 +362,20 @@ const PresupuestoDetalle = () => {
       ...prev,
       productos: (prev.productos || []).map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
-          // Recalcular precio base con el nuevo precio por pie
-          const precioBase =
-            0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+          let precioBase;
+
+          if (p.subcategoria === "machimbre") {
+            // Para machimbres: usar la fórmula específica
+            precioBase = calcularPrecioMachimbre({
+              ancho: p.ancho,
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: Number(nuevoPrecioPorPie),
+            });
+          } else {
+            // Para otras maderas: usar la fórmula estándar
+            precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+          }
 
           // Aplicar cepillado si está habilitado para este producto específico
           const precioFinal = p.cepilladoAplicado
@@ -388,7 +410,7 @@ const PresupuestoDetalle = () => {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
             largo: p.largo,
-            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
@@ -422,7 +444,7 @@ const PresupuestoDetalle = () => {
           const precioBase = calcularPrecioMachimbre({
             ancho: Number(nuevoAncho),
             largo: p.largo,
-            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
@@ -456,7 +478,7 @@ const PresupuestoDetalle = () => {
           const precioBase = calcularPrecioMachimbre({
             ancho: p.ancho,
             largo: Number(nuevoLargo),
-            cantidadPaquete: p.cantidadPaquete || p.cantidad || 1,
+            cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
@@ -477,39 +499,7 @@ const PresupuestoDetalle = () => {
     }));
   };
 
-  // Función para manejar cambios en cantidad del paquete para machimbre
-  const handleCantidadMachimbreChange = (id, nuevaCantidadPaquete) => {
-    setPresupuestoEdit((prev) => ({
-      ...prev,
-      productos: (prev.productos || []).map((p) => {
-        if (
-          p.id === id &&
-          p.categoria === "Maderas" &&
-          p.subcategoria === "machimbre"
-        ) {
-          const precioBase = calcularPrecioMachimbre({
-            ancho: p.ancho,
-            largo: p.largo,
-            cantidadPaquete: Number(nuevaCantidadPaquete),
-            precioPorPie: p.precioPorPie,
-          });
 
-          const precioFinal = p.cepilladoAplicado
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
-
-          return {
-            ...p,
-            cantidadPaquete: Number(nuevaCantidadPaquete),
-            precio: precioRedondeado,
-          };
-        }
-        return p;
-      }),
-    }));
-  };
 
   // Función para formatear números en formato argentino
   const formatearNumeroArgentino = (numero) => {
@@ -530,21 +520,23 @@ const PresupuestoDetalle = () => {
     return Math.round(precio * 100) / 100;
   }
 
-  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad del paquete)
+  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
   function calcularPrecioMachimbre({
     ancho,
     largo,
-    cantidadPaquete,
+    cantidad,
     precioPorPie,
   }) {
     if (
-      [ancho, largo, cantidadPaquete, precioPorPie].some(
+      [ancho, largo, cantidad, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
       )
     ) {
       return 0;
     }
-    const precio = ancho * largo * cantidadPaquete * precioPorPie;
+    // Nueva fórmula: (ancho × largo) × precioPorPie × cantidad
+    const metrosCuadrados = ancho * largo;
+    const precio = metrosCuadrados * precioPorPie * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
   }
@@ -2047,22 +2039,7 @@ const PresupuestoDetalle = () => {
                                             title="Editar largo (cm)"
                                           />
                                         </span>
-                                        <span>
-                                          Cant. paq:{" "}
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            value={p.cantidadPaquete || 1}
-                                            onChange={(e) =>
-                                              handleCantidadMachimbreChange(p.id, e.target.value)
-                                            }
-                                            className="w-12 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="1"
-                                            title="Editar cantidad del paquete"
-                                          />
-                                        </span>
+
                                         <span>
                                           $/m²:{" "}
                                           <div className="inline-flex items-center gap-1">
@@ -2097,9 +2074,9 @@ const PresupuestoDetalle = () => {
                                             </svg>
                                           </div>
                                         </span>
-                                        {/* Mostrar volumen */}
+                                        {/* Mostrar m2 por unidad */}
                                         <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                          M2: {((p.ancho || 0) * (p.largo || 0) * (p.cantidadPaquete || p.cantidad || 1)).toLocaleString()} m²
+                                          M2 por unidad: {((p.ancho || 0) * (p.largo || 0)).toFixed(2)} m²
                                         </div>
                                       </>
                                     ) : (
