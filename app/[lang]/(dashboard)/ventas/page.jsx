@@ -211,43 +211,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [categoriasState, setCategoriasState] = useState([]);
   const [productosLoading, setProductosLoading] = useState(true);
 
-  // Carga paralela de datos optimizada
   useEffect(() => {
-    const cargarDatosParalelo = async () => {
-      try {
-        // Cargar productos y clientes en paralelo
-        const [productosSnap, clientesSnap] = await Promise.all([
-          getDocs(collection(db, "productos")),
-          getDocs(collection(db, "clientes"))
-        ]);
-
-        // Procesar productos
-        const productos = productosSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        const agrupados = {};
-        productos.forEach((p) => {
-          if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
-          agrupados[p.categoria].push(p);
-        });
-
-        // Actualizar estados en paralelo
-        setProductosState(productos);
-        setProductosPorCategoria(agrupados);
-        setCategoriasState(Object.keys(agrupados));
-        setProductosLoading(false);
-
-        // Procesar clientes
-        const clientes = clientesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setClientesState(clientes);
-        setClientesLoading(false);
-
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-        setProductosLoading(false);
-        setClientesLoading(false);
-      }
+    setProductosLoading(true);
+    const fetchProductos = async () => {
+      const snap = await getDocs(collection(db, "productos"));
+      const productos = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setProductosState(productos);
+      const agrupados = {};
+      productos.forEach((p) => {
+        if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
+        agrupados[p.categoria].push(p);
+      });
+      setProductosPorCategoria(agrupados);
+      setCategoriasState(Object.keys(agrupados));
+      setProductosLoading(false);
     };
-
-    cargarDatosParalelo();
+    fetchProductos();
   }, []);
 
   const [categoriaId, setCategoriaId] = useState("");
@@ -353,25 +332,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       ]);
     }
   };
-  const handleQuitarProducto = useCallback((id) => {
-    setProductosSeleccionados(prev =>
-      prev.filter((p) => p.id !== id)
+  const handleQuitarProducto = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.filter((p) => p.id !== id)
     );
-  }, []);
+  };
   // Función helper para manejar valores numéricos
-  const parseNumericValue = useCallback((value) => {
+  const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {
       return "";
     }
     const num = Number(value);
     return isNaN(num) ? "" : num;
-  }, []);
+  };
 
-  const handleCantidadChange = useCallback((id, cantidad) => {
+  const handleCantidadChange = (id, cantidad) => {
     const parsedCantidad = parseNumericValue(cantidad);
 
-    setProductosSeleccionados(prev => 
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (p.id === id) {
           // Si es machimbre o deck, recalcular precio
           if (
@@ -403,10 +382,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
-  const handleIncrementarCantidad = useCallback((id) => {
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+  };
+  const handleIncrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (p.id === id) {
           const nuevaCantidad = Number(p.cantidad) + 1;
 
@@ -440,10 +419,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
-  const handleDecrementarCantidad = useCallback((id) => {
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+  };
+  const handleDecrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (p.id === id) {
           const nuevaCantidad = Math.max(1, Number(p.cantidad) - 1);
 
@@ -477,36 +456,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
-  const handleDescuentoChange = useCallback((id, descuento) => {
+  };
+  const handleDescuentoChange = (id, descuento) => {
     const parsedDescuento = parseNumericValue(descuento);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) =>
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
         p.id === id ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento } : p
       )
     );
-  }, []);
-  const handleNombreChange = useCallback((id, nombre) => {
-    setProductosSeleccionados(prev =>
-      prev.map((p) =>
+  };
+  const handleNombreChange = (id, nombre) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
         p.id === id ? { ...p, nombre: nombre } : p
       )
     );
-  }, []);
-  const handlePrecioChange = useCallback((id, precio) => {
+  };
+  const handlePrecioChange = (id, precio) => {
     const parsedPrecio = parseNumericValue(precio);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) =>
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
         p.id === id ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio } : p
       )
     );
-  }, []);
+  };
 
-  const recalcularPreciosMadera = useCallback((id, aplicarCepillado) => {
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+  const recalcularPreciosMadera = (id, aplicarCepillado) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
@@ -542,13 +521,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
-  const handlePrecioPorPieChange = useCallback((id, nuevoPrecioPorPie) => {
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
@@ -584,14 +563,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
   // Función para manejar cambios en alto para machimbre/deck
-  const handleAltoChange = useCallback((id, nuevoAlto) => {
+  const handleAltoChange = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -619,14 +598,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
   // Función para manejar cambios en ancho para machimbre/deck
-  const handleAnchoChange = useCallback((id, nuevoAncho) => {
+  const handleAnchoChange = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -654,14 +633,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
   // Función para manejar cambios en largo para machimbre/deck
-  const handleLargoChange = useCallback((id, nuevoLargo) => {
+  const handleLargoChange = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -689,14 +668,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
   // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
-  const handleAltoChangeMadera = useCallback((id, nuevoAlto) => {
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -725,13 +704,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
-  const handleAnchoChangeMadera = useCallback((id, nuevoAncho) => {
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -760,13 +739,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
-  const handleLargoChangeMadera = useCallback((id, nuevoLargo) => {
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -795,13 +774,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
-  const handlePrecioPorPieChangeMadera = useCallback((id, nuevoPrecioPorPie) => {
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
     
-    setProductosSeleccionados(prev =>
-      prev.map((p) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
@@ -830,31 +809,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         return p;
       })
     );
-  }, []);
+  };
 
-  // Memoización de tipos de madera
-  const tiposMadera = useMemo(() => {
-    if (!productosState.length || categoriaId !== "Maderas") return [];
-    const tipos = new Set();
-    productosState.forEach(p => {
-      if (p.categoria === "Maderas" && p.tipoMadera) {
-        tipos.add(p.tipoMadera);
-      }
-    });
-    return Array.from(tipos).sort();
-  }, [productosState, categoriaId]);
+  // Obtener tipos de madera únicos
+  const tiposMadera = [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
 
-  // Memoización de subcategorías
-  const subcategorias = useMemo(() => {
-    if (!productosState.length || categoriaId !== "Maderas") return [];
-    const subcats = new Set();
-    productosState.forEach(p => {
-      if (p.categoria === "Maderas" && p.subcategoria) {
-        subcats.add(p.subcategoria);
-      }
-    });
-    return Array.from(subcats).sort();
-  }, [productosState, categoriaId]);
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
 
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
@@ -1089,50 +1062,82 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return texto.toLowerCase().replace(/\s+/g, "");
   };
 
-  // Memoización de filtros para evitar recálculos
+  // Función para filtrar productos optimizada con useMemo
   const productosFiltrados = useMemo(() => {
-    if (!productosState.length) return [];
+    if (!productosPorCategoria[categoriaId]) return [];
 
-    let filtrados = productosState;
+    // Normalizar el término de búsqueda una sola vez
+    const busquedaNormalizada = normalizarTexto(busquedaProducto);
 
-    // Filtro por categoría
-    if (categoriaId) {
-      filtrados = filtrados.filter(p => p.categoria === categoriaId);
-    }
+    return productosPorCategoria[categoriaId]
+      .filter((prod) => {
+        // Normalizar el nombre del producto
+        const nombreNormalizado = normalizarTexto(prod.nombre);
 
-    // Filtro por búsqueda
-    if (busquedaProducto) {
-      const busqueda = busquedaProducto.toLowerCase();
-      filtrados = filtrados.filter(p => 
-        p.nombre.toLowerCase().includes(busqueda) ||
-        p.tipoMadera?.toLowerCase().includes(busqueda) ||
-        p.subcategoria?.toLowerCase().includes(busqueda)
-      );
-    }
+        // Normalizar la unidad de medida
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
 
-    // Filtro por tipo de madera
-    if (filtroTipoMadera) {
-      filtrados = filtrados.filter(p => p.tipoMadera === filtroTipoMadera);
-    }
+        // Filtro por búsqueda de texto con lógica mejorada
+        let cumpleBusqueda = busquedaNormalizada === "";
 
-    // Filtro por subcategoría
-    if (filtroSubCategoria) {
-      filtrados = filtrados.filter(p => p.subcategoria === filtroSubCategoria);
-    }
+        if (busquedaNormalizada !== "") {
+          // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
+          if (busquedaNormalizada.endsWith(".")) {
+            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
+            cumpleBusqueda =
+              nombreNormalizado.startsWith(busquedaSinPunto) ||
+              unidadNormalizada.startsWith(busquedaSinPunto);
+          } else {
+            // Búsqueda normal: incluye el texto en cualquier parte
+            cumpleBusqueda =
+              nombreNormalizado.includes(busquedaNormalizada) ||
+              unidadNormalizada.includes(busquedaNormalizada);
+          }
+        }
 
-    return filtrados;
-  }, [productosState, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+        // Filtro específico por tipo de madera
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
 
-  // Paginación optimizada
+        // Filtro específico por subcategoría de ferretería
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
+
+        return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+      })
+      .sort((a, b) => {
+        // Ordenar por stock: primero los que tienen stock, luego los que no
+        const stockA = Number(a.stock) || 0;
+        const stockB = Number(b.stock) || 0;
+
+        if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
+        if (stockA === 0 && stockB > 0) return 1; // b tiene stock, a no
+
+        // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+        return 0;
+      });
+  }, [
+    productosPorCategoria,
+    categoriaId,
+    busquedaProducto,
+    filtroTipoMadera,
+    filtroSubCategoria,
+  ]);
+
+  // Obtener productos filtrados y paginados optimizado
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Calcular productos para la página actual con useMemo
   const productosPaginados = useMemo(() => {
     const inicio = (paginaActual - 1) * productosPorPagina;
     const fin = inicio + productosPorPagina;
     return productosFiltrados.slice(inicio, fin);
   }, [productosFiltrados, paginaActual, productosPorPagina]);
-
-  const totalPaginas = useMemo(() => {
-    return Math.ceil(productosFiltrados.length / productosPorPagina);
-  }, [productosFiltrados.length, productosPorPagina]);
 
   // Función para cambiar de página con feedback visual
   const cambiarPagina = useCallback(
@@ -1625,7 +1630,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
                     {/* Filtro de subcategoría de ferretería */}
                     {categoriaId === "Ferretería" &&
-                      subcategorias.length > 0 && (
+                      subCategoriasFerreteria.length > 0 && (
                         <div className="flex-1">
                           <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
                             <button
@@ -1640,7 +1645,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             >
                               Todas las subcategorías
                             </button>
-                            {subcategorias.map((subCategoria) => (
+                            {subCategoriasFerreteria.map((subCategoria) => (
                               <button
                                 key={subCategoria}
                                 type="button"
