@@ -877,11 +877,32 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
     ) {
       return 0;
     }
+    // Convertir de cm a m: dividir por 100
+    const altoMetros = alto / 100;
+    const largoMetros = largo / 100;
     // Fórmula para productos de obra: (alto × largo) × valorVenta × cantidad
-    const metrosCuadrados = alto * largo;
+    const metrosCuadrados = altoMetros * largoMetros;
     const precio = metrosCuadrados * valorVenta * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
+  }
+
+  function calcularPrecioUnitarioProductoObra({ alto, largo, valorVenta }) {
+    if (
+      [alto, largo, valorVenta].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    // Convertir de cm a m: dividir por 100
+    const altoMetros = alto / 100;
+    const largoMetros = largo / 100;
+    // Fórmula para productos de obra: (alto × largo) × valorVenta (sin cantidad)
+    const metrosCuadrados = altoMetros * largoMetros;
+    const precioUnitario = metrosCuadrados * valorVenta;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precioUnitario / 100) * 100;
   }
 
   // Función para formatear números en formato argentino
@@ -2129,7 +2150,11 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                               </div>
                               {tipo === "presupuesto" && p.alto && p.largo && p.valorVenta && (
                                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  {p.cantidad} × ${formatearNumeroArgentino(p.precio / p.cantidad)}
+                                  {p.cantidad} × ${formatearNumeroArgentino(calcularPrecioUnitarioProductoObra({
+                                    alto: p.alto,
+                                    largo: p.largo,
+                                    valorVenta: p.valorVenta
+                                  }))}
                                 </div>
                               )}
                             </div>
@@ -2151,14 +2176,18 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                             <div className="text-right">
                               <div className="font-bold text-green-600 dark:text-green-400">
                                 ${formatearNumeroArgentino(
-                                  Number(p.precio) *
-                                  Number(p.cantidad) *
-                                    (1 - Number(p.descuento || 0) / 100)
+                                  tipo === "presupuesto" && p.valorVenta
+                                    ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
+                                    : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
                                 )}
                               </div>
                               {p.descuento > 0 && (
                                 <div className="text-xs text-red-500 dark:text-red-400 mt-1">
-                                  -${formatearNumeroArgentino((p.precio * p.cantidad * p.descuento) / 100)}
+                                  -${formatearNumeroArgentino(
+                                    tipo === "presupuesto" && p.valorVenta
+                                      ? (p.precio * p.descuento) / 100
+                                      : (p.precio * p.cantidad * p.descuento) / 100
+                                  )}
                                 </div>
                               )}
                             </div>
