@@ -72,14 +72,7 @@ export function DataTable({ columns, data }) {
     const tipo = row.original?.tipo || 'documento';
     const id = row.original?.id;
     
-    // Verificar si estamos en el contexto de obras-proyectos
-    // Si los datos contienen obras, usar la ruta de obras-proyectos
-    const isObrasContext = data.length > 0 && data[0].hasOwnProperty('numeroPedido');
-    
-    if (isObrasContext) {
-      // Para obras y presupuestos de obra, usar la ruta de obras-proyectos
-      router.push(`/${lang}/obras-proyectos/${id}`);
-    } else if (tipo === 'presupuesto') {
+    if (tipo === 'presupuesto') {
       router.push(`/${lang}/presupuestos/${id}`);
     } else if (tipo === 'venta') {
       router.push(`/${lang}/ventas/${id}`);
