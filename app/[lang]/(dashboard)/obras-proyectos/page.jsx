@@ -225,8 +225,23 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       let precio;
 
       if (tipo === "presupuesto") {
-        // Para productos de obras, usar valorVenta
-        precio = real.valorVenta || 0;
+        // Para productos de obras, usar la fórmula de machimbres: (alto × largo) × precioPorPie × cantidad
+        let alto = Number(real.alto) || 0;
+        let largo = Number(real.largo) || 0;
+        let precioPorPie = Number(real.precioPorPie) || 0;
+        let cantidad = 1; // Cantidad inicial
+
+        if (alto > 0 && largo > 0 && precioPorPie > 0) {
+          precio = calcularPrecioMachimbre({
+            alto,
+            largo,
+            cantidad,
+            precioPorPie,
+          });
+        } else {
+          // Si no tiene dimensiones, usar valorVenta como fallback
+          precio = real.valorVenta || 0;
+        }
       } else {
         // Para productos normales, usar lógica existente
         if (real.categoria === "Maderas") {
@@ -290,6 +305,12 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
           subcategoria: real.subcategoria,
           ubicacion: real.ubicacion,
           observaciones: real.observaciones,
+          // Para productos de obras, incluir dimensiones para cálculos
+          ...(tipo === "presupuesto" && {
+            alto: Number(real.alto) || 0,
+            largo: Number(real.largo) || 0,
+            precioPorPie: Number(real.precioPorPie) || 0,
+          }),
           // Solo para productos normales
           ...(tipo !== "presupuesto" && {
             alto: Number(real.alto) || 0,
@@ -311,25 +332,71 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   };
   const handleCantidadChange = (id, cantidad) => {
     setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Number(cantidad) } : p
-      )
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = Number(cantidad);
+          let nuevoPrecio = p.precio;
+          
+          // Si es un producto de obras (presupuesto), recalcular precio con la nueva cantidad
+          if (tipo === "presupuesto" && p.alto && p.largo && p.precioPorPie) {
+            nuevoPrecio = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: nuevaCantidad,
+              precioPorPie: p.precioPorPie,
+            });
+          }
+          
+          return { ...p, cantidad: nuevaCantidad, precio: nuevoPrecio };
+        }
+        return p;
+      })
     );
   };
   const handleIncrementarCantidad = (id) => {
     setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p
-      )
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = Number(p.cantidad) + 1;
+          let nuevoPrecio = p.precio;
+          
+          // Si es un producto de obras (presupuesto), recalcular precio con la nueva cantidad
+          if (tipo === "presupuesto" && p.alto && p.largo && p.precioPorPie) {
+            nuevoPrecio = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: nuevaCantidad,
+              precioPorPie: p.precioPorPie,
+            });
+          }
+          
+          return { ...p, cantidad: nuevaCantidad, precio: nuevoPrecio };
+        }
+        return p;
+      })
     );
   };
   const handleDecrementarCantidad = (id) => {
     setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id
-          ? { ...p, cantidad: Math.max(1, Number(p.cantidad) - 1) }
-          : p
-      )
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = Math.max(1, Number(p.cantidad) - 1);
+          let nuevoPrecio = p.precio;
+          
+          // Si es un producto de obras (presupuesto), recalcular precio con la nueva cantidad
+          if (tipo === "presupuesto" && p.alto && p.largo && p.precioPorPie) {
+            nuevoPrecio = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: nuevaCantidad,
+              precioPorPie: p.precioPorPie,
+            });
+          }
+          
+          return { ...p, cantidad: nuevaCantidad, precio: nuevoPrecio };
+        }
+        return p;
+      })
     );
   };
   const handleDescuentoChange = (id, descuento) => {
@@ -337,6 +404,53 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) =>
         p.id === id ? { ...p, descuento: Number(descuento) } : p
       )
+    );
+  };
+
+  // Funciones para manejar cambios de dimensiones en productos de obras
+  const handleAltoChange = (id, nuevoAlto) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && tipo === "presupuesto" && p.largo && p.precioPorPie) {
+          const nuevoAltoNum = Number(nuevoAlto);
+          const nuevoPrecio = calcularPrecioMachimbre({
+            alto: nuevoAltoNum,
+            largo: p.largo,
+            cantidad: p.cantidad,
+            precioPorPie: p.precioPorPie,
+          });
+
+          return {
+            ...p,
+            alto: nuevoAltoNum,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleLargoChange = (id, nuevoLargo) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && tipo === "presupuesto" && p.alto && p.precioPorPie) {
+          const nuevoLargoNum = Number(nuevoLargo);
+          const nuevoPrecio = calcularPrecioMachimbre({
+            alto: p.alto,
+            largo: nuevoLargoNum,
+            cantidad: p.cantidad,
+            precioPorPie: p.precioPorPie,
+          });
+
+          return {
+            ...p,
+            largo: nuevoLargoNum,
+            precio: nuevoPrecio,
+          };
+        }
+        return p;
+      })
     );
   };
 
@@ -369,23 +483,44 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas") {
-          const precioBase = calcularPrecioCorteMadera({
-            alto: p.alto,
-            ancho: p.ancho,
-            largo: p.largo,
-            precioPorPie: Number(nuevoPrecioPorPie),
-          });
+        if (p.id === id) {
+          const nuevoPrecioPorPieNum = Number(nuevoPrecioPorPie);
+          
+          // Para productos de obras (presupuesto), usar fórmula de machimbres
+          if (tipo === "presupuesto" && p.alto && p.largo) {
+            const nuevoPrecio = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: p.cantidad,
+              precioPorPie: nuevoPrecioPorPieNum,
+            });
 
-          const precioFinal = cepilladoAutomatico
-            ? precioBase * 1.066
-            : precioBase;
+            return {
+              ...p,
+              precioPorPie: nuevoPrecioPorPieNum,
+              precio: nuevoPrecio,
+            };
+          }
+          
+          // Para productos normales (maderas), usar fórmula de corte
+          if (p.categoria === "Maderas") {
+            const precioBase = calcularPrecioCorteMadera({
+              alto: p.alto,
+              ancho: p.ancho,
+              largo: p.largo,
+              precioPorPie: nuevoPrecioPorPieNum,
+            });
 
-          return {
-            ...p,
-            precioPorPie: Number(nuevoPrecioPorPie),
-            precio: precioFinal,
-          };
+            const precioFinal = cepilladoAutomatico
+              ? precioBase * 1.066
+              : precioBase;
+
+            return {
+              ...p,
+              precioPorPie: nuevoPrecioPorPieNum,
+              precio: precioFinal,
+            };
+          }
         }
         return p;
       })
@@ -628,6 +763,27 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
       return 0;
     }
     const precio = factor * alto * ancho * largo * precioPorPie;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  }
+
+  // Función para calcular precio de machimbre (precio por pie × alto × largo × cantidad)
+  function calcularPrecioMachimbre({
+    alto,
+    largo,
+    cantidad,
+    precioPorPie,
+  }) {
+    if (
+      [alto, largo, cantidad, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+    const metrosCuadrados = alto * largo;
+    const precio = metrosCuadrados * precioPorPie * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
   }
@@ -2644,14 +2800,14 @@ const ObrasPage = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
-          <Button
+          {/* <Button
             variant="default"
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
             onClick={() => setOpen("obra")}
           >
             <Icon icon="heroicons:building-office" className="w-4 h-4" />
             Agregar Obra
-          </Button>
+          </Button> */}
           <Button
             variant="default"
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
