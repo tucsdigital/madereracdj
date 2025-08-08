@@ -28,6 +28,7 @@ import { Icon } from "@iconify/react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useForm } from "react-hook-form";
+import { useAuth } from "@/provider/auth.provider";
 import {
   Filter,
   Search,
@@ -69,6 +70,7 @@ const estadosObra = {
 };
 
 function FormularioObra({ tipo, onClose, onSubmit }) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
@@ -698,6 +700,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
               tipoEnvio: cleanData.tipoEnvio || "",
               costoEnvio:
                 cleanData.tipoEnvio && cleanData.tipoEnvio !== "retiro_local"
@@ -716,6 +719,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
             };
       console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
@@ -2733,13 +2737,22 @@ const ObrasPage = () => {
         const nextNumeroPedido = await getNextObraNumber();
         cleanFormData.numeroPedido = nextNumeroPedido;
         cleanFormData.tipo = open === "presupuesto" ? "presupuesto" : "obra";
+        cleanFormData.estado = open === "presupuesto" ? "pendiente" : "pendiente";
         console.log("[DEBUG] Datos limpios para guardar:", cleanFormData);
         docRef = await addDoc(collection(db, "obras"), cleanFormData);
-          console.log(
+        console.log(
           "[SUCCESS] Documento guardado en Firebase con ID:",
-            docRef.id
-          );
-          setOpen(null);
+          docRef.id
+        );
+        setOpen(null);
+        
+        // Recargar los datos para que aparezca en la tabla
+        const obrasSnap = await getDocs(collection(db, "obras"));
+        setObrasData(
+          obrasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
+        );
+        
+        // Redirigir al detalle del presupuesto/obra creado
         router.push(`/${lang}/obras-proyectos/${docRef.id}`);
       }
     } catch (error) {
