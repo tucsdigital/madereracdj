@@ -533,7 +533,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
             precioBase = calcularPrecioMachimbre({
-              ancho: p.ancho,
+              alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
               precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
@@ -612,7 +612,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: parsedAncho === "" ? 0 : parsedAncho,
+            alto: p.alto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -662,6 +662,147 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           return {
             ...p,
             largo: parsedLargo,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: parsedAlto === "" ? 0 : parsedAlto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            alto: parsedAlto,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: parsedAncho === "" ? 0 : parsedAncho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            ancho: parsedAncho,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: parsedLargo === "" ? 0 : parsedLargo,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            largo: parsedLargo,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            precioPorPie: parsedPrecioPorPie,
             precio: precioRedondeado,
           };
         }
@@ -2200,46 +2341,86 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </div>
                                     </>
                                   ) : (
-                                    /* Para otras maderas: solo mostrar valores */
+                                    /* Para otras maderas: campos editables */
                                     <div className="grid grid-cols-3 gap-2">
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
                                           Alto
-                                        </span>
-                                        <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
-                                            {p.alto || 0}
-                                          </span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                        </label>
+                                        <div className="relative">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.alto === "" ? "" : p.alto || ""}
+                                            onChange={(e) =>
+                                              handleAltoChangeMadera(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                            disabled={isSubmitting}
+                                            placeholder="0.00"
+                                          />
+                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
                                             m
-                                          </span>
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
                                           Ancho
-                                        </span>
-                                        <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
-                                            {p.ancho || 0}
-                                          </span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                        </label>
+                                        <div className="relative">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.ancho === "" ? "" : p.ancho || ""}
+                                            onChange={(e) =>
+                                              handleAnchoChangeMadera(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                            disabled={isSubmitting}
+                                            placeholder="0.00"
+                                          />
+                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
                                             m
-                                          </span>
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="space-y-1">
-                                        <span className="block text-xs font-medium text-orange-700 dark:text-orange-400">
+                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
                                           Largo
-                                        </span>
-                                        <div className="px-2 py-1 text-xs bg-white dark:bg-gray-800 rounded border border-orange-200 dark:border-orange-700">
-                                          <span className="font-semibold text-orange-800 dark:text-orange-300">
-                                            {p.largo || 0}
-                                          </span>
-                                          <span className="text-xs text-orange-600 dark:text-orange-400 ml-1">
+                                        </label>
+                                        <div className="relative">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.largo === "" ? "" : p.largo || ""}
+                                            onChange={(e) =>
+                                              handleLargoChangeMadera(
+                                                p.id,
+                                                e.target.value
+                                              )
+                                            }
+                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
+                                            disabled={isSubmitting}
+                                            placeholder="0.00"
+                                          />
+                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
                                             m
-                                          </span>
+                                          </div>
                                         </div>
+                                      </div>
+                                      {/* Mostrar volumen total para maderas normales */}
+                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
+                                        Volumen: {((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2)} m³
                                       </div>
                                     </div>
                                   )}
@@ -2278,12 +2459,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         min="0"
                                         step="0.01"
                                         value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
-                                        onChange={(e) =>
-                                          handlePrecioPorPieChange(
-                                            p.id,
-                                            e.target.value
-                                          )
-                                        }
+                                        onChange={(e) => {
+                                          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                            handlePrecioPorPieChange(p.id, e.target.value);
+                                          } else {
+                                            handlePrecioPorPieChangeMadera(p.id, e.target.value);
+                                          }
+                                        }}
                                         className="w-full pl-6 pr-2 py-1 text-xs border border-green-300 dark:border-green-600 rounded bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors"
                                         disabled={isSubmitting}
                                         placeholder="0.00"

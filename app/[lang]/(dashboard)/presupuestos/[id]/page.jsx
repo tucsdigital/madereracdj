@@ -457,7 +457,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: parsedAncho === "" ? 0 : parsedAncho,
+            alto: p.alto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -516,7 +516,150 @@ const PresupuestoDetalle = () => {
     }));
   };
 
+  // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: parsedAlto === "" ? 0 : parsedAlto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
 
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            alto: parsedAlto,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: parsedAncho === "" ? 0 : parsedAncho,
+            largo: p.largo,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            ancho: parsedAncho,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: parsedLargo === "" ? 0 : parsedLargo,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            largo: parsedLargo,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.subcategoria !== "machimbre" &&
+          p.subcategoria !== "deck"
+        ) {
+          const precioBase = calcularPrecioCorteMadera({
+            alto: p.alto,
+            ancho: p.ancho,
+            largo: p.largo,
+            precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
+          });
+
+          const precioFinal = p.cepilladoAplicado
+            ? precioBase * 1.066
+            : precioBase;
+
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+          return {
+            ...p,
+            precioPorPie: parsedPrecioPorPie,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
 
   // Función para formatear números en formato argentino
   const formatearNumeroArgentino = (numero) => {
@@ -1804,7 +1947,41 @@ const PresupuestoDetalle = () => {
                                     ) : (
                                       <button
                                         type="button"
-                                        onClick={() =>
+                                        onClick={() => {
+                                          // Calcular precio inicial según el tipo de producto
+                                          let precioCalculado = 0;
+                                          const alto = Number(prod.alto) || 0;
+                                          const ancho = Number(prod.ancho) || 0;
+                                          const largo = Number(prod.largo) || 0;
+                                          const precioPorPie = Number(prod.precioPorPie) || 0;
+                                          const subcategoria = prod.categoria === "Maderas" 
+                                            ? (prod.subcategoria || prod.subCategoria || "")
+                                            : (prod.subCategoria || prod.subcategoria || "");
+
+                                          if (prod.categoria === "Maderas") {
+                                            if (subcategoria === "machimbre" || subcategoria === "deck") {
+                                              // Para machimbres/deck: usar la fórmula específica
+                                              precioCalculado = calcularPrecioMachimbre({
+                                                alto: alto,
+                                                largo: largo,
+                                                cantidad: 1,
+                                                precioPorPie: precioPorPie,
+                                              });
+                                            } else {
+                                              // Para otras maderas: usar la fórmula estándar
+                                              precioCalculado = calcularPrecioCorteMadera({
+                                                alto: alto,
+                                                ancho: ancho,
+                                                largo: largo,
+                                                precioPorPie: precioPorPie,
+                                              });
+                                            }
+                                          } else if (prod.categoria === "Ferretería") {
+                                            precioCalculado = prod.valorVenta || 0;
+                                          } else {
+                                            precioCalculado = prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0;
+                                          }
+
                                           setPresupuestoEdit((prev) => ({
                                             ...prev,
                                             productos: [
@@ -1812,11 +1989,7 @@ const PresupuestoDetalle = () => {
                                               {
                                                 id: prod.id,
                                                 nombre: prod.nombre,
-                                                precio:
-                                                  prod.precioPorPie ||
-                                                  prod.valorVenta ||
-                                                  prod.precioUnidad ||
-                                                  0,
+                                                precio: precioCalculado,
                                                 unidad:
                                                   prod.unidadMedida ||
                                                   prod.unidadVenta ||
@@ -1827,23 +2000,17 @@ const PresupuestoDetalle = () => {
                                                 cantidad: 1,
                                                 descuento: 0,
                                                 categoria: prod.categoria,
-                                                alto: Number(prod.alto) || 0,
-                                                ancho: Number(prod.ancho) || 0,
-                                                largo: Number(prod.largo) || 0,
-                                                precioPorPie:
-                                                  Number(prod.precioPorPie) ||
-                                                  0,
-                                                cepilladoAplicado: false, // Agregar propiedad por defecto
-                                                tipoMadera:
-                                                  prod.tipoMadera || "",
-                                                subcategoria:
-                                                  prod.categoria === "Maderas" 
-                                                    ? (prod.subcategoria || prod.subCategoria || "")
-                                                    : (prod.subCategoria || prod.subcategoria || ""),
+                                                alto: alto,
+                                                ancho: ancho,
+                                                largo: largo,
+                                                precioPorPie: precioPorPie,
+                                                cepilladoAplicado: false,
+                                                tipoMadera: prod.tipoMadera || "",
+                                                subcategoria: subcategoria,
                                               },
                                             ],
-                                          }))
-                                        }
+                                          }));
+                                        }}
                                         className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
                                       >
                                         Agregar
@@ -2121,18 +2288,54 @@ const PresupuestoDetalle = () => {
                                       </>
                                     ) : (
                                       <>
-                                        {/* Campos de solo lectura para maderas normales */}
+                                        {/* Campos editables para maderas normales */}
                                         <span>
                                           Alto:{" "}
-                                          <span className="font-bold">{p.alto}</span>{" "}
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            value={p.alto === "" ? "" : p.alto || ""}
+                                            onChange={(e) =>
+                                              handleAltoChangeMadera(p.id, e.target.value)
+                                            }
+                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="0"
+                                            title="Editar alto (cm)"
+                                          />
                                         </span>
                                         <span>
                                           Ancho:{" "}
-                                          <span className="font-bold">{p.ancho}</span>{" "}
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            value={p.ancho === "" ? "" : p.ancho || ""}
+                                            onChange={(e) =>
+                                              handleAnchoChangeMadera(p.id, e.target.value)
+                                            }
+                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="0"
+                                            title="Editar ancho (cm)"
+                                          />
                                         </span>
                                         <span>
                                           Largo:{" "}
-                                          <span className="font-bold">{p.largo}</span>{" "}
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            value={p.largo === "" ? "" : p.largo || ""}
+                                            onChange={(e) =>
+                                              handleLargoChangeMadera(p.id, e.target.value)
+                                            }
+                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                            disabled={loadingPrecios}
+                                            placeholder="0"
+                                            title="Editar largo (cm)"
+                                          />
                                         </span>
                                         <span>
                                           $/pie:{" "}
@@ -2141,9 +2344,9 @@ const PresupuestoDetalle = () => {
                                               type="number"
                                               min="0"
                                               step="0.01"
-                                              value={p.precioPorPie}
+                                              value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                               onChange={(e) =>
-                                                handlePrecioPorPieChange(
+                                                handlePrecioPorPieChangeMadera(
                                                   p.id,
                                                   e.target.value
                                                 )
@@ -2168,7 +2371,10 @@ const PresupuestoDetalle = () => {
                                             </svg>
                                           </div>
                                         </span>
-
+                                        {/* Mostrar volumen total */}
+                                        <div className="mt-2 text-xs text-blue-800 font-semibold">
+                                          Volumen: {((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2)} cm³
+                                        </div>
                                       </>
                                     )}
                                     
