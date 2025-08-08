@@ -1,12 +1,12 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
@@ -21,6 +21,7 @@ function StockComprasPage() {
   const [loadingProd, setLoadingProd] = useState(true);
   const [loadingMov, setLoadingMov] = useState(true);
   const [error, setError] = useState(null);
+  
   // Formulario movimiento
   const [movProductoId, setMovProductoId] = useState("");
   const [movTipo, setMovTipo] = useState("entrada");
@@ -38,6 +39,22 @@ function StockComprasPage() {
   const [detalleProducto, setDetalleProducto] = useState(null);
   const [detalleMovimientos, setDetalleMovimientos] = useState([]);
   const [detalleOpen, setDetalleOpen] = useState(false);
+
+  // Estados para filtros avanzados
+  const [categoriaId, setCategoriaId] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+
+  // Estados para paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(20);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+
+  // Estados para paginación de movimientos
+  const [paginaActualMov, setPaginaActualMov] = useState(1);
+  const [movimientosPorPagina] = useState(15);
+  const [isLoadingPaginationMov, setIsLoadingPaginationMov] = useState(false);
 
   // Cargar productos en tiempo real
   useEffect(() => {
@@ -119,54 +136,199 @@ function StockComprasPage() {
     }
   }
 
-  // Inventario filtrado
-  const productosFiltrados = productos.filter(p => {
-    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-    const normalizarTexto = (texto) => {
-      return texto.toLowerCase().replace(/\s+/g, '');
-    };
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado]);
 
-    // Normalizar el término de búsqueda
-    const filtroNormalizado = normalizarTexto(filtro || "");
-    
-    // Normalizar el nombre del producto
-    const nombreNormalizado = normalizarTexto(p.nombre || "");
+  // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto.toLowerCase().replace(/\s+/g, '');
+  }, []);
 
-    return nombreNormalizado.includes(filtroNormalizado);
-  });
-
-  // Movimientos con join de nombre de producto
-  const movimientosFiltrados = movimientos
-    .map(m => ({
-      ...m,
-      productoNombre: productos.find(p => p.id === m.productoId)?.nombre || "(eliminado)"
-    }))
-    .filter(m => {
-      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-      const normalizarTexto = (texto) => {
-        return texto.toLowerCase().replace(/\s+/g, '');
-      };
-
+  // Inventario filtrado optimizado con useMemo
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
       // Normalizar el término de búsqueda
-      const filtroNormalizado = normalizarTexto(filtroMov || "");
+      const filtroNormalizado = normalizarTexto(filtro || "");
       
       // Normalizar el nombre del producto
-      const nombreNormalizado = normalizarTexto(m.productoNombre || "");
+      const nombreNormalizado = normalizarTexto(p.nombre || "");
       
-      // Normalizar el usuario
-      const usuarioNormalizado = normalizarTexto(m.usuario || "");
+      // Normalizar el código del producto
+      const codigoNormalizado = normalizarTexto(p.codigo || "");
 
-      return nombreNormalizado.includes(filtroNormalizado) ||
-             usuarioNormalizado.includes(filtroNormalizado);
+      // Filtro por categoría
+      const cumpleCategoria = categoriaId ? p.categoria === categoriaId : true;
+
+      // Filtro por búsqueda de texto con lógica mejorada
+      let cumpleFiltro = !filtro;
+      
+      if (filtro) {
+        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
+        if (filtroNormalizado.endsWith('.')) {
+          const busquedaSinPunto = filtroNormalizado.slice(0, -1);
+          cumpleFiltro = 
+            nombreNormalizado.startsWith(busquedaSinPunto) ||
+            codigoNormalizado.startsWith(busquedaSinPunto);
+        } else {
+          // Búsqueda normal: incluye el texto en cualquier parte
+          cumpleFiltro = 
+            nombreNormalizado.includes(filtroNormalizado) ||
+            codigoNormalizado.includes(filtroNormalizado);
+        }
+      }
+
+      // Filtro específico por tipo de madera
+      const cumpleTipoMadera =
+        categoriaId !== "Maderas" ||
+        filtroTipoMadera === "" ||
+        p.tipoMadera === filtroTipoMadera;
+
+      // Filtro específico por subcategoría de ferretería
+      const cumpleSubCategoria =
+        categoriaId !== "Ferretería" ||
+        filtroSubCategoria === "" ||
+        p.subCategoria === filtroSubCategoria;
+
+      // Filtro por estado de stock
+      const cumpleEstado = !filtroEstado || (() => {
+        const stock = Number(p.stock) || 0;
+        const min = Number(p.min) || 0;
+        
+        switch (filtroEstado) {
+          case "sin_stock":
+            return stock === 0;
+          case "bajo_stock":
+            return stock > 0 && stock <= min;
+          case "ok_stock":
+            return stock > min;
+          default:
+            return true;
+        }
+      })();
+
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleEstado;
+    }).sort((a, b) => {
+      // Ordenar por stock: primero los que tienen stock, luego los que no
+      const stockA = Number(a.stock) || 0;
+      const stockB = Number(b.stock) || 0;
+      
+      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
+      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
+      
+      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+      return 0;
     });
+  }, [productos, categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado, normalizarTexto]);
+
+  // Productos paginados optimizados
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Cálculo de totales optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Función para cambiar página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+    
+    setIsLoadingPagination(true);
+    setPaginaActual(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 300);
+  }, [totalPaginas]);
+
+  // Movimientos con join de nombre de producto optimizados
+  const movimientosFiltrados = useMemo(() => {
+    return movimientos
+      .map(m => ({
+        ...m,
+        productoNombre: productos.find(p => p.id === m.productoId)?.nombre || "(eliminado)"
+      }))
+      .filter(m => {
+        // Normalizar el término de búsqueda
+        const filtroNormalizado = normalizarTexto(filtroMov || "");
+        
+        // Normalizar el nombre del producto
+        const nombreNormalizado = normalizarTexto(m.productoNombre || "");
+        
+        // Normalizar el usuario
+        const usuarioNormalizado = normalizarTexto(m.usuario || "");
+
+        return nombreNormalizado.includes(filtroNormalizado) ||
+               usuarioNormalizado.includes(filtroNormalizado);
+      });
+  }, [movimientos, productos, filtroMov, normalizarTexto]);
+
+  // Movimientos paginados optimizados
+  const movimientosPaginados = useMemo(() => {
+    const inicio = (paginaActualMov - 1) * movimientosPorPagina;
+    const fin = inicio + movimientosPorPagina;
+    return movimientosFiltrados.slice(inicio, fin);
+  }, [movimientosFiltrados, paginaActualMov, movimientosPorPagina]);
+
+  // Cálculo de totales de movimientos optimizados
+  const totalMovimientos = movimientosFiltrados.length;
+  const totalPaginasMov = Math.ceil(totalMovimientos / movimientosPorPagina);
+
+  // Función para cambiar página de movimientos con feedback visual
+  const cambiarPaginaMov = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginasMov) return;
+    
+    setIsLoadingPaginationMov(true);
+    setPaginaActualMov(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPaginationMov(false);
+    }, 300);
+  }, [totalPaginasMov]);
+
+  // Resetear página de movimientos cuando cambia el filtro
+  useEffect(() => {
+    setPaginaActualMov(1);
+  }, [filtroMov]);
+
+  // Obtener categorías únicas
+  const categoriasUnicas = useMemo(() => {
+    return [...new Set(productos.map(p => p.categoria))].sort();
+  }, [productos]);
+
+  // Obtener tipos de madera únicos
+  const tiposMaderaUnicos = useMemo(() => {
+    if (!productos.length || categoriaId !== "Maderas") return [];
+    const tipos = new Set();
+    productos.forEach(p => {
+      if (p.categoria === "Maderas" && p.tipoMadera) {
+        tipos.add(p.tipoMadera);
+      }
+    });
+    return Array.from(tipos).sort();
+  }, [productos, categoriaId]);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = useMemo(() => {
+    if (!productos.length || categoriaId !== "Ferretería") return [];
+    const subcats = new Set();
+    productos.forEach(p => {
+      if (p.categoria === "Ferretería" && p.subCategoria) {
+        subcats.add(p.subCategoria);
+      }
+    });
+    return Array.from(subcats).sort();
+  }, [productos, categoriaId]);
 
   // Filtrar productos en buscador dinámico
   const productosMovFiltrados = productos.filter(p => {
-    // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
-    const normalizarTexto = (texto) => {
-      return texto.toLowerCase().replace(/\s+/g, '');
-    };
-
     // Normalizar el término de búsqueda
     const buscadorNormalizado = normalizarTexto(buscadorMov || "");
     
@@ -308,6 +470,100 @@ function StockComprasPage() {
                   <Input placeholder="Buscar producto..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-48" />
                 </div>
               </CardHeader>
+              <CardContent>
+                {/* Filtros avanzados */}
+                <div className="mb-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Filtro por categoría */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Categoría
+                      </label>
+                      <select
+                        value={categoriaId}
+                        onChange={(e) => setCategoriaId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                      >
+                        <option value="">Todas las categorías</option>
+                        {categoriasUnicas.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Filtro por tipo de madera */}
+                    {categoriaId === "Maderas" && tiposMaderaUnicos.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Tipo de Madera
+                        </label>
+                        <select
+                          value={filtroTipoMadera}
+                          onChange={(e) => setFiltroTipoMadera(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">Todos los tipos</option>
+                          {tiposMaderaUnicos.map((tipo) => (
+                            <option key={tipo} value={tipo}>
+                              {tipo}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Filtro por subcategoría de ferretería */}
+                    {categoriaId === "Ferretería" && subCategoriasFerreteria.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Subcategoría
+                        </label>
+                        <select
+                          value={filtroSubCategoria}
+                          onChange={(e) => setFiltroSubCategoria(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">Todas las subcategorías</option>
+                          {subCategoriasFerreteria.map((subCat) => (
+                            <option key={subCat} value={subCat}>
+                              {subCat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Filtro por estado de stock */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Estado de Stock
+                      </label>
+                      <select
+                        value={filtroEstado}
+                        onChange={(e) => setFiltroEstado(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                      >
+                        <option value="">Todos los estados</option>
+                        <option value="sin_stock">Sin stock</option>
+                        <option value="bajo_stock">Bajo stock</option>
+                        <option value="ok_stock">Stock OK</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Información de resultados */}
+                  <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                    <span>
+                      Mostrando {productosPaginados.length} de {totalProductos} productos
+                    </span>
+                    <span>
+                      Página {paginaActual} de {totalPaginas}
+                    </span>
+                  </div>
+                                </div>
+              </CardContent>
               <CardContent className="overflow-x-auto">
                 {loadingProd ? (
                   <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
@@ -326,7 +582,7 @@ function StockComprasPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {productosFiltrados.map(p => (
+                      {productosPaginados.map(p => (
                         <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-yellow-50" : ""}>
                           <TableCell>
                             <div className="flex items-center gap-2">

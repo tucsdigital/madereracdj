@@ -117,7 +117,14 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   };
 
   // Calcular totales
-  const subtotal = productosSeleccionados.reduce((acc, p) => acc + (p.precio * p.cantidad), 0);
+  const subtotal = productosSeleccionados.reduce((acc, p) => {
+    // Para machimbre y deck, el precio ya incluye la cantidad
+    if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+      return acc + p.precio;
+    } else {
+      return acc + (p.precio * p.cantidad);
+    }
+  }, 0);
   const descuentoTotal = productosSeleccionados.reduce((acc, p) => acc + (p.descuento * p.cantidad), 0);
   // Calcular costo de envío solo si no es retiro local
   const costoEnvioCalculado = 

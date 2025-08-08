@@ -830,7 +830,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   ].filter(Boolean);
 
   const subtotal = productosSeleccionados.reduce(
-    (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+    (acc, p) => {
+      // Para machimbre y deck, el precio ya incluye la cantidad
+      if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+        return acc + Number(p.precio);
+      } else {
+        return acc + Number(p.precio) * Number(p.cantidad);
+      }
+    },
     0
   );
   const descuentoTotal = productosSeleccionados.reduce(
