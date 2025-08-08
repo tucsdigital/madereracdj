@@ -285,6 +285,15 @@ const VentaDetalle = () => {
   };
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  // Función helper para manejar valores numéricos
+  const parseNumericValue = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+    const num = Number(value);
+    return isNaN(num) ? "" : num;
+  };
+
   const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
     setVentaEdit((prev) => ({
       ...prev,
@@ -326,6 +335,8 @@ const VentaDetalle = () => {
 
   // Función para recalcular precio cuando se cambia el precio por pie
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -338,11 +349,11 @@ const VentaDetalle = () => {
               alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
-              precioPorPie: Number(nuevoPrecioPorPie),
+              precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
             });
           } else {
             // Para otras maderas: usar la fórmula estándar
-            precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+            precioBase = 0.2734 * p.alto * p.ancho * p.largo * (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
           }
 
           // Aplicar cepillado si está habilitado para este producto específico
@@ -355,7 +366,7 @@ const VentaDetalle = () => {
 
           return {
             ...p,
-            precioPorPie: Number(nuevoPrecioPorPie),
+            precioPorPie: parsedPrecioPorPie,
             precio: precioRedondeado,
           };
         }
@@ -563,6 +574,8 @@ const VentaDetalle = () => {
   };
 
   const handleCantidadChange = (id, cantidad) => {
+    const parsedCantidad = parseNumericValue(cantidad);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: prev.productos.map((p) => {
@@ -572,7 +585,7 @@ const VentaDetalle = () => {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
-              cantidad: Number(cantidad),
+              cantidad: parsedCantidad === "" ? 1 : parsedCantidad,
               precioPorPie: p.precioPorPie,
             });
 
@@ -584,12 +597,12 @@ const VentaDetalle = () => {
 
             return {
               ...p,
-              cantidad: Number(cantidad),
+              cantidad: parsedCantidad === "" ? 1 : parsedCantidad,
               precio: precioRedondeado,
             };
           }
           // Para otros productos, solo cambiar cantidad
-          return { ...p, cantidad: Number(cantidad) };
+          return { ...p, cantidad: parsedCantidad === "" ? 1 : parsedCantidad };
         }
         return p;
       }),
@@ -597,10 +610,12 @@ const VentaDetalle = () => {
   };
 
   const handleDescuentoChange = (id, descuento) => {
+    const parsedDescuento = parseNumericValue(descuento);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: prev.productos.map((p) =>
-        p.id === id ? { ...p, descuento: Number(descuento) } : p
+        p.id === id ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento } : p
       ),
     }));
   };
@@ -614,6 +629,8 @@ const VentaDetalle = () => {
 
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -623,7 +640,7 @@ const VentaDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAlto),
+            alto: parsedAlto === "" ? 0 : parsedAlto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -637,7 +654,7 @@ const VentaDetalle = () => {
 
           return {
             ...p,
-            alto: Number(nuevoAlto),
+            alto: parsedAlto,
             precio: precioRedondeado,
           };
         }
@@ -648,6 +665,8 @@ const VentaDetalle = () => {
 
   // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -657,7 +676,7 @@ const VentaDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAncho),
+            alto: parsedAncho === "" ? 0 : parsedAncho,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -671,7 +690,7 @@ const VentaDetalle = () => {
 
           return {
             ...p,
-            ancho: Number(nuevoAncho),
+            ancho: parsedAncho,
             precio: precioRedondeado,
           };
         }
@@ -682,6 +701,8 @@ const VentaDetalle = () => {
 
   // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -692,7 +713,7 @@ const VentaDetalle = () => {
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo === "" ? 0 : parsedLargo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
@@ -705,7 +726,7 @@ const VentaDetalle = () => {
 
           return {
             ...p,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo,
             precio: precioRedondeado,
           };
         }
@@ -2699,7 +2720,7 @@ const VentaDetalle = () => {
                                         value={
                                           ventaEdit.productos.find(
                                             (p) => p.id === prod.id
-                                          )?.cantidad || 1
+                                          )?.cantidad || ""
                                         }
                                         onChange={(e) =>
                                           setVentaEdit((prev) => ({
@@ -2995,7 +3016,7 @@ const VentaDetalle = () => {
                                           type="number"
                                           min="0"
                                           step="0.1"
-                                          value={p.alto || 0}
+                                          value={p.alto === "" ? "" : p.alto || ""}
                                           onChange={(e) =>
                                             handleAltoChange(p.id, e.target.value)
                                           }
@@ -3011,7 +3032,7 @@ const VentaDetalle = () => {
                                           type="number"
                                           min="0"
                                           step="0.1"
-                                          value={p.largo || 0}
+                                          value={p.largo === "" ? "" : p.largo || ""}
                                           onChange={(e) =>
                                             handleLargoChange(p.id, e.target.value)
                                           }
@@ -3029,7 +3050,7 @@ const VentaDetalle = () => {
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            value={p.precioPorPie}
+                                            value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                             onChange={(e) =>
                                               handlePrecioPorPieChange(
                                                 p.id,
@@ -3156,7 +3177,7 @@ const VentaDetalle = () => {
                                   <input
                                     type="number"
                                     min={1}
-                                    value={p.cantidad}
+                                    value={p.cantidad === "" ? "" : p.cantidad}
                                     onChange={(e) =>
                                       handleCantidadChange(p.id, e.target.value)
                                     }
@@ -3197,7 +3218,7 @@ const VentaDetalle = () => {
                                 type="number"
                                 min={0}
                                 max={100}
-                                value={p.descuento || 0}
+                                value={p.descuento === "" ? "" : p.descuento || ""}
                                 onChange={(e) =>
                                   handleDescuentoChange(p.id, e.target.value)
                                 }
@@ -3417,7 +3438,7 @@ const VentaDetalle = () => {
                               ? 'border-red-500 bg-red-50' 
                               : 'border-gray-300'
                           }`}
-                          value={ventaEdit.nuevoPagoMonto || ""}
+                          value={ventaEdit.nuevoPagoMonto === "" ? "" : ventaEdit.nuevoPagoMonto || ""}
                           onChange={(e) => {
                             const valor = e.target.value;
                             console.log("Cambiando monto de pago:", valor);

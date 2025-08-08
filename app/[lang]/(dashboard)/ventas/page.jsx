@@ -233,7 +233,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
-  
+
   // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
@@ -259,11 +259,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
         // Verificar si es machimbre o deck para usar cálculo especial
         if (real.subcategoria === "machimbre" || real.subcategoria === "deck") {
-          if (
-            ancho > 0 &&
-            largo > 0 &&
-            precioPorPie > 0
-          ) {
+          if (ancho > 0 && largo > 0 && precioPorPie > 0) {
             // Para machimbre, el precio se calcula por m2 y luego se multiplica por cantidad
             precio = calcularPrecioMachimbre({
               alto,
@@ -341,16 +337,30 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.filter((p) => p.id !== id)
     );
   };
+  // Función helper para manejar valores numéricos
+  const parseNumericValue = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+    const num = Number(value);
+    return isNaN(num) ? "" : num;
+  };
+
   const handleCantidadChange = (id, cantidad) => {
+    const parsedCantidad = parseNumericValue(cantidad);
+
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id) {
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          if (
+            p.categoria === "Maderas" &&
+            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
-              cantidad: Number(cantidad),
+              cantidad: parsedCantidad === "" ? 1 : parsedCantidad,
               precioPorPie: p.precioPorPie,
             });
 
@@ -362,12 +372,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             return {
               ...p,
-              cantidad: Number(cantidad),
+              cantidad: parsedCantidad === "" ? 1 : parsedCantidad,
               precio: precioRedondeado,
             };
           }
           // Para otros productos, solo cambiar cantidad
-          return { ...p, cantidad: Number(cantidad) };
+          return { ...p, cantidad: parsedCantidad === "" ? 1 : parsedCantidad };
         }
         return p;
       })
@@ -378,9 +388,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) => {
         if (p.id === id) {
           const nuevaCantidad = Number(p.cantidad) + 1;
-          
+
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          if (
+            p.categoria === "Maderas" &&
+            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -412,9 +425,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) => {
         if (p.id === id) {
           const nuevaCantidad = Math.max(1, Number(p.cantidad) - 1);
-          
+
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          if (
+            p.categoria === "Maderas" &&
+            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -442,9 +458,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
   const handleDescuentoChange = (id, descuento) => {
+    const parsedDescuento = parseNumericValue(descuento);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, descuento: Number(descuento) } : p
+        p.id === id ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento } : p
       )
     );
   };
@@ -456,9 +474,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
   const handlePrecioChange = (id, precio) => {
+    const parsedPrecio = parseNumericValue(precio);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, precio: Number(precio) } : p
+        p.id === id ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio } : p
       )
     );
   };
@@ -504,6 +524,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
 
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
@@ -514,14 +536,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               ancho: p.ancho,
               largo: p.largo,
               cantidad: p.cantidad || 1,
-              precioPorPie: Number(nuevoPrecioPorPie),
+              precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
             });
           } else {
             precioBase = calcularPrecioCorteMadera({
               alto: p.alto,
               ancho: p.ancho,
               largo: p.largo,
-              precioPorPie: Number(nuevoPrecioPorPie),
+              precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
             });
           }
 
@@ -534,7 +556,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           return {
             ...p,
-            precioPorPie: Number(nuevoPrecioPorPie),
+            precioPorPie: parsedPrecioPorPie,
             precio: precioRedondeado,
           };
         }
@@ -545,6 +567,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
@@ -553,7 +577,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAlto),
+            alto: parsedAlto === "" ? 0 : parsedAlto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -567,7 +591,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           return {
             ...p,
-            alto: Number(nuevoAlto),
+            alto: parsedAlto,
             precio: precioRedondeado,
           };
         }
@@ -578,6 +602,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
@@ -586,7 +612,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAncho),
+            alto: parsedAncho === "" ? 0 : parsedAncho,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -600,7 +626,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           return {
             ...p,
-            ancho: Number(nuevoAncho),
+            ancho: parsedAncho,
             precio: precioRedondeado,
           };
         }
@@ -611,6 +637,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (
@@ -620,7 +648,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo === "" ? 0 : parsedLargo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
@@ -633,7 +661,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           return {
             ...p,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo,
             precio: precioRedondeado,
           };
         }
@@ -641,8 +669,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       })
     );
   };
-
-
 
   // Obtener tipos de madera únicos
   const tiposMadera = [
@@ -902,61 +928,69 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     // Normalizar el término de búsqueda una sola vez
     const busquedaNormalizada = normalizarTexto(busquedaProducto);
 
-    return productosPorCategoria[categoriaId].filter((prod) => {
-      // Normalizar el nombre del producto
-      const nombreNormalizado = normalizarTexto(prod.nombre);
+    return productosPorCategoria[categoriaId]
+      .filter((prod) => {
+        // Normalizar el nombre del producto
+        const nombreNormalizado = normalizarTexto(prod.nombre);
 
-      // Normalizar la unidad de medida
-      const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+        // Normalizar la unidad de medida
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
 
-      // Filtro por búsqueda de texto con lógica mejorada
-      let cumpleBusqueda = busquedaNormalizada === "";
-      
-      if (busquedaNormalizada !== "") {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
-        if (busquedaNormalizada.endsWith('.')) {
-          const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
-          cumpleBusqueda =
-            nombreNormalizado.startsWith(busquedaSinPunto) ||
-            unidadNormalizada.startsWith(busquedaSinPunto);
-        } else {
-          // Búsqueda normal: incluye el texto en cualquier parte
-          cumpleBusqueda =
-            nombreNormalizado.includes(busquedaNormalizada) ||
-            unidadNormalizada.includes(busquedaNormalizada);
+        // Filtro por búsqueda de texto con lógica mejorada
+        let cumpleBusqueda = busquedaNormalizada === "";
+
+        if (busquedaNormalizada !== "") {
+          // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
+          if (busquedaNormalizada.endsWith(".")) {
+            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
+            cumpleBusqueda =
+              nombreNormalizado.startsWith(busquedaSinPunto) ||
+              unidadNormalizada.startsWith(busquedaSinPunto);
+          } else {
+            // Búsqueda normal: incluye el texto en cualquier parte
+            cumpleBusqueda =
+              nombreNormalizado.includes(busquedaNormalizada) ||
+              unidadNormalizada.includes(busquedaNormalizada);
+          }
         }
-      }
 
-      // Filtro específico por tipo de madera
-      const cumpleTipoMadera =
-        categoriaId !== "Maderas" ||
-        filtroTipoMadera === "" ||
-        prod.tipoMadera === filtroTipoMadera;
+        // Filtro específico por tipo de madera
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
 
-      // Filtro específico por subcategoría de ferretería
-      const cumpleSubCategoria =
-        categoriaId !== "Ferretería" ||
-        filtroSubCategoria === "" ||
-        prod.subCategoria === filtroSubCategoria;
+        // Filtro específico por subcategoría de ferretería
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
 
-      return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
-    }).sort((a, b) => {
-      // Ordenar por stock: primero los que tienen stock, luego los que no
-      const stockA = Number(a.stock) || 0;
-      const stockB = Number(b.stock) || 0;
-      
-      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
-      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
-      
-      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
-      return 0;
-    });
-  }, [productosPorCategoria, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+        return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+      })
+      .sort((a, b) => {
+        // Ordenar por stock: primero los que tienen stock, luego los que no
+        const stockA = Number(a.stock) || 0;
+        const stockB = Number(b.stock) || 0;
+
+        if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
+        if (stockA === 0 && stockB > 0) return 1; // b tiene stock, a no
+
+        // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+        return 0;
+      });
+  }, [
+    productosPorCategoria,
+    categoriaId,
+    busquedaProducto,
+    filtroTipoMadera,
+    filtroSubCategoria,
+  ]);
 
   // Obtener productos filtrados y paginados optimizado
   const totalProductos = productosFiltrados.length;
   const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
-  
+
   // Calcular productos para la página actual con useMemo
   const productosPaginados = useMemo(() => {
     const inicio = (paginaActual - 1) * productosPorPagina;
@@ -965,15 +999,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, [productosFiltrados, paginaActual, productosPorPagina]);
 
   // Función para cambiar de página con feedback visual
-  const cambiarPagina = useCallback((nuevaPagina) => {
-    setIsLoadingPagination(true);
-    setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
-    
-    // Simular carga para mejor UX (tiempo mínimo para que se vea el loading)
-    setTimeout(() => {
-      setIsLoadingPagination(false);
-    }, 150);
-  }, [totalPaginas]);
+  const cambiarPagina = useCallback(
+    (nuevaPagina) => {
+      setIsLoadingPagination(true);
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+
+      // Simular carga para mejor UX (tiempo mínimo para que se vea el loading)
+      setTimeout(() => {
+        setIsLoadingPagination(false);
+      }, 150);
+    },
+    [totalPaginas]
+  );
 
   // Resetear página cuando cambian los filtros
   useEffect(() => {
@@ -1006,12 +1043,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }
 
   // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
-  function calcularPrecioMachimbre({
-    alto,
-    largo,
-    cantidad,
-    precioPorPie,
-  }) {
+  function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
     if (
       [alto, largo, cantidad, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
@@ -1373,7 +1405,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {/* Indicador de rendimiento */}
                     <div className="text-right">
                       <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {productosFiltrados.length} / {productosPorCategoria[categoriaId]?.length || 0}
+                        {productosFiltrados.length} /{" "}
+                        {productosPorCategoria[categoriaId]?.length || 0}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         productos filtrados
@@ -1610,7 +1643,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           </div>
                         </div>
                       )}
-                      
+
                       {productosPaginados.map((prod) => {
                         const yaAgregado = productosSeleccionados.some(
                           (p) => p.id === prod.id
@@ -1826,7 +1859,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                           )}
                           <span>
-                            Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos
+                            Mostrando {paginaActual}-
+                            {Math.min(
+                              paginaActual + productosPorPagina - 1,
+                              totalProductos
+                            )}{" "}
+                            de {totalProductos} productos
                           </span>
                         </div>
 
@@ -1837,14 +1875,24 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             onClick={() => cambiarPagina(1)}
                             disabled={paginaActual === 1 || isLoadingPagination}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination 
-                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                              isLoadingPagination
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                             title="Primera página"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                              />
                             </svg>
                           </button>
 
@@ -1853,79 +1901,118 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             onClick={() => cambiarPagina(paginaActual - 1)}
                             disabled={paginaActual === 1 || isLoadingPagination}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination 
-                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                              isLoadingPagination
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                             title="Página anterior"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15 19l-7-7 7-7"
+                              />
                             </svg>
                           </button>
 
                           {/* Números de página */}
                           <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                              let pageNum;
-                              if (totalPaginas <= 5) {
-                                pageNum = i + 1;
-                              } else if (paginaActual <= 3) {
-                                pageNum = i + 1;
-                              } else if (paginaActual >= totalPaginas - 2) {
-                                pageNum = totalPaginas - 4 + i;
-                              } else {
-                                pageNum = paginaActual - 2 + i;
-                              }
+                            {Array.from(
+                              { length: Math.min(5, totalPaginas) },
+                              (_, i) => {
+                                let pageNum;
+                                if (totalPaginas <= 5) {
+                                  pageNum = i + 1;
+                                } else if (paginaActual <= 3) {
+                                  pageNum = i + 1;
+                                } else if (paginaActual >= totalPaginas - 2) {
+                                  pageNum = totalPaginas - 4 + i;
+                                } else {
+                                  pageNum = paginaActual - 2 + i;
+                                }
 
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => cambiarPagina(pageNum)}
-                                  disabled={isLoadingPagination}
-                                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                    isLoadingPagination
-                                      ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                                      : paginaActual === pageNum
-                                      ? "bg-blue-600 text-white"
-                                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              );
-                            })}
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => cambiarPagina(pageNum)}
+                                    disabled={isLoadingPagination}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                      isLoadingPagination
+                                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                        : paginaActual === pageNum
+                                        ? "bg-blue-600 text-white"
+                                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              }
+                            )}
                           </div>
 
                           {/* Botón página siguiente */}
                           <button
                             onClick={() => cambiarPagina(paginaActual + 1)}
-                            disabled={paginaActual === totalPaginas || isLoadingPagination}
+                            disabled={
+                              paginaActual === totalPaginas ||
+                              isLoadingPagination
+                            }
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination 
-                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                              isLoadingPagination
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                             title="Página siguiente"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M9 5l7 7-7 7"
+                              />
                             </svg>
                           </button>
 
                           {/* Botón última página */}
                           <button
                             onClick={() => cambiarPagina(totalPaginas)}
-                            disabled={paginaActual === totalPaginas || isLoadingPagination}
+                            disabled={
+                              paginaActual === totalPaginas ||
+                              isLoadingPagination
+                            }
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination 
-                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" 
+                              isLoadingPagination
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                             title="Última página"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 5l7 7-7 7m-8 0l7-7-7-7"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -2046,7 +2133,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   </div>
 
                                   {/* Para machimbres: ancho, largo y cantidad editables */}
-                                  {(p.subcategoria === "machimbre" || p.subcategoria === "deck") ? (
+                                  {p.subcategoria === "machimbre" ||
+                                  p.subcategoria === "deck" ? (
                                     <>
                                       <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
@@ -2058,7 +2146,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                               type="number"
                                               min="0"
                                               step="0.01"
-                                              value={p.alto || 0}
+                                              value={p.alto === "" ? "" : p.alto || ""}
                                               onChange={(e) =>
                                                 handleAltoChange(
                                                   p.id,
@@ -2083,7 +2171,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                               type="number"
                                               min="0"
                                               step="0.01"
-                                              value={p.largo || 0}
+                                              value={p.largo === "" ? "" : p.largo || ""}
                                               onChange={(e) =>
                                                 handleLargoChange(
                                                   p.id,
@@ -2102,7 +2190,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </div>
                                       {/* Mostrar m2 total */}
                                       <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                                                               Total: {((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
+                                        Total:{" "}
+                                        {(
+                                          (p.alto || 0) *
+                                          (p.largo || 0) *
+                                          (p.cantidad || 1)
+                                        ).toFixed(2)}{" "}
+                                        m²
                                       </div>
                                     </>
                                   ) : (
@@ -2183,7 +2277,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         type="number"
                                         min="0"
                                         step="0.01"
-                                        value={p.precioPorPie || 0}
+                                        value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                         onChange={(e) =>
                                           handlePrecioPorPieChange(
                                             p.id,
@@ -2229,7 +2323,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 <input
                                   type="number"
                                   min={1}
-                                  value={p.cantidad}
+                                  value={p.cantidad === "" ? "" : p.cantidad}
                                   onChange={(e) =>
                                     handleCantidadChange(p.id, e.target.value)
                                   }
@@ -2289,7 +2383,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 type="number"
                                 min="0"
                                 step="100"
-                                value={p.precio}
+                                value={p.precio === "" ? "" : p.precio}
                                 onChange={(e) =>
                                   handlePrecioChange(p.id, e.target.value)
                                 }
@@ -2306,7 +2400,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               type="number"
                               min={0}
                               max={100}
-                              value={p.descuento || 0}
+                              value={p.descuento === "" ? "" : p.descuento || ""}
                               onChange={(e) =>
                                 handleDescuentoChange(p.id, e.target.value)
                               }
@@ -3429,4 +3523,3 @@ const getNextPresupuestoNumber = async () => {
   });
   return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
 };
-

@@ -1396,7 +1396,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                                         value={
                                           productosSeleccionados.find(
                                             (p) => p.id === prod.id
-                                          )?.cantidad || 1
+                                          )?.cantidad || ""
                                         }
                                         onChange={(e) =>
                                           handleCantidadChange(
@@ -1784,7 +1784,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                               type="number"
                               min={0}
                               max={100}
-                              value={p.descuento || 0}
+                              value={p.descuento || ""}
                               onChange={(e) =>
                                 handleDescuentoChange(p.id, e.target.value)
                               }

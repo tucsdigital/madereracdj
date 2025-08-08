@@ -317,6 +317,15 @@ const PresupuestoDetalle = () => {
   };
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  // Función helper para manejar valores numéricos
+  const parseNumericValue = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+    const num = Number(value);
+    return isNaN(num) ? "" : num;
+  };
+
   const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
     setPresupuestoEdit((prev) => ({
       ...prev,
@@ -358,6 +367,8 @@ const PresupuestoDetalle = () => {
 
   // Función para recalcular precio cuando se cambia el precio por pie
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -370,11 +381,11 @@ const PresupuestoDetalle = () => {
               alto: p.alto,
               largo: p.largo,
               cantidad: p.cantidad || 1,
-              precioPorPie: Number(nuevoPrecioPorPie),
+              precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
             });
           } else {
             // Para otras maderas: usar la fórmula estándar
-            precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
+            precioBase = 0.2734 * p.alto * p.ancho * p.largo * (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
           }
 
           // Aplicar cepillado si está habilitado para este producto específico
@@ -387,7 +398,7 @@ const PresupuestoDetalle = () => {
 
           return {
             ...p,
-            precioPorPie: Number(nuevoPrecioPorPie),
+            precioPorPie: parsedPrecioPorPie,
             precio: precioRedondeado,
           };
         }
@@ -399,6 +410,8 @@ const PresupuestoDetalle = () => {
   // Funciones para manejar cambios en machimbres/deck
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -408,7 +421,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAlto),
+            alto: parsedAlto === "" ? 0 : parsedAlto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -422,7 +435,7 @@ const PresupuestoDetalle = () => {
 
           return {
             ...p,
-            alto: Number(nuevoAlto),
+            alto: parsedAlto,
             precio: precioRedondeado,
           };
         }
@@ -433,6 +446,8 @@ const PresupuestoDetalle = () => {
 
   // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -442,7 +457,7 @@ const PresupuestoDetalle = () => {
           (p.subcategoria === "machimbre" || p.subcategoria === "deck")
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAncho),
+            alto: parsedAncho === "" ? 0 : parsedAncho,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
@@ -456,7 +471,7 @@ const PresupuestoDetalle = () => {
 
           return {
             ...p,
-            ancho: Number(nuevoAncho),
+            ancho: parsedAncho,
             precio: precioRedondeado,
           };
         }
@@ -467,6 +482,8 @@ const PresupuestoDetalle = () => {
 
   // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -477,7 +494,7 @@ const PresupuestoDetalle = () => {
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo === "" ? 0 : parsedLargo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
@@ -490,7 +507,7 @@ const PresupuestoDetalle = () => {
 
           return {
             ...p,
-            largo: Number(nuevoLargo),
+            largo: parsedLargo,
             precio: precioRedondeado,
           };
         }
@@ -1728,7 +1745,7 @@ const PresupuestoDetalle = () => {
                                           value={
                                             presupuestoEdit.productos.find(
                                               (p) => p.id === prod.id
-                                            )?.cantidad || 1
+                                            )?.cantidad || ""
                                           }
                                           onChange={(e) =>
                                             setPresupuestoEdit((prev) => ({
@@ -2036,7 +2053,7 @@ const PresupuestoDetalle = () => {
                                             type="number"
                                             min="0"
                                             step="0.1"
-                                            value={p.alto || 0}
+                                            value={p.alto === "" ? "" : p.alto || ""}
                                             onChange={(e) =>
                                               handleAltoChange(p.id, e.target.value)
                                             }
@@ -2052,7 +2069,7 @@ const PresupuestoDetalle = () => {
                                             type="number"
                                             min="0"
                                             step="0.1"
-                                            value={p.largo || 0}
+                                            value={p.largo === "" ? "" : p.largo || ""}
                                             onChange={(e) =>
                                               handleLargoChange(p.id, e.target.value)
                                             }
@@ -2070,7 +2087,7 @@ const PresupuestoDetalle = () => {
                                               type="number"
                                               min="0"
                                               step="0.01"
-                                              value={p.precioPorPie}
+                                              value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                               onChange={(e) =>
                                                 handlePrecioPorPieChange(
                                                   p.id,
@@ -2299,20 +2316,21 @@ const PresupuestoDetalle = () => {
                                   type="number"
                                   min={0}
                                   max={100}
-                                  value={p.descuento || 0}
-                                  onChange={(e) =>
+                                  value={p.descuento === "" ? "" : p.descuento || ""}
+                                  onChange={(e) => {
+                                    const parsedDescuento = parseNumericValue(e.target.value);
                                     setPresupuestoEdit((prev) => ({
                                       ...prev,
                                       productos: prev.productos.map((prod) =>
                                         prod.id === p.id
                                           ? {
                                               ...prod,
-                                              descuento: Number(e.target.value),
+                                              descuento: parsedDescuento === "" ? 0 : parsedDescuento,
                                             }
                                           : prod
                                       ),
-                                    }))
-                                  }
+                                    }));
+                                  }}
                                   className="w-20 mx-auto text-center border rounded px-2 py-1"
                                   disabled={loadingPrecios}
                                 />

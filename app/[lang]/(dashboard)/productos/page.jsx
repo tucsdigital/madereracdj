@@ -2965,7 +2965,7 @@ const ProductosPage = () => {
                           <input
                             type="number"
                             min="1"
-                            value={p.cantidad || 1}
+                            value={p.cantidad || ""}
                             onChange={(e) => {
                               handleCantidadChange(p.id, e.target.value);
                             }}
