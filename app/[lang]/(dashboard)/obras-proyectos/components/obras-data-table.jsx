@@ -21,12 +21,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { DataTablePagination } from "./data-table-pagination";
-import { DataTableToolbar } from "./data-table-toolbar";
+import { DataTablePagination } from "../(invoice)/invoice-list/invoice-list-table/components/data-table-pagination";
+import { DataTableToolbar } from "../(invoice)/invoice-list/invoice-list-table/components/data-table-toolbar";
 import { useRouter, useParams } from "next/navigation";
-import { Icon } from "@iconify/react";
 
-export function DataTable({ columns, data }) {
+export function ObrasDataTable({ columns, data }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState([]);
@@ -40,8 +39,6 @@ export function DataTable({ columns, data }) {
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
-
-  // console.log("DataTable data:", data);
 
   const table = useReactTable({
     data,
@@ -67,19 +64,11 @@ export function DataTable({ columns, data }) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  // Función para manejar el click en la fila
+  // Función específica para obras-proyectos que siempre redirige a /obras-proyectos/[id]
   const handleRowClick = (row) => {
-    const tipo = row.original?.tipo || 'documento';
     const id = row.original?.id;
-    const numeroPedido = row.original?.numeroPedido;
-    
-    // Si tiene numeroPedido, es del contexto de obras-proyectos
-    if (numeroPedido && numeroPedido.startsWith('OBRA-')) {
+    if (id) {
       router.push(`/${lang}/obras-proyectos/${id}`);
-    } else if (tipo === 'presupuesto') {
-      router.push(`/${lang}/presupuestos/${id}`);
-    } else if (tipo === 'venta') {
-      router.push(`/${lang}/ventas/${id}`);
     }
   };
 

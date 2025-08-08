@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
+import { ObrasDataTable } from "./components/obras-data-table";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
@@ -440,13 +440,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const handleAltoChange = (id, nuevoAlto) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.largo) {
+        if (p.id === id) {
           // Si el campo está vacío, establecer como 0 pero mantener el estado
           const nuevoAltoNum = nuevoAlto === "" ? 0 : Number(nuevoAlto);
           let nuevoPrecio = 0;
 
           // Para productos de obra (presupuesto), usar valorVenta
-          if (p.valorVenta && nuevoAltoNum > 0) {
+          if (p.valorVenta && nuevoAltoNum > 0 && p.largo > 0) {
             nuevoPrecio = calcularPrecioProductoObra({
               alto: nuevoAltoNum,
               largo: p.largo,
@@ -455,7 +455,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
             });
           }
           // Para productos normales (maderas), usar precioPorPie
-          else if (p.precioPorPie && nuevoAltoNum > 0) {
+          else if (p.precioPorPie && nuevoAltoNum > 0 && p.largo > 0) {
             nuevoPrecio = calcularPrecioMachimbre({
             alto: nuevoAltoNum,
             largo: p.largo,
@@ -478,13 +478,13 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const handleLargoChange = (id, nuevoLargo) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.alto) {
+        if (p.id === id) {
           // Si el campo está vacío, establecer como 0 pero mantener el estado
           const nuevoLargoNum = nuevoLargo === "" ? 0 : Number(nuevoLargo);
           let nuevoPrecio = 0;
 
           // Para productos de obra (presupuesto), usar valorVenta
-          if (p.valorVenta && nuevoLargoNum > 0) {
+          if (p.valorVenta && nuevoLargoNum > 0 && p.alto > 0) {
             nuevoPrecio = calcularPrecioProductoObra({
               alto: p.alto,
               largo: nuevoLargoNum,
@@ -493,7 +493,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
             });
           }
           // Para productos normales (maderas), usar precioPorPie
-          else if (p.precioPorPie && nuevoLargoNum > 0) {
+          else if (p.precioPorPie && nuevoLargoNum > 0 && p.alto > 0) {
             nuevoPrecio = calcularPrecioMachimbre({
             alto: p.alto,
             largo: nuevoLargoNum,
@@ -585,12 +585,12 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
   const handleValorVentaChange = (id, nuevoValorVenta) => {
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.alto && p.largo) {
+        if (p.id === id) {
           // Si el campo está vacío, establecer como 0 pero mantener el estado
           const nuevoValorVentaNum = nuevoValorVenta === "" ? 0 : Number(nuevoValorVenta);
           let nuevoPrecio = 0;
 
-          if (nuevoValorVentaNum > 0) {
+          if (nuevoValorVentaNum > 0 && p.alto > 0 && p.largo > 0) {
             nuevoPrecio = calcularPrecioProductoObra({
               alto: p.alto,
               largo: p.largo,
@@ -2876,33 +2876,7 @@ const ObrasPage = () => {
         );
       },
     },
-    {
-      id: "acciones",
-      header: "Acciones",
-      cell: ({ row }) => {
-        const obra = row.original;
-        return (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => router.push(`/${lang}/obras-proyectos/${obra.id}`)}
-            >
-              Ver
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                router.push(`/${lang}/obras-proyectos/${obra.id}?edit=true`)
-              }
-            >
-              Editar
-            </Button>
-          </div>
-        );
-      },
-    },
+
   ];
 
   React.useEffect(() => {
@@ -3167,7 +3141,7 @@ const ObrasPage = () => {
             </CardTitle>
           </CardHeader>
         <CardContent>
-          <DataTable data={obrasFiltradas} columns={obrasColumns} />
+          <ObrasDataTable data={obrasFiltradas} columns={obrasColumns} />
           </CardContent>
         </Card>
       
