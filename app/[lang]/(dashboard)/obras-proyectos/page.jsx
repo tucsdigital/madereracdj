@@ -877,32 +877,11 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
     ) {
       return 0;
     }
-    // Convertir de cm a m: dividir por 100
-    const altoMetros = alto / 100;
-    const largoMetros = largo / 100;
     // Fórmula para productos de obra: (alto × largo) × valorVenta × cantidad
-    const metrosCuadrados = altoMetros * largoMetros;
+    const metrosCuadrados = alto * largo;
     const precio = metrosCuadrados * valorVenta * cantidad;
     // Redondear a centenas (múltiplos de 100)
     return Math.round(precio / 100) * 100;
-  }
-
-  function calcularPrecioUnitarioProductoObra({ alto, largo, valorVenta }) {
-    if (
-      [alto, largo, valorVenta].some(
-        (v) => typeof v !== "number" || v <= 0
-      )
-    ) {
-      return 0;
-    }
-    // Convertir de cm a m: dividir por 100
-    const altoMetros = alto / 100;
-    const largoMetros = largo / 100;
-    // Fórmula para productos de obra: (alto × largo) × valorVenta (sin cantidad)
-    const metrosCuadrados = altoMetros * largoMetros;
-    const precioUnitario = metrosCuadrados * valorVenta;
-    // Redondear a centenas (múltiplos de 100)
-    return Math.round(precioUnitario / 100) * 100;
   }
 
   // Función para formatear números en formato argentino
@@ -1830,27 +1809,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                   </div>
                 )}
 
-                {/* Información para productos de obra */}
-                {tipo === "presupuesto" && productosSeleccionados.length > 0 && (
-                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 mb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-1">
-                          Cálculo automático para productos de obra
-                        </h4>
-                        <p className="text-xs text-purple-700 dark:text-purple-300">
-                          Los precios se calculan automáticamente usando la fórmula: <strong>Alto × Largo × Valor por m² × Cantidad</strong>. 
-                          Puedes editar las dimensiones y el valor por metro cuadrado directamente en la tabla.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+               
 
                 <div className="overflow-x-auto">
                   <table className="w-full caption-top text-sm overflow-hidden">
@@ -2150,11 +2109,7 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                               </div>
                               {tipo === "presupuesto" && p.alto && p.largo && p.valorVenta && (
                                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  {p.cantidad} × ${formatearNumeroArgentino(calcularPrecioUnitarioProductoObra({
-                                    alto: p.alto,
-                                    largo: p.largo,
-                                    valorVenta: p.valorVenta
-                                  }))}
+                                  {p.cantidad} × ${formatearNumeroArgentino(p.precio / p.cantidad)}
                                 </div>
                               )}
                             </div>
@@ -2176,18 +2131,14 @@ function FormularioObra({ tipo, onClose, onSubmit }) {
                             <div className="text-right">
                               <div className="font-bold text-green-600 dark:text-green-400">
                                 ${formatearNumeroArgentino(
-                                  tipo === "presupuesto" && p.valorVenta
-                                    ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
-                                    : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
+                                  Number(p.precio) *
+                                  Number(p.cantidad) *
+                                    (1 - Number(p.descuento || 0) / 100)
                                 )}
                               </div>
                               {p.descuento > 0 && (
                                 <div className="text-xs text-red-500 dark:text-red-400 mt-1">
-                                  -${formatearNumeroArgentino(
-                                    tipo === "presupuesto" && p.valorVenta
-                                      ? (p.precio * p.descuento) / 100
-                                      : (p.precio * p.cantidad * p.descuento) / 100
-                                  )}
+                                  -${formatearNumeroArgentino((p.precio * p.cantidad * p.descuento) / 100)}
                                 </div>
                               )}
                             </div>
