@@ -913,17 +913,17 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       let cumpleBusqueda = busquedaNormalizada === "";
       
       if (busquedaNormalizada !== "") {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica
+        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
         if (busquedaNormalizada.endsWith('.')) {
           const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
           cumpleBusqueda =
-            nombreNormalizado.includes(busquedaSinPunto) ||
-            unidadNormalizada.includes(busquedaSinPunto);
+            nombreNormalizado.startsWith(busquedaSinPunto) ||
+            unidadNormalizada.startsWith(busquedaSinPunto);
         } else {
-          // Búsqueda exacta: debe coincidir exactamente
+          // Búsqueda normal: incluye el texto en cualquier parte
           cumpleBusqueda =
-            nombreNormalizado === busquedaNormalizada ||
-            unidadNormalizada === busquedaNormalizada;
+            nombreNormalizado.includes(busquedaNormalizada) ||
+            unidadNormalizada.includes(busquedaNormalizada);
         }
       }
 

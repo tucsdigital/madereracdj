@@ -420,17 +420,17 @@ const VentaDetalle = () => {
       let cumpleBusqueda = !terminoBusqueda;
       
       if (terminoBusqueda) {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica
+        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
         if (terminoBusqueda.endsWith('.')) {
           const busquedaSinPunto = terminoBusqueda.slice(0, -1);
           cumpleBusqueda = 
-            normalizarTexto(prod.nombre).includes(busquedaSinPunto) ||
-            normalizarTexto(prod.unidadMedida || "").includes(busquedaSinPunto);
+            normalizarTexto(prod.nombre).startsWith(busquedaSinPunto) ||
+            normalizarTexto(prod.unidadMedida || "").startsWith(busquedaSinPunto);
         } else {
-          // Búsqueda exacta: debe coincidir exactamente
+          // Búsqueda normal: incluye el texto en cualquier parte
           cumpleBusqueda = 
-            normalizarTexto(prod.nombre) === terminoBusqueda ||
-            normalizarTexto(prod.unidadMedida || "") === terminoBusqueda;
+            normalizarTexto(prod.nombre).includes(terminoBusqueda) ||
+            normalizarTexto(prod.unidadMedida || "").includes(terminoBusqueda);
         }
       }
 

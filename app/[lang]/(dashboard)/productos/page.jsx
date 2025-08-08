@@ -1272,17 +1272,17 @@ const ProductosPage = () => {
       let cumpleFiltro = !filtro;
       
       if (filtro) {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica
+        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
         if (filtroNormalizado.endsWith('.')) {
           const busquedaSinPunto = filtroNormalizado.slice(0, -1);
           cumpleFiltro = 
-            nombreNormalizado.includes(busquedaSinPunto) ||
-            codigoNormalizado.includes(busquedaSinPunto);
+            nombreNormalizado.startsWith(busquedaSinPunto) ||
+            codigoNormalizado.startsWith(busquedaSinPunto);
         } else {
-          // Búsqueda exacta: debe coincidir exactamente
+          // Búsqueda normal: incluye el texto en cualquier parte
           cumpleFiltro = 
-            nombreNormalizado === filtroNormalizado ||
-            codigoNormalizado === filtroNormalizado;
+            nombreNormalizado.includes(filtroNormalizado) ||
+            codigoNormalizado.includes(filtroNormalizado);
         }
       }
 
