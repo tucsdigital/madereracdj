@@ -2593,9 +2593,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
                             $
                             {formatearNumeroArgentino(
-                              Number(p.precio) *
-                                Number(p.cantidad) *
-                                (1 - Number(p.descuento || 0) / 100)
+                              // Para machimbres y deck, el precio ya incluye la cantidad
+                              p.categoria === "Maderas" && 
+                              (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+                                ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
+                                : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
                             )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
