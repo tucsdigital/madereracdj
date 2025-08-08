@@ -21,8 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { DataTablePagination } from "../../../(invoice)/invoice-list/invoice-list-table/components/data-table-pagination";
-import { DataTableToolbar } from "../../../(invoice)/invoice-list/invoice-list-table/components/data-table-toolbar";
+import { DataTablePagination } from "@/app/[lang]/(dashboard)/(invoice)/invoice-list/invoice-list-table/components/data-table-pagination";
+import { DataTableToolbar } from "@/app/[lang]/(dashboard)/(invoice)/invoice-list/invoice-list-table/components/data-table-toolbar";
 import { useRouter, useParams } from "next/navigation";
 
 export function ObrasDataTable({ columns, data }) {
