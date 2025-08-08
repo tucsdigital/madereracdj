@@ -1426,7 +1426,7 @@ const VentaDetalle = () => {
       }
     }
   `}</style>
-      <div id="venta-print" className="max-w-4xl mx-auto px-4">
+      <div id="venta-print" className="max-w-6xl mx-auto px-4">
         {/* Header profesional igual al de presupuesto */}
         <div
           className="flex items-center gap-4 border-b pb-4 mb-6 print-header"

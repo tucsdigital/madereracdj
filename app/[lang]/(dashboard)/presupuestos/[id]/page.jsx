@@ -1080,7 +1080,7 @@ const PresupuestoDetalle = () => {
           }
         }
       `}</style>
-      <div id="presupuesto-print" className="max-w-4xl mx-auto px-4">
+      <div id="presupuesto-print" className="max-w-6xl mx-auto px-4">
         {/* Logo y cabecera profesional para impresión */}
         <div
           className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
