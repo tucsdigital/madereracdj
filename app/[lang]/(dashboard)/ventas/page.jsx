@@ -1743,7 +1743,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
 
               {/* Lista de productos */}
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-150 overflow-y-auto">
                 {categoriasState.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
@@ -1819,7 +1819,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 ) : (
                   <div className="space-y-4">
                     {/* Grid de productos paginados */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 relative">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
                       {/* Overlay de carga durante la paginación */}
                       {isPending && (
                         <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
