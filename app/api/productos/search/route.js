@@ -92,6 +92,16 @@ export async function GET(request) {
       }
     }
 
+    // Expandir variantes con espacios alrededor de x/× (para consultas tipo 1x4x4)
+    const spaced = new Set();
+    for (const a of anchors) {
+      const a1 = a.replace(/\s*[x×]\s*/gi, " x ");
+      const a2 = a1.replace(/\s*x\s*/gi, " X ");
+      spaced.add(a1);
+      spaced.add(a2);
+    }
+    spaced.forEach((s) => anchors.add(s));
+
     for (const a of anchors) {
       if (items.length >= lim) break;
       await tryNombreRange(a);

@@ -252,6 +252,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const busquedaDefer = React.useDeferredValue(busquedaDebounced);
   const [remoteResults, setRemoteResults] = useState([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
+  // Forzar re-ejecución de búsqueda aunque no cambie el término (Enter/botón)
+  const [searchForcedAt, setSearchForcedAt] = useState(0);
 
   // Búsqueda remota para abarcar todo el catálogo (prioritaria cuando hay término de búsqueda)
   useEffect(() => {
@@ -264,7 +266,11 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (async () => {
       try {
         setRemoteLoading(true);
-        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(term)}&limit=60`);
+        // Expandir consulta con variantes para mejorar coincidencias en servidor
+        const q = term
+          .replace(/\s*[x×]\s*/gi, " x ")
+          .replace(/[,]/g, ".");
+        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(q)}&limit=200`);
         if (!res.ok) throw new Error("search_failed");
         const data = await res.json();
         if (!abort) setRemoteResults(Array.isArray(data.items) ? data.items : []);
@@ -277,7 +283,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return () => {
       abort = true;
     };
-  }, [categoriaId, busquedaDebounced]);
+  }, [categoriaId, busquedaDebounced, searchForcedAt]);
 
   
 
@@ -304,6 +310,13 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
   // Mejora de fluidez al paginar
   const [isPending, startTransition] = React.useTransition();
+
+  const handleBuscarClick = useCallback(() => {
+    // Forzar ejecución inmediata con el valor actual (saltando el debounce)
+    setBusquedaDebounced(busquedaProducto);
+    setSearchForcedAt(Date.now());
+    setPaginaActual(1);
+  }, [busquedaProducto]);
 
   const handleAgregarProducto = useCallback((producto) => {
     // Intentar resolver el producto real desde distintas fuentes (estado inicial, cache por categoría, resultados remotos)
@@ -1778,7 +1791,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       )}
 
                     {/* Buscador mejorado */}
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative flex items-center gap-2">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg
                           className="h-5 w-5 text-gray-400"
@@ -1799,8 +1812,29 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         placeholder="Buscar productos..."
                         value={busquedaProducto}
                         onChange={(e) => setBusquedaProducto(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleBuscarClick();
+                          }
+                        }}
+                        className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                       />
+                      {/* Indicador de carga dentro del input */}
+                      {remoteLoading && (
+                        <div className="absolute right-2 inset-y-0 flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                      {/* Botón de búsqueda manual */}
+                      <button
+                        type="button"
+                        onClick={handleBuscarClick}
+                        className="shrink-0 px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        title="Buscar"
+                      >
+                        Buscar
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1855,6 +1889,16 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <p className="text-gray-500 dark:text-gray-400">
                       Elige una categoría para ver los productos disponibles
                     </p>
+                  </div>
+                ) : remoteLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      Buscando productos...
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">Por favor espera</p>
                   </div>
                 ) : productosFiltrados.length === 0 ? (
                   <div className="p-8 text-center">
