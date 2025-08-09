@@ -844,10 +844,17 @@ const PresupuestoDetalle = () => {
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-      const subtotal = productosArr.reduce(
-        (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
-        0
-      );
+          const subtotal = productosArr.reduce(
+      (acc, p) => {
+        // Para machimbre y deck, el precio ya incluye la cantidad
+        if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+          return acc + Number(p.precio);
+        } else {
+          return acc + Number(p.precio) * Number(p.cantidad);
+        }
+      },
+      0
+    );
       const descuentoTotal = productosArr.reduce(
         (acc, p) =>
           acc +
@@ -2585,8 +2592,14 @@ const PresupuestoDetalle = () => {
                           $
                           {formatearNumeroArgentino(
                             presupuestoEdit.productos.reduce(
-                              (acc, p) =>
-                                acc + Number(p.precio) * Number(p.cantidad),
+                              (acc, p) => {
+                                // Para machimbre y deck, el precio ya incluye la cantidad
+                                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                  return acc + Number(p.precio);
+                                } else {
+                                  return acc + Number(p.precio) * Number(p.cantidad);
+                                }
+                              },
                               0
                             )
                           )}
@@ -2598,11 +2611,13 @@ const PresupuestoDetalle = () => {
                           $
                           {formatearNumeroArgentino(
                             presupuestoEdit.productos.reduce(
-                              (acc, p) =>
-                                acc +
-                                Number(p.precio) *
-                                  Number(p.cantidad) *
-                                  (Number(p.descuento || 0) / 100),
+                              (acc, p) => {
+                                // Para machimbre y deck, el precio ya incluye la cantidad
+                                const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
+                                  ? Number(p.precio) 
+                                  : Number(p.precio) * Number(p.cantidad);
+                                return acc + precioCalculado * (Number(p.descuento || 0) / 100);
+                              },
                               0
                             )
                           )}
@@ -2626,16 +2641,24 @@ const PresupuestoDetalle = () => {
                           $
                           {formatearNumeroArgentino(
                             presupuestoEdit.productos.reduce(
-                              (acc, p) =>
-                                acc + Number(p.precio) * Number(p.cantidad),
+                              (acc, p) => {
+                                // Para machimbre y deck, el precio ya incluye la cantidad
+                                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                  return acc + Number(p.precio);
+                                } else {
+                                  return acc + Number(p.precio) * Number(p.cantidad);
+                                }
+                              },
                               0
                             ) -
                               presupuestoEdit.productos.reduce(
-                                (acc, p) =>
-                                  acc +
-                                  Number(p.precio) *
-                                    Number(p.cantidad) *
-                                    (Number(p.descuento || 0) / 100),
+                                (acc, p) => {
+                                  // Para machimbre y deck, el precio ya incluye la cantidad
+                                  const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
+                                    ? Number(p.precio) 
+                                    : Number(p.precio) * Number(p.cantidad);
+                                  return acc + precioCalculado * (Number(p.descuento || 0) / 100);
+                                },
                                 0
                               ) +
                               (Number(presupuestoEdit.costoEnvio) || 0)

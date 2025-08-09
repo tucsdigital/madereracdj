@@ -6,7 +6,21 @@ import {
   columnsPresupuestos,
   columnsVentas,
 } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
-import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
+import dynamic from "next/dynamic";
+const DataTable = dynamic(
+  () =>
+    import(
+      "../(invoice)/invoice-list/invoice-list-table/components/data-table"
+    ).then((m) => m.DataTable),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="py-10 text-center text-sm text-default-500">
+        Cargando tabla...
+      </div>
+    ),
+  }
+);
 import {
   Dialog,
   DialogContent,
@@ -30,6 +44,9 @@ import {
   updateDoc,
   increment,
   serverTimestamp,
+  query,
+  where,
+  limit,
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -211,11 +228,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [categoriasState, setCategoriasState] = useState([]);
   const [productosLoading, setProductosLoading] = useState(true);
 
+  // Mejora: carga inicial limitada para derivar categorías, y cache por categoría bajo demanda
   useEffect(() => {
     setProductosLoading(true);
-    const fetchProductos = async () => {
-      const snap = await getDocs(collection(db, "productos"));
-      const productos = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const fetchSomeProductos = async () => {
+      const snap = await getDocs(limit(collection(db, "productos"), 200));
+      const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setProductosState(productos);
       const agrupados = {};
       productos.forEach((p) => {
@@ -226,20 +244,45 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setCategoriasState(Object.keys(agrupados));
       setProductosLoading(false);
     };
-    fetchProductos();
+    fetchSomeProductos();
   }, []);
+
+  // Cache de productos por categoría para evitar traer todo el catálogo
+  const [cacheCategorias, setCacheCategorias] = useState({}); // { [categoriaId]: productos[] }
+  useEffect(() => {
+    if (!categoriaId || cacheCategorias[categoriaId]) return;
+    (async () => {
+      const q = query(
+        collection(db, "productos"),
+        where("categoria", "==", categoriaId),
+        limit(200)
+      );
+      const snap = await getDocs(q);
+      const productosCat = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setCacheCategorias((prev) => ({ ...prev, [categoriaId]: productosCat }));
+    })();
+  }, [categoriaId, cacheCategorias]);
 
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
+  // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 300);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+
   // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
-  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+  // Mejora de fluidez al paginar
+  const [isPending, startTransition] = React.useTransition();
 
-  const handleAgregarProducto = (producto) => {
+  const handleAgregarProducto = useCallback((producto) => {
     const real = productosState.find((p) => p.id === producto.id);
     if (!real) {
       setSubmitStatus("error");
@@ -331,7 +374,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         },
       ]);
     }
-  };
+  }, [productosState, productosSeleccionados]);
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
@@ -811,23 +854,27 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     );
   };
 
-  // Obtener tipos de madera únicos
-  const tiposMadera = [
-    ...new Set(
-      productosState
-        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
-        .map((p) => p.tipoMadera)
-    ),
-  ].filter(Boolean);
+  // Obtener tipos de madera únicos (memoizado)
+  const tiposMadera = useMemo(() => {
+    return [
+      ...new Set(
+        productosState
+          .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+          .map((p) => p.tipoMadera)
+      ),
+    ].filter(Boolean);
+  }, [productosState]);
 
-  // Obtener subcategorías de ferretería únicas
-  const subCategoriasFerreteria = [
-    ...new Set(
-      productosState
-        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-        .map((p) => p.subCategoria)
-    ),
-  ].filter(Boolean);
+  // Obtener subcategorías de ferretería únicas (memoizado)
+  const subCategoriasFerreteria = useMemo(() => {
+    return [
+      ...new Set(
+        productosState
+          .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+          .map((p) => p.subCategoria)
+      ),
+    ].filter(Boolean);
+  }, [productosState]);
 
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => {
@@ -1071,12 +1118,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para filtrar productos optimizada con useMemo
   const productosFiltrados = useMemo(() => {
-    if (!productosPorCategoria[categoriaId]) return [];
+    // Fuente de datos para la grilla: cache por categoría si existe; si no, agrupados iniciales
+    const fuente = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId];
+    if (!fuente) return [];
 
     // Normalizar el término de búsqueda una sola vez
-    const busquedaNormalizada = normalizarTexto(busquedaProducto);
+    const busquedaNormalizada = normalizarTexto(busquedaDefer);
 
-    return productosPorCategoria[categoriaId]
+    return fuente
       .filter((prod) => {
         // Normalizar el nombre del producto
         const nombreNormalizado = normalizarTexto(prod.nombre);
@@ -1130,7 +1179,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, [
     productosPorCategoria,
     categoriaId,
-    busquedaProducto,
+    busquedaDefer,
     filtroTipoMadera,
     filtroSubCategoria,
   ]);
@@ -1146,24 +1195,20 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return productosFiltrados.slice(inicio, fin);
   }, [productosFiltrados, paginaActual, productosPorPagina]);
 
-  // Función para cambiar de página con feedback visual
+  // Función para cambiar de página con transición no bloqueante
   const cambiarPagina = useCallback(
     (nuevaPagina) => {
-      setIsLoadingPagination(true);
-      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
-
-      // Simular carga para mejor UX (tiempo mínimo para que se vea el loading)
-      setTimeout(() => {
-        setIsLoadingPagination(false);
-      }, 150);
+      startTransition(() => {
+        setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+      });
     },
-    [totalPaginas]
+    [totalPaginas, startTransition]
   );
 
-  // Resetear página cuando cambian los filtros
+  // Resetear página cuando cambian los filtros (usar valor debounced/deferred para evitar saltos)
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
 
   const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
   const [esConFactura, setEsConFactura] = useState(false);
@@ -1206,20 +1251,27 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return Math.round(precio / 100) * 100;
   }
 
-  // Función para formatear números en formato argentino
+  // Formateador memoizado para números en formato argentino
+  const numberFormatter = React.useMemo(() => new Intl.NumberFormat("es-AR"), []);
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
-    return Number(numero).toLocaleString("es-AR");
+    return numberFormatter.format(Number(numero));
   };
 
   const [busquedaCliente, setBusquedaCliente] = useState("");
+  // Debounce para búsqueda de clientes (dropdown)
+  const [busquedaClienteDebounced, setBusquedaClienteDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaClienteDebounced(busquedaCliente), 300);
+    return () => clearTimeout(id);
+  }, [busquedaCliente]);
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("datos");
   const clientesFiltrados = clientesState.filter(
     (c) =>
-      c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
-      c.cuit.toLowerCase().includes(busquedaCliente.toLowerCase()) ||
-      (c.localidad || "").toLowerCase().includes(busquedaCliente.toLowerCase())
+      c.nombre.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
+      c.cuit.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
+      (c.localidad || "").toLowerCase().includes(busquedaClienteDebounced.toLowerCase())
   );
 
   const generarId = (tipo) => {
@@ -1781,7 +1833,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {/* Grid de productos paginados */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 relative">
                       {/* Overlay de carga durante la paginación */}
-                      {isLoadingPagination && (
+                      {isPending && (
                         <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
                           <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
@@ -2003,7 +2055,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                         {/* Información de página */}
                         <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                          {isLoadingPagination && (
+                          {isPending && (
                             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                           )}
                           <span>
@@ -2021,9 +2073,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón primera página */}
                           <button
                             onClick={() => cambiarPagina(1)}
-                            disabled={paginaActual === 1 || isLoadingPagination}
+                            disabled={paginaActual === 1 || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination
+                              isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
@@ -2047,9 +2099,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón página anterior */}
                           <button
                             onClick={() => cambiarPagina(paginaActual - 1)}
-                            disabled={paginaActual === 1 || isLoadingPagination}
+                            disabled={paginaActual === 1 || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination
+                              isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
@@ -2090,9 +2142,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   <button
                                     key={pageNum}
                                     onClick={() => cambiarPagina(pageNum)}
-                                    disabled={isLoadingPagination}
+                                    disabled={isPending}
                                     className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                      isLoadingPagination
+                                      isPending
                                         ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                         : paginaActual === pageNum
                                         ? "bg-blue-600 text-white"
@@ -2109,12 +2161,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón página siguiente */}
                           <button
                             onClick={() => cambiarPagina(paginaActual + 1)}
-                            disabled={
-                              paginaActual === totalPaginas ||
-                              isLoadingPagination
-                            }
+                            disabled={paginaActual === totalPaginas || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination
+                              isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
@@ -2138,12 +2187,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón última página */}
                           <button
                             onClick={() => cambiarPagina(totalPaginas)}
-                            disabled={
-                              paginaActual === totalPaginas ||
-                              isLoadingPagination
-                            }
+                            disabled={paginaActual === totalPaginas || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
-                              isLoadingPagination
+                              isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
                                 : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
@@ -3548,7 +3594,14 @@ const VentasPage = () => {
             items: productosLimpios,
             productos: productosLimpios,
             subtotal: productosLimpios.reduce(
-              (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+              (acc, p) => {
+                // Para machimbre y deck, el precio ya incluye la cantidad
+                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                  return acc + Number(p.precio);
+                } else {
+                  return acc + Number(p.precio) * Number(p.cantidad);
+                }
+              },
               0
             ),
             descuentoTotal: productosLimpios.reduce(
@@ -3557,11 +3610,24 @@ const VentasPage = () => {
             ),
             total: (() => {
               const subtotal = productosLimpios.reduce(
-                (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                (acc, p) => {
+                  // Para machimbre y deck, el precio ya incluye la cantidad
+                  if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                    return acc + Number(p.precio);
+                  } else {
+                    return acc + Number(p.precio) * Number(p.cantidad);
+                  }
+                },
                 0
               );
               const descuento = productosLimpios.reduce(
-                (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
+                (acc, p) => {
+                  // Para machimbre y deck, el precio ya incluye la cantidad
+                  const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
+                    ? Number(p.precio) 
+                    : Number(p.precio) * Number(p.cantidad);
+                  return acc + precioCalculado * (Number(p.descuento || 0) / 100);
+                },
                 0
               );
               const envio = costoEnvioFinal || 0;

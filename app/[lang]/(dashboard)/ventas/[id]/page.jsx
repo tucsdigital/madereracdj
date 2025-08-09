@@ -3313,16 +3313,24 @@ const VentaDetalle = () => {
                         $
                         {formatearNumeroArgentino(
                           ventaEdit.productos.reduce(
-                            (acc, p) =>
-                              acc + Number(p.precio) * Number(p.cantidad),
+                            (acc, p) => {
+                              // Para machimbre y deck, el precio ya incluye la cantidad
+                              if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                return acc + Number(p.precio);
+                              } else {
+                                return acc + Number(p.precio) * Number(p.cantidad);
+                              }
+                            },
                             0
                           ) -
                           ventaEdit.productos.reduce(
-                            (acc, p) =>
-                              acc +
-                              Number(p.precio) *
-                                Number(p.cantidad) *
-                                (Number(p.descuento || 0) / 100),
+                            (acc, p) => {
+                              // Para machimbre y deck, el precio ya incluye la cantidad
+                              const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
+                                ? Number(p.precio) 
+                                : Number(p.precio) * Number(p.cantidad);
+                              return acc + precioCalculado * (Number(p.descuento || 0) / 100);
+                            },
                             0
                           ) +
                           (ventaEdit.tipoEnvio &&
@@ -3339,15 +3347,24 @@ const VentaDetalle = () => {
               {(() => {
                 // Calcula el saldo pendiente en modo edición con lógica mejorada
                 const subtotal = (ventaEdit.productos || []).reduce(
-                  (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
+                  (acc, p) => {
+                    // Para machimbre y deck, el precio ya incluye la cantidad
+                    if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                      return acc + Number(p.precio);
+                    } else {
+                      return acc + Number(p.precio) * Number(p.cantidad);
+                    }
+                  },
                   0
                 );
                 const descuento = (ventaEdit.productos || []).reduce(
-                  (acc, p) =>
-                    acc +
-                    Number(p.precio) *
-                      Number(p.cantidad) *
-                      (Number(p.descuento || 0) / 100),
+                  (acc, p) => {
+                    // Para machimbre y deck, el precio ya incluye la cantidad
+                    const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
+                      ? Number(p.precio) 
+                      : Number(p.precio) * Number(p.cantidad);
+                    return acc + precioCalculado * (Number(p.descuento || 0) / 100);
+                  },
                   0
                 );
 
