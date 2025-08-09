@@ -246,7 +246,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   useEffect(() => {
-    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 300);
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
     return () => clearTimeout(id);
   }, [busquedaProducto]);
   const busquedaDefer = React.useDeferredValue(busquedaDebounced);
@@ -1247,6 +1247,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     busquedaDefer,
     filtroTipoMadera,
     filtroSubCategoria,
+    remoteResults,
   ]);
 
   // Obtener productos filtrados y paginados optimizado
