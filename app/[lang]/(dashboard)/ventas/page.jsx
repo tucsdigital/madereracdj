@@ -232,7 +232,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   useEffect(() => {
     setProductosLoading(true);
     const fetchSomeProductos = async () => {
-      const snap = await getDocs(limit(collection(db, "productos"), 200));
+      const q = query(collection(db, "productos"), limit(200));
+      const snap = await getDocs(q);
       const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setProductosState(productos);
       const agrupados = {};
