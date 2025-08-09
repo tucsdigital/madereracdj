@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   startAt,
+  startAfter,
   endAt,
   where,
 } from "firebase/firestore";
@@ -50,7 +51,9 @@ export async function GET(request) {
     if (!q) return NextResponse.json({ items: [] });
 
     const cacheKey = JSON.stringify({ q, lim });
-    const cached = getCached(cacheKey);
+    // Evitar cache para consultas con fracciones o claramente dimensionales para no servir vacíos obsoletos
+    const skipCacheRead = /\//.test(q);
+    const cached = skipCacheRead ? null : getCached(cacheKey);
     if (cached) return NextResponse.json({ items: cached.slice(0, lim) });
 
     const items = [];
@@ -171,16 +174,35 @@ export async function GET(request) {
       await Promise.all(tasks.map((t) => t.catch(() => {})));
     };
 
-    // Si la consulta parece una búsqueda por dimensiones (p. ej. 1x6x4.90),
-    // complementar con un barrido focalizado sobre categoría Maderas
-    const isDimensionQuery = (() => {
-      // quitar todo lo que no sea dígitos, punto o x y comprobar patrón básico
-      const onlyDims = qNorm.replace(/[^0-9.x]/g, "");
-      if (!onlyDims.includes("x")) return false;
-      // Debe tener 2 o 3 números separados por x
-      const parts = onlyDims.split("x").filter(Boolean);
-      return parts.length === 2 || parts.length === 3;
-    })();
+    // Parsing robusto de dimensiones: soporta decimales y fracciones (p. ej. 1/2x4x3.10)
+    const parseDimParts = (raw) => {
+      if (!raw) return [];
+      const s = String(raw)
+        .toLowerCase()
+        .replace(/[,]/g, ".")
+        .replace(/×/g, "x")
+        .trim();
+      const tokens = s.split(/\s*x\s*/i).filter(Boolean);
+      const nums = tokens.map((t) => {
+        const tok = t.trim();
+        // fracción a/b
+        const frac = tok.match(/^\s*([0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+(?:\.[0-9]+)?)\s*$/);
+        if (frac) {
+          const num = parseFloat(frac[1]);
+          const den = parseFloat(frac[2]);
+          if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+            return num / den;
+          }
+          return NaN;
+        }
+        const val = parseFloat(tok);
+        return Number.isFinite(val) ? val : NaN;
+      });
+      return nums.filter((n) => Number.isFinite(n));
+    };
+
+    const dimParts = parseDimParts(q);
+    const isDimensionQuery = dimParts.length === 2 || dimParts.length === 3;
 
     const parseFloatSafe = (v) => {
       const n = parseFloat(String(v).toString().replace(/,/g, "."));
@@ -191,11 +213,7 @@ export async function GET(request) {
     if (isDimensionQuery) {
       // Para consultas dimensionales, omitir el barrido pesado por nombre y
       // probar primero consultas exactas por igualdad en Firestore (mucho más rápidas)
-      const onlyDims = qNorm.replace(/[^0-9.x]/g, "");
-      const parts = onlyDims
-        .split("x")
-        .filter(Boolean)
-        .map((p) => parseFloat(p));
+      const parts = dimParts;
       const round2 = (n) => Math.round(n * 100) / 100;
       const [d1, d2, d3] = [parts[0], parts[1], parts[2]].map((v) =>
         Number.isFinite(v) ? round2(v) : null
@@ -278,6 +296,83 @@ export async function GET(request) {
       if (items.length < lim) {
         await runNameQueries();
       }
+
+      // Fallback adicional: si aún no hay suficientes resultados, traer Maderas y filtrar en memoria
+      if (items.length < lim) {
+        try {
+          const qq = query(
+            collection(db, "productos"),
+            where("categoria", "==", "Maderas"),
+            limit(Math.max(1000, Math.min(5000, lim * 25)))
+          );
+          const snap = await getDocs(qq);
+          snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        } catch (_) {}
+      }
+
+      // Último fallback: ampliar a todo el catálogo si aún no se llega al límite
+      if (items.length < lim) {
+        try {
+          const qqAll = query(
+            collection(db, "productos"),
+            limit(Math.max(1000, Math.min(5000, lim * 25)))
+          );
+          const snapAll = await getDocs(qqAll);
+          snapAll.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        } catch (_) {}
+      }
+
+      // Fallback determinístico: paginar Maderas por nombre hasta encontrar suficientes coincidencias por nombre o dimensiones
+      if (items.length < lim) {
+        try {
+          const batchSize = 1000;
+          let lastDoc = null;
+          const matched = new Map();
+          for (let i = 0; i < 30; i++) { // hasta 30k docs como tope duro
+            const qBase = lastDoc
+              ? query(
+                  collection(db, "productos"),
+                  where("categoria", "==", "Maderas"),
+                  orderBy("nombre"),
+                  startAfter(lastDoc),
+                  limit(batchSize)
+                )
+              : query(
+                  collection(db, "productos"),
+                  where("categoria", "==", "Maderas"),
+                  orderBy("nombre"),
+                  limit(batchSize)
+                );
+            const snap = await getDocs(qBase);
+            if (snap.empty) break;
+            snap.forEach((d) => {
+              const it = { id: d.id, ...d.data() };
+              const nombre = `${it.nombre || ""}`;
+              const nombreNorm = normalize(nombre);
+              const nombreLower = nombre.toLowerCase();
+              const qSpacedLower = q
+                .toLowerCase()
+                .replace(/[,]/g, ".")
+                .replace(/×/g, "x")
+                .replace(/\s*[x×]\s*/g, " x ")
+                .trim();
+              const qCompactLower = qSpacedLower.replace(/\s+/g, "");
+              const byName =
+                nombreNorm.includes(qNorm) ||
+                nombreLower.includes(qSpacedLower) ||
+                nombreLower.replace(/\s+/g, "").includes(qCompactLower);
+              if (byName || matchesByDimensions(it)) {
+                matched.set(it.id, it);
+              }
+            });
+            lastDoc = snap.docs[snap.docs.length - 1];
+            if (matched.size >= lim) break;
+          }
+          if (matched.size > 0) {
+            matched.forEach((v) => items.push(v));
+          }
+        } catch (_) {}
+      }
     } else {
       // No dimensional: correr búsquedas por nombre y prefijos en paralelo
       await Promise.all([runNameQueries(), runPrefixQueries()]);
@@ -301,15 +396,9 @@ export async function GET(request) {
       const ancho = parseFloatSafe(it.ancho);
       const largo = parseFloatSafe(it.largo);
 
-      // parsear dimensiones buscadas
-      const parts = qNorm
-        .replace(/[^0-9.x]/g, "")
-        .split("x")
-        .filter((p) => p.length > 0)
-        .map((p) => parseFloatSafe(p));
-
-      if (parts.length < 2 || parts.length > 3) return false;
-      const [d1, d2, d3] = parts;
+      // usar las dimensiones ya parseadas de la consulta
+      if (!(dimParts.length === 2 || dimParts.length === 3)) return false;
+      const [d1, d2, d3] = dimParts;
 
       // Si el item no tiene suficientes dimensiones numéricas, intentar por nombre
       const nombre = `${it.nombre || ""}`;
@@ -343,7 +432,19 @@ export async function GET(request) {
     uniq = uniq.filter((it) => {
       const nombre = `${it.nombre || ""}`;
       const nombreNorm = normalize(nombre);
-      const byName = nombreNorm.includes(qNorm);
+      const nombreLower = nombre.toLowerCase();
+      // Variante con espacios alrededor de x
+      const qSpacedLower = q
+        .toLowerCase()
+        .replace(/[,]/g, ".")
+        .replace(/×/g, "x")
+        .replace(/\s*[x×]\s*/g, " x ")
+        .trim();
+      const qCompactLower = qSpacedLower.replace(/\s+/g, "");
+      const byName =
+        nombreNorm.includes(qNorm) ||
+        nombreLower.includes(qSpacedLower) ||
+        nombreLower.replace(/\s+/g, "").includes(qCompactLower);
       return byName || (isDimensionQuery && matchesByDimensions(it));
     });
 

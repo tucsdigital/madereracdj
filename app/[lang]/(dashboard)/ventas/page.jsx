@@ -33,6 +33,9 @@ import {
   query,
   where,
   limit,
+  orderBy,
+  startAfter,
+  onSnapshot,
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -213,16 +216,15 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
   const [productosLoading, setProductosLoading] = useState(true);
-  // Datos globales para búsqueda en todo el catálogo cuando se usa el buscador
-  const [globalProductos, setGlobalProductos] = useState(null);
-  const [globalProductosLoaded, setGlobalProductosLoaded] = useState(false);
+  // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 
-  // Mejora: carga inicial limitada para derivar categorías, y cache por categoría bajo demanda
+  // Suscripción en tiempo real a todos los productos (idéntico a productos/page.jsx)
   useEffect(() => {
     setProductosLoading(true);
-    const fetchSomeProductos = async () => {
-      const q = query(collection(db, "productos"), limit(200));
-      const snap = await getDocs(q);
+    const qRef = query(collection(db, "productos"), orderBy("nombre"));
+    const unsubscribe = onSnapshot(
+      qRef,
+      (snap) => {
       const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setProductosState(productos);
       const agrupados = {};
@@ -233,8 +235,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setProductosPorCategoria(agrupados);
       setCategoriasState(Object.keys(agrupados));
       setProductosLoading(false);
-    };
-    fetchSomeProductos();
+      },
+      () => setProductosLoading(false)
+    );
+    return () => unsubscribe();
   }, []);
 
   // Estados de filtros y categoría (deben declararse antes de efectos que los usan)
@@ -243,93 +247,21 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
-  // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
+  // Búsqueda local con debounce + deferred (sin endpoint)
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   useEffect(() => {
     const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
     return () => clearTimeout(id);
   }, [busquedaProducto]);
   const busquedaDefer = React.useDeferredValue(busquedaDebounced);
-  const [remoteResults, setRemoteResults] = useState([]);
-  const [remoteLoading, setRemoteLoading] = useState(false);
-  // Cache y cancelación para búsquedas remotas
-  const searchCacheRef = React.useRef(new Map()); // key -> items
-  const abortRef = React.useRef(null);
-  // Forzar re-ejecución de búsqueda aunque no cambie el término (Enter/botón)
-  const [searchForcedAt, setSearchForcedAt] = useState(0);
 
-  // Búsqueda remota para abarcar todo el catálogo (prioritaria cuando hay término de búsqueda)
-  useEffect(() => {
-    const term = busquedaDebounced.trim();
-    // Cancelar cualquier request previo
-    if (abortRef.current) {
-      try { abortRef.current.abort(); } catch (_) {}
-    }
-    if (term === "") {
-      setRemoteResults([]);
-      setRemoteLoading(false);
-      return;
-    }
+  // Sin carga global extra: la suscripción ya provee todo el catálogo
 
-    // Normalizar query para cache
-    const qKey = term
-      .replace(/\s*[x×]\s*/gi, " x ")
-      .replace(/[,]/g, ".")
-      .toLowerCase()
-      .trim();
-
-    // Responder desde cache si existe
-    const cached = searchCacheRef.current.get(qKey);
-    if (cached) {
-      setRemoteResults(cached);
-      setRemoteLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setRemoteLoading(true);
-    (async () => {
-      try {
-        // Expandir consulta con variantes para mejorar coincidencias en servidor
-        const q = term
-          .replace(/\s*[x×]\s*/gi, " x ")
-          .replace(/[,]/g, ".");
-        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(q)}&limit=200`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error("search_failed");
-        const data = await res.json();
-        const items = Array.isArray(data.items) ? data.items : [];
-        // Cachear resultado
-        searchCacheRef.current.set(qKey, items);
-        setRemoteResults(items);
-      } catch (err) {
-        if (err?.name === "AbortError") return; // petición cancelada
-        setRemoteResults([]);
-      } finally {
-        setRemoteLoading(false);
-      }
-    })();
-  }, [busquedaDebounced, searchForcedAt]);
+  // Sin búsqueda remota: todo se filtra en memoria
 
   
 
-  // Cache de productos por categoría para evitar traer todo el catálogo
-  const [cacheCategorias, setCacheCategorias] = useState({}); // { [categoriaId]: productos[] }
-  useEffect(() => {
-    if (!categoriaId || cacheCategorias[categoriaId]) return;
-    (async () => {
-      const q = query(
-        collection(db, "productos"),
-        where("categoria", "==", categoriaId),
-        limit(200)
-      );
-      const snap = await getDocs(q);
-      const productosCat = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setCacheCategorias((prev) => ({ ...prev, [categoriaId]: productosCat }));
-    })();
-  }, [categoriaId, cacheCategorias]);
+  // Sin cache por categoría: se deriva desde la suscripción global
 
   
 
@@ -339,21 +271,13 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Mejora de fluidez al paginar
   const [isPending, startTransition] = React.useTransition();
 
-  const handleBuscarClick = useCallback(() => {
-    // Forzar ejecución inmediata con el valor actual (saltando el debounce)
-    setBusquedaDebounced(busquedaProducto);
-    setSearchForcedAt(Date.now());
-    setPaginaActual(1);
-  }, [busquedaProducto]);
+  // Al escribir en el input ya se actualiza busquedaDebounced; no se requiere botón
 
   const handleAgregarProducto = useCallback((producto) => {
-    // Intentar resolver el producto real desde distintas fuentes (estado inicial, cache por categoría, resultados remotos)
+    // Intentar resolver el producto real desde distintas fuentes locales (estado inicial o agrupación por categoría)
     let real = productosState.find((p) => p.id === producto.id);
-    if (!real && categoriaId && cacheCategorias[categoriaId]) {
-      real = (cacheCategorias[categoriaId] || []).find((p) => p.id === producto.id);
-    }
-    if (!real && remoteResults && remoteResults.length > 0) {
-      real = remoteResults.find((p) => p.id === producto.id);
+    if (!real && categoriaId && productosPorCategoria[categoriaId]) {
+      real = (productosPorCategoria[categoriaId] || []).find((p) => p.id === producto.id);
     }
     // Si aún no se encontró, usar el objeto recibido (proviene del catálogo remoto)
     if (!real) {
@@ -442,7 +366,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         },
       ]);
     }
-  }, [productosState, productosSeleccionados, cacheCategorias, categoriaId, remoteResults]);
+  }, [productosState, productosSeleccionados, productosPorCategoria, categoriaId]);
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
@@ -1192,15 +1116,13 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
     if (hayBusqueda) {
       if (categoriaId) {
-        const localCat = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId] || [];
-        // Si la búsqueda global no trae nada (por límites de rangos/índices), caer al local de la categoría
-        fuente = (remoteResults && remoteResults.length > 0) ? remoteResults : localCat;
+        const localCat = productosPorCategoria[categoriaId] || [];
+        fuente = localCat;
       } else {
-        // Sin categoría: usar resultados remotos globales
-        fuente = remoteResults;
+        fuente = productosState;
       }
     } else if (categoriaId) {
-      fuente = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId];
+      fuente = productosPorCategoria[categoriaId];
     }
     if (!fuente) return [];
 
@@ -1269,13 +1191,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, [
     productosPorCategoria,
     productosState,
-    cacheCategorias,
-    globalProductos,
     categoriaId,
     busquedaDefer,
     filtroTipoMadera,
     filtroSubCategoria,
-    remoteResults,
   ]);
 
   // Obtener productos filtrados y paginados optimizado
@@ -1844,26 +1763,11 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
-                            handleBuscarClick();
                           }
                         }}
                         className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                       />
-                      {/* Indicador de carga dentro del input */}
-                      {remoteLoading && (
-                        <div className="absolute right-2 inset-y-0 flex items-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        </div>
-                      )}
-                      {/* Botón de búsqueda manual */}
-                      <button
-                        type="button"
-                        onClick={handleBuscarClick}
-                        className="shrink-0 px-3 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                        title="Buscar"
-                      >
-                        Buscar
-                      </button>
+                      {/* Búsqueda en memoria: no se necesita indicador remoto ni botón */}
                     </div>
                   </div>
                 </div>
