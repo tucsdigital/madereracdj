@@ -252,38 +252,66 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const busquedaDefer = React.useDeferredValue(busquedaDebounced);
   const [remoteResults, setRemoteResults] = useState([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
+  // Cache y cancelación para búsquedas remotas
+  const searchCacheRef = React.useRef(new Map()); // key -> items
+  const abortRef = React.useRef(null);
   // Forzar re-ejecución de búsqueda aunque no cambie el término (Enter/botón)
   const [searchForcedAt, setSearchForcedAt] = useState(0);
 
   // Búsqueda remota para abarcar todo el catálogo (prioritaria cuando hay término de búsqueda)
   useEffect(() => {
     const term = busquedaDebounced.trim();
+    // Cancelar cualquier request previo
+    if (abortRef.current) {
+      try { abortRef.current.abort(); } catch (_) {}
+    }
     if (term === "") {
       setRemoteResults([]);
+      setRemoteLoading(false);
       return;
     }
-    let abort = false;
+
+    // Normalizar query para cache
+    const qKey = term
+      .replace(/\s*[x×]\s*/gi, " x ")
+      .replace(/[,]/g, ".")
+      .toLowerCase()
+      .trim();
+
+    // Responder desde cache si existe
+    const cached = searchCacheRef.current.get(qKey);
+    if (cached) {
+      setRemoteResults(cached);
+      setRemoteLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setRemoteLoading(true);
     (async () => {
       try {
-        setRemoteLoading(true);
         // Expandir consulta con variantes para mejorar coincidencias en servidor
         const q = term
           .replace(/\s*[x×]\s*/gi, " x ")
           .replace(/[,]/g, ".");
-        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(q)}&limit=200`);
+        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(q)}&limit=200`, {
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error("search_failed");
         const data = await res.json();
-        if (!abort) setRemoteResults(Array.isArray(data.items) ? data.items : []);
-      } catch (_) {
-        if (!abort) setRemoteResults([]);
+        const items = Array.isArray(data.items) ? data.items : [];
+        // Cachear resultado
+        searchCacheRef.current.set(qKey, items);
+        setRemoteResults(items);
+      } catch (err) {
+        if (err?.name === "AbortError") return; // petición cancelada
+        setRemoteResults([]);
       } finally {
-        if (!abort) setRemoteLoading(false);
+        setRemoteLoading(false);
       }
     })();
-    return () => {
-      abort = true;
-    };
-  }, [categoriaId, busquedaDebounced, searchForcedAt]);
+  }, [busquedaDebounced, searchForcedAt]);
 
   
 
@@ -1890,16 +1918,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <p className="text-gray-500 dark:text-gray-400">
                       Elige una categoría para ver los productos disponibles
                     </p>
-                  </div>
-                ) : remoteLoading ? (
-                  <div className="p-8 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                      Buscando productos...
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400">Por favor espera</p>
                   </div>
                 ) : productosFiltrados.length === 0 ? (
                   <div className="p-8 text-center">
