@@ -38,7 +38,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 
-function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
@@ -1300,8 +1300,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   return (
     <>
-      <DialogHeader className="mb-2">
-        <DialogTitle className="text-2xl font-bold text-primary flex items-center gap-2">
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
           <Icon
             icon={
               tipo === "presupuesto"
@@ -1311,12 +1311,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             className="w-6 h-6"
           />
           {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Venta"}
-        </DialogTitle>
-        <DialogDescription className="text-base text-default-600">
-          Complete todos los campos requeridos para crear un nuevo{" "}
+        </h2>
+        <p className="text-base text-default-600">
+          Complete todos los campos requeridos para crear un nuevo {""}
           {tipo === "presupuesto" ? "presupuesto" : "venta"}.
-        </DialogDescription>
-      </DialogHeader>
+        </p>
+      </div>
 
       {submitStatus && (
         <div
@@ -1337,9 +1337,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       <form
         onSubmit={handleSubmit(handleFormSubmit)}
-        className="flex flex-col h-full gap-0"
+        className="flex flex-col gap-6"
       >
-        <div className="flex-1 overflow-y-auto px-1 pb-4 max-h-[calc(85vh-200px)]">
+        <div className="px-1 pb-6">
           <div className="flex flex-col gap-8">
             <input
               type="hidden"
@@ -2960,8 +2960,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           </div>
         </div>
 
-        {/* Totales y acciones */}
-        <div className="bg-card space-y-4 flex-shrink-0 rounded-b-xl border-t border-default-100">
+        {/* Totales y acciones - bloque normal */}
+        <div className="bg-card space-y-4 rounded-b-xl border-t border-default-100 p-3 md:p-4">
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
@@ -2993,7 +2993,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-4 justify-end pt-4 bg-card">
+          <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4 bg-card">
             <Button
               type="button"
               variant="outline"
@@ -3018,7 +3018,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 `Guardar ${tipo === "presupuesto" ? "Presupuesto" : "Venta"}`
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </div>
       </form>
 
@@ -3416,7 +3416,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
 const VentasPage = () => {
   const { user } = useAuth();
-  const [open, setOpen] = useState(null);
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -3447,222 +3446,7 @@ const VentasPage = () => {
     fetchData();
   }, []);
 
-  const handleClose = () => setOpen(null);
-
-  const handleSubmit = async (formData) => {
-    console.log("[SUBMIT] Recibiendo datos en VentasPage:", formData);
-    setLoading(true);
-    try {
-      let docRef;
-      if (open === "venta") {
-        const cleanFormData = JSON.parse(
-          JSON.stringify(formData, (key, value) => {
-            if (value === undefined) return undefined;
-            return value;
-          })
-        );
-        const nextNumeroPedido = await getNextVentaNumber();
-        cleanFormData.numeroPedido = nextNumeroPedido;
-        console.log("[DEBUG] Datos limpios para guardar venta:", cleanFormData);
-        docRef = await addDoc(collection(db, "ventas"), cleanFormData);
-        for (const prod of cleanFormData.productos) {
-          console.log(
-            "[DEBUG] Intentando descontar stock para producto:",
-            prod.id
-          );
-          const productoRef = doc(db, "productos", prod.id);
-          const productoSnap = await getDocs(collection(db, "productos"));
-          const existe = productoSnap.docs.find((d) => d.id === prod.id);
-          if (!existe) {
-            setLoading(false);
-            alert(
-              `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
-            );
-            return;
-          }
-          await updateDoc(productoRef, {
-            stock: increment(-Math.abs(prod.cantidad)),
-          });
-          await addDoc(collection(db, "movimientos"), {
-            productoId: prod.id,
-            tipo: "salida",
-            cantidad: prod.cantidad,
-            usuario: "Sistema",
-            fecha: serverTimestamp(),
-            referencia: "venta",
-            referenciaId: docRef.id,
-            observaciones: `Salida por venta`,
-            productoNombre: prod.nombre,
-          });
-        }
-        if (
-          cleanFormData.tipoEnvio &&
-          cleanFormData.tipoEnvio !== "retiro_local"
-        ) {
-          const envioData = {
-            ventaId: docRef.id,
-            clienteId: cleanFormData.clienteId,
-            cliente: cleanFormData.cliente,
-            fechaCreacion: new Date().toISOString(),
-            fechaEntrega: cleanFormData.fechaEntrega,
-            estado: "pendiente",
-            prioridad: cleanFormData.prioridad || "media",
-            vendedor: user?.email || "Usuario no identificado",
-            direccionEnvio: cleanFormData.direccionEnvio,
-            localidadEnvio: cleanFormData.localidadEnvio,
-            tipoEnvio: cleanFormData.tipoEnvio,
-            transportista: cleanFormData.transportista,
-            costoEnvio: parseFloat(cleanFormData.costoEnvio) || 0,
-            numeroFactura: cleanFormData.numeroFactura,
-            numeroRemito: cleanFormData.numeroRemito,
-            numeroPedido: cleanFormData.numeroPedido,
-            totalVenta: cleanFormData.total,
-            productos: cleanFormData.productos,
-            cantidadTotal: cleanFormData.productos.reduce(
-              (acc, p) => acc + p.cantidad,
-              0
-            ),
-            historialEstados: [
-              {
-                estado: "pendiente",
-                fecha: new Date().toISOString(),
-                comentario: "Envío creado automáticamente desde la venta",
-              },
-            ],
-            observaciones: cleanFormData.observaciones,
-            instruccionesEspeciales: "",
-            fechaActualizacion: new Date().toISOString(),
-            creadoPor: "sistema",
-          };
-          const cleanEnvioData = Object.fromEntries(
-            Object.entries(envioData).filter(([_, v]) => v !== undefined)
-          );
-          await addDoc(collection(db, "envios"), cleanEnvioData);
-          console.log("Envío creado automáticamente para la venta:", docRef.id);
-        }
-        setOpen(null);
-        router.push(`/${lang}/ventas/${docRef.id}`);
-      } else if (open === "presupuesto") {
-        try {
-          const clienteObj = formData.cliente || {};
-          const productosLimpios = (formData.items || []).map((p) => ({
-            ...p,
-            // Asegurar que las propiedades específicas de madera se preserven
-            ...(p.categoria === "Maderas" && {
-              alto: Number(p.alto) || 0,
-              ancho: Number(p.ancho) || 0,
-              largo: Number(p.largo) || 0,
-              precioPorPie: Number(p.precioPorPie) || 0,
-              cepilladoAplicado: p.cepilladoAplicado || false,
-            }),
-          }));
-
-          console.log("[DEBUG] Campos de envío recibidos:", {
-            tipoEnvio: formData.tipoEnvio,
-            costoEnvio: formData.costoEnvio,
-          });
-
-          let costoEnvioFinal = undefined;
-          if (
-            formData.tipoEnvio &&
-            formData.tipoEnvio !== "retiro_local" &&
-            formData.costoEnvio !== undefined &&
-            formData.costoEnvio !== ""
-          ) {
-            costoEnvioFinal = Number(formData.costoEnvio);
-            if (isNaN(costoEnvioFinal)) costoEnvioFinal = undefined;
-          }
-
-          console.log("[DEBUG] Costo de envío procesado:", costoEnvioFinal);
-
-          const nextNumeroPedido = await getNextPresupuestoNumber();
-          const cleanFormData = {
-            ...formData,
-            cliente: clienteObj,
-            items: productosLimpios,
-            productos: productosLimpios,
-            subtotal: productosLimpios.reduce(
-              (acc, p) => {
-                // Para machimbre y deck, el precio ya incluye la cantidad
-                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                  return acc + Number(p.precio);
-                } else {
-                  return acc + Number(p.precio) * Number(p.cantidad);
-                }
-              },
-              0
-            ),
-            descuentoTotal: productosLimpios.reduce(
-              (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
-              0
-            ),
-            total: (() => {
-              const subtotal = productosLimpios.reduce(
-                (acc, p) => {
-                  // Para machimbre y deck, el precio ya incluye la cantidad
-                  if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                    return acc + Number(p.precio);
-                  } else {
-                    return acc + Number(p.precio) * Number(p.cantidad);
-                  }
-                },
-                0
-              );
-              const descuento = productosLimpios.reduce(
-                (acc, p) => {
-                  // Para machimbre y deck, el precio ya incluye la cantidad
-                  const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                    ? Number(p.precio) 
-                    : Number(p.precio) * Number(p.cantidad);
-                  return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                },
-                0
-              );
-              const envio = costoEnvioFinal || 0;
-              return subtotal - descuento + envio;
-            })(),
-            fechaCreacion: new Date().toISOString(),
-            tipo: "presupuesto",
-            numeroPedido: nextNumeroPedido,
-            vendedor: user?.email || "Usuario no identificado",
-            tipoEnvio: formData.tipoEnvio || "",
-            costoEnvio: costoEnvioFinal,
-          };
-          console.log("[DEBUG] Objeto preparado para guardar:", cleanFormData);
-          const finalFormData = JSON.parse(
-            JSON.stringify(cleanFormData, (key, value) => {
-              if (value === undefined) return undefined;
-              return value;
-            })
-          );
-          console.log(
-            "[DEBUG] Datos limpios para guardar presupuesto:",
-            finalFormData
-          );
-          docRef = await addDoc(collection(db, "presupuestos"), finalFormData);
-          console.log(
-            "[SUCCESS] Presupuesto guardado en Firebase con ID:",
-            docRef.id
-          );
-          setOpen(null);
-          router.push(`/${lang}/presupuestos/${docRef.id}`);
-        } catch (err) {
-          console.error(
-            "[ERROR] Error en el proceso de guardado de presupuesto:",
-            err
-          );
-          alert("Error al guardar presupuesto: " + err.message);
-          throw err;
-        }
-      }
-    } catch (error) {
-      console.error("[ERROR] Error general al guardar:", error);
-      alert("Error al guardar: " + error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Ya no usamos modal ni submit aquí
 
   return (
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
@@ -3671,7 +3455,7 @@ const VentasPage = () => {
           <Button
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
-            onClick={() => setOpen("presupuesto")}
+            onClick={() => router.push(`/${lang}/presupuestos/create`)}
           >
             <Icon
               icon="heroicons:document-plus"
@@ -3685,7 +3469,7 @@ const VentasPage = () => {
           <Button
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
-            onClick={() => setOpen("venta")}
+            onClick={() => router.push(`/${lang}/ventas/create`)}
           >
             <Icon
               icon="heroicons:shopping-cart"
@@ -3726,45 +3510,9 @@ const VentasPage = () => {
           </CardContent>
         </Card>
       </div>
-      <Dialog open={!!open} onOpenChange={handleClose}>
-        <DialogContent className="w-[98vw] max-w-[1500px] h-[90vh] flex flex-col rounded-2xl shadow-2xl border-2 border-primary/20 bg-card">
-          <FormularioVentaPresupuesto
-            tipo={open}
-            onClose={handleClose}
-            onSubmit={handleSubmit}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Modal eliminado en favor de páginas dedicadas de creación */}
     </div>
   );
 };
 
 export default VentasPage;
-
-// Numeración autoincremental para ventas
-const getNextVentaNumber = async () => {
-  const snap = await getDocs(collection(db, "ventas"));
-  let maxNum = 0;
-  snap.docs.forEach((doc) => {
-    const data = doc.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("VENTA-")) {
-      const num = parseInt(data.numeroPedido.replace("VENTA-", ""), 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
-};
-
-// Numeración autoincremental para presupuestos
-const getNextPresupuestoNumber = async () => {
-  const snap = await getDocs(collection(db, "presupuestos"));
-  let maxNum = 0;
-  snap.docs.forEach((doc) => {
-    const data = doc.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("PRESU-")) {
-      const num = parseInt(data.numeroPedido.replace("PRESU-", ""), 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
-};
