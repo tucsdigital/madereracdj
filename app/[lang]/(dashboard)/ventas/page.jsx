@@ -213,6 +213,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
   const [productosLoading, setProductosLoading] = useState(true);
+  // Datos globales para búsqueda en todo el catálogo cuando se usa el buscador
+  const [globalProductos, setGlobalProductos] = useState(null);
+  const [globalProductosLoaded, setGlobalProductosLoaded] = useState(false);
 
   // Mejora: carga inicial limitada para derivar categorías, y cache por categoría bajo demanda
   useEffect(() => {
@@ -240,6 +243,44 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
+  // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 300);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+  const [remoteResults, setRemoteResults] = useState([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+
+  // Búsqueda remota para abarcar todo el catálogo (prioritaria cuando hay término de búsqueda)
+  useEffect(() => {
+    const term = busquedaDebounced.trim();
+    if (term === "") {
+      setRemoteResults([]);
+      return;
+    }
+    let abort = false;
+    (async () => {
+      try {
+        setRemoteLoading(true);
+        const res = await fetch(`/api/productos/search?q=${encodeURIComponent(term)}&limit=60`);
+        if (!res.ok) throw new Error("search_failed");
+        const data = await res.json();
+        if (!abort) setRemoteResults(Array.isArray(data.items) ? data.items : []);
+      } catch (_) {
+        if (!abort) setRemoteResults([]);
+      } finally {
+        if (!abort) setRemoteLoading(false);
+      }
+    })();
+    return () => {
+      abort = true;
+    };
+  }, [categoriaId, busquedaDebounced]);
+
+  
+
   // Cache de productos por categoría para evitar traer todo el catálogo
   const [cacheCategorias, setCacheCategorias] = useState({}); // { [categoriaId]: productos[] }
   useEffect(() => {
@@ -256,13 +297,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     })();
   }, [categoriaId, cacheCategorias]);
 
-  // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
-  const [busquedaDebounced, setBusquedaDebounced] = useState("");
-  useEffect(() => {
-    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 300);
-    return () => clearTimeout(id);
-  }, [busquedaProducto]);
-  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+  
 
   // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
@@ -271,13 +306,17 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isPending, startTransition] = React.useTransition();
 
   const handleAgregarProducto = useCallback((producto) => {
-    const real = productosState.find((p) => p.id === producto.id);
+    // Intentar resolver el producto real desde distintas fuentes (estado inicial, cache por categoría, resultados remotos)
+    let real = productosState.find((p) => p.id === producto.id);
+    if (!real && categoriaId && cacheCategorias[categoriaId]) {
+      real = (cacheCategorias[categoriaId] || []).find((p) => p.id === producto.id);
+    }
+    if (!real && remoteResults && remoteResults.length > 0) {
+      real = remoteResults.find((p) => p.id === producto.id);
+    }
+    // Si aún no se encontró, usar el objeto recibido (proviene del catálogo remoto)
     if (!real) {
-      setSubmitStatus("error");
-      setSubmitMessage(
-        "Solo puedes agregar productos existentes del catálogo."
-      );
-      return;
+      real = producto;
     }
     if (!productosSeleccionados.some((p) => p.id === real.id)) {
       let precio;
@@ -362,7 +401,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         },
       ]);
     }
-  }, [productosState, productosSeleccionados]);
+  }, [productosState, productosSeleccionados, cacheCategorias, categoriaId, remoteResults]);
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
@@ -845,23 +884,23 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Obtener tipos de madera únicos (memoizado)
   const tiposMadera = useMemo(() => {
     return [
-      ...new Set(
-        productosState
-          .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
-          .map((p) => p.tipoMadera)
-      ),
-    ].filter(Boolean);
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
   }, [productosState]);
 
   // Obtener subcategorías de ferretería únicas (memoizado)
   const subCategoriasFerreteria = useMemo(() => {
     return [
-      ...new Set(
-        productosState
-          .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-          .map((p) => p.subCategoria)
-      ),
-    ].filter(Boolean);
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
   }, [productosState]);
 
   const subtotal = productosSeleccionados.reduce(
@@ -1075,15 +1114,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             };
       console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
+      // Dejar la navegación al onSubmit de la página caller; no cerrar aquí
       setSubmitStatus("success");
-      setSubmitMessage(
-        `${
-          tipo === "presupuesto" ? "Presupuesto" : "Venta"
-        } guardado exitosamente`
-      );
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      setSubmitMessage(`${tipo === "presupuesto" ? "Presupuesto" : "Venta"} guardado exitosamente`);
     } catch (error) {
       console.error("Error al guardar:", error);
       setSubmitStatus("error");
@@ -1094,20 +1127,40 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
 
   const handleClose = () => {
-    if (!isSubmitting) {
+    if (!isSubmitting && onClose) {
       onClose();
     }
   };
 
   // Función para normalizar texto (reutilizable)
   const normalizarTexto = (texto) => {
-    return texto.toLowerCase().replace(/\s+/g, "");
+    return (texto || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // quitar acentos/diacríticos
+      .replace(/\s+/g, "");
   };
 
   // Función para filtrar productos optimizada con useMemo
   const productosFiltrados = useMemo(() => {
-    // Fuente de datos para la grilla: cache por categoría si existe; si no, agrupados iniciales
-    const fuente = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId];
+    // Fuente de datos:
+    // - Si hay categoría seleccionada: usar esa categoría (cache o agrupados)
+    // - Si NO hay categoría y hay término de búsqueda: usar productos globales (si existen) o el estado cargado
+    // - Caso contrario: no mostrar (esperar selección de categoría)
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId] || [];
+        // Si la búsqueda global no trae nada (por límites de rangos/índices), caer al local de la categoría
+        fuente = (remoteResults && remoteResults.length > 0) ? remoteResults : localCat;
+      } else {
+        // Sin categoría: usar resultados remotos globales
+        fuente = remoteResults;
+      }
+    } else if (categoriaId) {
+      fuente = cacheCategorias[categoriaId] || productosPorCategoria[categoriaId];
+    }
     if (!fuente) return [];
 
     // Normalizar el término de búsqueda una sola vez
@@ -1139,6 +1192,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           }
         }
 
+        // Filtro por categoría seleccionada (si existe)
+        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
+
         // Filtro específico por tipo de madera
         const cumpleTipoMadera =
           categoriaId !== "Maderas" ||
@@ -1151,7 +1207,12 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           filtroSubCategoria === "" ||
           prod.subCategoria === filtroSubCategoria;
 
-        return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
+        return (
+          cumpleCategoria &&
+          cumpleBusqueda &&
+          cumpleTipoMadera &&
+          cumpleSubCategoria
+        );
       })
       .sort((a, b) => {
         // Ordenar por stock: primero los que tienen stock, luego los que no
@@ -1166,6 +1227,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       });
   }, [
     productosPorCategoria,
+    productosState,
+    cacheCategorias,
+    globalProductos,
     categoriaId,
     busquedaDefer,
     filtroTipoMadera,
@@ -1187,7 +1251,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const cambiarPagina = useCallback(
     (nuevaPagina) => {
       startTransition(() => {
-        setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
       });
     },
     [totalPaginas, startTransition]
@@ -1768,7 +1832,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Agrega productos a las categorías para comenzar
                     </p>
                   </div>
-                ) : !categoriaId ? (
+                ) : (!categoriaId && (!busquedaDefer || busquedaDefer.trim() === "")) ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                       <svg

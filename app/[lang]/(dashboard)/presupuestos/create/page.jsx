@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { addDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
-import { FormularioVentaPresupuesto } from "../../ventas/page";
+import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 
 const getNextPresupuestoNumber = async () => {
   const snap = await getDocs(collection(db, "presupuestos"));
@@ -49,7 +49,7 @@ export default function CreatePresupuestoPage() {
 
   return (
     <div className="py-6">
-      <FormularioVentaPresupuesto tipo="presupuesto" onClose={() => router.back()} onSubmit={handleSubmit} />
+      <FormularioVentaPresupuesto tipo="presupuesto" onClose={() => {}} onSubmit={handleSubmit} />
     </div>
   );
 }
