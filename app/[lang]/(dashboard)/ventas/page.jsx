@@ -6,21 +6,7 @@ import {
   columnsPresupuestos,
   columnsVentas,
 } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
-import dynamic from "next/dynamic";
-const DataTable = dynamic(
-  () =>
-    import(
-      "../(invoice)/invoice-list/invoice-list-table/components/data-table"
-    ).then((m) => m.DataTable),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="py-10 text-center text-sm text-default-500">
-        Cargando tabla...
-      </div>
-    ),
-  }
-);
+import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import {
   Dialog,
   DialogContent,
@@ -248,6 +234,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     fetchSomeProductos();
   }, []);
 
+  // Estados de filtros y categoría (deben declararse antes de efectos que los usan)
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+
   // Cache de productos por categoría para evitar traer todo el catálogo
   const [cacheCategorias, setCacheCategorias] = useState({}); // { [categoriaId]: productos[] }
   useEffect(() => {
@@ -263,11 +255,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       setCacheCategorias((prev) => ({ ...prev, [categoriaId]: productosCat }));
     })();
   }, [categoriaId, cacheCategorias]);
-
-  const [categoriaId, setCategoriaId] = useState("");
-  const [busquedaProducto, setBusquedaProducto] = useState("");
-  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
-  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
   // Mejora de rendimiento: debounce + deferred para la búsqueda de productos
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
