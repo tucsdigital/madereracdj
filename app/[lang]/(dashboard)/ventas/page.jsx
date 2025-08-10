@@ -1108,10 +1108,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Función para filtrar productos optimizada con useMemo
   const productosFiltrados = useMemo(() => {
-    // Fuente de datos:
-    // - Si hay categoría seleccionada: usar esa categoría (cache o agrupados)
-    // - Si NO hay categoría y hay término de búsqueda: usar productos globales (si existen) o el estado cargado
-    // - Caso contrario: no mostrar (esperar selección de categoría)
     let fuente;
     const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
     if (hayBusqueda) {
@@ -2238,57 +2234,42 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
             {/* Tabla de productos seleccionados */}
             {productosSeleccionados.length > 0 && (
-              <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-default-900">
-                    Productos Seleccionados
-                  </h3>
-                  <span className="text-sm text-default-600">
-                    {productosSeleccionados.length} producto
-                    {productosSeleccionados.length !== 1 ? "s" : ""}
+              <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
+                <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
+                  <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                    {productosSeleccionados.length} producto{productosSeleccionados.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full caption-top text-sm overflow-hidden">
-                    <thead className="[&_tr]:border-b bg-default-">
-                      <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Categoría
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Producto
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Cant.
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Cepillado
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Precio unit.
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Desc.
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Subtotal
-                        </th>
-                        <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                          Acción
-                        </th>
+                  <table className="min-w-full text-[15px]">
+                    <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
+                      <tr className="border-b border-default-200">
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cant.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-default-200">
                       {productosSeleccionados.map((p, idx) => (
                         <tr
                           key={p.id}
                           className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
                         >
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            {p.categoria}
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            {p.categoria && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
+                                {p.categoria}
+                              </span>
+                            )}
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          <td className="p-4 align-top text-sm text-default-600">
                             <div className="font-semibold text-default-900">
                               {p.esEditable ? (
                                 <input
@@ -2297,7 +2278,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   onChange={(e) =>
                                     handleNombreChange(p.id, e.target.value)
                                   }
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                  className="w-full px-2 py-1 border border-gray-300 uppercase rounded text-base font-bold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
                                   disabled={isSubmitting}
                                   placeholder="Nombre del producto"
                                 />
@@ -2318,189 +2299,104 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             {p.categoria === "Ferretería" && p.subCategoria && (
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                  🔧 {p.subCategoria}
+                                  {p.subCategoria}
                                 </span>
                               </div>
                             )}
 
                             {/* Campos editables para maderas */}
                             {p.categoria === "Maderas" && (
-                              <div className="mt-2 space-y-2">
-                                {/* Sección de dimensiones */}
-                                <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-700">
-                                  <div className="flex items-center gap-1 mb-2">
-                                    <svg
-                                      className="w-3 h-3 text-orange-600 dark:text-orange-400"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                    <span className="text-xs font-medium text-orange-700 dark:text-orange-400">
+                              <div className="mt-2 flex flex-wrap items-start gap-3">
+                                {/* Sección de dimensiones (compacta) */}
+                                <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
                                       Dimensiones
                                     </span>
+                                    {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2))} m³
+                                      </span>
+                                    )}
                                   </div>
 
-                                  {/* Para machimbres: ancho, largo y cantidad editables */}
-                                  {p.subcategoria === "machimbre" ||
-                                  p.subcategoria === "deck" ? (
-                                    <>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <div className="space-y-1">
-                                          <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                            Alto
-                                          </label>
-                                          <div className="relative">
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={p.alto === "" ? "" : p.alto || ""}
-                                              onChange={(e) =>
-                                                handleAltoChange(
-                                                  p.id,
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                              disabled={isSubmitting}
-                                              placeholder="0.00"
-                                            />
-                                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                              m
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                          <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                            Largo
-                                          </label>
-                                          <div className="relative">
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={p.largo === "" ? "" : p.largo || ""}
-                                              onChange={(e) =>
-                                                handleLargoChange(
-                                                  p.id,
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                              disabled={isSubmitting}
-                                              placeholder="0.00"
-                                            />
-                                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                              m
-                                            </div>
-                                          </div>
-                                        </div>
+                                  {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.alto === "" ? "" : p.alto || ""}
+                                          onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
                                       </div>
-                                      {/* Mostrar m2 total */}
-                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                        Total:{" "}
-                                        {(
-                                          (p.alto || 0) *
-                                          (p.largo || 0) *
-                                          (p.cantidad || 1)
-                                        ).toFixed(2)}{" "}
-                                        m²
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.largo === "" ? "" : p.largo || ""}
+                                          onChange={(e) => handleLargoChange(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
                                       </div>
-                                    </>
+                                    </div>
                                   ) : (
-                                    /* Para otras maderas: campos editables */
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Alto
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.alto === "" ? "" : p.alto || ""}
-                                            onChange={(e) =>
-                                              handleAltoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="0.00"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            m
-                                          </div>
-                                        </div>
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.alto === "" ? "" : p.alto || ""}
+                                          onChange={(e) => handleAltoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
                                       </div>
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Ancho
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.ancho === "" ? "" : p.ancho || ""}
-                                            onChange={(e) =>
-                                              handleAnchoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="0.00"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            m
-                                          </div>
-                                        </div>
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.ancho === "" ? "" : p.ancho || ""}
+                                          onChange={(e) => handleAnchoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
                                       </div>
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-orange-700 dark:text-orange-400">
-                                          Largo
-                                        </label>
-                                        <div className="relative">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.largo === "" ? "" : p.largo || ""}
-                                            onChange={(e) =>
-                                              handleLargoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-full px-2 py-1 text-xs border border-orange-300 dark:border-orange-600 rounded bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800 focus:outline-none transition-colors"
-                                            disabled={isSubmitting}
-                                            placeholder="0.00"
-                                          />
-                                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-orange-500 dark:text-orange-400">
-                                            m
-                                          </div>
-                                        </div>
-                                      </div>
-                                      {/* Mostrar volumen total para maderas normales */}
-                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                        Volumen: {((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2)} m³
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.largo === "" ? "" : p.largo || ""}
+                                          onChange={(e) => handleLargoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
                                       </div>
                                     </div>
                                   )}
                                 </div>
 
-                                {/* Sección de precio por pie */}
-                                <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700">
-                                  <div className="flex items-center gap-1 mb-2">
+                                {/* Sección de precio por pie (compacta y no ancha) */}
+                                <div className="inline-block w-fit p-1.5 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700 align-top">
+                                  <div className="flex items-center gap-1 mb-1">
                                     <svg
                                       className="w-3 h-3 text-green-600 dark:text-green-400"
                                       fill="currentColor"
@@ -2513,19 +2409,15 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         clipRule="evenodd"
                                       />
                                     </svg>
-                                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                                    <span className="text-sm font-semibold text-green-700 dark:text-green-400">
                                       Precio
                                     </span>
                                   </div>
-
-                                  <div className="space-y-1">
-                                    <label className="block text-xs font-medium text-green-700 dark:text-green-400">
-                                      Valor
-                                    </label>
+                                  {/* Precio compacto (más angosto) */}
+                                  <div className="inline-block w-fit">
+                                    <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
                                     <div className="relative">
-                                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600 dark:text-green-400 font-medium">
-                                        $
-                                      </div>
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
                                       <input
                                         type="number"
                                         min="0"
@@ -2538,7 +2430,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                             handlePrecioPorPieChangeMadera(p.id, e.target.value);
                                           }
                                         }}
-                                        className="w-full pl-6 pr-2 py-1 text-xs border border-green-300 dark:border-green-600 rounded bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors"
+                                        className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
                                         disabled={isSubmitting}
                                         placeholder="0.00"
                                       />
@@ -2548,16 +2440,16 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               </div>
                             )}
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          <td className="p-4 align-middle text-sm text-default-600">
                             <div className="flex items-center justify-center">
-                              <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                              <div className="flex items-center bg-white dark:bg-gray-800 border border-default-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
                                 <button
                                   type="button"
                                   onClick={() =>
                                     handleDecrementarCantidad(p.id)
                                   }
                                   disabled={isSubmitting || p.cantidad <= 1}
-                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                  className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                   <svg
                                     className="w-4 h-4"
@@ -2581,7 +2473,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   onChange={(e) =>
                                     handleCantidadChange(p.id, e.target.value)
                                   }
-                                  className="w-16 text-center text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                  className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums"
                                   disabled={isSubmitting}
                                 />
 
@@ -2591,7 +2483,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     handleIncrementarCantidad(p.id)
                                   }
                                   disabled={isSubmitting}
-                                  className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                                  className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors"
                                 >
                                   <svg
                                     className="w-4 h-4"
@@ -2610,7 +2502,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               </div>
                             </div>
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          <td className="p-4 align-middle text-sm text-default-600">
                             {p.categoria === "Maderas" ? (
                               <div className="flex items-center justify-center">
                                 <input
@@ -2622,7 +2514,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       e.target.checked
                                     );
                                   }}
-                                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                  className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
                                   disabled={isSubmitting}
                                   title="Aplicar cepillado (+6.6%)"
                                 />
@@ -2631,7 +2523,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                          <td className="p-4 align-middle text-sm text-default-600">
                             {p.esEditable ? (
                               <input
                                 type="number"
@@ -2641,30 +2533,32 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 onChange={(e) =>
                                   handlePrecioChange(p.id, e.target.value)
                                 }
-                                className="w-24 text-center border border-gray-300 rounded px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
                                 disabled={isSubmitting}
                                 placeholder="0"
                               />
                             ) : (
-                              `$${formatearNumeroArgentino(p.precio)}`
+                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(p.precio)}`}</span>
                             )}
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={p.descuento === "" ? "" : p.descuento || ""}
-                              onChange={(e) =>
-                                handleDescuentoChange(p.id, e.target.value)
-                              }
-                              className="w-20 mx-auto text-center border rounded px-2 py-1"
-                              disabled={isSubmitting}
-                            />
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            <div className="relative w-20 md:w-24 mx-auto">
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={p.descuento === "" ? "" : p.descuento || ""}
+                                onChange={(e) =>
+                                  handleDescuentoChange(p.id, e.target.value)
+                                }
+                                className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                disabled={isSubmitting}
+                              />
+                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                            </div>
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                            $
-                            {formatearNumeroArgentino(
+                          <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                            ${formatearNumeroArgentino(
                               // Para machimbres y deck, el precio ya incluye la cantidad
                               p.categoria === "Maderas" && 
                               (p.subcategoria === "machimbre" || p.subcategoria === "deck")
@@ -2672,16 +2566,22 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
                             )}
                           </td>
-                          <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            <button
-                              type="button"
-                              onClick={() => handleQuitarProducto(p.id)}
-                              disabled={isSubmitting}
-                              className="text-lg font-bold text-red-500 hover:text-red-700"
-                              title="Quitar producto"
-                            >
-                              ×
-                            </button>
+                          <td className="p-4 align-middle text-center text-sm text-default-600">
+                            <span className="group relative inline-flex">
+                              <button
+                                type="button"
+                                aria-label="Eliminar producto"
+                                onClick={() => handleQuitarProducto(p.id)}
+                                disabled={isSubmitting}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                title="Eliminar"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                  <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" />
+                                </svg>
+                              </button>
+                              <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
+                            </span>
                           </td>
                         </tr>
                       ))}
