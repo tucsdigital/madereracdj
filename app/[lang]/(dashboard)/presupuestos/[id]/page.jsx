@@ -1087,7 +1087,7 @@ const PresupuestoDetalle = () => {
           }
         }
       `}</style>
-      <div id="presupuesto-print" className="max-w-6xl mx-auto px-4">
+      <div id="presupuesto-print" className="mx-auto px-4">
         {/* Logo y cabecera profesional para impresión */}
         <div
           className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
@@ -3718,13 +3718,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
               )}
             </div>
           )}
-        </div>
-
-        {/* Información adicional */}
-        <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
-          <div className="text-base font-semibold text-gray-800 pb-2 border-b">
-            Información adicional
-          </div>
         </div>
       </div>
 
