@@ -104,10 +104,38 @@ const VentaDetalle = () => {
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
 
-  // Estados para paginación optimizada
+  // Estados para catálogo (idénticos a ventas/page.jsx)
+  const [productosState, setProductosState] = useState([]);
+  const [productosPorCategoria, setProductosPorCategoria] = useState({});
+  const [categoriasState, setCategoriasState] = useState([]);
+
+  // Sin búsqueda remota: todo se filtra en memoria (idéntico)
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12);
-  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+  const [isPending, startTransition] = React.useTransition();
+
+  // Derivar categorías y agrupación desde los productos cargados (igual intención que ventas/page.jsx)
+  useEffect(() => {
+    if (!Array.isArray(productos) || productos.length === 0) {
+      setProductosState([]);
+      setProductosPorCategoria({});
+      setCategoriasState([]);
+      return;
+    }
+    setProductosState(productos);
+    const agrupados = {};
+    productos.forEach((p) => {
+      (agrupados[p.categoria] = agrupados[p.categoria] || []).push(p);
+    });
+    setProductosPorCategoria(agrupados);
+    setCategoriasState(Object.keys(agrupados));
+  }, [productos]);
 
   useEffect(() => {
     const fetchVenta = async () => {
@@ -396,98 +424,89 @@ const VentaDetalle = () => {
   // Función para normalizar texto (optimizada)
   const normalizarTexto = useCallback((texto) => {
     if (!texto) return "";
-    return texto
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
   }, []);
 
-  // Productos filtrados optimizados con useMemo
+  
+
+  // Filtrado idéntico a ventas/page.jsx
   const productosFiltrados = useMemo(() => {
-    if (!categoriaId) return [];
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = productosPorCategoria[categoriaId] || [];
+        fuente = localCat;
+      } else {
+        fuente = productos;
+      }
+    } else if (categoriaId) {
+      // derivar agrupación local
+      const agrupados = productos.reduce((acc, p) => {
+        (acc[p.categoria] = acc[p.categoria] || []).push(p);
+        return acc;
+      }, {});
+      fuente = agrupados[categoriaId];
+    }
+    if (!fuente) return [];
 
-    const productosPorCategoria = {};
-    productos.forEach((p) => {
-      if (!productosPorCategoria[p.categoria]) productosPorCategoria[p.categoria] = [];
-      productosPorCategoria[p.categoria].push(p);
-    });
-
-    const productosCategoria = productosPorCategoria[categoriaId] || [];
-    const terminoBusqueda = normalizarTexto(busquedaProducto);
-
-    return productosCategoria.filter((prod) => {
-      // Filtro por búsqueda de texto con lógica mejorada
-      let cumpleBusqueda = !terminoBusqueda;
-      
-      if (terminoBusqueda) {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
-        if (terminoBusqueda.endsWith('.')) {
-          const busquedaSinPunto = terminoBusqueda.slice(0, -1);
+    const busquedaNormalizada = normalizarTexto(busquedaDefer);
+    return fuente
+      .filter((prod) => {
+        const nombreNormalizado = normalizarTexto(prod.nombre);
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+        let cumpleBusqueda = busquedaNormalizada === "";
+        if (busquedaNormalizada !== "") {
+          if (busquedaNormalizada.endsWith(".")) {
+            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
           cumpleBusqueda = 
-            normalizarTexto(prod.nombre).startsWith(busquedaSinPunto) ||
-            normalizarTexto(prod.unidadMedida || "").startsWith(busquedaSinPunto);
+              nombreNormalizado.startsWith(busquedaSinPunto) ||
+              unidadNormalizada.startsWith(busquedaSinPunto);
         } else {
-          // Búsqueda normal: incluye el texto en cualquier parte
           cumpleBusqueda = 
-            normalizarTexto(prod.nombre).includes(terminoBusqueda) ||
-            normalizarTexto(prod.unidadMedida || "").includes(terminoBusqueda);
+              nombreNormalizado.includes(busquedaNormalizada) ||
+              unidadNormalizada.includes(busquedaNormalizada);
         }
       }
-
-      // Filtro específico por tipo de madera
+        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
       const cumpleTipoMadera =
         categoriaId !== "Maderas" ||
         filtroTipoMadera === "" ||
         prod.tipoMadera === filtroTipoMadera;
-
-      // Filtro específico por subcategoría de ferretería
       const cumpleSubCategoria =
         categoriaId !== "Ferretería" ||
         filtroSubCategoria === "" ||
         prod.subCategoria === filtroSubCategoria;
-
-      return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
-    }).sort((a, b) => {
-      // Ordenar por stock: primero los que tienen stock, luego los que no
+        return (
+          cumpleCategoria && cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
+        );
+      })
+      .sort((a, b) => {
       const stockA = Number(a.stock) || 0;
       const stockB = Number(b.stock) || 0;
-      
-      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
-      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
-      
-      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+        if (stockA > 0 && stockB === 0) return -1;
+        if (stockA === 0 && stockB > 0) return 1;
       return 0;
     });
-  }, [productos, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+  }, [productos, productosPorCategoria, categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
 
-  // Productos paginados optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
   const productosPaginados = useMemo(() => {
     const inicio = (paginaActual - 1) * productosPorPagina;
     const fin = inicio + productosPorPagina;
     return productosFiltrados.slice(inicio, fin);
   }, [productosFiltrados, paginaActual, productosPorPagina]);
 
-  // Cálculo de totales optimizados
-  const totalProductos = productosFiltrados.length;
-  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
-
-  // Función para cambiar página con feedback visual
   const cambiarPagina = useCallback((nuevaPagina) => {
-    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
-    
-    setIsLoadingPagination(true);
-    setPaginaActual(nuevaPagina);
-    
-    // Simular un pequeño delay para mostrar el feedback visual
-    setTimeout(() => {
-      setIsLoadingPagination(false);
-    }, 300);
-  }, [totalPaginas]);
+    startTransition(() => {
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+    });
+  }, [totalPaginas, startTransition]);
 
-  // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
 
   // Funciones para manejar cambios en productos
   const handleDecrementarCantidad = (id) => {
@@ -605,6 +624,27 @@ const VentaDetalle = () => {
     }));
   };
 
+  // Permitir editar el nombre del producto cuando sea un producto manual/especial
+  const handleNombreChange = (id, nombre) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) =>
+        p.id === id ? { ...p, nombre } : p
+      ),
+    }));
+  };
+
+  // Permitir editar el precio unitario cuando el producto lo admita (p.esEditable)
+  const handlePrecioChange = (id, precio) => {
+    const parsed = precio === "" ? "" : Number(precio);
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) =>
+        p.id === id ? { ...p, precio: parsed === "" ? 0 : parsed } : p
+      ),
+    }));
+  };
+
   const handleQuitarProducto = (id) => {
     setVentaEdit((prev) => ({
       ...prev,
@@ -712,6 +752,80 @@ const VentaDetalle = () => {
         return p;
       }),
     }));
+  };
+
+
+  // Funciones para manejar cambios en dimensiones para maderas normales (no machimbre/deck)
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+          const alto = Number(nuevoAlto);
+          const ancho = Number(p.ancho);
+          const largo = Number(p.largo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          return { ...p, alto, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+          const alto = Number(p.alto);
+          const ancho = Number(nuevoAncho);
+          const largo = Number(p.largo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          return { ...p, ancho, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+          const alto = Number(p.alto);
+          const ancho = Number(p.ancho);
+          const largo = Number(nuevoLargo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          return { ...p, largo, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  // Wrapper para precio por pie en maderas normales para mantener la API de la nueva tabla
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
+    // Reutiliza la lógica existente que ya diferencia por subcategoría
+    handlePrecioPorPieChange(id, nuevoPrecioPorPie);
   };
 
 
@@ -1821,25 +1935,6 @@ const VentaDetalle = () => {
                         {producto.descripcion ||
                           producto.nombre ||
                           "Producto sin nombre"}
-                        {/* Mostrar dimensiones y precio por pie para productos de madera */}
-                        {producto.categoria === "Maderas" && (
-                          <div className="mt-1">
-                            {/* Mostrar tipo de madera - buscado dinámicamente */}
-                            {getProductoCompleto(producto.id)?.tipoMadera && (
-                              <div className="mt-1 text-xs font-bold">
-                                Tipo:{" "}
-                                {getProductoCompleto(producto.id).tipoMadera}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
-                        {producto.categoria === "Ferretería" &&
-                          getProductoCompleto(producto.id)?.subCategoria && (
-                            <div className="mt-1 text-xs text-blue-600 font-medium">
-                              {getProductoCompleto(producto.id).subCategoria}
-                            </div>
-                          )}
                       </td>
                       <td className="p-3 text-center">
                         {Number(producto.cantidad)}
@@ -1998,7 +2093,7 @@ const VentaDetalle = () => {
                       {ventaEdit.usarDireccionCliente === false ? (
                         <>
                           <input
-                            className="border rounded px-2 py-2 w-full"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             value={ventaEdit.direccionEnvio || ""}
                             onChange={(e) =>
                               setVentaEdit({
@@ -2009,7 +2104,7 @@ const VentaDetalle = () => {
                             placeholder="Dirección de envío"
                           />
                           <input
-                            className="border rounded px-2 py-2 w-full"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             value={ventaEdit.localidadEnvio || ""}
                             onChange={(e) =>
                               setVentaEdit({
@@ -2023,13 +2118,13 @@ const VentaDetalle = () => {
                       ) : (
                         <>
                           <input
-                            className="border rounded px-2 py-2 w-full"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             value={ventaEdit.cliente?.direccion || ""}
                             readOnly
                             placeholder="Dirección del cliente"
                           />
                           <input
-                            className="border rounded px-2 py-2 w-full"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                             value={ventaEdit.cliente?.localidad || ""}
                             readOnly
                             placeholder="Localidad del cliente"
@@ -2037,7 +2132,7 @@ const VentaDetalle = () => {
                         </>
                       )}
                       <select
-                        className="border rounded px-2 py-2 w-full"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         value={ventaEdit.transportista || ""}
                         onChange={(e) =>
                           setVentaEdit({
@@ -2052,7 +2147,7 @@ const VentaDetalle = () => {
                         <option value="camioneta 2">camioneta 2</option>
                       </select>
                       <input
-                        className="border rounded px-2 py-2 w-full"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         value={ventaEdit.costoEnvio || ""}
                         onChange={(e) =>
                           setVentaEdit({
@@ -2066,7 +2161,7 @@ const VentaDetalle = () => {
                         step="0.01"
                       />
                       <input
-                        className="border rounded px-2 py-2 w-full"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         type="date"
                         value={ventaEdit.fechaEntrega || ""}
                         onChange={(e) =>
@@ -2078,7 +2173,7 @@ const VentaDetalle = () => {
                         placeholder="Fecha de entrega"
                       />
                       <input
-                        className="border rounded px-2 py-2 w-full"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         value={ventaEdit.rangoHorario || ""}
                         onChange={(e) =>
                           setVentaEdit({
@@ -2093,7 +2188,7 @@ const VentaDetalle = () => {
                 {/* Solo mostrar fecha de retiro si es retiro local */}
                 {ventaEdit.tipoEnvio === "retiro_local" && (
                   <input
-                    className="border rounded px-2 py-2 w-full"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     type="date"
                     value={ventaEdit.fechaEntrega || ""}
                     onChange={(e) =>
@@ -2208,9 +2303,7 @@ const VentaDetalle = () => {
                     {/* Filtro de categorías */}
                     <div className="flex-1">
                       <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                        {Array.from(
-                          new Set(productos.map((p) => p.categoria))
-                        ).map((categoria) => (
+                        {categoriasState.map((categoria) => (
                           <button
                             key={categoria}
                             type="button"
@@ -2338,431 +2431,176 @@ const VentaDetalle = () => {
                     </div>
                   </div>
                 </div>
-                {/* Lista de productos mejorada */}
-                <div className="max-h-96 overflow-y-auto">
-                  {(() => {
-                    console.log("=== DEBUG FILTRADO PRODUCTOS ===");
-                    console.log("productos:", productos);
-                    console.log("categoriaId:", categoriaId);
-                    console.log("busquedaProducto:", busquedaProducto);
-                    console.log("filtroTipoMadera:", filtroTipoMadera);
-                    console.log("filtroSubCategoria:", filtroSubCategoria);
-
-                    const productosPorCategoria = {};
-                    productos.forEach((p) => {
-                      if (!productosPorCategoria[p.categoria])
-                        productosPorCategoria[p.categoria] = [];
-                      productosPorCategoria[p.categoria].push(p);
-                    });
-
-                    console.log(
-                      "productosPorCategoria:",
-                      productosPorCategoria
-                    );
-                    console.log(
-                      "productosPorCategoria[categoriaId]:",
-                      productosPorCategoria[categoriaId]
-                    );
-
-                    if (!categoriaId) {
-                      return (
+                {/* Lista de productos (alineada a ventas/page.jsx) */}
+                <div className="max-h-150 overflow-y-auto">
+                  {!categoriaId ? (
                         <div className="p-8 text-center">
                           <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-8 h-8 text-blue-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
+                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-medium  mb-2">
-                            Selecciona una categoría
-                          </h3>
-                          <p className="text-gray-500">
-                            Elige una categoría para ver los productos
-                            disponibles
-                          </p>
+                      <h3 className="text-lg font-medium  mb-2">Selecciona una categoría</h3>
+                      <p className="text-gray-500">Elige una categoría para ver los productos disponibles</p>
                         </div>
-                      );
-                    }
-                    const productosFiltrados =
-                      productosPorCategoria[categoriaId]?.filter((prod) => {
-                        // Filtro por búsqueda de texto
-                        const cumpleBusqueda =
-                          prod.nombre
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase()) ||
-                          (prod.unidadMedida || "")
-                            .toLowerCase()
-                            .includes(busquedaProducto.toLowerCase());
-
-                        // Filtro específico por tipo de madera
-                        const cumpleTipoMadera =
-                          categoriaId !== "Maderas" ||
-                          filtroTipoMadera === "" ||
-                          prod.tipoMadera === filtroTipoMadera;
-
-                        // Filtro específico por subcategoría de ferretería
-                        const cumpleSubCategoria =
-                          categoriaId !== "Ferretería" ||
-                          filtroSubCategoria === "" ||
-                          prod.subCategoria === filtroSubCategoria;
-
-                        return (
-                          cumpleBusqueda &&
-                          cumpleTipoMadera &&
-                          cumpleSubCategoria
-                        );
-                      }) || [];
-
-                    console.log("productosFiltrados:", productosFiltrados);
-
-                    if (productosFiltrados.length === 0) {
-                      return (
+                  ) : productosFiltrados.length === 0 ? (
                         <div className="p-8 text-center">
                           <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-8 h-8 text-yellow-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                              />
+                        <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                           </div>
-                          <h3 className="text-lg font-medium  mb-2">
-                            No se encontraron productos
-                          </h3>
-                          <p className="text-gray-500">
-                            Intenta cambiar los filtros o la búsqueda
-                          </p>
+                      <h3 className="text-lg font-medium  mb-2">No se encontraron productos</h3>
+                      <p className="text-gray-500">Intenta cambiar los filtros o la búsqueda</p>
                         </div>
-                      );
-                    }
-                    return (
-                      <>
+                  ) : (
+                    <div className="space-y-4">
                         {/* Indicador de rendimiento */}
                         <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-700">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-blue-700 dark:text-blue-300">
-                              Mostrando {productosPaginados.length} de {totalProductos} productos filtrados
-                            </span>
-                            <span className="text-blue-600 dark:text-blue-400 font-medium">
-                              Página {paginaActual} de {totalPaginas}
-                            </span>
+                          <span className="text-blue-700 dark:text-blue-300">Mostrando {productosPaginados.length} de {totalProductos} productos filtrados</span>
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">Página {paginaActual} de {totalPaginas}</span>
                           </div>
                         </div>
 
                         {/* Grid de productos paginados */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 relative">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 relative">
                           {/* Overlay de carga durante la paginación */}
-                          {isLoadingPagination && (
+                        {isPending && (
                             <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
                               <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                  Cargando productos...
-                                </span>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cargando productos...</span>
                               </div>
                             </div>
                           )}
 
                           {productosPaginados.map((prod) => {
-                          const yaAgregado = (ventaEdit.productos || []).some(
-                            (p) => p.id === prod.id
-                          );
+                          const yaAgregado = (ventaEdit.productos || []).some((p) => p.id === prod.id);
+                          const precio = (() => {
+                            if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
+                            if (prod.categoria === "Ferretería") return prod.valorVenta || 0;
+                            return (
+                              prod.precioUnidad ||
+                              prod.precioUnidadVenta ||
+                              prod.precioUnidadHerraje ||
+                              prod.precioUnidadQuimico ||
+                              prod.precioUnidadHerramienta ||
+                              0
+                            );
+                          })();
+
                           return (
-                            <div
-                              key={prod.id}
-                              className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                                yaAgregado
-                                  ? "border-green-200 bg-green-50"
-                                  : "border-gray-200 hover:border-blue-300"
-                              }`}
-                            >
-                              <div className="p-4 flex-1 flex flex-col">
+                            <div key={prod.id} className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${yaAgregado ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700" : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"}`}>
+                              <div className="p-4 flex flex-col h-full">
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
-                                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
-                                        {prod.categoria === "Maderas"
-                                          ? "🌲"
-                                          : "🔧"}
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${prod.categoria === "Maderas" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>
+                                        {prod.categoria === "Maderas" ? "🌲" : "🔧"}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-semibold  truncate">
-                                          {prod.nombre}
-                                        </h4>
-                                        {/* Información específica por categoría - buscada dinámicamente desde la BD */}
-                                        {prod.categoria === "Maderas" &&
-                                          getProductoCompleto(prod.id)
-                                            ?.tipoMadera && (
+                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{prod.nombre}</h4>
+                                        {prod.categoria === "Maderas" && prod.tipoMadera && (
                                             <div className="flex items-center gap-1 mt-1">
-                                              <span className="text-xs text-orange-600 font-medium">
-                                                🌲{" "}
-                                                {
-                                                  getProductoCompleto(prod.id)
-                                                    .tipoMadera
-                                                }
-                                              </span>
+                                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">🌲 {prod.tipoMadera}</span>
                                             </div>
                                           )}
-                                        {prod.categoria === "Ferretería" &&
-                                          getProductoCompleto(prod.id)
-                                            ?.subCategoria && (
+                                        {prod.categoria === "Ferretería" && prod.subCategoria && (
                                             <div className="flex items-center gap-1 mt-1">
-                                              <span className="text-xs text-blue-600 font-medium">
-                                                🔧{" "}
-                                                {
-                                                  getProductoCompleto(prod.id)
-                                                    .subCategoria
-                                                }
-                                              </span>
-                                            </div>
-                                          )}
-                                        {prod.categoria === "Maderas" && (
-                                          <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                            <span className="font-medium text-gray-500">
-                                              Dimensiones:
-                                            </span>
-                                            <span>
-                                              Alto:{" "}
-                                              <span className="font-bold">
-                                                {prod.alto}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Ancho:{" "}
-                                              <span className="font-bold">
-                                                {prod.ancho}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Largo:{" "}
-                                              <span className="font-bold">
-                                                {prod.largo}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              $/pie:{" "}
-                                              <div className="inline-flex items-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  min="0"
-                                                  step="0.01"
-                                                  value={prod.precioPorPie}
-                                                  onChange={(e) =>
-                                                    handlePrecioPorPieChange(
-                                                      prod.id,
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                                  disabled={loadingPrecios}
-                                                  placeholder="0.00"
-                                                  title="Editar precio por pie"
-                                                />
-                                                <svg
-                                                  className="w-3 h-3 text-blue-500"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  viewBox="0 0 24 24"
-                                                >
-                                                  <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                  />
-                                                </svg>
-                                              </div>
-                                            </span>
-                                            {prod.stock <= 0 && (
-                                              <span className="text-red-600 font-semibold ml-2">
-                                                ¡Sin stock! Se permitirá avanzar
-                                                igual.
-                                              </span>
-                                            )}
-                                            {prod.stock > 0 &&
-                                              prod.stock <= 3 && (
-                                                <span className="text-yellow-600 font-semibold ml-2">
-                                                  Stock bajo: quedan{" "}
-                                                  {prod.stock} unidades.
-                                                </span>
-                                              )}
+                                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🔧 {prod.subCategoria}</span>
                                           </div>
                                         )}
                                       </div>
                                       {yaAgregado && (
-                                        <div className="flex items-center gap-1 text-green-600">
-                                          <svg
-                                            className="w-4 h-4"
-                                            fill="currentColor"
-                                            viewBox="0 0 20 20"
-                                          >
-                                            <path
-                                              fillRule="evenodd"
-                                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                              clipRule="evenodd"
-                                            />
-                                          </svg>
-                                          <span className="text-xs font-medium">
-                                            Agregado
-                                          </span>
+                                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                                          <span className="text-xs font-medium">Agregado</span>
                                         </div>
                                       )}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 text-xs ">
-                                      <div>
-                                        <span className="font-medium">
-                                          Precio:
-                                        </span>
-                                        <span className="ml-1 font-bold text-blue-600">
-                                          $
-                                          {prod.precioPorPie ||
-                                            prod.valorVenta ||
-                                            prod.precioUnidad ||
-                                            0}
-                                        </span>
                                       </div>
-                                      <div>
-                                        <span className="font-medium">
-                                          Unidad:
-                                        </span>
-                                        <span className="ml-1">
-                                          {prod.unidadMedida ||
-                                            prod.unidadVenta ||
-                                            prod.unidadVentaHerraje ||
-                                            prod.unidadVentaQuimico ||
-                                            prod.unidadVentaHerramienta}
-                                        </span>
                                       </div>
-                                      <div>
-                                        <span className="font-medium">
-                                          Stock:
-                                        </span>
-                                        <span
-                                          className={`ml-1 font-bold ${
-                                            prod.stock > 10
-                                              ? "text-green-600"
-                                              : prod.stock > 0
-                                              ? "text-yellow-600"
-                                              : "text-red-600"
-                                          }`}
-                                        >
-                                          {prod.stock}
-                                        </span>
+
+                                {/* Información del producto */}
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">Precio:</span>
+                                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">${formatearNumeroArgentino(precio)}</span>
                                       </div>
+                                  {prod.unidadMedida && (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">Unidad:</span>
+                                      <span className="text-xs text-gray-700 dark:text-gray-300">{prod.unidadMedida}</span>
                                     </div>
+                                  )}
+                                  {prod.stock !== undefined && (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">Stock:</span>
+                                      <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
                                   </div>
+                                  )}
                                 </div>
 
-                                {/* Controles de acción al final */}
-                                <div className="mt-auto">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
+                                {/* Botón de agregar */}
+                                <div className="mt-4">
                                       <button
-                                        type="button"
-                                        onClick={() =>
+                                    onClick={() => {
+                                      if (yaAgregado) return;
+                                      if (prod.categoria === "Maderas") {
+                                        const alto = Number(prod.alto) || 0;
+                                        const ancho = Number(prod.ancho) || 0;
+                                        const largo = Number(prod.largo) || 0;
+                                        const precioPorPie = Number(prod.precioPorPie) || 0;
+                                        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                          const precioCalc = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
                                           setVentaEdit((prev) => ({
                                             ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: Math.max(
-                                                      1,
-                                                      p.cantidad - 1
-                                                    ),
-                                                  }
-                                                : p
-                                            ),
-                                          }))
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio: precioCalc,
+                                                unidad: prod.unidadMedida,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                                alto,
+                                                ancho,
+                                                largo,
+                                                precioPorPie,
+                                                cepilladoAplicado: false,
+                                                tipoMadera: prod.tipoMadera || "",
+                                                subcategoria: prod.subcategoria || prod.subCategoria || "",
+                                              },
+                                            ],
+                                          }));
+                                        } else {
+                                          console.warn("El producto de madera no tiene dimensiones válidas.");
                                         }
-                                        disabled={
-                                          ventaEdit.productos.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad <= 1
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={
-                                          ventaEdit.productos.find(
-                                            (p) => p.id === prod.id
-                                          )?.cantidad || ""
-                                        }
-                                        onChange={(e) =>
+                                      } else if (prod.categoria === "Ferretería") {
                                           setVentaEdit((prev) => ({
                                             ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: Number(
-                                                      e.target.value
-                                                    ),
-                                                  }
-                                                : p
-                                            ),
-                                          }))
-                                        }
-                                        className="w-12 text-center border rounded"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: prev.productos.map((p) =>
-                                              p.id === prod.id
-                                                ? {
-                                                    ...p,
-                                                    cantidad: p.cantidad + 1,
-                                                  }
-                                                : p
-                                            ),
-                                          }))
-                                        }
-                                        className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                      >
-                                        +
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                            productos: prev.productos.filter(
-                                              (p) => p.id !== prod.id
-                                            ),
-                                          }))
-                                        }
-                                        className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
+                                          productos: [
+                                            ...(prev.productos || []),
+                                            {
+                                              id: prod.id,
+                                              nombre: prod.nombre,
+                                              precio: prod.valorVenta || 0,
+                                              unidad: prod.unidadMedida || prod.unidadVenta,
+                                              stock: prod.stock,
+                                              cantidad: 1,
+                                              descuento: 0,
+                                              categoria: prod.categoria,
+                                            },
+                                          ],
+                                        }));
+                                      } else {
+                                        const precioOtro = (
+                                          prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0
+                                        );
                                         setVentaEdit((prev) => ({
                                           ...prev,
                                           productos: [
@@ -2770,41 +2608,22 @@ const VentaDetalle = () => {
                                             {
                                               id: prod.id,
                                               nombre: prod.nombre,
-                                              precio:
-                                                prod.precioPorPie ||
-                                                prod.valorVenta ||
-                                                prod.precioUnidad ||
-                                                0,
-                                              unidad:
-                                                prod.unidadMedida ||
-                                                prod.unidadVenta ||
-                                                prod.unidadVentaHerraje ||
-                                                prod.unidadVentaQuimico ||
-                                                prod.unidadVentaHerramienta,
+                                              precio: precioOtro,
+                                              unidad: prod.unidadMedida || prod.unidadVenta,
                                               stock: prod.stock,
                                               cantidad: 1,
                                               descuento: 0,
                                               categoria: prod.categoria,
-                                              alto: Number(prod.alto) || 0,
-                                              ancho: Number(prod.ancho) || 0,
-                                              largo: Number(prod.largo) || 0,
-                                              precioPorPie:
-                                                Number(prod.precioPorPie) || 0,
-                                              cepilladoAplicado: false, // Agregar propiedad por defecto
-                                              tipoMadera: prod.tipoMadera || "",
-                                              subcategoria:
-                                                prod.categoria === "Maderas" 
-                                                  ? (prod.subcategoria || prod.subCategoria || "")
-                                                  : (prod.subCategoria || prod.subcategoria || ""),
                                             },
                                           ],
-                                        }))
+                                        }));
                                       }
-                                      className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                                    >
-                                      Agregar
+                                    }}
+                                    disabled={yaAgregado || loadingPrecios}
+                                    className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"}`}
+                                  >
+                                    {yaAgregado ? "Ya agregado" : "Agregar"}
                                     </button>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2815,442 +2634,226 @@ const VentaDetalle = () => {
                       {/* Controles de paginación */}
                       {totalPaginas > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                          {/* Información de página */}
+                          <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                            {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
+                            <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
+                          </div>
                           {/* Controles de navegación */}
                           <div className="flex items-center gap-2">
-                            {/* Botón primera página */}
-                            <button
-                              onClick={() => cambiarPagina(1)}
-                              disabled={paginaActual === 1 || isLoadingPagination}
-                              className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              title="Primera página"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                              </svg>
+                            <button onClick={() => cambiarPagina(1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Primera página">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
                             </button>
-
-                            {/* Botón página anterior */}
-                            <button
-                              onClick={() => cambiarPagina(paginaActual - 1)}
-                              disabled={paginaActual === 1 || isLoadingPagination}
-                              className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              title="Página anterior"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                              </svg>
+                            <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página anterior">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
                             </button>
-
-                            {/* Números de página */}
                             <div className="flex items-center gap-1">
                               {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
                                 let pageNum;
-                                if (totalPaginas <= 5) {
-                                  pageNum = i + 1;
-                                } else if (paginaActual <= 3) {
-                                  pageNum = i + 1;
-                                } else if (paginaActual >= totalPaginas - 2) {
-                                  pageNum = totalPaginas - 4 + i;
-                                } else {
-                                  pageNum = paginaActual - 2 + i;
-                                }
-
+                                if (totalPaginas <= 5) pageNum = i + 1;
+                                else if (paginaActual <= 3) pageNum = i + 1;
+                                else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                                else pageNum = paginaActual - 2 + i;
                                 return (
-                                  <button
-                                    key={pageNum}
-                                    onClick={() => cambiarPagina(pageNum)}
-                                    disabled={isLoadingPagination}
-                                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                                      paginaActual === pageNum
-                                        ? "bg-blue-600 text-white"
-                                        : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                  >
+                                  <button key={pageNum} onClick={() => cambiarPagina(pageNum)} disabled={isPending} className={`px-3 py-1 text-sm rounded-md transition-colors ${isPending ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : paginaActual === pageNum ? "bg-blue-600 text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"}`}>
                                     {pageNum}
                                   </button>
                                 );
                               })}
                             </div>
-
-                            {/* Botón página siguiente */}
-                            <button
-                              onClick={() => cambiarPagina(paginaActual + 1)}
-                              disabled={paginaActual === totalPaginas || isLoadingPagination}
-                              className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              title="Página siguiente"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                              </svg>
+                            <button onClick={() => cambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página siguiente">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
                             </button>
-
-                            {/* Botón última página */}
-                            <button
-                              onClick={() => cambiarPagina(totalPaginas)}
-                              disabled={paginaActual === totalPaginas || isLoadingPagination}
-                              className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              title="Última página"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                              </svg>
+                            <button onClick={() => cambiarPagina(totalPaginas)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Última página">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7"/></svg>
                             </button>
-                          </div>
-
-                          {/* Información de página */}
-                          <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                            {isLoadingPagination && (
-                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                            )}
-                            <span>
-                              Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos
-                            </span>
                           </div>
                         </div>
                       )}
-                    </>
-                  );
-                })()}
+                        </div>
+                      )}
               </div>
             </section>
 
-              {/* Tabla de productos seleccionados en modo edición */}
+              {/* Tabla de productos seleccionados - diseño EXACTO de ventas/page.jsx */}
               {(ventaEdit.productos || []).length > 0 && (
-                <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm mt-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-default-900">
-                      Productos Seleccionados
-                    </h3>
-                    <span className="text-sm text-default-600">
-                      {(ventaEdit.productos || []).length} producto
-                      {(ventaEdit.productos || []).length !== 1 ? "s" : ""}
+                <section className="mt-4 bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
+                  <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
+                    <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                      {(ventaEdit.productos || []).length} producto{(ventaEdit.productos || []).length !== 1 ? "s" : ""}
                     </span>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full caption-top text-sm overflow-hidden">
-                      <thead className="[&_tr]:border-b bg-default-">
-                        <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Categoría
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Producto
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Cant.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Precio unit.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Desc.
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Subtotal
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Cepillado
-                          </th>
-                          <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                            Acción
-                          </th>
+                    <table className="min-w-full text-[15px]">
+                      <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
+                        <tr className="border-b border-default-200">
+                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
+                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cant.</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-default-200">
                         {(ventaEdit.productos || []).map((p, idx) => (
-                          <tr
-                            key={p.id}
-                            className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
-                          >
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              {p.categoria}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <div className="font-semibold text-default-900">
-                                {p.nombre}
-                              </div>
-                              {/* Información específica por categoría */}
-                              {p.categoria === "Maderas" && p.tipoMadera && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <span className="text-xs text-orange-600 font-medium">
-                                    🌲 {p.tipoMadera}
-                                  </span>
-                                </div>
+                          <tr key={p.id} className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.categoria && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
+                                  {p.categoria}
+                                </span>
                               )}
-                              {p.categoria === "Ferretería" &&
-                                p.subCategoria && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-xs text-blue-600 font-medium">
-                                      🔧 {p.subCategoria}
-                                    </span>
+                            </td>
+                            <td className="p-4 align-top text-sm text-default-600">
+                              <div className="font-semibold text-default-900">
+                                {p.esEditable ? (
+                                  <input
+                                    type="text"
+                                    value={p.nombre}
+                                    onChange={(e) => handleNombreChange(p.id, e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 uppercase rounded text-base font-bold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                    disabled={loadingPrecios}
+                                    placeholder="Nombre del producto"
+                                  />
+                                ) : (
+                                  <div>
+                                    {p.nombre}
+                                    {p.categoria === "Maderas" && p.tipoMadera && (
+                                      <span className="font-semibold text-default-900"> {" "}- {p.tipoMadera.toUpperCase()}</span>
+                                    )}
                                   </div>
                                 )}
-                              {p.categoria === "Maderas" && (
-                                <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                  <span className="font-medium text-gray-500">
-                                    Dimensiones:
-                                  </span>
-                                  
-                                  {/* Verificar si es machimbre o deck por subcategoria */}
-                                  {(p.subcategoria === "machimbre" || p.subcategoria === "deck") ? (
-                                    <>
-                                      {/* Campos editables para machimbres */}
-                                      <span>
-                                        Alto:{" "}
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          step="0.1"
-                                          value={p.alto || ""}
-                                          onChange={(e) =>
-                                            handleAltoChange(p.id, e.target.value)
-                                          }
-                                          className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                          disabled={loadingPrecios}
-                                          placeholder="0"
-                                          title="Editar alto (cm)"
-                                        />
-                                      </span>
-                                      <span>
-                                        Largo:{" "}
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          step="0.1"
-                                          value={p.largo || ""}
-                                          onChange={(e) =>
-                                            handleLargoChange(p.id, e.target.value)
-                                          }
-                                          className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                          disabled={loadingPrecios}
-                                          placeholder="0"
-                                          title="Editar largo (cm)"
-                                        />
-                                      </span>
+                              </div>
+                              {p.categoria === "Ferretería" && p.subCategoria && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{p.subCategoria}</span>
+                                </div>
+                              )}
 
-                                      <span>
-                                        $/m²:{" "}
-                                        <div className="inline-flex items-center gap-1">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.precioPorPie}
-                                            onChange={(e) =>
-                                              handlePrecioPorPieChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-20 text-center border border-orange-300 rounded px-2 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0.00"
-                                            title="Editar precio por metro cuadrado"
-                                          />
-                                          <svg
-                                            className="w-3 h-3 text-orange-500"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth="2"
-                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                            />
-                                          </svg>
-                                        </div>
+                              {p.categoria === "Maderas" && (
+                                <div className="mt-2 flex flex-wrap items-start gap-3">
+                                  <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
+                                        Dimensiones
                                       </span>
-                                      {/* Mostrar m2 total */}
-                                      <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                        Total: {((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
+                                      {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                          Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                          Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2))} m³
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
                                       </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {/* Campos de solo lectura para maderas normales */}
-                                      <span>
-                                        Alto:{" "}
-                                        <span className="font-bold">{p.alto}</span>{" "}
-                                      </span>
-                                      <span>
-                                        Ancho:{" "}
-                                        <span className="font-bold">{p.ancho}</span>{" "}
-                                      </span>
-                                      <span>
-                                        Largo:{" "}
-                                        <span className="font-bold">{p.largo}</span>{" "}
-                                      </span>
-                                      <span>
-                                        $/pie:{" "}
-                                        <div className="inline-flex items-center gap-1">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={p.precioPorPie}
-                                            onChange={(e) =>
-                                              handlePrecioPorPieChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0.00"
-                                            title="Editar precio por pie"
-                                          />
-                                          <svg
-                                            className="w-3 h-3 text-blue-500"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth="2"
-                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                            />
-                                          </svg>
+                                    ) : (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
                                         </div>
-                                      </span>
-                                      
-                                    </>
-                                  )}
-                                  
-                                  {p.stock <= 0 && (
-                                    <span className="text-red-600 font-semibold ml-2">
-                                      ¡Sin stock! Se permitirá avanzar igual.
-                                    </span>
-                                  )}
-                                  {p.stock > 0 && p.stock <= 3 && (
-                                    <span className="text-yellow-600 font-semibold ml-2">
-                                      Stock bajo: quedan {p.stock} unidades.
-                                    </span>
-                                  )}
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                          <input type="number" min="0" step="0.01" value={p.ancho === "" ? "" : p.ancho || ""} onChange={(e) => handleAnchoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="inline-block w-fit p-1.5 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700 align-top">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>
+                                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">Precio</span>
+                                    </div>
+                                    <div className="inline-block w-fit">
+                                      <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
+                                      <div className="relative">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
+                                        <input type="number" min="0" step="0.01" value={p.precioPorPie === "" ? "" : p.precioPorPie || ""} onChange={(e) => {
+                                          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                            handlePrecioPorPieChange(p.id, e.target.value);
+                                          } else {
+                                            handlePrecioPorPieChangeMadera(p.id, e.target.value);
+                                          }
+                                        }} className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums" disabled={loadingPrecios} placeholder="0.00" />
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <td className="p-4 align-middle text-sm text-default-600">
                               <div className="flex items-center justify-center">
-                                <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDecrementarCantidad(p.id)
-                                    }
-                                    disabled={loadingPrecios || p.cantidad <= 1}
-                                    className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M20 12H4"
-                                      />
-                                    </svg>
+                                <div className="flex items-center bg-white dark:bg-gray-800 border border-default-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
+                                  <button type="button" onClick={() => handleDecrementarCantidad(p.id)} disabled={loadingPrecios || p.cantidad <= 1} className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg>
                                   </button>
-
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={p.cantidad}
-                                    onChange={(e) =>
-                                      handleCantidadChange(p.id, e.target.value)
-                                    }
-                                    className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
-                                    disabled={loadingPrecios}
-                                  />
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleIncrementarCantidad(p.id)
-                                    }
-                                    disabled={loadingPrecios}
-                                    className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
-                                  >
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M12 4v16m8-8H4"
-                                      />
-                                    </svg>
+                                  <input type="number" min={1} value={p.cantidad === "" ? "" : p.cantidad} onChange={(e) => handleCantidadChange(p.id, e.target.value)} className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums" disabled={loadingPrecios} />
+                                  <button type="button" onClick={() => handleIncrementarCantidad(p.id)} disabled={loadingPrecios} className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                                   </button>
                                 </div>
                               </div>
                             </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              ${formatearNumeroArgentino(p.precio)}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={p.descuento || ""}
-                                onChange={(e) =>
-                                  handleDescuentoChange(p.id, e.target.value)
-                                }
-                                className="w-20 mx-auto text-center border rounded px-2 py-1"
-                                disabled={loadingPrecios}
-                              />
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
-                              $
-                              {formatearNumeroArgentino(
-                                Number(p.precio) *
-                                  Number(p.cantidad) *
-                                  (1 - Number(p.descuento || 0) / 100)
-                              )}
-                            </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <td className="p-4 align-middle text-sm text-default-600">
                               {p.categoria === "Maderas" ? (
                                 <div className="flex items-center justify-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={p.cepilladoAplicado || false}
-                                    onChange={(e) => {
-                                      recalcularPreciosMadera(
-                                        p.id,
-                                        e.target.checked
-                                      );
-                                    }}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                    disabled={loadingPrecios}
-                                    title="Aplicar cepillado (+6.6%)"
-                                  />
+                                  <input type="checkbox" checked={p.cepilladoAplicado || false} onChange={(e) => { recalcularPreciosMadera(p.id, e.target.checked); }} className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2" disabled={loadingPrecios} title="Aplicar cepillado (+6.6%)" />
                                 </div>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}
                             </td>
-                            <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                              <button
-                                type="button"
-                                onClick={() => handleQuitarProducto(p.id)}
-                                disabled={loadingPrecios}
-                                className="text-lg font-bold text-red-500 hover:text-red-700"
-                                title="Quitar producto"
-                              >
-                                ×
-                              </button>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.esEditable ? (
+                                <input type="number" min="0" step="100" value={p.precio === "" ? "" : p.precio} onChange={(e) => handlePrecioChange(p.id, e.target.value)} className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums" disabled={loadingPrecios} placeholder="0" />
+                              ) : (
+                                <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(p.precio)}`}</span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              <div className="relative w-20 md:w-24 mx-auto">
+                                <input type="number" min={0} max={100} value={p.descuento === "" ? "" : p.descuento || ""} onChange={(e) => handleDescuentoChange(p.id, e.target.value)} className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200" disabled={loadingPrecios} />
+                                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                              ${formatearNumeroArgentino(
+                                p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+                                  ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
+                                  : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-center text-sm text-default-600">
+                              <span className="group relative inline-flex">
+                                <button type="button" aria-label="Eliminar producto" onClick={() => handleQuitarProducto(p.id)} disabled={loadingPrecios} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50" title="Eliminar">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" /></svg>
+                                </button>
+                                <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
+                              </span>
                             </td>
                           </tr>
                         ))}
@@ -3269,12 +2872,14 @@ const VentaDetalle = () => {
                       <span className="font-bold">
                         $
                         {formatearNumeroArgentino(
-                          ventaEdit.productos
-                            .reduce(
-                              (acc, p) =>
-                                acc + Number(p.precio) * Number(p.cantidad),
-                              0
-                            )
+                          (ventaEdit.productos || []).reduce((acc, p) => {
+                            // Para machimbre y deck, el precio ya incluye la cantidad
+                            const subtotalProducto =
+                              p.subcategoria === "machimbre" || p.subcategoria === "deck"
+                                ? Number(p.precio)
+                                : Number(p.precio) * Number(p.cantidad);
+                            return acc + subtotalProducto;
+                          }, 0)
                         )}
                       </span>
                     </div>
@@ -3345,7 +2950,7 @@ const VentaDetalle = () => {
               )}
 
               {(() => {
-                // Calcula el saldo pendiente en modo edición con lógica mejorada
+                // Cálculo limpio y UI mejorada para pagos pendientes
                 const subtotal = (ventaEdit.productos || []).reduce(
                   (acc, p) => {
                     // Para machimbre y deck, el precio ya incluye la cantidad
@@ -3380,17 +2985,6 @@ const VentaDetalle = () => {
                   : Number(ventaEdit.montoAbonado || 0);
                 const saldo = total - abonado;
 
-                console.log("=== CÁLCULO SALDO PENDIENTE ===");
-                console.log("Subtotal:", subtotal);
-                console.log("Descuento:", descuento);
-                console.log("Tipo envío:", ventaEdit.tipoEnvio);
-                console.log("Costo envío:", envio);
-                console.log("Total:", total);
-                console.log("Abonado:", abonado);
-                console.log("Saldo pendiente:", saldo);
-                console.log("nuevoPagoMonto:", ventaEdit.nuevoPagoMonto);
-                console.log("nuevoPagoMetodo:", ventaEdit.nuevoPagoMetodo);
-
                 if (saldo > 0) {
                   // Validar que los campos estén inicializados
                   const montoValido = ventaEdit.nuevoPagoMonto && 
@@ -3400,53 +2994,29 @@ const VentaDetalle = () => {
                     ventaEdit.nuevoPagoMetodo.trim() !== "";
                   const botonHabilitado = !registrandoPago && montoValido && metodoValido;
 
-                  console.log("=== VALIDACIÓN BOTÓN PAGO ===");
-                  console.log("montoValido:", montoValido);
-                  console.log("metodoValido:", metodoValido);
-                  console.log("registrandoPago:", registrandoPago);
-                  console.log("botonHabilitado:", botonHabilitado);
-
                   return (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">
-                        Saldo pendiente: ${formatearNumeroArgentino(saldo)}
-                      </h4>
-                      <div className="text-sm text-yellow-700 mb-3">
-                        <div>Subtotal: ${formatearNumeroArgentino(subtotal)}</div>
-                        <div>Descuento: ${formatearNumeroArgentino(descuento)}</div>
-                        {envio > 0 && (
-                          <div>Costo envío: ${formatearNumeroArgentino(envio)}</div>
-                        )}
-                        <div className="font-bold">
-                          Total: ${formatearNumeroArgentino(total)}
+                    <div className="rounded-lg border border-yellow-300/70 bg-yellow-50/70 p-3 my-3 w-full max-w-xl ml-auto">
+                      {/* Encabezado con jerarquía tipográfica */}
+                      <div className="mb-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg text-yellow-900">Saldo pendiente</span>
+                          <span className="text-lg font-extrabold text-yellow-900">${formatearNumeroArgentino(saldo)}</span>
                         </div>
-                        <div>Abonado: ${formatearNumeroArgentino(abonado)}</div>
+                        <div className="mt-1 text-lg font-medium text-green-700">Abonado ${formatearNumeroArgentino(abonado)}</div>
                       </div>
-                      
-                      {/* Debug info - solo en desarrollo */}
-                      {process.env.NODE_ENV === 'development' && (
-                        <div className="bg-gray-100 p-2 rounded text-xs mb-3">
-                          <div>Debug: monto={ventaEdit.nuevoPagoMonto}, método={ventaEdit.nuevoPagoMetodo}</div>
-                          <div>Validaciones: monto={montoValido}, método={metodoValido}, botón={botonHabilitado}</div>
-                        </div>
-                      )}
 
-                      <div className="flex flex-col md:flex-row gap-2 items-end">
+                      {/* Línea de captura: monto + método + acción */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-2">
                         <input
                           type="number"
                           min={1}
                           max={saldo}
                           step="0.01"
-                          placeholder="Monto a abonar"
-                          className={`border rounded px-2 py-1 ${
-                            ventaEdit.nuevoPagoMonto && !montoValido 
-                              ? 'border-red-500 bg-red-50' 
-                              : 'border-gray-300'
-                          }`}
+                          placeholder="0,00"
+                          className={`flex-1 h-9 border rounded-md px-3 text-sm ${ventaEdit.nuevoPagoMonto && !montoValido ? 'border-red-500 bg-red-50' : 'border-yellow-300 bg-white'}`}
                           value={ventaEdit.nuevoPagoMonto || ""}
                           onChange={(e) => {
                             const valor = e.target.value;
-                            console.log("Cambiando monto de pago:", valor);
                             setVentaEdit((prev) => ({
                               ...prev,
                               nuevoPagoMonto: valor,
@@ -3455,15 +3025,10 @@ const VentaDetalle = () => {
                           disabled={registrandoPago}
                         />
                         <select
-                          className={`border rounded px-2 py-1 ${
-                            ventaEdit.nuevoPagoMetodo && !metodoValido 
-                              ? 'border-red-500 bg-red-50' 
-                              : 'border-gray-300'
-                          }`}
+                          className={`h-9 w-full md:w-44 border rounded-md px-2 text-sm ${ventaEdit.nuevoPagoMetodo && !metodoValido ? 'border-red-500 bg-red-50' : 'border-yellow-300 bg-white'}`}
                           value={ventaEdit.nuevoPagoMetodo || ""}
                           onChange={(e) => {
                             const valor = e.target.value;
-                            console.log("Cambiando método de pago:", valor);
                             setVentaEdit((prev) => ({
                               ...prev,
                               nuevoPagoMetodo: valor,
@@ -3471,7 +3036,7 @@ const VentaDetalle = () => {
                           }}
                           disabled={registrandoPago}
                         >
-                          <option value="">Método de pago</option>
+                          <option value="">Selecciona...</option>
                           <option value="efectivo">Efectivo</option>
                           <option value="transferencia">Transferencia</option>
                           <option value="tarjeta">Tarjeta</option>
@@ -3480,30 +3045,18 @@ const VentaDetalle = () => {
                         </select>
                         <button
                           type="button"
-                          className={`px-4 py-1 rounded flex items-center gap-2 transition-all ${
-                            botonHabilitado
-                              ? "bg-green-600 text-white hover:bg-green-700"
-                              : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                          }`}
+                          className={`h-9 px-3 inline-flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${botonHabilitado ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
                           onClick={async () => {
-                            console.log("=== INICIANDO REGISTRO DE PAGO ===");
-                            console.log("Monto:", ventaEdit.nuevoPagoMonto);
-                            console.log("Método:", ventaEdit.nuevoPagoMetodo);
-                            console.log("Saldo:", saldo);
-                            
                             if (!botonHabilitado) {
-                              console.log("Botón deshabilitado, no se puede registrar pago");
                               return;
                             }
 
                             setRegistrandoPago(true);
                             
                             try {
-                              // Simular un pequeño delay para UX
-                              await new Promise((res) => setTimeout(res, 600));
+                              await new Promise((res) => setTimeout(res, 400));
                               
                               if (Array.isArray(ventaEdit.pagos)) {
-                                console.log("Agregando pago al array de pagos existente");
                                 setVentaEdit((prev) => ({
                                   ...prev,
                                   pagos: [
@@ -3514,14 +3067,13 @@ const VentaDetalle = () => {
                                         .split("T")[0],
                                       monto: Number(prev.nuevoPagoMonto),
                                       metodo: prev.nuevoPagoMetodo,
-                                      usuario: "usuario", // puedes poner el usuario real si lo tienes
+                                      usuario: "usuario",
                                     },
                                   ],
                                   nuevoPagoMonto: "",
                                   nuevoPagoMetodo: "",
                                 }));
                               } else {
-                                console.log("Creando array de pagos nuevo");
                                 setVentaEdit((prev) => ({
                                   ...prev,
                                   pagos: [
@@ -3538,12 +3090,8 @@ const VentaDetalle = () => {
                                   nuevoPagoMetodo: "",
                                 }));
                               }
-                              
                               setPagoExitoso(true);
-                              console.log("Pago registrado exitosamente");
-                              
-                              // Limpiar mensaje de éxito después de 2.2 segundos
-                              setTimeout(() => setPagoExitoso(false), 2200);
+                              setTimeout(() => setPagoExitoso(false), 1800);
                             } catch (error) {
                               console.error("Error al registrar pago:", error);
                             } finally {
@@ -3552,56 +3100,21 @@ const VentaDetalle = () => {
                           }}
                           disabled={!botonHabilitado}
                         >
-                          {registrandoPago && (
-                            <svg
-                              className="animate-spin h-5 w-5 mr-1 text-white"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8z"
-                              />
-                            </svg>
+                          {registrandoPago ? (
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                          ) : (
+                            'Registrar pago'
                           )}
-                          {registrandoPago
-                            ? "Registrando..."
-                            : "Registrar pago"}
                         </button>
                       </div>
-                      
-                      {/* Mensajes de validación */}
+                      {/* Mensajes de validación compactos */}
                       {ventaEdit.nuevoPagoMonto && !montoValido && (
-                        <div className="text-red-600 text-sm mt-1">
-                          {Number(ventaEdit.nuevoPagoMonto) <= 0 
-                            ? "El monto debe ser mayor a 0" 
-                            : Number(ventaEdit.nuevoPagoMonto) > saldo 
-                              ? `El monto no puede ser mayor al saldo pendiente ($${formatearNumeroArgentino(saldo)})`
-                              : "Monto inválido"
-                          }
-                        </div>
+                        <div className="mt-2 text-xs text-red-600">{Number(ventaEdit.nuevoPagoMonto) <= 0 ? 'El monto debe ser mayor a 0' : Number(ventaEdit.nuevoPagoMonto) > saldo ? `No puede superar $${formatearNumeroArgentino(saldo)}` : 'Monto inválido'}</div>
                       )}
-                      
                       {ventaEdit.nuevoPagoMetodo && !metodoValido && (
-                        <div className="text-red-600 text-sm mt-1">
-                          Selecciona un método de pago válido
-                        </div>
+                        <div className="mt-1 text-xs text-red-600">Selecciona un método válido</div>
                       )}
-                      
-                      {pagoExitoso && (
-                        <div className="mt-3 px-4 py-2 rounded bg-green-100 text-green-800 font-semibold shadow text-center animate-fade-in">
-                          ¡Pago registrado exitosamente!
-                        </div>
-                      )}
+                      {pagoExitoso && (<div className="mt-2 text-xs text-green-700 font-semibold">¡Pago registrado!</div>)}
                     </div>
                   );
                 }

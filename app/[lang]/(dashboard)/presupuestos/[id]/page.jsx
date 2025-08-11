@@ -85,11 +85,38 @@ const PresupuestoDetalle = () => {
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  // Búsqueda local con debounce + deferred (alineado a ventas)
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
 
-  // Estados para paginación optimizada
+  // Catálogo y paginación (alineado a ventas)
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina] = useState(12);
-  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+  const [isPending, startTransition] = React.useTransition();
+
+  // Derivar categorías y agrupación desde los productos cargados
+  const [productosState, setProductosState] = useState([]);
+  const [productosPorCategoriaState, setProductosPorCategoriaState] = useState({});
+  const [categoriasState, setCategoriasState] = useState([]);
+  useEffect(() => {
+    if (!Array.isArray(productos) || productos.length === 0) {
+      setProductosState([]);
+      setProductosPorCategoriaState({});
+      setCategoriasState([]);
+      return;
+    }
+    setProductosState(productos);
+    const agrupados = {};
+    productos.forEach((p) => {
+      (agrupados[p.categoria] = agrupados[p.categoria] || []).push(p);
+    });
+    setProductosPorCategoriaState(agrupados);
+    setCategoriasState(Object.keys(agrupados));
+  }, [productos]);
 
   // Estado para nuevo cliente en presupuestos
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
@@ -204,8 +231,16 @@ const PresupuestoDetalle = () => {
                   productoDB.tipoMadera || productoPresupuesto.tipoMadera || "",
                 subcategoria:
                   productoDB.categoria === "Maderas"
-                    ? (productoDB.subcategoria || productoDB.subCategoria || productoPresupuesto.subcategoria || productoPresupuesto.subCategoria || "")
-                    : (productoDB.subCategoria || productoDB.subcategoria || productoPresupuesto.subCategoria || productoPresupuesto.subcategoria || ""),
+                    ? productoDB.subcategoria ||
+                      productoDB.subCategoria ||
+                      productoPresupuesto.subcategoria ||
+                      productoPresupuesto.subCategoria ||
+                      ""
+                    : productoDB.subCategoria ||
+                      productoDB.subcategoria ||
+                      productoPresupuesto.subCategoria ||
+                      productoPresupuesto.subcategoria ||
+                      "",
                 // Actualizar dimensiones para maderas si no están presentes
                 alto: Number(productoDB.alto) || productoPresupuesto.alto || 0,
                 ancho:
@@ -368,7 +403,7 @@ const PresupuestoDetalle = () => {
   // Función para recalcular precio cuando se cambia el precio por pie
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -385,7 +420,12 @@ const PresupuestoDetalle = () => {
             });
           } else {
             // Para otras maderas: usar la fórmula estándar
-            precioBase = 0.2734 * p.alto * p.ancho * p.largo * (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
+            precioBase =
+              0.2734 *
+              p.alto *
+              p.ancho *
+              p.largo *
+              (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
           }
 
           // Aplicar cepillado si está habilitado para este producto específico
@@ -411,7 +451,7 @@ const PresupuestoDetalle = () => {
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -447,7 +487,7 @@ const PresupuestoDetalle = () => {
   // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -483,7 +523,7 @@ const PresupuestoDetalle = () => {
   // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -519,7 +559,7 @@ const PresupuestoDetalle = () => {
   // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
   const handleAltoChangeMadera = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -555,7 +595,7 @@ const PresupuestoDetalle = () => {
 
   const handleAnchoChangeMadera = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -591,7 +631,7 @@ const PresupuestoDetalle = () => {
 
   const handleLargoChangeMadera = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -627,7 +667,7 @@ const PresupuestoDetalle = () => {
 
   const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
-    
+
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -681,12 +721,7 @@ const PresupuestoDetalle = () => {
   }
 
   // Función para calcular precio de machimbre (precio por pie × alto × largo × cantidad)
-  function calcularPrecioMachimbre({
-    alto,
-    largo,
-    cantidad,
-    precioPorPie,
-  }) {
+  function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
     if (
       [alto, largo, cantidad, precioPorPie].some(
         (v) => typeof v !== "number" || v <= 0
@@ -728,63 +763,61 @@ const PresupuestoDetalle = () => {
       .replace(/[\u0300-\u036f]/g, "");
   }, []);
 
-  // Productos filtrados optimizados con useMemo
+  // Productos filtrados (idéntico a ventas)
   const productosFiltrados = useMemo(() => {
-    if (!categoriaId) return [];
-
-    const productosPorCategoria = {};
-    productos.forEach((p) => {
-      if (!productosPorCategoria[p.categoria]) productosPorCategoria[p.categoria] = [];
-      productosPorCategoria[p.categoria].push(p);
-    });
-
-    const productosCategoria = productosPorCategoria[categoriaId] || [];
-    const terminoBusqueda = normalizarTexto(busquedaProducto);
-
-    return productosCategoria.filter((prod) => {
-      // Filtro por búsqueda de texto con lógica mejorada
-      let cumpleBusqueda = !terminoBusqueda;
-      
-      if (terminoBusqueda) {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
-        if (terminoBusqueda.endsWith('.')) {
-          const busquedaSinPunto = terminoBusqueda.slice(0, -1);
-          cumpleBusqueda = 
-            normalizarTexto(prod.nombre).startsWith(busquedaSinPunto) ||
-            normalizarTexto(prod.unidadMedida || "").startsWith(busquedaSinPunto);
-        } else {
-          // Búsqueda normal: incluye el texto en cualquier parte
-          cumpleBusqueda = 
-            normalizarTexto(prod.nombre).includes(terminoBusqueda) ||
-            normalizarTexto(prod.unidadMedida || "").includes(terminoBusqueda);
-        }
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = productosPorCategoriaState[categoriaId] || [];
+        fuente = localCat;
+      } else {
+        fuente = productosState;
       }
+    } else if (categoriaId) {
+      fuente = productosPorCategoriaState[categoriaId];
+    }
+    if (!fuente) return [];
 
-      // Filtro específico por tipo de madera
-      const cumpleTipoMadera =
-        categoriaId !== "Maderas" ||
-        filtroTipoMadera === "" ||
-        prod.tipoMadera === filtroTipoMadera;
-
-      // Filtro específico por subcategoría de ferretería
-      const cumpleSubCategoria =
-        categoriaId !== "Ferretería" ||
-        filtroSubCategoria === "" ||
-        prod.subCategoria === filtroSubCategoria;
-
-      return cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria;
-    }).sort((a, b) => {
-      // Ordenar por stock: primero los que tienen stock, luego los que no
-      const stockA = Number(a.stock) || 0;
-      const stockB = Number(b.stock) || 0;
-      
-      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
-      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
-      
-      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
-      return 0;
-    });
-  }, [productos, categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+    const busquedaNormalizada = normalizarTexto(busquedaDefer);
+    return fuente
+      .filter((prod) => {
+        const nombreNormalizado = normalizarTexto(prod.nombre);
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+        let cumpleBusqueda = busquedaNormalizada === "";
+        if (busquedaNormalizada !== "") {
+          if (busquedaNormalizada.endsWith(".")) {
+            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
+            cumpleBusqueda =
+              nombreNormalizado.startsWith(busquedaSinPunto) ||
+              unidadNormalizada.startsWith(busquedaSinPunto);
+          } else {
+            cumpleBusqueda =
+              nombreNormalizado.includes(busquedaNormalizada) ||
+              unidadNormalizada.includes(busquedaNormalizada);
+          }
+        }
+        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
+        return (
+          cumpleCategoria && cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
+        );
+      })
+      .sort((a, b) => {
+        const stockA = Number(a.stock) || 0;
+        const stockB = Number(b.stock) || 0;
+        if (stockA > 0 && stockB === 0) return -1;
+        if (stockA === 0 && stockB > 0) return 1;
+        return 0;
+      });
+  }, [productosState, productosPorCategoriaState, categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
@@ -797,23 +830,21 @@ const PresupuestoDetalle = () => {
   const totalProductos = productosFiltrados.length;
   const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
 
-  // Función para cambiar página con feedback visual
-  const cambiarPagina = useCallback((nuevaPagina) => {
-    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
-    
-    setIsLoadingPagination(true);
-    setPaginaActual(nuevaPagina);
-    
-    // Simular un pequeño delay para mostrar el feedback visual
-    setTimeout(() => {
-      setIsLoadingPagination(false);
-    }, 300);
-  }, [totalPaginas]);
+  // Función para cambiar página (transición no bloqueante)
+  const cambiarPagina = useCallback(
+    (nuevaPagina) => {
+      if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+      startTransition(() => {
+        setPaginaActual(nuevaPagina);
+      });
+    },
+    [totalPaginas, startTransition]
+  );
 
-  // Resetear página cuando cambian los filtros
+  // Resetear página cuando cambian los filtros (usar valor deferred)
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaId, busquedaProducto, filtroTipoMadera, filtroSubCategoria]);
+  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
 
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
@@ -844,17 +875,14 @@ const PresupuestoDetalle = () => {
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-          const subtotal = productosArr.reduce(
-      (acc, p) => {
+      const subtotal = productosArr.reduce((acc, p) => {
         // Para machimbre y deck, el precio ya incluye la cantidad
         if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
           return acc + Number(p.precio);
         } else {
           return acc + Number(p.precio) * Number(p.cantidad);
         }
-      },
-      0
-    );
+      }, 0);
       const descuentoTotal = productosArr.reduce(
         (acc, p) =>
           acc +
@@ -1410,22 +1438,28 @@ const PresupuestoDetalle = () => {
                           productos agregados
                         </div>
                       </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {productosFiltrados.length} / {productosPorCategoriaState[categoriaId]?.length || 0}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          productos filtrados
+                        </div>
+                      </div>
                     </div>
                     {/* Filtros mejorados */}
                     <div className="flex flex-col gap-3">
                       {/* Filtro de categorías */}
                       <div className="flex-1">
-                        <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                          {Array.from(
-                            new Set(productos.map((p) => p.categoria))
-                          ).map((categoria) => (
+                      <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
+                          {categoriasState.map((categoria) => (
                             <button
                               key={categoria}
                               type="button"
                               className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                 categoriaId === categoria
                                   ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 text-gray-700"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                               }`}
                               onClick={(e) => {
                                 e.preventDefault();
@@ -1461,13 +1495,13 @@ const PresupuestoDetalle = () => {
                         {categoriaId === "Maderas" &&
                           tiposMadera.length > 0 && (
                             <div className="flex-1">
-                              <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                              <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
                                 <button
                                   type="button"
                                   className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                     filtroTipoMadera === ""
                                       ? "bg-orange-600 text-white"
-                                      : "bg-gray-100 text-gray-700"
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                   }`}
                                   onClick={() => setFiltroTipoMadera("")}
                                 >
@@ -1480,7 +1514,7 @@ const PresupuestoDetalle = () => {
                                     className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                       filtroTipoMadera === tipo
                                         ? "bg-orange-600 text-white"
-                                        : "bg-gray-100 text-gray-700"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                     }`}
                                     onClick={() => setFiltroTipoMadera(tipo)}
                                   >
@@ -1495,17 +1529,17 @@ const PresupuestoDetalle = () => {
                         {categoriaId === "Ferretería" &&
                           subCategoriasFerreteria.length > 0 && (
                             <div className="flex-1">
-                              <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
+                              <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
                                 <button
                                   type="button"
                                   className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                     filtroSubCategoria === ""
                                       ? "bg-blue-600 text-white"
-                                      : "bg-gray-100 text-gray-700"
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                   }`}
                                   onClick={() => setFiltroSubCategoria("")}
                                 >
-                                  🔧 Todas las subcategorías
+                                  Todas las subcategorías
                                 </button>
                                 {subCategoriasFerreteria.map((subCategoria) => (
                                   <button
@@ -1514,13 +1548,13 @@ const PresupuestoDetalle = () => {
                                     className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
                                       filtroSubCategoria === subCategoria
                                         ? "bg-blue-600 text-white"
-                                        : "bg-gray-100 text-gray-700"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                     }`}
                                     onClick={() =>
                                       setFiltroSubCategoria(subCategoria)
                                     }
                                   >
-                                    🔧 {subCategoria}
+                                    {subCategoria}
                                   </button>
                                 ))}
                               </div>
@@ -1551,7 +1585,12 @@ const PresupuestoDetalle = () => {
                             onChange={(e) =>
                               setBusquedaProducto(e.target.value)
                             }
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                              }
+                            }}
+                            className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                           />
                         </div>
                       </div>
@@ -1559,33 +1598,26 @@ const PresupuestoDetalle = () => {
                   </div>
 
                   {/* Lista de productos mejorada con paginación optimizada */}
-                  <div className="max-h-96 overflow-y-auto">
+                  <div className="max-h-150 overflow-y-auto">
                     {(() => {
-                      if (!categoriaId) {
+                      if (categoriasState.length === 0) {
                         return (
                           <div className="p-8 text-center">
-                            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                              <svg
-                                className="w-8 h-8 text-blue-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
+                            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                             </div>
-                            <h3 className="text-lg font-medium  mb-2">
-                              Selecciona una categoría
-                            </h3>
-                            <p className="text-gray-500">
-                              Elige una categoría para ver los productos
-                              disponibles
-                            </p>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay categorías disponibles</h3>
+                            <p className="text-gray-500 dark:text-gray-400">Agrega productos a las categorías para comenzar</p>
+                          </div>
+                        );
+                      } else if (!categoriaId && (!busquedaDefer || busquedaDefer.trim() === "")) {
+                        return (
+                          <div className="p-8 text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                              <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Selecciona una categoría</h3>
+                            <p className="text-gray-500 dark:text-gray-400">Elige una categoría para ver los productos disponibles</p>
                           </div>
                         );
                       }
@@ -1620,22 +1652,10 @@ const PresupuestoDetalle = () => {
 
                       return (
                         <>
-                          {/* Indicador de rendimiento */}
-                          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-700">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-blue-700 dark:text-blue-300">
-                                Mostrando {productosPaginados.length} de {totalProductos} productos filtrados
-                              </span>
-                              <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                Página {paginaActual} de {totalPaginas}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Grid de productos paginados */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 relative">
+                          {/* Grid de productos paginados (igual a ventas) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
                             {/* Overlay de carga durante la paginación */}
-                            {isLoadingPagination && (
+                            {isPending && (
                               <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
                                 <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
                                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
@@ -1647,347 +1667,197 @@ const PresupuestoDetalle = () => {
                             )}
 
                             {productosPaginados.map((prod) => {
-                            const yaAgregado = (
-                              presupuestoEdit.productos || []
-                            ).some((p) => p.id === prod.id);
-                            return (
-                              <div
-                                key={prod.id}
-                                className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                                  yaAgregado
-                                    ? "border-green-200 bg-green-50"
-                                    : "border-gray-200 hover:border-blue-300"
-                                }`}
-                              >
-                                <div className="p-4 flex flex-col h-full">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-3 mb-2">
-                                        <div
-                                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                            prod.categoria === "Maderas"
-                                              ? "bg-orange-100 text-orange-700"
-                                              : "bg-blue-100 text-blue-700"
-                                          }`}
-                                        >
-                                          {prod.categoria === "Maderas"
-                                            ? "🌲"
-                                            : "🔧"}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <h4 className="text-sm font-semibold  truncate">
-                                            {prod.nombre}
-                                          </h4>
-                                          {/* Información específica por categoría */}
-                                          {prod.categoria === "Maderas" &&
-                                            prod.tipoMadera && (
-                                              <div className="flex items-center gap-1 mt-1">
-                                                <span className="text-xs text-orange-600 font-medium">
-                                                  🌲 {prod.tipoMadera}
-                                                </span>
-                                              </div>
-                                            )}
-                                          {prod.categoria === "Ferretería" &&
-                                            prod.subCategoria && (
-                                              <div className="flex items-center gap-1 mt-1">
-                                                <span className="text-xs text-blue-600 font-medium">
-                                                  🔧 {prod.subCategoria}
-                                                </span>
-                                              </div>
-                                            )}
-                                        </div>
-                                        {yaAgregado && (
-                                          <div className="flex items-center gap-1 text-green-600">
-                                            <svg
-                                              className="w-4 h-4"
-                                              fill="currentColor"
-                                              viewBox="0 0 20 20"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                clipRule="evenodd"
-                                              />
-                                            </svg>
-                                            <span className="text-xs font-medium">
-                                              Agregado
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mb-3">
-                                        <div>
-                                          <span className="font-medium">
-                                            Precio:
-                                          </span>
-                                          <span className="ml-1 font-bold text-blue-600">
-                                            $
-                                            {formatearNumeroArgentino(
-                                              prod.precioPorPie ||
-                                                prod.valorVenta ||
-                                                prod.precioUnidad ||
-                                                0
-                                            )}
-                                          </span>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">
-                                            Unidad:
-                                          </span>
-                                          <span className="ml-1">
-                                            {prod.unidadMedida ||
-                                              prod.unidadVenta ||
-                                              prod.unidadVentaHerraje ||
-                                              prod.unidadVentaQuimico ||
-                                              prod.unidadVentaHerramienta}
-                                          </span>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">
-                                            Stock:
-                                          </span>
-                                          <span
-                                            className={`ml-1 font-bold ${
-                                              prod.stock > 10
-                                                ? "text-green-600"
-                                                : prod.stock > 0
-                                                ? "text-yellow-600"
-                                                : "text-red-600"
+                              const yaAgregado = (
+                                presupuestoEdit.productos || []
+                              ).some((p) => p.id === prod.id);
+                              const precio = (() => {
+                                if (prod.categoria === "Maderas") {
+                                  return prod.precioPorPie || 0;
+                                } else if (prod.categoria === "Ferretería") {
+                                  return prod.valorVenta || 0;
+                                } else {
+                                  return (
+                                    prod.precioUnidad ||
+                                    prod.precioUnidadVenta ||
+                                    prod.precioUnidadHerraje ||
+                                    prod.precioUnidadQuimico ||
+                                    prod.precioUnidadHerramienta ||
+                                    0
+                                  );
+                                }
+                              })();
+                              return (
+                                <div
+                                  key={prod.id}
+                                  className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
+                                    yaAgregado
+                                      ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
+                                      : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
+                                  }`}
+                                >
+                                  <div className="p-4 flex flex-col h-full">
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <div
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                              prod.categoria === "Maderas"
+                                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                                             }`}
                                           >
-                                            {prod.stock}
-                                          </span>
+                                            {prod.categoria === "Maderas"
+                                              ? "🌲"
+                                              : "🔧"}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                              {prod.nombre}
+                                            </h4>
+                                            {/* Información específica por categoría */}
+                                            {prod.categoria === "Maderas" &&
+                                              prod.tipoMadera && (
+                                                <div className="flex items-center gap-1 mt-1">
+                                                  <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                                                    🌲 {prod.tipoMadera}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            {prod.categoria === "Ferretería" &&
+                                              prod.subCategoria && (
+                                                <div className="flex items-center gap-1 mt-1">
+                                                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                                    🔧 {prod.subCategoria}
+                                                  </span>
+                                                </div>
+                                              )}
+                                          </div>
+                                          {yaAgregado && (
+                                            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                              <svg
+                                                className="w-4 h-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                              >
+                                                <path
+                                                  fillRule="evenodd"
+                                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                  clipRule="evenodd"
+                                                />
+                                              </svg>
+                                              <span className="text-xs font-medium">
+                                                Agregado
+                                              </span>
+                                            </div>
+                                          )}
                                         </div>
-                                        {prod.categoria === "Maderas" && (
-                                          <div>
-                                            <span className="font-medium">
-                                              $/pie:
+                                        <div className="flex-1 space-y-2">
+                                          {/* Precio */}
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                              Precio:
                                             </span>
-                                            <span className="ml-1 font-bold text-orange-600">
-                                              {prod.precioPorPie}
+                                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                              ${formatearNumeroArgentino(precio)}
                                             </span>
                                           </div>
-                                        )}
+
+                                          {/* Unidad de medida */}
+                                          {prod.unidadMedida && (
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                Unidad:
+                                              </span>
+                                              <span className="text-xs text-gray-700 dark:text-gray-300">
+                                                {prod.unidadMedida}
+                                              </span>
+                                            </div>
+                                          )}
+
+                                          {/* Stock */}
+                                          {prod.stock !== undefined && (
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                Stock:
+                                              </span>
+                                              <span
+                                                className={`text-xs font-medium ${
+                                                  prod.stock > 10
+                                                    ? "text-green-600 dark:text-green-400"
+                                                    : prod.stock > 0
+                                                    ? "text-yellow-600 dark:text-yellow-400"
+                                                    : "text-red-600 dark:text-red-400"
+                                                }`}
+                                              >
+                                                {prod.stock} unidades
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Sin bloque de dimensiones ni alertas de stock en tarjetas del catálogo */}
                                       </div>
-
-                                      {/* Dimensiones para maderas */}
-                                      {prod.categoria === "Maderas" && (
-                                        <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 rounded border border-orange-200 dark:border-orange-700 mb-3">
-                                          <div className="flex items-center gap-1 text-xs text-orange-700 dark:text-orange-400 mb-1">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="currentColor"
-                                              viewBox="0 0 20 20"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
-                                                clipRule="evenodd"
-                                              />
-                                            </svg>
-                                            <span className="font-medium">
-                                              Dimensiones
-                                            </span>
-                                          </div>
-                                          <div className="flex gap-3 text-xs">
-                                            <span>
-                                              Alto:{" "}
-                                              <span className="font-bold">
-                                                {prod.alto || 0}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Ancho:{" "}
-                                              <span className="font-bold">
-                                                {prod.ancho || 0}
-                                              </span>{" "}
-                                            </span>
-                                            <span>
-                                              Largo:{" "}
-                                              <span className="font-bold">
-                                                {prod.largo || 0}
-                                              </span>{" "}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* Alertas de stock */}
-                                      {prod.stock <= 0 && (
-                                        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 mb-3">
-                                          <div className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="currentColor"
-                                              viewBox="0 0 20 20"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                                clipRule="evenodd"
-                                              />
-                                            </svg>
-                                            <span className="font-medium">
-                                              ¡Sin stock! Se permitirá avanzar
-                                              igual.
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
-                                      {prod.stock > 0 && prod.stock <= 3 && (
-                                        <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700 mb-3">
-                                          <div className="flex items-center gap-1 text-xs text-yellow-700 dark:text-yellow-400">
-                                            <svg
-                                              className="w-3 h-3"
-                                              fill="currentColor"
-                                              viewBox="0 0 20 20"
-                                            >
-                                              <path
-                                                fillRule="evenodd"
-                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                                clipRule="evenodd"
-                                              />
-                                            </svg>
-                                            <span className="font-medium">
-                                              Stock bajo: quedan {prod.stock}{" "}
-                                              unidades.
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
                                     </div>
-                                  </div>
 
-                                  <div className="mt-auto">
-                                    {yaAgregado ? (
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPresupuestoEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Math.max(
-                                                          1,
-                                                          p.cantidad - 1
-                                                        ),
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          disabled={
-                                            presupuestoEdit.productos.find(
-                                              (p) => p.id === prod.id
-                                            )?.cantidad <= 1
-                                          }
-                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                                        >
-                                          -
-                                        </button>
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          value={
-                                            presupuestoEdit.productos.find(
-                                              (p) => p.id === prod.id
-                                            )?.cantidad || ""
-                                          }
-                                          onChange={(e) =>
-                                            setPresupuestoEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad: Number(
-                                                          e.target.value
-                                                        ),
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          className="w-12 text-center border rounded"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPresupuestoEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.map(
-                                                (p) =>
-                                                  p.id === prod.id
-                                                    ? {
-                                                        ...p,
-                                                        cantidad:
-                                                          p.cantidad + 1,
-                                                      }
-                                                    : p
-                                              ),
-                                            }))
-                                          }
-                                          className="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                        >
-                                          +
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setPresupuestoEdit((prev) => ({
-                                              ...prev,
-                                              productos: prev.productos.filter(
-                                                (p) => p.id !== prod.id
-                                              ),
-                                            }))
-                                          }
-                                          className="ml-2 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                        >
-                                          Quitar
-                                        </button>
-                                      </div>
-                                    ) : (
+                                    <div className="mt-auto">
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          // Calcular precio inicial según el tipo de producto
-                                          let precioCalculado = 0;
-                                          const alto = Number(prod.alto) || 0;
-                                          const ancho = Number(prod.ancho) || 0;
-                                          const largo = Number(prod.largo) || 0;
-                                          const precioPorPie = Number(prod.precioPorPie) || 0;
-                                          const subcategoria = prod.categoria === "Maderas" 
-                                            ? (prod.subcategoria || prod.subCategoria || "")
-                                            : (prod.subCategoria || prod.subcategoria || "");
+                                            // Calcular precio inicial según el tipo de producto
+                                            let precioCalculado = 0;
+                                            const alto = Number(prod.alto) || 0;
+                                            const ancho =
+                                              Number(prod.ancho) || 0;
+                                            const largo =
+                                              Number(prod.largo) || 0;
+                                            const precioPorPie =
+                                              Number(prod.precioPorPie) || 0;
+                                            const subcategoria =
+                                              prod.categoria === "Maderas"
+                                                ? prod.subcategoria ||
+                                                  prod.subCategoria ||
+                                                  ""
+                                                : prod.subCategoria ||
+                                                  prod.subcategoria ||
+                                                  "";
 
-                                          if (prod.categoria === "Maderas") {
-                                            if (subcategoria === "machimbre" || subcategoria === "deck") {
-                                              // Para machimbres/deck: usar la fórmula específica
-                                              precioCalculado = calcularPrecioMachimbre({
-                                                alto: alto,
-                                                largo: largo,
-                                                cantidad: 1,
-                                                precioPorPie: precioPorPie,
-                                              });
+                                            if (prod.categoria === "Maderas") {
+                                              if (
+                                                subcategoria === "machimbre" ||
+                                                subcategoria === "deck"
+                                              ) {
+                                                // Para machimbres/deck: usar la fórmula específica
+                                                precioCalculado =
+                                                  calcularPrecioMachimbre({
+                                                    alto: alto,
+                                                    largo: largo,
+                                                    cantidad: 1,
+                                                    precioPorPie: precioPorPie,
+                                                  });
+                                              } else {
+                                                // Para otras maderas: usar la fórmula estándar
+                                                precioCalculado =
+                                                  calcularPrecioCorteMadera({
+                                                    alto: alto,
+                                                    ancho: ancho,
+                                                    largo: largo,
+                                                    precioPorPie: precioPorPie,
+                                                  });
+                                              }
+                                            } else if (
+                                              prod.categoria === "Ferretería"
+                                            ) {
+                                              precioCalculado =
+                                                prod.valorVenta || 0;
                                             } else {
-                                              // Para otras maderas: usar la fórmula estándar
-                                              precioCalculado = calcularPrecioCorteMadera({
-                                                alto: alto,
-                                                ancho: ancho,
-                                                largo: largo,
-                                                precioPorPie: precioPorPie,
-                                              });
+                                              precioCalculado =
+                                                prod.precioUnidad ||
+                                                prod.precioUnidadVenta ||
+                                                prod.precioUnidadHerraje ||
+                                                prod.precioUnidadQuimico ||
+                                                prod.precioUnidadHerramienta ||
+                                                0;
                                             }
-                                          } else if (prod.categoria === "Ferretería") {
-                                            precioCalculado = prod.valorVenta || 0;
-                                          } else {
-                                            precioCalculado = prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0;
-                                          }
 
                                           setPresupuestoEdit((prev) => ({
                                             ...prev,
@@ -2012,418 +1882,505 @@ const PresupuestoDetalle = () => {
                                                 largo: largo,
                                                 precioPorPie: precioPorPie,
                                                 cepilladoAplicado: false,
-                                                tipoMadera: prod.tipoMadera || "",
+                                                tipoMadera:
+                                                  prod.tipoMadera || "",
                                                 subcategoria: subcategoria,
                                               },
                                             ],
                                           }));
                                         }}
-                                        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                                        disabled={yaAgregado}
+                                        className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                          yaAgregado
+                                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed"
+                                            : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        }`}
                                       >
-                                        Agregar
+                                        {yaAgregado ? "Ya agregado" : "Agregar"}
                                       </button>
-                                    )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Controles de paginación */}
-                        {totalPaginas > 1 && (
-                          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                            {/* Controles de navegación */}
-                            <div className="flex items-center gap-2">
-                              {/* Botón primera página */}
-                              <button
-                                onClick={() => cambiarPagina(1)}
-                                disabled={paginaActual === 1 || isLoadingPagination}
-                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Primera página"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                                </svg>
-                              </button>
-
-                              {/* Botón página anterior */}
-                              <button
-                                onClick={() => cambiarPagina(paginaActual - 1)}
-                                disabled={paginaActual === 1 || isLoadingPagination}
-                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Página anterior"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-
-                              {/* Números de página */}
-                              <div className="flex items-center gap-1">
-                                {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                                  let pageNum;
-                                  if (totalPaginas <= 5) {
-                                    pageNum = i + 1;
-                                  } else if (paginaActual <= 3) {
-                                    pageNum = i + 1;
-                                  } else if (paginaActual >= totalPaginas - 2) {
-                                    pageNum = totalPaginas - 4 + i;
-                                  } else {
-                                    pageNum = paginaActual - 2 + i;
-                                  }
-
-                                  return (
-                                    <button
-                                      key={pageNum}
-                                      onClick={() => cambiarPagina(pageNum)}
-                                      disabled={isLoadingPagination}
-                                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                                        paginaActual === pageNum
-                                          ? "bg-blue-600 text-white"
-                                          : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    >
-                                      {pageNum}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Botón página siguiente */}
-                              <button
-                                onClick={() => cambiarPagina(paginaActual + 1)}
-                                disabled={paginaActual === totalPaginas || isLoadingPagination}
-                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Página siguiente"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-
-                              {/* Botón última página */}
-                              <button
-                                onClick={() => cambiarPagina(totalPaginas)}
-                                disabled={paginaActual === totalPaginas || isLoadingPagination}
-                                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Última página"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                            </div>
-
-                            {/* Información de página */}
-                            <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                              {isLoadingPagination && (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                              )}
-                              <span>
-                                Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos
-                              </span>
-                            </div>
+                              );
+                            })}
                           </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </section>
+
+                          {/* Controles de paginación */}
+                          {totalPaginas > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                              {/* Controles de navegación */}
+                              <div className="flex items-center gap-2">
+                                {/* Botón primera página */}
+                                <button
+                                  onClick={() => cambiarPagina(1)}
+                                  disabled={paginaActual === 1 || isPending}
+                                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  title="Primera página"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {/* Botón página anterior */}
+                                <button
+                                  onClick={() =>
+                                    cambiarPagina(paginaActual - 1)
+                                  }
+                                  disabled={paginaActual === 1 || isPending}
+                                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  title="Página anterior"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M15 19l-7-7 7-7"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {/* Números de página */}
+                                <div className="flex items-center gap-1">
+                                  {Array.from(
+                                    { length: Math.min(5, totalPaginas) },
+                                    (_, i) => {
+                                      let pageNum;
+                                      if (totalPaginas <= 5) {
+                                        pageNum = i + 1;
+                                      } else if (paginaActual <= 3) {
+                                        pageNum = i + 1;
+                                      } else if (
+                                        paginaActual >=
+                                        totalPaginas - 2
+                                      ) {
+                                        pageNum = totalPaginas - 4 + i;
+                                      } else {
+                                        pageNum = paginaActual - 2 + i;
+                                      }
+
+                                      return (
+                                        <button
+                                          key={pageNum}
+                                          onClick={() => cambiarPagina(pageNum)}
+                                          disabled={isPending}
+                                          className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                                            paginaActual === pageNum
+                                              ? "bg-blue-600 text-white"
+                                              : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        >
+                                          {pageNum}
+                                        </button>
+                                      );
+                                    }
+                                  )}
+                                </div>
+
+                                {/* Botón página siguiente */}
+                                <button
+                                  onClick={() =>
+                                    cambiarPagina(paginaActual + 1)
+                                  }
+                                  disabled={paginaActual === totalPaginas || isPending}
+                                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  title="Página siguiente"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M9 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {/* Botón última página */}
+                                <button
+                                  onClick={() => cambiarPagina(totalPaginas)}
+                                  disabled={paginaActual === totalPaginas || isPending}
+                                  className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  title="Última página"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+
+                              {/* Información de página */}
+                              <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                {isPending && (
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                                )}
+                                <span>
+                                  Mostrando {paginaActual}-
+                                  {Math.min(
+                                    paginaActual + productosPorPagina - 1,
+                                    totalProductos
+                                  )}{" "}
+                                  de {totalProductos} productos
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </section>
 
                 {/* Tabla de productos seleccionados en modo edición */}
                 {(presupuestoEdit.productos || []).length > 0 && (
-                  <section className="bg-card rounded-lg p-4 border border-default-200 shadow-sm mt-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-default-900">
+                  <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60 mt-4">
+                    <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
+                      <h3 className="text-base md:text-lg font-semibold text-default-900">
                         Productos Seleccionados
                       </h3>
-                      <span className="text-sm text-default-600">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
                         {(presupuestoEdit.productos || []).length} producto
                         {(presupuestoEdit.productos || []).length !== 1
                           ? "s"
                           : ""}
                       </span>
                     </div>
-
                     <div className="overflow-x-auto">
-                      <table className="w-full caption-top text-sm overflow-hidden">
-                        <thead className="[&_tr]:border-b bg-default-">
-                          <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      <table className="min-w-full text-[15px]">
+                        <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
+                          <tr className="border-b border-default-200">
+                            <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Categoría
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Producto
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Cant.
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Cepillado
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Precio unit.
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Desc.
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Subtotal
                             </th>
-                            <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                            <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Acción
                             </th>
                           </tr>
                         </thead>
-                        <tbody>
-                          {(presupuestoEdit.productos || []).map((p, idx) => (
+                        <tbody className="divide-y divide-default-200">
+                          {(presupuestoEdit.productos || []).map((p) => (
                             <tr
                               key={p.id}
-                              className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
+                              className="border-b border-default-300 transition-colors"
                             >
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                                {p.categoria}
+                              <td className="p-4 align-middle text-sm text-default-600">
+                                {p.categoria && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
+                                    {p.categoria}
+                                  </span>
+                                )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              <td className="p-4 align-top text-sm text-default-600">
                                 <div className="font-semibold text-default-900">
                                   {p.nombre}
                                 </div>
-                                {/* Información específica por categoría - buscada dinámicamente desde la BD */}
-                                {p.categoria === "Maderas" &&
-                                  getProductoCompleto(p.id)?.tipoMadera && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <span className="text-xs text-orange-600 font-medium">
-                                        🌲{" "}
-                                        {getProductoCompleto(p.id).tipoMadera}
-                                      </span>
-                                    </div>
-                                  )}
-                                {p.categoria === "Ferretería" &&
-                                  getProductoCompleto(p.id)?.subCategoria && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <span className="text-xs text-blue-600 font-medium">
-                                        🔧{" "}
-                                        {getProductoCompleto(p.id).subCategoria}
-                                      </span>
-                                    </div>
-                                  )}
-                                
-                                {/* Información de dimensiones editables para maderas */}
+                                {/* Se eliminó la visualización de tipo de madera y subcategoría debajo del nombre */}
                                 {p.categoria === "Maderas" && (
-                                  <div className="flex flex-wrap gap-2 mt-1 text-xs items-center">
-                                    <span className="font-medium text-gray-500">
-                                      Dimensiones:
-                                    </span>
-                                    
-                                    {/* Verificar si es machimbre o deck por subcategoria */}
-                                    {(p.subcategoria === "machimbre" || p.subcategoria === "deck") ? (
+                                  <div className="mt-2 flex flex-wrap items-start gap-3">
+                                    {p.subcategoria === "machimbre" ||
+                                    p.subcategoria === "deck" ? (
                                       <>
-                                        {/* Campos editables para machimbres */}
-                                        <span>
-                                          Alto:{" "}
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={p.alto === "" ? "" : p.alto || ""}
-                                            onChange={(e) =>
-                                              handleAltoChange(p.id, e.target.value)
-                                            }
-                                            className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0"
-                                            title="Editar alto (cm)"
-                                          />
-                                        </span>
-                                        <span>
-                                          Largo:{" "}
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={p.largo === "" ? "" : p.largo || ""}
-                                            onChange={(e) =>
-                                              handleLargoChange(p.id, e.target.value)
-                                            }
-                                            className="w-16 text-center border border-orange-300 rounded px-1 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0"
-                                            title="Editar largo (cm)"
-                                          />
-                                        </span>
-
-                                        <span>
-                                          $/m²:{" "}
-                                          <div className="inline-flex items-center gap-1">
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
-                                              onChange={(e) =>
-                                                handlePrecioPorPieChange(
-                                                  p.id,
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="w-20 text-center border border-orange-300 rounded px-2 py-1 text-xs font-bold bg-orange-50 focus:bg-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
-                                              disabled={loadingPrecios}
-                                              placeholder="0.00"
-                                              title="Editar precio por metro cuadrado"
-                                            />
-                                            <svg
-                                              className="w-3 h-3 text-orange-500"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                              />
-                                            </svg>
+                                        <div className="inline-block w-fit rounded-md border border-orange-200/60 bg-orange-50/60 p-1.5 align-top">
+                                          <div className="flex items-center gap-1.5 mb-1">
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-sm font-semibold">
+                                              Dimensiones
+                                            </span>
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-sm font-semibold">
+                                              Total{" "}
+                                              {(
+                                                (p.alto || 0) *
+                                                (p.largo || 0) *
+                                                (p.cantidad || 1)
+                                              ).toFixed(2)}{" "}
+                                              m²
+                                            </span>
                                           </div>
-                                        </span>
-                                        {/* Mostrar m2 total */}
-                                        <div className="mt-2 text-xs text-orange-800 font-semibold">
-                                          Total: {((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2)} m²
+                                          <div className="flex items-end gap-2">
+                                            <div className="flex flex-col gap-0.5">
+                                              <label className="text-[11px] font-semibold text-orange-700">
+                                                Alto
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                  p.alto === ""
+                                                    ? ""
+                                                    : p.alto || ""
+                                                }
+                                                onChange={(e) =>
+                                                  handleAltoChange(
+                                                    p.id,
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="h-8 w-[68px] rounded-sm border border-orange-300 bg-white text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
+                                                disabled={loadingPrecios}
+                                              />
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                              <label className="text-[11px] font-semibold text-orange-700">
+                                                Largo
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                  p.largo === ""
+                                                    ? ""
+                                                    : p.largo || ""
+                                                }
+                                                onChange={(e) =>
+                                                  handleLargoChange(
+                                                    p.id,
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="h-8 w-[68px] rounded-sm border border-orange-300 bg-white text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200"
+                                                disabled={loadingPrecios}
+                                              />
+                                            </div>
+                                            <div className="inline-block w-fit">
+                                              <label className="block text-[11px] font-semibold text-orange-700 mb-0.5">
+                                                $/m²
+                                              </label>
+                                              <div className="relative">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-orange-700 font-medium">
+                                                  $
+                                                </span>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={
+                                                    p.precioPorPie === ""
+                                                      ? ""
+                                                      : p.precioPorPie || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    handlePrecioPorPieChange(
+                                                      p.id,
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  className="h-8 w-[88px] pl-5 pr-2 text-sm border border-orange-300 rounded-md bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-200 focus:outline-none"
+                                                  disabled={loadingPrecios}
+                                                  placeholder="0.00"
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
                                         </div>
                                       </>
                                     ) : (
                                       <>
-                                        {/* Campos editables para maderas normales */}
-                                        <span>
-                                          Alto:{" "}
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={p.alto === "" ? "" : p.alto || ""}
-                                            onChange={(e) =>
-                                              handleAltoChangeMadera(p.id, e.target.value)
-                                            }
-                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0"
-                                            title="Editar alto (cm)"
-                                          />
-                                        </span>
-                                        <span>
-                                          Ancho:{" "}
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={p.ancho === "" ? "" : p.ancho || ""}
-                                            onChange={(e) =>
-                                              handleAnchoChangeMadera(p.id, e.target.value)
-                                            }
-                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0"
-                                            title="Editar ancho (cm)"
-                                          />
-                                        </span>
-                                        <span>
-                                          Largo:{" "}
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={p.largo === "" ? "" : p.largo || ""}
-                                            onChange={(e) =>
-                                              handleLargoChangeMadera(p.id, e.target.value)
-                                            }
-                                            className="w-16 text-center border border-blue-300 rounded px-1 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                            disabled={loadingPrecios}
-                                            placeholder="0"
-                                            title="Editar largo (cm)"
-                                          />
-                                        </span>
-                                        <span>
-                                          $/pie:{" "}
-                                          <div className="inline-flex items-center gap-1">
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
-                                              onChange={(e) =>
-                                                handlePrecioPorPieChangeMadera(
-                                                  p.id,
-                                                  e.target.value
-                                                )
-                                              }
-                                              className="w-20 text-center border border-blue-300 rounded px-2 py-1 text-xs font-bold bg-blue-50 focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                              disabled={loadingPrecios}
-                                              placeholder="0.00"
-                                              title="Editar precio por pie"
-                                            />
-                                            <svg
-                                              className="w-3 h-3 text-blue-500"
-                                              fill="none"
-                                              stroke="currentColor"
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                              />
-                                            </svg>
+                                        <div className="inline-block w-fit rounded-md border border-blue-200/60 bg-blue-50/60 p-1.5 align-top">
+                                          <div className="flex items-center gap-1.5 mb-1">
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
+                                              Dimensiones
+                                            </span>
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-sm font-semibold">
+                                              Volumen{" "}
+                                              {(
+                                                (p.alto || 0) *
+                                                (p.ancho || 0) *
+                                                (p.largo || 0)
+                                              ).toFixed(2)}{" "}
+                                              cm³
+                                            </span>
                                           </div>
-                                        </span>
-                                        {/* Mostrar volumen total */}
-                                        <div className="mt-2 text-xs text-blue-800 font-semibold">
-                                          Volumen: {((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2)} cm³
+                                          <div className="flex items-end gap-2">
+                                            <div className="flex flex-col gap-0.5">
+                                              <label className="text-[11px] font-semibold text-blue-700">
+                                                Alto
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                  p.alto === ""
+                                                    ? ""
+                                                    : p.alto || ""
+                                                }
+                                                onChange={(e) =>
+                                                  handleAltoChangeMadera(
+                                                    p.id,
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="h-8 w-[68px] rounded-sm border border-blue-300 bg-white text-sm px-1.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                                disabled={loadingPrecios}
+                                              />
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                              <label className="text-[11px] font-semibold text-blue-700">
+                                                Ancho
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                  p.ancho === ""
+                                                    ? ""
+                                                    : p.ancho || ""
+                                                }
+                                                onChange={(e) =>
+                                                  handleAnchoChangeMadera(
+                                                    p.id,
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="h-8 w-[68px] rounded-sm border border-blue-300 bg-white text-sm px-1.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                                disabled={loadingPrecios}
+                                              />
+                                            </div>
+                                            <div className="flex flex-col gap-0.5">
+                                              <label className="text-[11px] font-semibold text-blue-700">
+                                                Largo
+                                              </label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                  p.largo === ""
+                                                    ? ""
+                                                    : p.largo || ""
+                                                }
+                                                onChange={(e) =>
+                                                  handleLargoChangeMadera(
+                                                    p.id,
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="h-8 w-[68px] rounded-sm border border-blue-300 bg-white text-sm px-1.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                                disabled={loadingPrecios}
+                                              />
+                                            </div>
+                                            <div className="inline-block w-fit">
+                                              <label className="block text-[11px] font-semibold text-blue-700 mb-0.5">
+                                                $/pie
+                                              </label>
+                                              <div className="relative">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-blue-700 font-medium">
+                                                  $
+                                                </span>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={
+                                                    p.precioPorPie === ""
+                                                      ? ""
+                                                      : p.precioPorPie || ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    handlePrecioPorPieChangeMadera(
+                                                      p.id,
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  className="h-8 w-[88px] pl-5 pr-2 text-sm border border-blue-300 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none"
+                                                  disabled={loadingPrecios}
+                                                  placeholder="0.00"
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
                                         </div>
                                       </>
-                                    )}
-                                    
-                                    {p.stock <= 0 && (
-                                      <span className="text-red-600 font-semibold ml-2">
-                                        ¡Sin stock! Se permitirá avanzar igual.
-                                      </span>
-                                    )}
-                                    {p.stock > 0 && p.stock <= 3 && (
-                                      <span className="text-yellow-600 font-semibold ml-2">
-                                        Stock bajo: quedan {p.stock} unidades.
-                                      </span>
                                     )}
                                   </div>
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              <td className="p-4 align-middle text-sm text-default-600">
                                 <div className="flex items-center justify-center">
-                                  <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-700">
+                                  <div className="flex items-center bg-white dark:bg-gray-800 border border-default-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
                                           productos: prev.productos.map(
-                                            (prod) =>
-                                              prod.id === p.id
-                                                ? {
-                                                    ...prod,
-                                                    cantidad: Math.max(
-                                                      1,
-                                                      prod.cantidad - 1
-                                                    ),
-                                                  }
-                                                : prod
+                                            (prod) => {
+                                              if (prod.id !== p.id) return prod;
+                                              const nuevaCantidad = Math.max(1, prod.cantidad - 1);
+                                              if (
+                                                prod.categoria === "Maderas" &&
+                                                (prod.subcategoria === "machimbre" || prod.subcategoria === "deck")
+                                              ) {
+                                                const precioBase = calcularPrecioMachimbre({
+                                                  alto: prod.alto,
+                                                  largo: prod.largo,
+                                                  cantidad: nuevaCantidad,
+                                                  precioPorPie: prod.precioPorPie,
+                                                });
+                                                const precioFinal = prod.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                                                const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                                return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
+                                              }
+                                              return { ...prod, cantidad: nuevaCantidad };
+                                            }
                                           ),
                                         }))
                                       }
                                       disabled={
                                         loadingPrecios || p.cantidad <= 1
                                       }
-                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+                                      className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                       <svg
                                         className="w-4 h-4"
@@ -2439,49 +2396,66 @@ const PresupuestoDetalle = () => {
                                         />
                                       </svg>
                                     </button>
-
                                     <input
                                       type="number"
                                       min={1}
                                       value={p.cantidad}
-                                      onChange={(e) =>
+                                      onChange={(e) => {
+                                        const parsedCantidad = parseNumericValue(e.target.value);
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map(
-                                            (prod) =>
-                                              prod.id === p.id
-                                                ? {
-                                                    ...prod,
-                                                    cantidad: Number(
-                                                      e.target.value
-                                                    ),
-                                                  }
-                                                : prod
-                                          ),
-                                        }))
-                                      }
-                                      className="w-16 text-center font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100"
+                                          productos: prev.productos.map((prod) => {
+                                            if (prod.id !== p.id) return prod;
+                                            const nuevaCantidad = parsedCantidad === "" ? 1 : parsedCantidad;
+                                            if (
+                                              prod.categoria === "Maderas" &&
+                                              (prod.subcategoria === "machimbre" || prod.subcategoria === "deck")
+                                            ) {
+                                              const precioBase = calcularPrecioMachimbre({
+                                                alto: prod.alto,
+                                                largo: prod.largo,
+                                                cantidad: nuevaCantidad,
+                                                precioPorPie: prod.precioPorPie,
+                                              });
+                                              const precioFinal = prod.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                                              const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                              return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
+                                            }
+                                            return { ...prod, cantidad: nuevaCantidad };
+                                          }),
+                                        }));
+                                      }}
+                                      className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums"
                                       disabled={loadingPrecios}
                                     />
-
                                     <button
                                       type="button"
                                       onClick={() =>
                                         setPresupuestoEdit((prev) => ({
                                           ...prev,
-                                          productos: prev.productos.map(
-                                            (prod) =>
-                                              prod.id === p.id
-                                                ? {
-                                                    ...prod,
-                                                    cantidad: prod.cantidad + 1,
-                                                  }
-                                                : prod
-                                          ),
+                                          productos: prev.productos.map((prod) => {
+                                            if (prod.id !== p.id) return prod;
+                                            const nuevaCantidad = Number(prod.cantidad) + 1;
+                                            if (
+                                              prod.categoria === "Maderas" &&
+                                              (prod.subcategoria === "machimbre" || prod.subcategoria === "deck")
+                                            ) {
+                                              const precioBase = calcularPrecioMachimbre({
+                                                alto: prod.alto,
+                                                largo: prod.largo,
+                                                cantidad: nuevaCantidad,
+                                                precioPorPie: prod.precioPorPie,
+                                              });
+                                              const precioFinal = prod.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                                              const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                              return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
+                                            }
+                                            return { ...prod, cantidad: nuevaCantidad };
+                                          }),
                                         }))
                                       }
                                       disabled={loadingPrecios}
-                                      className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-150"
+                                      className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors"
                                     >
                                       <svg
                                         className="w-4 h-4"
@@ -2500,7 +2474,7 @@ const PresupuestoDetalle = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              <td className="p-4 align-middle text-sm text-default-600">
                                 {p.categoria === "Maderas" ? (
                                   <div className="flex items-center justify-center">
                                     <input
@@ -2512,51 +2486,64 @@ const PresupuestoDetalle = () => {
                                           e.target.checked
                                         )
                                       }
-                                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                      className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 focus:ring-2"
                                       disabled={loadingPrecios}
-                                      title="Aplicar cepillado (+6.6%)"
                                     />
                                   </div>
                                 ) : (
                                   <span className="text-gray-400">-</span>
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              <td className="p-4 align-middle text-right text-sm text-default-900 font-semibold tabular-nums">
                                 ${formatearNumeroArgentino(p.precio)}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={p.descuento === "" ? "" : p.descuento || ""}
-                                  onChange={(e) => {
-                                    const parsedDescuento = parseNumericValue(e.target.value);
-                                    setPresupuestoEdit((prev) => ({
-                                      ...prev,
-                                      productos: prev.productos.map((prod) =>
-                                        prod.id === p.id
-                                          ? {
-                                              ...prod,
-                                              descuento: parsedDescuento === "" ? 0 : parsedDescuento,
-                                            }
-                                          : prod
-                                      ),
-                                    }));
-                                  }}
-                                  className="w-20 mx-auto text-center border rounded px-2 py-1"
-                                  disabled={loadingPrecios}
-                                />
+                              <td className="p-4 align-middle text-sm text-default-600">
+                                <div className="relative w-20 md:w-24 mx-auto">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={
+                                      p.descuento === ""
+                                        ? ""
+                                        : p.descuento || ""
+                                    }
+                                    onChange={(e) => {
+                                      const parsed = parseNumericValue(
+                                        e.target.value
+                                      );
+                                      setPresupuestoEdit((prev) => ({
+                                        ...prev,
+                                        productos: prev.productos.map((prod) =>
+                                          prod.id === p.id
+                                            ? {
+                                                ...prod,
+                                                descuento:
+                                                  parsed === "" ? 0 : parsed,
+                                              }
+                                            : prod
+                                        ),
+                                      }));
+                                    }}
+                                    className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                    disabled={loadingPrecios}
+                                  />
+                                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">
+                                    %
+                                  </span>
+                                </div>
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 font-semibold">
+                              <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                                 $
                                 {formatearNumeroArgentino(
-                                  Number(p.precio) *
-                                    Number(p.cantidad) *
+                                  (p.subcategoria === "machimbre" ||
+                                  p.subcategoria === "deck"
+                                    ? Number(p.precio)
+                                    : Number(p.precio) * Number(p.cantidad)) *
                                     (1 - Number(p.descuento || 0) / 100)
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                              <td className="p-4 align-middle text-center text-sm text-default-600">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -2568,10 +2555,16 @@ const PresupuestoDetalle = () => {
                                     }))
                                   }
                                   disabled={loadingPrecios}
-                                  className="text-lg font-bold text-red-500 hover:text-red-700"
-                                  title="Quitar producto"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                 >
-                                  ×
+                                  <svg
+                                    className="w-4 h-4"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" />
+                                  </svg>
                                 </button>
                               </td>
                             </tr>
@@ -2591,17 +2584,19 @@ const PresupuestoDetalle = () => {
                         <span className="font-bold">
                           $
                           {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce(
-                              (acc, p) => {
-                                // Para machimbre y deck, el precio ya incluye la cantidad
-                                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                                  return acc + Number(p.precio);
-                                } else {
-                                  return acc + Number(p.precio) * Number(p.cantidad);
-                                }
-                              },
-                              0
-                            )
+                            presupuestoEdit.productos.reduce((acc, p) => {
+                              // Para machimbre y deck, el precio ya incluye la cantidad
+                              if (
+                                p.subcategoria === "machimbre" ||
+                                p.subcategoria === "deck"
+                              ) {
+                                return acc + Number(p.precio);
+                              } else {
+                                return (
+                                  acc + Number(p.precio) * Number(p.cantidad)
+                                );
+                              }
+                            }, 0)
                           )}
                         </span>
                       </div>
@@ -2610,16 +2605,19 @@ const PresupuestoDetalle = () => {
                         <span className="font-bold">
                           $
                           {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce(
-                              (acc, p) => {
-                                // Para machimbre y deck, el precio ya incluye la cantidad
-                                const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                                  ? Number(p.precio) 
+                            presupuestoEdit.productos.reduce((acc, p) => {
+                              // Para machimbre y deck, el precio ya incluye la cantidad
+                              const precioCalculado =
+                                p.subcategoria === "machimbre" ||
+                                p.subcategoria === "deck"
+                                  ? Number(p.precio)
                                   : Number(p.precio) * Number(p.cantidad);
-                                return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                              },
-                              0
-                            )
+                              return (
+                                acc +
+                                precioCalculado *
+                                  (Number(p.descuento || 0) / 100)
+                              );
+                            }, 0)
                           )}
                         </span>
                       </div>
@@ -2640,27 +2638,32 @@ const PresupuestoDetalle = () => {
                         <span className="font-bold text-primary">
                           $
                           {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce(
-                              (acc, p) => {
+                            presupuestoEdit.productos.reduce((acc, p) => {
+                              // Para machimbre y deck, el precio ya incluye la cantidad
+                              if (
+                                p.subcategoria === "machimbre" ||
+                                p.subcategoria === "deck"
+                              ) {
+                                return acc + Number(p.precio);
+                              } else {
+                                return (
+                                  acc + Number(p.precio) * Number(p.cantidad)
+                                );
+                              }
+                            }, 0) -
+                              presupuestoEdit.productos.reduce((acc, p) => {
                                 // Para machimbre y deck, el precio ya incluye la cantidad
-                                if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                                  return acc + Number(p.precio);
-                                } else {
-                                  return acc + Number(p.precio) * Number(p.cantidad);
-                                }
-                              },
-                              0
-                            ) -
-                              presupuestoEdit.productos.reduce(
-                                (acc, p) => {
-                                  // Para machimbre y deck, el precio ya incluye la cantidad
-                                  const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                                    ? Number(p.precio) 
+                                const precioCalculado =
+                                  p.subcategoria === "machimbre" ||
+                                  p.subcategoria === "deck"
+                                    ? Number(p.precio)
                                     : Number(p.precio) * Number(p.cantidad);
-                                  return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                                },
-                                0
-                              ) +
+                                return (
+                                  acc +
+                                  precioCalculado *
+                                    (Number(p.descuento || 0) / 100)
+                                );
+                              }, 0) +
                               (Number(presupuestoEdit.costoEnvio) || 0)
                           )}
                         </span>
@@ -2737,51 +2740,29 @@ const PresupuestoDetalle = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {safeArray(presupuesto.productos).map(
-                      (producto, idx) => (
-                        <tr key={idx} className="border-b hover:bg-card">
-                          <td className="p-3 font-medium">
-                            {producto.descripcion ||
-                              producto.nombre ||
-                              "Producto sin nombre"}
-                            {/* Mostrar tipo de madera para productos de madera - buscado dinámicamente */}
-                            {producto.categoria === "Maderas" &&
-                              getProductoCompleto(producto.id)?.tipoMadera && (
-                                <div className="mt-1 font-bold">
-                                  Tipo:{" "}
-                                  {getProductoCompleto(producto.id).tipoMadera}
-                                </div>
-                              )}
-                            {/* Mostrar subcategoría para productos de ferretería - buscado dinámicamente */}
-                            {producto.categoria === "Ferretería" &&
-                              getProductoCompleto(producto.id)
-                                ?.subCategoria && (
-                                <div className="mt-1 font-bold">
-                                  {" "}
-                                  {
-                                    getProductoCompleto(producto.id)
-                                      .subCategoria
-                                  }
-                                </div>
-                              )}
-                          </td>
-                          <td className="p-3 text-center">
-                            {safeNumber(producto.cantidad)}
-                          </td>
-                          <td className="p-3 text-right">
-                            {safeNumber(producto.descuento).toFixed(2)}%
-                          </td>
-                          <td className="p-3 text-right font-medium">
-                            $
-                            {formatearNumeroArgentino(
-                              safeNumber(producto.precio) *
-                                safeNumber(producto.cantidad) *
-                                (1 - safeNumber(producto.descuento) / 100)
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    )}
+                    {safeArray(presupuesto.productos).map((producto, idx) => (
+                      <tr key={idx} className="border-b hover:bg-card">
+                        <td className="p-3 font-medium">
+                          {producto.descripcion ||
+                            producto.nombre ||
+                            "Producto sin nombre"}
+                        </td>
+                        <td className="p-3 text-center">
+                          {safeNumber(producto.cantidad)}
+                        </td>
+                        <td className="p-3 text-right">
+                          {safeNumber(producto.descuento).toFixed(2)}%
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          $
+                          {formatearNumeroArgentino(
+                            safeNumber(producto.precio) *
+                              safeNumber(producto.cantidad) *
+                              (1 - safeNumber(producto.descuento) / 100)
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -3772,5 +3753,3 @@ const getNextVentaNumber = async () => {
   });
   return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
 };
-
-
