@@ -2756,9 +2756,16 @@ const PresupuestoDetalle = () => {
                         <td className="p-3 text-right font-medium">
                           $
                           {formatearNumeroArgentino(
-                            safeNumber(producto.precio) *
-                              safeNumber(producto.cantidad) *
+                            (
+                              (producto.subcategoria === "machimbre" ||
+                                producto.subcategoria === "deck" ||
+                                producto.subCategoria === "machimbre" ||
+                                producto.subCategoria === "deck"
+                                ? safeNumber(producto.precio)
+                                : safeNumber(producto.precio) *
+                                  safeNumber(producto.cantidad)) *
                               (1 - safeNumber(producto.descuento) / 100)
+                            )
                           )}
                         </td>
                       </tr>
