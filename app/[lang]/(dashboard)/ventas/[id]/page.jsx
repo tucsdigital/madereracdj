@@ -1948,9 +1948,16 @@ const VentaDetalle = () => {
                       <td className="p-3 text-right font-medium subtotal-empleado">
                         $
                         {formatearNumeroArgentino(
-                          Number(producto.precio) *
-                            Number(producto.cantidad) *
+                          (
+                            (producto.subcategoria === "machimbre" ||
+                              producto.subcategoria === "deck" ||
+                              producto.subCategoria === "machimbre" ||
+                              producto.subCategoria === "deck"
+                              ? Number(producto.precio)
+                              : Number(producto.precio) *
+                                Number(producto.cantidad)) *
                             (1 - Number(producto.descuento || 0) / 100)
+                          )
                         )}
                       </td>
                     </tr>
