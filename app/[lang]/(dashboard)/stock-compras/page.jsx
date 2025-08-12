@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
+import { db, auth, onAuthStateChangedFirebase } from "@/lib/firebase";
+import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc, runTransaction } from "firebase/firestore";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 
 function StockComprasPage() {
@@ -25,11 +25,17 @@ function StockComprasPage() {
   // Formulario movimiento
   const [movProductoId, setMovProductoId] = useState("");
   const [movTipo, setMovTipo] = useState("entrada");
-  const [movCantidad, setMovCantidad] = useState(1);
+  const [movCantidad, setMovCantidad] = useState("");
   const [movObs, setMovObs] = useState("");
   const [movStatus, setMovStatus] = useState(null);
   const [movMsg, setMovMsg] = useState("");
   const [movLoading, setMovLoading] = useState(false);
+  // Ajuste avanzado
+  const [ajusteAbsoluto, setAjusteAbsoluto] = useState(false);
+  const [stockFinal, setStockFinal] = useState("");
+  const [movMotivo, setMovMotivo] = useState("");
+  // Usuario autenticado
+  const [usuario, setUsuario] = useState(null);
 
   // Estado para proveedores y buscador dinámico
   const [proveedores, setProveedores] = useState([]);
@@ -84,6 +90,12 @@ function StockComprasPage() {
     return () => unsub();
   }, []);
 
+  // Escuchar usuario autenticado
+  useEffect(() => {
+    const unsub = onAuthStateChangedFirebase((u) => setUsuario(u));
+    return () => unsub && unsub();
+  }, []);
+
   // Cargar proveedores
   useEffect(() => {
     const q = query(collection(db, "proveedores"));
@@ -93,6 +105,9 @@ function StockComprasPage() {
     return () => unsub();
   }, []);
 
+  // Cantidad numérica parseada (evita que "" se convierta en 0)
+  const movCantidadNum = movCantidad === "" ? NaN : Number(movCantidad);
+
   // Al seleccionar producto, prellenar costo
   useEffect(() => {
     const prod = productos.find(p => p.id === movProductoId);
@@ -100,34 +115,58 @@ function StockComprasPage() {
   }, [movProductoId, productos]);
 
   // Función profesional para registrar movimiento y actualizar stock
-  async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones }) {
+  async function registrarMovimiento({ productoId, tipo, cantidad, usuario, observaciones, modoAjuste, stockFinalDeseado, motivo }) {
     try {
-      // 1. Obtener el producto para validar existencia
       const productoRef = doc(db, "productos", productoId);
-      const productoSnap = await getDoc(productoRef);
-      if (!productoSnap.exists()) throw new Error("Producto no encontrado");
-      const producto = productoSnap.data();
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(productoRef);
+        if (!snap.exists()) throw new Error("Producto no encontrado");
+        const producto = snap.data();
+        const stockActual = Number(producto.stock) || 0;
 
-      // 2. Registrar el movimiento
-      await addDoc(collection(db, "movimientos"), {
-        productoId,
-        tipo,
-        cantidad,
-        usuario,
-        observaciones,
-        fecha: serverTimestamp(),
-        categoria: producto.categoria,
-        nombreProducto: producto.nombre,
-      });
+        let delta = 0;
+        if (tipo === "entrada") {
+          delta = Math.abs(Number(cantidad));
+        } else if (tipo === "salida") {
+          delta = -Math.abs(Number(cantidad));
+        } else if (tipo === "ajuste") {
+          if (modoAjuste === "absoluto") {
+            const final = Math.max(0, Number(stockFinalDeseado));
+            delta = final - stockActual;
+          } else {
+            delta = Number(cantidad);
+          }
+        }
 
-      // 3. Actualizar el stock (siempre el campo 'stock')
-      let cantidadFinal = cantidad;
-      if (tipo === "salida") cantidadFinal = -Math.abs(cantidad);
-      if (tipo === "ajuste") cantidadFinal = cantidad; // Puede ser positivo o negativo
+        const nuevoStock = stockActual + delta;
+        if (nuevoStock < 0) throw new Error("El stock resultante no puede ser negativo");
 
-      await updateDoc(productoRef, {
-        stock: increment(cantidadFinal),
-        fechaActualizacion: serverTimestamp(),
+        const movRef = doc(collection(db, "movimientos"));
+        const nowTs = serverTimestamp();
+        t.set(movRef, {
+          productoId,
+          tipo,
+          cantidad: Number(cantidad) || 0,
+          modoAjuste: tipo === "ajuste" ? (modoAjuste || "delta") : null,
+          stockAntes: stockActual,
+          stockDelta: delta,
+          stockDespues: nuevoStock,
+          stockFinalDeseado: modoAjuste === "absoluto" ? Number(stockFinalDeseado) : null,
+          motivo: motivo || "",
+          usuario: usuario?.displayName || usuario?.email || "Sistema",
+          usuarioUid: usuario?.uid || "",
+          usuarioEmail: usuario?.email || "",
+          observaciones,
+          fecha: nowTs,
+          categoria: producto.categoria,
+          nombreProducto: producto.nombre,
+          origen: "manual",
+        });
+
+        t.update(productoRef, {
+          stock: nuevoStock,
+          fechaActualizacion: nowTs,
+        });
       });
 
       return true;
@@ -354,7 +393,8 @@ function StockComprasPage() {
       return;
     }
     
-    if (movCantidad <= 0 && movTipo !== "ajuste") {
+    const qty = movCantidad === "" ? NaN : Number(movCantidad);
+    if (movTipo !== "ajuste" && !(qty > 0)) {
       setMovStatus("error"); 
       setMovMsg("La cantidad debe ser mayor a 0."); 
       return;
@@ -363,7 +403,7 @@ function StockComprasPage() {
     // Validación especial para salidas
     if (movTipo === "salida") {
       const producto = productos.find(p => p.id === movProductoId);
-      if (producto && producto.stock < movCantidad) {
+      if (producto && Number(producto.stock) < Number(qty || 0)) {
         setMovStatus("error"); 
         setMovMsg(`Stock insuficiente. Stock actual: ${producto.stock}, intenta vender: ${movCantidad}`);
         return;
@@ -373,12 +413,28 @@ function StockComprasPage() {
     // Validación para ajustes
     if (movTipo === "ajuste") {
       const producto = productos.find(p => p.id === movProductoId);
-      const nuevoStock = calcularStockResultante(producto.stock, movTipo, movCantidad);
-      if (nuevoStock < 0) {
-        setMovStatus("error"); 
-        setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
-        return;
+      if (!ajusteAbsoluto) {
+        const nuevoStock = calcularStockResultante(Number(producto.stock) || 0, movTipo, Number(qty || 0));
+        if (nuevoStock < 0) {
+          setMovStatus("error"); 
+          setMovMsg(`Ajuste inválido. El stock no puede ser negativo. Stock actual: ${producto.stock}`);
+          return;
+        }
+      } else {
+        const finalNum = stockFinal === "" ? NaN : Number(stockFinal);
+        if (Number.isNaN(finalNum) || finalNum < 0) {
+          setMovStatus("error");
+          setMovMsg("Stock final inválido para ajuste absoluto.");
+          return;
+        }
       }
+    }
+
+    // Motivo obligatorio en ajuste
+    if (movTipo === "ajuste" && !movMotivo) {
+      setMovStatus("error");
+      setMovMsg("Seleccione un motivo para el ajuste.");
+      return;
     }
 
     setMovLoading(true);
@@ -387,9 +443,12 @@ function StockComprasPage() {
       await registrarMovimiento({
         productoId: movProductoId,
         tipo: movTipo,
-        cantidad: Number(movCantidad),
-        usuario: "Admin",
-        observaciones: movObs || `Movimiento ${movTipo} registrado manualmente`
+        cantidad: Number(movCantidad || 0),
+        usuario: usuario,
+        observaciones: movObs || `Movimiento ${movTipo} registrado manualmente`,
+        modoAjuste: movTipo === "ajuste" ? (ajusteAbsoluto ? "absoluto" : "delta") : undefined,
+        stockFinalDeseado: movTipo === "ajuste" && ajusteAbsoluto ? Number(stockFinal || 0) : undefined,
+        motivo: movMotivo,
       });
       
       setMovStatus("success"); 
@@ -399,8 +458,11 @@ function StockComprasPage() {
         setOpenMov(false); 
         setMovProductoId(""); 
         setMovTipo("entrada"); 
-        setMovCantidad(1); 
+        setMovCantidad(""); 
         setMovObs(""); 
+        setAjusteAbsoluto(false);
+        setStockFinal("");
+        setMovMotivo("");
         setMovStatus(null); 
         setMovLoading(false); 
       }, 1500);
@@ -731,17 +793,59 @@ function StockComprasPage() {
                   )}
                 </label>
                 <Input 
-                  type="number" 
-                  min={movTipo === "ajuste" ? undefined : 1} 
-                  max={movTipo === "salida" ? productos.find(p => p.id === movProductoId)?.stock || 0 : undefined}
-                  className={`w-full ${movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0) ? 'border-red-500 focus:border-red-500' : ''}`}
-                  value={movCantidad} 
-                  onChange={e => setMovCantidad(Number(e.target.value))} 
+                  type="text"
+                  inputMode="numeric"
+                  className={`w-full ${movTipo === "salida" && Number(movCantidad || 0) > (productos.find(p => p.id === movProductoId)?.stock || 0) ? 'border-red-500 focus:border-red-500' : ''}`}
+                  value={movCantidad}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    const esAjuste = movTipo === "ajuste" && !ajusteAbsoluto;
+                    const valid = raw === "" || (esAjuste ? /^-?\d*$/.test(raw) : /^\d*$/.test(raw));
+                    if (valid) setMovCantidad(raw);
+                  }}
+                  disabled={movTipo === "ajuste" && ajusteAbsoluto}
+                  placeholder={movTipo === "ajuste" ? "0" : "1"}
                 />
-                {movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0) && (
+                {movTipo === "salida" && Number(movCantidad || 0) > (productos.find(p => p.id === movProductoId)?.stock || 0) && (
                   <p className="text-red-600 text-xs mt-1">⚠️ Cantidad excede el stock disponible</p>
                 )}
               </div>
+
+              {/* Ajuste absoluto y motivo */}
+              {movTipo === "ajuste" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <input id="ajusteAbs" type="checkbox" checked={ajusteAbsoluto} onChange={(e) => setAjusteAbsoluto(e.target.checked)} />
+                    <label htmlFor="ajusteAbs" className="text-sm">Ajustar a stock final</label>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-sm mb-2 block">Stock final deseado</label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={stockFinal}
+                      onChange={(e) => { const r = e.target.value; if (r === "" || /^\d*$/.test(r)) setStockFinal(r); }}
+                      disabled={!ajusteAbsoluto}
+                      placeholder="Ej: 120"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="font-semibold text-sm mb-2 block">Motivo</label>
+                    <select
+                      className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={movMotivo}
+                      onChange={(e) => setMovMotivo(e.target.value)}
+                    >
+                      <option value="">Seleccionar motivo</option>
+                      <option value="conteo">Conteo físico</option>
+                      <option value="rotura">Rotura</option>
+                      <option value="merma">Merma</option>
+                      <option value="carga_inicial">Carga inicial</option>
+                      <option value="otros">Otros</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Observaciones */}
               <div>
@@ -756,12 +860,17 @@ function StockComprasPage() {
               </div>
 
               {/* Resumen del movimiento */}
-              {movProductoId && (movCantidad > 0 || movTipo === "ajuste") && (
+              {movProductoId && ((movCantidad !== "" && Number(movCantidad) > 0) || movTipo === "ajuste") && (
                 <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
                   <h5 className="font-medium text-sm mb-2">Resumen del movimiento:</h5>
                   <div className="text-sm">
                     <p><span className="font-medium">Stock actual:</span> {productos.find(p => p.id === movProductoId)?.stock || 0}</p>
-                    <p><span className="font-medium">Movimiento:</span> {movTipo === "entrada" ? "+" : movTipo === "salida" ? "-" : "±"} {movCantidad}</p>
+                    <p>
+                      <span className="font-medium">Movimiento:</span>{" "}
+                      {movTipo === "ajuste" && ajusteAbsoluto
+                        ? `→ Ajuste a ${stockFinal !== "" ? stockFinal : "?"}`
+                        : `${movTipo === "entrada" ? "+" : movTipo === "salida" ? "-" : "±"} ${movCantidad || 0}`}
+                    </p>
                     <p><span className="font-medium">Stock resultante:</span> 
                       <span className={`font-bold ml-1 ${
                         movTipo === "entrada" 
@@ -770,7 +879,9 @@ function StockComprasPage() {
                           ? "text-red-600" 
                           : "text-blue-600"
                       }`}>
-                        {calcularStockResultante(productos.find(p => p.id === movProductoId)?.stock || 0, movTipo, movCantidad)}
+                        {movTipo === "ajuste" && ajusteAbsoluto
+                          ? (stockFinal === "" ? "?" : Number(stockFinal))
+                          : calcularStockResultante(productos.find(p => p.id === movProductoId)?.stock || 0, movTipo, Number(movCantidad || 0))}
                       </span>
                     </p>
                   </div>
@@ -782,7 +893,18 @@ function StockComprasPage() {
               <Button 
                 variant="default" 
                 onClick={handleMovGuardar} 
-                disabled={loadingProd || movLoading || !movProductoId || (movCantidad <= 0 && movTipo !== "ajuste") || (movTipo === "salida" && movCantidad > (productos.find(p => p.id === movProductoId)?.stock || 0))}
+                disabled={(() => {
+                  const prod = productos.find(p => p.id === movProductoId);
+                  const stockAct = Number(prod?.stock) || 0;
+                  const qty = movCantidad === "" ? NaN : Number(movCantidad);
+                  const isSalidaOver = movTipo === "salida" && Number(qty || 0) > stockAct;
+                  const isEntradaInvalid = movTipo === "entrada" && !(qty > 0);
+                  const isAjusteDeltaInvalid = movTipo === "ajuste" && !ajusteAbsoluto && (Number.isNaN(qty) || stockAct + qty < 0);
+                  const finalNum = stockFinal === "" ? NaN : Number(stockFinal);
+                  const isAjusteAbsInvalid = movTipo === "ajuste" && ajusteAbsoluto && (Number.isNaN(finalNum) || finalNum < 0);
+                  const basics = loadingProd || movLoading || !movProductoId;
+                  return basics || isSalidaOver || isEntradaInvalid || isAjusteDeltaInvalid || isAjusteAbsInvalid;
+                })()}
               >
                 {movLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Registrar Movimiento
