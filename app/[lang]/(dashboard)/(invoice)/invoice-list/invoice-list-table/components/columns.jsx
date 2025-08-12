@@ -514,12 +514,12 @@ export const columnsObras = [
       return (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`/es/obras-proyectos/${obra.id}`}>
+            <Link href={`/es/obras/${obra.id}`}>
               <Icon icon="heroicons:eye" className="w-4 h-4" />
             </Link>
           </Button>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`/es/obras-proyectos/${obra.id}?edit=true`}>
+            <Link href={`/es/obras/${obra.id}?edit=true`}>
               <Icon icon="heroicons:pencil" className="w-4 h-4" />
             </Link>
           </Button>

@@ -75,7 +75,7 @@ export function DataTable({ columns, data }) {
     
     // Si tiene numeroPedido, es del contexto de obras-proyectos
     if (numeroPedido && numeroPedido.startsWith('OBRA-')) {
-      router.push(`/${lang}/obras-proyectos/${id}`);
+      router.push(`/${lang}/obras/${id}`);
     } else if (tipo === 'presupuesto') {
       router.push(`/${lang}/presupuestos/${id}`);
     } else if (tipo === 'venta') {

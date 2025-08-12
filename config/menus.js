@@ -41,7 +41,7 @@ export const menusConfig = {
     {
       title: "Obras",
       icon: Briefcase,
-      href: "/obras-proyectos",
+      href: "/obras",
     },
     {
       title: "Clientes",
@@ -89,7 +89,7 @@ export const menusConfig = {
       {
         title: "Obras",
         icon: Briefcase,
-        href: "/obras-proyectos",
+        href: "/obras",
       },
       {
         title: "Clientes",
@@ -140,7 +140,7 @@ export const menusConfig = {
       {
         title: "Obras",
         icon: Briefcase,
-        href: "/obras-proyectos",
+        href: "/obras",
       },
       {
         title: "Clientes",

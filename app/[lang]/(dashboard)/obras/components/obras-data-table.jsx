@@ -64,11 +64,11 @@ export function ObrasDataTable({ columns, data }) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  // Función específica para obras-proyectos que siempre redirige a /obras-proyectos/[id]
+  // Función específica para obras-proyectos que siempre redirige a /obras/[id]
   const handleRowClick = (row) => {
     const id = row.original?.id;
     if (id) {
-      router.push(`/${lang}/obras-proyectos/${id}`);
+      router.push(`/${lang}/obras/${id}`);
     }
   };
 
