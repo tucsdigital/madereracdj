@@ -75,6 +75,9 @@ const ObraDetallePage = () => {
   const [busquedaDebouncedObra, setBusquedaDebouncedObra] = useState("");
   const [itemsPresupuesto, setItemsPresupuesto] = useState([]); // edición de presupuesto.productos
   const [isPendingObra, setIsPendingObra] = useState(false);
+  // Ítem manual para presupuesto durante edición
+  const [manualNombrePres, setManualNombrePres] = useState("");
+  const [manualPrecioPres, setManualPrecioPres] = useState("");
   // Gasto manual de obra (cuando no hay presupuesto inicial)
   const [gastoObraManual, setGastoObraManual] = useState(0);
   // Vinculación de presupuesto inicial
@@ -691,10 +694,43 @@ const ObraDetallePage = () => {
     nuevo.precio = calcularPrecioProductoObra({ unidadMedida, alto: nuevo.alto, largo: nuevo.largo, valorVenta: nuevo.valorVenta, cantidad: nuevo.cantidad });
     setItemsPresupuesto((prev) => [...prev, nuevo]);
   };
+  const agregarProductoObraManual = () => {
+    const unidadMedida = "UN";
+    const nuevo = {
+      id: `manual-${Date.now()}`,
+      nombre: "Nuevo ítem",
+      categoria: "Manual",
+      subCategoria: "",
+      unidadMedida,
+      valorVenta: 0,
+      alto: 1,
+      largo: 1,
+      cantidad: 1,
+      descuento: 0,
+      _esManual: true,
+    };
+    nuevo.precio = calcularPrecioProductoObra({ unidadMedida, alto: nuevo.alto, largo: nuevo.largo, valorVenta: nuevo.valorVenta, cantidad: nuevo.cantidad });
+    setItemsPresupuesto((prev) => [nuevo, ...prev]);
+    setManualNombrePres("");
+    setManualPrecioPres("");
+  };
+  const actualizarNombreObraManual = (id, nombre) => {
+    setItemsPresupuesto((prev) => prev.map((p) => (p.id === id ? { ...p, nombre } : p)));
+  };
   const quitarProductoObra = (id) => setItemsPresupuesto((prev) => prev.filter((p) => p.id !== id));
   const actualizarCampoObra = (id, campo, valor) => {
     setItemsPresupuesto((prev) => prev.map((p) => {
       if (p.id !== id) return p;
+      if (campo === "unidadMedida") {
+        const actualizado = { ...p, unidadMedida: valor };
+        const alto = Number(actualizado.alto) || 0;
+        const largo = Number(actualizado.largo) || 0;
+        const cantidad = Number(actualizado.cantidad) || 1;
+        const valorVenta = Number(actualizado.valorVenta) || 0;
+        const precioBase = calcularPrecioProductoObra({ unidadMedida: actualizado.unidadMedida, alto, largo, valorVenta, cantidad });
+        actualizado.precio = Math.round(precioBase);
+        return actualizado;
+      }
       const actualizado = { ...p, [campo]: campo === "descuento" ? Number(valor) || 0 : valor === "" ? "" : Number(valor) };
       const alto = Number(actualizado.alto) || 0;
       const largo = Number(actualizado.largo) || 0;
@@ -996,25 +1032,25 @@ const ObraDetallePage = () => {
               <div>
                 <p className="text-sm text-gray-500">Cliente</p>
                 <p className="font-medium">{obra.cliente?.nombre || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Email</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Email</p>
                 <p className="font-medium">{obra.cliente?.email || "No especificado"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Teléfono</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Teléfono</p>
                 <p className="font-medium">{obra.cliente?.telefono || "-"}</p>
-              </div>
-              <div>
+            </div>
+            <div>
                 <p className="text-sm text-gray-500">Dirección (cliente)</p>
                 <p className="font-medium">{obra.cliente?.direccion || "-"}</p>
+            </div>
+            {obra.cliente?.cuit && (
+              <div>
+                <p className="text-sm text-gray-500">CUIT</p>
+                <p className="font-medium">{obra.cliente.cuit}</p>
               </div>
-              {obra.cliente?.cuit && (
-                <div>
-                  <p className="text-sm text-gray-500">CUIT</p>
-                  <p className="font-medium">{obra.cliente.cuit}</p>
-                </div>
-              )}
+            )}
             </div>
 
             {obra.tipo === "obra" ? (
@@ -1239,7 +1275,7 @@ const ObraDetallePage = () => {
 
             {obra.tipo === "obra" && (
               <>
-                <Separator />
+            <Separator />
                 {/* Movimientos (cobranza) */}
                 <div className="border rounded-xl p-0 overflow-hidden">
                   <div className="px-4 py-3 bg-gradient-to-r from-default-50 to-default-100 border-b text-sm font-semibold text-default-700">Movimientos</div>
@@ -1269,7 +1305,7 @@ const ObraDetallePage = () => {
                       <div className="flex gap-2">
                         <Input placeholder="Nota (opcional)" value={movDraft.nota} onChange={(e) => setMovDraft({ ...movDraft, nota: e.target.value })} />
                         <Button onClick={() => { if (!movDraft.fecha || !movDraft.monto) return; setMovimientos([ ...movimientos, { ...movDraft } ]); setMovDraft({ fecha: "", tipo: "pago", metodo: "efectivo", monto: "", nota: "" }); }}>Agregar</Button>
-                      </div>
+            </div>
                     </div>
                   )}
 
@@ -1771,6 +1807,9 @@ const ObraDetallePage = () => {
               <AccordionItem value="presup-edit">
                 <AccordionTrigger className="px-3 py-2 bg-default-50 rounded-md">Catálogo y productos seleccionados</AccordionTrigger>
                 <AccordionContent>
+            <div className="flex justify-end mb-4">
+              <Button variant="outline" onClick={agregarProductoObraManual}>Agregar ítem manual</Button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -1864,12 +1903,26 @@ const ObraDetallePage = () => {
                       const requiereLargo = u === "M2" || u === "ML";
                       return (
                         <tr key={p.id} className="border-b">
-                          <td className="p-2"><div className="font-medium">{p.nombre}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
+                          <td className="p-2"><div className="font-medium">{p._esManual ? (<Input value={p.nombre} onChange={(e) => actualizarNombreObraManual(p.id, e.target.value)} className="h-8" />) : (p.nombre)}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
                           <td className="p-2 text-center"><Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampoObra(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" /></td>
-                          <td className="p-2 text-center"><Badge variant="outline">{u}</Badge></td>
+                          <td className="p-2 text-center">{p._esManual ? (
+                            <Select value={u} onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}>
+                              <SelectTrigger className="w-24 mx-auto h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="UN">UN</SelectItem>
+                                <SelectItem value="M2">M2</SelectItem>
+                                <SelectItem value="ML">ML</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (<Badge variant="outline">{u}</Badge>)}</td>
                           <td className="p-2 text-center">{requiereAlto ? (<Input type="number" min={0} step="0.01" value={p.alto} onChange={(e) => actualizarCampoObra(p.id, "alto", e.target.value)} className="w-24 mx-auto" />) : (<span className="text-gray-400">-</span>)}</td>
                           <td className="p-2 text-center">{requiereLargo ? (<Input type="number" min={0} step="0.01" value={p.largo} onChange={(e) => actualizarCampoObra(p.id, "largo", e.target.value)} className="w-24 mx-auto" />) : (<span className="text-gray-400">-</span>)}</td>
-                          <td className="p-2 text-right">{formatearNumeroArgentino(p.valorVenta || 0)}</td>
+                          <td className="p-2 text-right">{p._esManual ? (
+                            <div className="relative w-28 ml-auto">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
+                              <Input type="number" min={0} step="0.01" value={p.valorVenta || 0} onChange={(e) => actualizarCampoObra(p.id, "valorVenta", e.target.value)} className="pl-5 pr-2 h-8 text-right" />
+                            </div>
+                          ) : (formatearNumeroArgentino(p.valorVenta || 0))}</td>
                           <td className="p-2 text-center"><Input type="number" min={0} max={100} value={p.descuento} onChange={(e) => actualizarCampoObra(p.id, "descuento", e.target.value)} className="w-20 mx-auto" /></td>
                           <td className="p-2 text-right font-semibold">{formatearNumeroArgentino(Math.round(sub))}</td>
                           <td className="p-2 text-center"><Button variant="outline" size="sm" onClick={() => quitarProductoObra(p.id)}>Quitar</Button></td>
@@ -1947,6 +2000,9 @@ const ObraDetallePage = () => {
             <CardTitle className="flex items-center gap-2"><Filter className="w-5 h-5" /> Editar productos del Presupuesto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={agregarProductoObraManual}>Agregar ítem manual</Button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -2030,12 +2086,26 @@ const ObraDetallePage = () => {
                       const requiereLargo = u === "M2" || u === "ML";
                       return (
                         <tr key={p.id} className="border-b">
-                          <td className="p-2"><div className="font-medium">{p.nombre}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
+                          <td className="p-2"><div className="font-medium">{p._esManual ? (<Input value={p.nombre} onChange={(e) => actualizarNombreObraManual(p.id, e.target.value)} className="h-8" />) : (p.nombre)}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
                           <td className="p-2 text-center"><Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampoObra(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" /></td>
-                          <td className="p-2 text-center"><Badge variant="outline">{u}</Badge></td>
+                          <td className="p-2 text-center">{p._esManual ? (
+                            <Select value={u} onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}>
+                              <SelectTrigger className="w-24 mx-auto h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="UN">UN</SelectItem>
+                                <SelectItem value="M2">M2</SelectItem>
+                                <SelectItem value="ML">ML</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (<Badge variant="outline">{u}</Badge>)}</td>
                           <td className="p-2 text-center">{requiereAlto ? (<Input type="number" min={0} step="0.01" value={p.alto} onChange={(e) => actualizarCampoObra(p.id, "alto", e.target.value)} className="w-24 mx-auto" />) : (<span className="text-gray-400">-</span>)}</td>
                           <td className="p-2 text-center">{requiereLargo ? (<Input type="number" min={0} step="0.01" value={p.largo} onChange={(e) => actualizarCampoObra(p.id, "largo", e.target.value)} className="w-24 mx-auto" />) : (<span className="text-gray-400">-</span>)}</td>
-                          <td className="p-2 text-right">{formatearNumeroArgentino(p.valorVenta || 0)}</td>
+                          <td className="p-2 text-right">{p._esManual ? (
+                            <div className="relative w-28 ml-auto">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
+                              <Input type="number" min={0} step="0.01" value={p.valorVenta || 0} onChange={(e) => actualizarCampoObra(p.id, "valorVenta", e.target.value)} className="pl-5 pr-2 h-8 text-right" />
+                            </div>
+                          ) : (formatearNumeroArgentino(p.valorVenta || 0))}</td>
                           <td className="p-2 text-center"><Input type="number" min={0} max={100} value={p.descuento} onChange={(e) => actualizarCampoObra(p.id, "descuento", e.target.value)} className="w-20 mx-auto" /></td>
                           <td className="p-2 text-right font-semibold">{formatearNumeroArgentino(Math.round(sub))}</td>
                           <td className="p-2 text-center"><Button variant="outline" size="sm" onClick={() => quitarProductoObra(p.id)}>Quitar</Button></td>
