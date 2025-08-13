@@ -47,10 +47,8 @@ const ObraDetallePage = () => {
   const [nuevoResponsable, setNuevoResponsable] = useState("");
   const [openPrint, setOpenPrint] = useState(false);
   const [fechasEdit, setFechasEdit] = useState({
-    fechaInicioEstimada: "",
-    fechaFinEstimada: "",
-    fechaInicioReal: "",
-    fechaFinReal: "",
+    inicio: "",
+    fin: "",
   });
   const [ubicacionEdit, setUbicacionEdit] = useState({
     direccion: "",
@@ -102,11 +100,10 @@ const ObraDetallePage = () => {
             setEstadoObra(data.estado || "pendiente_inicio");
             setResponsable(data.responsable || "");
             const f = data.fechas || {};
+            const today = new Date().toISOString().split("T")[0];
             setFechasEdit({
-              fechaInicioEstimada: f.fechaInicioEstimada || "",
-              fechaFinEstimada: f.fechaFinEstimada || "",
-              fechaInicioReal: f.fechaInicioReal || "",
-              fechaFinReal: f.fechaFinReal || "",
+              inicio: f.inicio || today,
+              fin: f.fin || today,
             });
             const u = data.ubicacion || {};
             setUbicacionEdit({
@@ -788,10 +785,8 @@ const ObraDetallePage = () => {
         estado: estadoObra || "pendiente_inicio",
         responsable: responsable || "",
         fechas: {
-          fechaInicioEstimada: fechasEdit.fechaInicioEstimada || null,
-          fechaFinEstimada: fechasEdit.fechaFinEstimada || null,
-          fechaInicioReal: fechasEdit.fechaInicioReal || null,
-          fechaFinReal: fechasEdit.fechaFinReal || null,
+          inicio: fechasEdit.inicio || new Date().toISOString().split("T")[0],
+          fin: fechasEdit.fin || new Date().toISOString().split("T")[0],
         },
         ubicacion: {
           direccion: ubicacionEdit.direccion || "",
@@ -973,43 +968,7 @@ const ObraDetallePage = () => {
 
       {/* Información principal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Información del cliente */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Icon icon="heroicons:user" className="w-5 h-5" />
-              Información del Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500">Nombre</p>
-              <p className="font-medium">{obra.cliente?.nombre}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Email</p>
-              <p className="font-medium">
-                {obra.cliente?.email || "No especificado"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Teléfono</p>
-              <p className="font-medium">{obra.cliente?.telefono}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Dirección</p>
-              <p className="font-medium">{obra.cliente?.direccion}</p>
-            </div>
-            {obra.cliente?.cuit && (
-              <div>
-                <p className="text-sm text-gray-500">CUIT</p>
-                <p className="font-medium">{obra.cliente.cuit}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Información de la obra */}
+        {/* Información de la obra (incluye datos de cliente) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1030,6 +989,32 @@ const ObraDetallePage = () => {
             <div>
               <p className="text-sm text-gray-500">Número de Pedido</p>
               <p className="font-medium">{obra.numeroPedido}</p>
+            </div>
+
+            {/* Datos del cliente (solo visual) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Cliente</p>
+                <p className="font-medium">{obra.cliente?.nombre || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium">{obra.cliente?.email || "No especificado"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Teléfono</p>
+                <p className="font-medium">{obra.cliente?.telefono || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Dirección (cliente)</p>
+                <p className="font-medium">{obra.cliente?.direccion || "-"}</p>
+              </div>
+              {obra.cliente?.cuit && (
+                <div>
+                  <p className="text-sm text-gray-500">CUIT</p>
+                  <p className="font-medium">{obra.cliente.cuit}</p>
+                </div>
+              )}
             </div>
 
             {obra.tipo === "obra" ? (
@@ -1099,37 +1084,21 @@ const ObraDetallePage = () => {
                   <p className="text-sm text-gray-500">Fecha de Creación</p>
                   <p className="font-medium">{formatearFecha(obra.fechaCreacion)}</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Inicio Estimado</p>
+                    <p className="text-sm text-gray-500">Inicio</p>
                     {editando ? (
-                      <Input type="date" value={fechasEdit.fechaInicioEstimada} onChange={(e) => setFechasEdit({ ...fechasEdit, fechaInicioEstimada: e.target.value })} />
+                      <Input type="date" value={fechasEdit.inicio} onChange={(e) => setFechasEdit({ ...fechasEdit, inicio: e.target.value })} />
                     ) : (
-                      <p className="font-medium">{obra.fechas?.fechaInicioEstimada || "-"}</p>
+                      <p className="font-medium">{obra.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</p>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Fin Estimado</p>
+                    <p className="text-sm text-gray-500">Fin</p>
                     {editando ? (
-                      <Input type="date" value={fechasEdit.fechaFinEstimada} onChange={(e) => setFechasEdit({ ...fechasEdit, fechaFinEstimada: e.target.value })} />
+                      <Input type="date" value={fechasEdit.fin} onChange={(e) => setFechasEdit({ ...fechasEdit, fin: e.target.value })} />
                     ) : (
-                      <p className="font-medium">{obra.fechas?.fechaFinEstimada || "-"}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Inicio Real</p>
-                    {editando ? (
-                      <Input type="date" value={fechasEdit.fechaInicioReal} onChange={(e) => setFechasEdit({ ...fechasEdit, fechaInicioReal: e.target.value })} />
-                    ) : (
-                      <p className="font-medium">{obra.fechas?.fechaInicioReal || "-"}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Fin Real</p>
-                    {editando ? (
-                      <Input type="date" value={fechasEdit.fechaFinReal} onChange={(e) => setFechasEdit({ ...fechasEdit, fechaFinReal: e.target.value })} />
-                    ) : (
-                      <p className="font-medium">{obra.fechas?.fechaFinReal || "-"}</p>
+                      <p className="font-medium">{obra.fechas?.fin ? formatearFecha(obra.fechas.fin) : "-"}</p>
                     )}
                   </div>
                 </div>
@@ -1171,7 +1140,7 @@ const ObraDetallePage = () => {
           </CardContent>
         </Card>
 
-        {/* Resumen financiero */}
+        {/* Resumen financiero (incluye cobranza) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1179,7 +1148,16 @@ const ObraDetallePage = () => {
               Resumen Financiero
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            {/* Resumen arriba para mayor claridad */}
+            {obra.tipo === "obra" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+                <div className="text-sm">Base total<br/><span className="font-bold text-base">{formatearNumeroArgentino(baseTotalVisual)}</span></div>
+                <div className="text-sm">Pagado<br/><span className="font-bold text-base">{formatearNumeroArgentino(totalMovimientos)}</span></div>
+                <div className="text-sm">Saldo calc.<br/><span className="font-bold text-base text-primary">{formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</span></div>
+              </div>
+            )}
+
             {/* Modo de costo: Presupuesto inicial o Gasto manual */}
             {obra.tipo === "obra" && (
               <div className="space-y-3">
@@ -1259,15 +1237,143 @@ const ObraDetallePage = () => {
               </div>
             )}
 
-            <Separator />
-            <div>
-              <p className="text-sm text-gray-500">Total</p>
-              <p className="font-bold text-lg">
-                {formatearNumeroArgentino(baseTotalVisual)}
-              </p>
-            </div>
+            {obra.tipo === "obra" && (
+              <>
+                <Separator />
+                {/* Movimientos (cobranza) */}
+                <div className="border rounded-xl p-0 overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-default-50 to-default-100 border-b text-sm font-semibold text-default-700">Movimientos</div>
+
+                  {editando && (
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3 bg-card/60 border-b">
+                      <Input type="date" value={movDraft.fecha} onChange={(e) => setMovDraft({ ...movDraft, fecha: e.target.value })} />
+                      <Select value={movDraft.tipo} onValueChange={(v) => setMovDraft({ ...movDraft, tipo: v })}>
+                        <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="seña">Seña</SelectItem>
+                          <SelectItem value="ajuste">Ajuste</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={movDraft.metodo} onValueChange={(v) => setMovDraft({ ...movDraft, metodo: v })}>
+                        <SelectTrigger><SelectValue placeholder="Método" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="efectivo">Efectivo</SelectItem>
+                          <SelectItem value="transferencia">Transferencia</SelectItem>
+                          <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                          <SelectItem value="otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input type="number" min={0} placeholder="Monto" value={movDraft.monto} onChange={(e) => setMovDraft({ ...movDraft, monto: e.target.value })} />
+                      <div className="flex gap-2">
+                        <Input placeholder="Nota (opcional)" value={movDraft.nota} onChange={(e) => setMovDraft({ ...movDraft, nota: e.target.value })} />
+                        <Button onClick={() => { if (!movDraft.fecha || !movDraft.monto) return; setMovimientos([ ...movimientos, { ...movDraft } ]); setMovDraft({ fecha: "", tipo: "pago", metodo: "efectivo", monto: "", nota: "" }); }}>Agregar</Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-default-50">
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-3">Fecha</th>
+                          <th className="text-left py-2 px-3">Tipo</th>
+                          <th className="text-left py-2 px-3">Método</th>
+                          <th className="text-right py-2 px-3">Monto</th>
+                          <th className="text-left py-2 px-3">Nota</th>
+                          {editando && <th className="text-center py-2 px-3">Acción</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {movimientos.length === 0 && (
+                          <tr>
+                            <td colSpan={editando ? 6 : 5} className="py-3 text-center text-gray-500">Sin movimientos</td>
+                          </tr>
+                        )}
+                        {movimientos.map((m, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="py-2 px-3">{m.fecha || '-'}</td>
+                            <td className="py-2 px-3 capitalize">{m.tipo}</td>
+                            <td className="py-2 px-3 capitalize">{m.metodo}</td>
+                            <td className="py-2 px-3 text-right">{formatearNumeroArgentino(Number(m.monto || 0))}</td>
+                            <td className="py-2 px-3 truncate max-w-[280px]" title={m.nota}>{m.nota || '-'}</td>
+                            {editando && (
+                              <td className="py-2 px-3 text-center">
+                                <Button size="sm" variant="outline" onClick={() => setMovimientos(movimientos.filter((_, idx) => idx !== i))}>Quitar</Button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
+
+        {obra.tipo === "obra" && (
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+        {/* Documentación */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Documentación</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {editando && (
+              <div className="flex gap-2 mb-2">
+                <input
+                  className="flex-1 border rounded px-3 py-2"
+                  placeholder="https://"
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                />
+                <Button
+                  onClick={() => {
+                    const v = linkInput.trim();
+                    if (!v) return;
+                    setDocLinks([...docLinks, v]);
+                    setLinkInput("");
+                  }}
+                >
+                  Agregar
+                </Button>
+              </div>
+            )}
+            <ul className="list-disc pl-6 text-sm">
+              {docLinks.length === 0 && (
+                <li className="text-gray-500 list-none">Sin documentación</li>
+              )}
+              {docLinks.map((u, i) => (
+                <li key={i} className="flex justify-between items-center">
+                  <a
+                    href={u}
+                    target="_blank"
+                    className="truncate max-w-[80%] text-blue-600 underline"
+                  >
+                    {u}
+                  </a>
+                  {editando && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setDocLinks(docLinks.filter((_, idx) => idx !== i))
+                      }
+                    >
+                      Quitar
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+      </div>
+      )}
       </div>
 
       {/* Modal: nuevo responsable */}
@@ -1944,157 +2050,8 @@ const ObraDetallePage = () => {
         </Card>
       )}
 
-      {/* Documentación y Cobranza: solo para obras (no presupuestos) */}
-      {obra.tipo === "obra" && (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Documentación */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Documentación</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {editando && (
-              <div className="flex gap-2 mb-2">
-                <input
-                  className="flex-1 border rounded px-3 py-2"
-                  placeholder="https://"
-                  value={linkInput}
-                  onChange={(e) => setLinkInput(e.target.value)}
-                />
-                <Button
-                  onClick={() => {
-                    const v = linkInput.trim();
-                    if (!v) return;
-                    setDocLinks([...docLinks, v]);
-                    setLinkInput("");
-                  }}
-                >
-                  Agregar
-                </Button>
-              </div>
-            )}
-            <ul className="list-disc pl-6 text-sm">
-              {docLinks.length === 0 && (
-                <li className="text-gray-500 list-none">Sin documentación</li>
-              )}
-              {docLinks.map((u, i) => (
-                <li key={i} className="flex justify-between items-center">
-                  <a
-                    href={u}
-                    target="_blank"
-                    className="truncate max-w-[80%] text-blue-600 underline"
-                  >
-                    {u}
-                  </a>
-                  {editando && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setDocLinks(docLinks.filter((_, idx) => idx !== i))
-                      }
-                    >
-                      Quitar
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+      {/* Documentación: solo para obras (no presupuestos) */}
 
-        {/* Cobranza (estilo bancario) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Cobranza</span>
-              <span className="text-sm font-medium text-default-600">Saldo: <span className="font-bold text-primary">{formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</span></span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Movimientos */}
-            <div className="border rounded-xl p-0 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-default-50 to-default-100 border-b">
-                <div className="text-sm font-semibold text-default-700">Movimientos</div>
-                <div className="text-sm text-default-600">Pagado: <span className="font-bold">{formatearNumeroArgentino(totalMovimientos)}</span></div>
-              </div>
-
-              {editando && (
-                <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3 bg-card/60 border-b">
-                  <Input type="date" value={movDraft.fecha} onChange={(e) => setMovDraft({ ...movDraft, fecha: e.target.value })} />
-                  <Select value={movDraft.tipo} onValueChange={(v) => setMovDraft({ ...movDraft, tipo: v })}>
-                    <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pago">Pago</SelectItem>
-                      <SelectItem value="seña">Seña</SelectItem>
-                      <SelectItem value="ajuste">Ajuste</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={movDraft.metodo} onValueChange={(v) => setMovDraft({ ...movDraft, metodo: v })}>
-                    <SelectTrigger><SelectValue placeholder="Método" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="efectivo">Efectivo</SelectItem>
-                      <SelectItem value="transferencia">Transferencia</SelectItem>
-                      <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="otro">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input type="number" min={0} placeholder="Monto" value={movDraft.monto} onChange={(e) => setMovDraft({ ...movDraft, monto: e.target.value })} />
-                  <div className="flex gap-2">
-                    <Input placeholder="Nota (opcional)" value={movDraft.nota} onChange={(e) => setMovDraft({ ...movDraft, nota: e.target.value })} />
-                    <Button onClick={() => { if (!movDraft.fecha || !movDraft.monto) return; setMovimientos([ ...movimientos, { ...movDraft } ]); setMovDraft({ fecha: "", tipo: "pago", metodo: "efectivo", monto: "", nota: "" }); }}>Agregar</Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-default-50">
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-3">Fecha</th>
-                      <th className="text-left py-2 px-3">Tipo</th>
-                      <th className="text-left py-2 px-3">Método</th>
-                      <th className="text-right py-2 px-3">Monto</th>
-                      <th className="text-left py-2 px-3">Nota</th>
-                      {editando && <th className="text-center py-2 px-3">Acción</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movimientos.length === 0 && (
-                      <tr>
-                        <td colSpan={editando ? 6 : 5} className="py-3 text-center text-gray-500">Sin movimientos</td>
-                      </tr>
-                    )}
-                    {movimientos.map((m, i) => (
-                      <tr key={i} className="border-b">
-                        <td className="py-2 px-3">{m.fecha || '-'}</td>
-                        <td className="py-2 px-3 capitalize">{m.tipo}</td>
-                        <td className="py-2 px-3 capitalize">{m.metodo}</td>
-                        <td className="py-2 px-3 text-right">{formatearNumeroArgentino(Number(m.monto || 0))}</td>
-                        <td className="py-2 px-3 truncate max-w-[280px]" title={m.nota}>{m.nota || '-'}</td>
-                        {editando && (
-                          <td className="py-2 px-3 text-center">
-                            <Button size="sm" variant="outline" onClick={() => setMovimientos(movimientos.filter((_, idx) => idx !== i))}>Quitar</Button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Resumen */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3 text-sm md:text-base">
-              <div>Base total: <span className="font-bold">{formatearNumeroArgentino(baseTotalVisual)}</span></div>
-              <div>Pagado: <span className="font-bold">{formatearNumeroArgentino(totalMovimientos)}</span></div>
-              <div>Saldo calc.: <span className="font-bold text-primary">{formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</span></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      )}
 
       {/* Diálogo de impresión/exportación */}
       <Dialog open={openPrint} onOpenChange={setOpenPrint}>

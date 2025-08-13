@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Filter, Search, RefreshCw } from "lucide-react";
 import { Icon } from "@iconify/react";
@@ -63,9 +62,8 @@ export default function CrearObraPage() {
 
   // Datos generales
   const [nombreObra, setNombreObra] = useState("");
-  const [tipoObra, setTipoObra] = useState("");
-  const [prioridad, setPrioridad] = useState("");
-  const [estado, setEstado] = useState("pendiente_inicio");
+  const [tipoObra, setTipoObra] = useState("Obra Nueva");
+  const [prioridad, setPrioridad] = useState("Alta");
 
   // Cliente (idéntico selector + modal a ventas/obras presupuesto)
   const [clientes, setClientes] = useState([]);
@@ -91,19 +89,21 @@ export default function CrearObraPage() {
   });
   const [activeTabCliente, setActiveTabCliente] = useState("datos");
 
-  // Fechas
-  const [fechaInicioEstimada, setFechaInicioEstimada] = useState("");
-  const [fechaFinEstimada, setFechaFinEstimada] = useState("");
-  const [fechaInicioReal, setFechaInicioReal] = useState("");
-  const [fechaFinReal, setFechaFinReal] = useState("");
-
   // Ubicación
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
   const [direccion, setDireccion] = useState("");
   const [localidad, setLocalidad] = useState("");
   const [provincia, setProvincia] = useState("");
+  const [area, setArea] = useState("");
+  const [barrio, setBarrio] = useState("");
+  const [lote, setLote] = useState("");
+  const [descripcionUbicacion, setDescripcionUbicacion] = useState("");
 
   // Equipo
   const [responsable, setResponsable] = useState("");
+  const [responsables, setResponsables] = useState(["Braian", "Damian", "Jonathan"]);
+  const [openNuevoResponsable, setOpenNuevoResponsable] = useState(false);
+  const [nuevoResponsable, setNuevoResponsable] = useState("");
 
   // Materiales - catálogo (como ventas, fuente: productos)
   const [productos, setProductos] = useState([]);
@@ -122,33 +122,11 @@ export default function CrearObraPage() {
   const [isPending, startTransition] = React.useTransition();
   const [itemsCatalogo, setItemsCatalogo] = useState([]);
 
-  // Materiales externos y herramientas
-  const [materialesExternos, setMaterialesExternos] = useState([]); // {nombre,cantidad,costo}
-  const [herramientas, setHerramientas] = useState([]); // [string]
-  const [nuevaHerramienta, setNuevaHerramienta] = useState("");
-
   // Presupuesto y costos
   const [presupuestoInicialId, setPresupuestoInicialId] = useState("");
   const [presupuestosObra, setPresupuestosObra] = useState([]); // desde obras tipo "presupuesto"
-  const [gastosEstimados, setGastosEstimados] = useState(0);
-  const [descuentos, setDescuentos] = useState(0);
+  const [montoEstimado, setMontoEstimado] = useState("");
 
-  // Documentación y seguimiento
-  const [linksExternos, setLinksExternos] = useState([]);
-  const [nuevoLink, setNuevoLink] = useState("");
-  const [registroFotografico, setRegistroFotografico] = useState({ antes: [], durante: [], despues: [] });
-  const [urlFoto, setUrlFoto] = useState("");
-  const [faseFoto, setFaseFoto] = useState("antes");
-  const [notasInternas, setNotasInternas] = useState("");
-  const [notasCliente, setNotasCliente] = useState("");
-  const [tareas, setTareas] = useState([]);
-  const [tareaDraft, setTareaDraft] = useState({ titulo: "", responsable: "", fechaVencimiento: "", estado: "Pendiente" });
-
-  // Cobranzas
-  const [formaPago, setFormaPago] = useState("");
-  const [senia, setSenia] = useState(0);
-  const [historialPagos, setHistorialPagos] = useState([]);
-  const [pagoDraft, setPagoDraft] = useState({ fecha: "", monto: "", metodo: "" });
 
   // Carga inicial: clientes, productos, presupuestos
   useEffect(() => {
@@ -474,51 +452,6 @@ export default function CrearObraPage() {
     }));
   };
 
-  // Materiales externos
-  const agregarExterno = () => setMaterialesExternos((prev) => [...prev, { nombre: "", cantidad: 1, costo: 0 }]);
-  const quitarExterno = (idx) => setMaterialesExternos((prev) => prev.filter((_, i) => i !== idx));
-  const actualizarExterno = (idx, campo, valor) => setMaterialesExternos((prev) => prev.map((m, i) => i === idx ? { ...m, [campo]: campo === "nombre" ? valor : Number(valor) || 0 } : m));
-
-  // Herramientas
-  const agregarHerramienta = () => {
-    if (!nuevaHerramienta.trim()) return;
-    setHerramientas((prev) => [...prev, nuevaHerramienta.trim()]);
-    setNuevaHerramienta("");
-  };
-  const quitarHerramienta = (idx) => setHerramientas((prev) => prev.filter((_, i) => i !== idx));
-
-  // Links externos
-  const agregarLink = () => {
-    if (!nuevoLink.trim()) return;
-    setLinksExternos((prev) => [...prev, nuevoLink.trim()]);
-    setNuevoLink("");
-  };
-  const quitarLink = (idx) => setLinksExternos((prev) => prev.filter((_, i) => i !== idx));
-
-  // Registro fotográfico
-  const agregarFoto = () => {
-    if (!urlFoto.trim()) return;
-    setRegistroFotografico((prev) => ({ ...prev, [faseFoto]: [...(prev[faseFoto] || []), urlFoto.trim()] }));
-    setUrlFoto("");
-  };
-  const quitarFoto = (fase, idx) => setRegistroFotografico((prev) => ({ ...prev, [fase]: prev[fase].filter((_, i) => i !== idx) }));
-
-  // Tareas
-  const agregarTarea = () => {
-    if (!tareaDraft.titulo.trim()) return;
-    setTareas((prev) => [...prev, { ...tareaDraft }]);
-    setTareaDraft({ titulo: "", responsable: "", fechaVencimiento: "", estado: "Pendiente" });
-  };
-  const quitarTarea = (idx) => setTareas((prev) => prev.filter((_, i) => i !== idx));
-
-  // Pagos
-  const agregarPago = () => {
-    if (!pagoDraft.fecha || !pagoDraft.monto) return;
-    setHistorialPagos((prev) => [...prev, { ...pagoDraft, monto: Number(pagoDraft.monto) || 0 }]);
-    setPagoDraft({ fecha: "", monto: "", metodo: "" });
-  };
-  const quitarPago = (idx) => setHistorialPagos((prev) => prev.filter((_, i) => i !== idx));
-
   // Cálculos derivados
   const subtotalCatalogo = useMemo(() => itemsCatalogo.reduce((acc, p) => {
     const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
@@ -527,8 +460,6 @@ export default function CrearObraPage() {
     const desc = base * ((Number(p.descuento) || 0) / 100);
     return acc + (base - desc);
   }, 0), [itemsCatalogo]);
-  const subtotalExternos = useMemo(() => materialesExternos.reduce((acc, m) => acc + (Number(m.costo) || 0) * (Number(m.cantidad) || 0), 0), [materialesExternos]);
-  const gastosReales = useMemo(() => subtotalCatalogo + subtotalExternos, [subtotalCatalogo, subtotalExternos]);
 
   // Totales sólo de productos seleccionados (sin externos)
   const productosSubtotal = useMemo(() => itemsCatalogo.reduce((acc, p) => {
@@ -545,8 +476,6 @@ export default function CrearObraPage() {
     return acc + desc;
   }, 0), [itemsCatalogo]);
   const productosTotal = useMemo(() => productosSubtotal - productosDescuentoTotal, [productosSubtotal, productosDescuentoTotal]);
-  const totalPagos = useMemo(() => historialPagos.reduce((acc, p) => acc + (Number(p.monto) || 0), 0), [historialPagos]);
-  const saldoPendiente = useMemo(() => Math.max(0, gastosReales - (Number(descuentos) || 0) - (Number(senia) || 0) - totalPagos), [gastosReales, descuentos, senia, totalPagos]);
 
   // Guardar nuevo cliente (idéntico a ventas)
   const handleGuardarNuevoCliente = async () => {
@@ -595,6 +524,11 @@ export default function CrearObraPage() {
             telefono: clienteSeleccionado.telefono || "",
             email: clienteSeleccionado.email || "",
             localidad: clienteSeleccionado.localidad || "",
+            partido: clienteSeleccionado.partido || "",
+            barrio: clienteSeleccionado.barrio || "",
+            area: clienteSeleccionado.area || "",
+            lote: clienteSeleccionado.lote || "",
+            descripcion: clienteSeleccionado.descripcion || "",
           }
         : null;
 
@@ -627,11 +561,30 @@ export default function CrearObraPage() {
         return item;
       });
 
-      const externosSanitizados = materialesExternos.map((m) => ({
-        nombre: m.nombre || "",
-        cantidad: Number(m.cantidad) || 0,
-        costo: Number(m.costo) || 0,
-      }));
+      const ubicacionObra = (() => {
+        if (usarDireccionCliente && clienteSeleccionado) {
+          return {
+            direccion: clienteSeleccionado.direccion || "",
+            localidad: clienteSeleccionado.localidad || "",
+            provincia: clienteSeleccionado.provincia || "",
+            partido: clienteSeleccionado.partido || "",
+            barrio: clienteSeleccionado.barrio || "",
+            area: clienteSeleccionado.area || "",
+            lote: clienteSeleccionado.lote || "",
+            descripcion: clienteSeleccionado.descripcion || "",
+          };
+        }
+        return {
+          direccion: direccion || "",
+          localidad: localidad || "",
+          provincia: provincia || "",
+          partido: nuevoCliente.partido || "",
+          barrio: barrio || "",
+          area: area || "",
+          lote: lote || "",
+          descripcion: descripcionUbicacion || "",
+        };
+      })();
 
       await addDoc(collection(db, "obras"), {
         tipo: "obra",
@@ -639,21 +592,14 @@ export default function CrearObraPage() {
         nombreObra: nombreObra || "",
         tipoObra: tipoObra || "",
         prioridad: prioridad || "",
-        estado: estado || "pendiente_inicio",
+        estado: "pendiente_inicio",
         clienteId,
         cliente: clienteObj,
-        fechas: {
-          fechaInicioEstimada: fechaInicioEstimada || null,
-          fechaFinEstimada: fechaFinEstimada || null,
-          fechaInicioReal: fechaInicioReal || null,
-          fechaFinReal: fechaFinReal || null,
-        },
-        ubicacion: { direccion: direccion || "", localidad: localidad || "", provincia: provincia || "" },
+        ubicacion: ubicacionObra,
         responsable: responsable || "",
         materialesCatalogo: materialesSanitizados,
-        materialesExternos: externosSanitizados,
-        herramientas: herramientas.filter(Boolean),
         presupuestoInicialId: presupuestoInicialId || null,
+        montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
         productosSubtotal: Math.round(productosSubtotal),
         productosDescuentoTotal: Math.round(productosDescuentoTotal),
         productosTotal: Math.round(productosTotal),
@@ -679,7 +625,8 @@ export default function CrearObraPage() {
         </div>
       </div>
 
-      {/* Datos Generales */}
+      {/* Datos Generales + Ubicación en 2 columnas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Datos Generales</CardTitle>
@@ -713,21 +660,6 @@ export default function CrearObraPage() {
                 <SelectItem value="Alta">Alta</SelectItem>
                 <SelectItem value="Media">Media</SelectItem>
                 <SelectItem value="Baja">Baja</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm text-gray-600">Estado</label>
-            <Select value={estado} onValueChange={setEstado}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pendiente_inicio">Pendiente de Inicio</SelectItem>
-                <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
-                <SelectItem value="pausada">Pausada</SelectItem>
-                <SelectItem value="finalizada">Finalizada</SelectItem>
-                <SelectItem value="cancelada">Cancelada</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -777,53 +709,138 @@ export default function CrearObraPage() {
         </CardContent>
       </Card>
 
-      {/* Fechas y ubicación */}
+      {/* Ubicación */}
       <Card>
         <CardHeader>
-          <CardTitle>Fechas y Ubicación</CardTitle>
+          <CardTitle>Ubicación</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm text-gray-600">Inicio estimado</label>
-            <Input type="date" value={fechaInicioEstimada} onChange={(e) => setFechaInicioEstimada(e.target.value)} />
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-6">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="origenDireccion"
+                checked={usarDireccionCliente}
+                onChange={() => setUsarDireccionCliente(true)}
+              />
+              Usar dirección del cliente
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="origenDireccion"
+                checked={!usarDireccionCliente}
+                onChange={() => setUsarDireccionCliente(false)}
+              />
+              Ingresar dirección manualmente
+            </label>
           </div>
-          <div>
-            <label className="text-sm text-gray-600">Fin estimado</label>
-            <Input type="date" value={fechaFinEstimada} onChange={(e) => setFechaFinEstimada(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm text-gray-600">Inicio real</label>
-            <Input type="date" value={fechaInicioReal} onChange={(e) => setFechaInicioReal(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm text-gray-600">Fin real</label>
-            <Input type="date" value={fechaFinReal} onChange={(e) => setFechaFinReal(e.target.value)} />
-          </div>
-          <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm text-gray-600">Dirección</label>
-              <Input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+
+          {usarDireccionCliente ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border border-border rounded-md bg-card/50">
+              <div>
+                <label className="text-sm text-gray-600">Dirección</label>
+                <Input value={clienteSeleccionado?.direccion || ""} readOnly placeholder="Dirección del cliente" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Localidad</label>
+                <Input value={clienteSeleccionado?.localidad || ""} readOnly />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Provincia</label>
+                <Input value={clienteSeleccionado?.provincia || ""} readOnly />
+              </div>
             </div>
-            <div>
-              <label className="text-sm text-gray-600">Localidad</label>
-              <Input value={localidad} onChange={(e) => setLocalidad(e.target.value)} />
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Dirección</label>
+                  <Input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Localidad</label>
+                  <Input value={localidad} onChange={(e) => setLocalidad(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Provincia</label>
+                  <Input value={provincia} onChange={(e) => setProvincia(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Área</label>
+                  <Input value={area} onChange={(e) => setArea(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Barrio</label>
+                  <Input value={barrio} onChange={(e) => setBarrio(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Lote</label>
+                  <Input value={lote} onChange={(e) => setLote(e.target.value)} />
+                </div>
+                <div className="md:col-span-1">
+                  <label className="text-sm text-gray-600">Descripción</label>
+                  <Textarea value={descripcionUbicacion} onChange={(e) => setDescripcionUbicacion(e.target.value)} placeholder="Referencia, piso, etc." />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="text-sm text-gray-600">Provincia</label>
-              <Input value={provincia} onChange={(e) => setProvincia(e.target.value)} />
-            </div>
-          </div>
-          <div className="md:col-span-3">
+          )}
+
+          <div>
             <label className="text-sm text-gray-600">Responsable</label>
-            <Input value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="Nombre del responsable" />
+            <div className="flex items-center gap-2">
+              <Select value={responsable} onValueChange={setResponsable}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccione responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  {responsables.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => setOpenNuevoResponsable(true)}>+</Button>
+            </div>
           </div>
+        </CardContent>
+      </Card>
+      </div>
+
+      {/* Presupuesto y costos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Presupuesto y costos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm text-gray-600">Presupuesto inicial</label>
+            <Select value={presupuestoInicialId} onValueChange={setPresupuestoInicialId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccione presupuesto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Sin presupuesto</SelectItem>
+                {presupuestosObra.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.numeroPedido || p.id} - {p.cliente?.nombre || ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {(!presupuestoInicialId || presupuestoInicialId === "") && (
+            <div>
+              <label className="text-sm text-gray-600">Monto estimado de gasto (opcional si no hay presupuesto)</label>
+              <Input type="number" min={0} value={montoEstimado} onChange={(e) => setMontoEstimado(e.target.value)} placeholder="0" />
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Catálogo de materiales (productos) */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Filter className="w-5 h-5" /> Catálogo de materiales</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Filter className="w-5 h-5" /> Materiales a Utilizar</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -1145,76 +1162,7 @@ export default function CrearObraPage() {
         </section>
       )}
 
-      {/* Materiales externos y herramientas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Materiales externos y herramientas</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold">Materiales externos</h4>
-              <Button size="sm" onClick={agregarExterno}>Agregar</Button>
-            </div>
-            <div className="space-y-2">
-              {materialesExternos.map((m, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                  <Input className="col-span-5" placeholder="Nombre" value={m.nombre} onChange={(e) => actualizarExterno(idx, "nombre", e.target.value)} />
-                  <Input className="col-span-2" type="number" placeholder="Cantidad" value={m.cantidad} onChange={(e) => actualizarExterno(idx, "cantidad", e.target.value)} />
-                  <Input className="col-span-3" type="number" placeholder="Costo" value={m.costo} onChange={(e) => actualizarExterno(idx, "costo", e.target.value)} />
-                  <Button className="col-span-2" variant="outline" onClick={() => quitarExterno(idx)}>Quitar</Button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold">Herramientas</h4>
-              <div className="flex gap-2">
-                <Input placeholder="Nombre de herramienta" value={nuevaHerramienta} onChange={(e) => setNuevaHerramienta(e.target.value)} />
-                <Button onClick={agregarHerramienta}>Agregar</Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {herramientas.map((h, idx) => (
-                <Badge key={idx} variant="outline" className="flex items-center gap-2">
-                  {h}
-                  <button className="text-red-500" onClick={() => quitarHerramienta(idx)}>×</button>
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Presupuesto y costos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Presupuesto y costos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-600">Presupuesto inicial</label>
-            <Select value={presupuestoInicialId} onValueChange={setPresupuestoInicialId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione presupuesto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Sin presupuesto</SelectItem>
-                {presupuestosObra.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.numeroPedido || p.id} - {p.cliente?.nombre || ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 text-lg shadow-sm font-semibold">
-            <div>Subtotal productos: <span className="font-bold">$ {formatARNumber(productosSubtotal)}</span></div>
-            <div>Descuentos: <span className="font-bold">$ {formatARNumber(productosDescuentoTotal)}</span></div>
-            <div>Total: <span className="font-bold text-primary">$ {formatARNumber(productosTotal)}</span></div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Se eliminan Materiales externos y Herramientas en creación */}
 
       {/* Documentación y seguimiento (se retiró del alta; se gestiona en detalle) */}
       {/*
@@ -1463,6 +1411,30 @@ export default function CrearObraPage() {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: nuevo responsable */}
+      <Dialog open={openNuevoResponsable} onOpenChange={setOpenNuevoResponsable}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agregar responsable</DialogTitle>
+            <DialogDescription>Ingrese el nombre del nuevo responsable para reutilizarlo en futuras obras.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input value={nuevoResponsable} onChange={(e) => setNuevoResponsable(e.target.value)} placeholder="Nombre" />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOpenNuevoResponsable(false)}>Cancelar</Button>
+            <Button onClick={() => {
+              const v = (nuevoResponsable || "").trim();
+              if (!v) return;
+              if (!responsables.includes(v)) setResponsables([...responsables, v]);
+              setResponsable(v);
+              setNuevoResponsable("");
+              setOpenNuevoResponsable(false);
+            }}>Guardar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
