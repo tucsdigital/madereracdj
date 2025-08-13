@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
@@ -927,25 +928,7 @@ const VentaDetalle = () => {
     }
 
     const productosArr = ventaEdit.productos || ventaEdit.items;
-    const subtotal = productosArr.reduce(
-      (acc, p) => {
-        // Para machimbre y deck, el precio ya incluye la cantidad
-        if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-          return acc + Number(p.precio);
-        } else {
-          return acc + Number(p.precio) * Number(p.cantidad);
-        }
-      },
-      0
-    );
-    const descuentoTotal = productosArr.reduce(
-      (acc, p) =>
-        acc +
-        Number(p.precio) *
-          Number(p.cantidad) *
-          (Number(p.descuento || 0) / 100),
-      0
-    );
+    const { subtotal, descuentoTotal, total: totalSinEnvio } = computeTotals(productosArr);
 
     // Calcular costo de envío solo si no es retiro local
     const costoEnvioCalculado =
@@ -957,7 +940,7 @@ const VentaDetalle = () => {
         ? Number(ventaEdit.costoEnvio)
         : 0;
 
-    const total = subtotal - descuentoTotal + costoEnvioCalculado;
+    const total = totalSinEnvio + costoEnvioCalculado;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
       (acc, p) => acc + Number(p.monto),
       0
@@ -1948,16 +1931,15 @@ const VentaDetalle = () => {
                       <td className="p-3 text-right font-medium subtotal-empleado">
                         $
                         {formatearNumeroArgentino(
-                          (
-                            (producto.subcategoria === "machimbre" ||
-                              producto.subcategoria === "deck" ||
-                              producto.subCategoria === "machimbre" ||
-                              producto.subCategoria === "deck"
-                              ? Number(producto.precio)
-                              : Number(producto.precio) *
-                                Number(producto.cantidad)) *
-                            (1 - Number(producto.descuento || 0) / 100)
-                          )
+                          computeLineSubtotal({
+                            precio: producto.precio,
+                            cantidad: producto.cantidad,
+                            descuento: producto.descuento,
+                            subcategoria: producto.subcategoria,
+                            subCategoria: producto.subCategoria,
+                            nombre: producto.nombre,
+                            descripcion: producto.descripcion,
+                          })
                         )}
                       </td>
                     </tr>
@@ -1965,59 +1947,38 @@ const VentaDetalle = () => {
                 </tbody>
               </table>
             </div>
-            {/* Totales */}
-            <div className="mt-6 flex justify-end">
-              <div className="bg-card rounded-lg p-4 min-w-[300px]">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between subtotal-empleado">
-                    <span>Subtotal:</span>
-                    <span>
-                      $
-                      {Number(venta.subtotal || 0).toLocaleString("es-AR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between descuento-empleado">
-                    <span>Descuento total:</span>
-                    <span>
-                      $
-                      {Number(venta.descuentoTotal || 0).toLocaleString(
-                        "es-AR",
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </span>
-                  </div>
-                  {venta.costoEnvio !== undefined &&
-                    venta.costoEnvio !== "" &&
-                    !isNaN(Number(venta.costoEnvio)) &&
-                    Number(venta.costoEnvio) > 0 && (
-                      <div className="flex justify-between costo-envio-empleado">
-                        <span>Cotización de envío:</span>
-                        <span>
-                          $
-                          {Number(venta.costoEnvio).toLocaleString("es-AR", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
+            {/* Totales (recalculados desde items para consistencia) */}
+            {(() => {
+              const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
+              const { subtotal, descuentoTotal, total } = computeTotals(items);
+              const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;
+              return (
+                <div className="mt-6 flex justify-end">
+                  <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between subtotal-empleado">
+                        <span>Subtotal:</span>
+                        <span>$ {subtotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                       </div>
-                    )}
-                  <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
-                    <span>Total:</span>
-                    <span className="text-primary">
-                      $
-                      {(
-                        Number(venta.subtotal || 0) -
-                        Number(venta.descuentoTotal || 0) +
-                        (Number(venta.costoEnvio) || 0)
-                      ).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
-                    </span>
+                      <div className="flex justify-between descuento-empleado">
+                        <span>Descuento total:</span>
+                        <span>$ {descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {envio > 0 && (
+                        <div className="flex justify-between costo-envio-empleado">
+                          <span>Cotización de envío:</span>
+                          <span>$ {envio.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
+                        <span>Total:</span>
+                        <span className="text-primary">$ {(total + envio).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         ) : null}
 
@@ -2849,9 +2810,9 @@ const VentaDetalle = () => {
                             </td>
                             <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                               ${formatearNumeroArgentino(
-                                p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")
-                                  ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
-                                  : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
+                                Math.round(
+                                  computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
+                                )
                               )}
                             </td>
                             <td className="p-4 align-middle text-center text-sm text-default-600">
@@ -2873,112 +2834,36 @@ const VentaDetalle = () => {
               {/* Totales y botones por debajo de la tabla */}
               {(ventaEdit.productos || []).length > 0 && (
                 <div className="flex flex-col items-end gap-2 mt-4">
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                    <div>
-                      Subtotal:{" "}
-                      <span className="font-bold">
-                        $
-                        {formatearNumeroArgentino(
-                          (ventaEdit.productos || []).reduce((acc, p) => {
-                            // Para machimbre y deck, el precio ya incluye la cantidad
-                            const subtotalProducto =
-                              p.subcategoria === "machimbre" || p.subcategoria === "deck"
-                                ? Number(p.precio)
-                                : Number(p.precio) * Number(p.cantidad);
-                            return acc + subtotalProducto;
-                          }, 0)
-                        )}
-                      </span>
-                    </div>
-                    <div>
-                      Descuento:{" "}
-                      <span className="font-bold">
-                        $
-                        {formatearNumeroArgentino(
-                          ventaEdit.productos
-                            .reduce(
-                              (acc, p) => {
-                                // Para machimbre y deck, el precio ya incluye la cantidad
-                                const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                                  ? Number(p.precio) 
-                                  : Number(p.precio) * Number(p.cantidad);
-                                return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                              },
-                              0
-                            )
-                        )}
-                      </span>
-                    </div>
-                    {ventaEdit.tipoEnvio &&
-                      ventaEdit.tipoEnvio !== "retiro_local" &&
-                      Number(ventaEdit.costoEnvio) > 0 && (
+                  {(() => {
+                    const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
+                    const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
+                    return (
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
-                          Costo de envío:{" "}
-                          <span className="font-bold">
-                            ${formatearNumeroArgentino(Number(ventaEdit.costoEnvio))}
-                          </span>
+                          Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
                         </div>
-                      )}
-                    <div>
-                      Total:{" "}
-                      <span className="font-bold text-primary">
-                        $
-                        {formatearNumeroArgentino(
-                          ventaEdit.productos.reduce(
-                            (acc, p) => {
-                              // Para machimbre y deck, el precio ya incluye la cantidad
-                              if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                                return acc + Number(p.precio);
-                              } else {
-                                return acc + Number(p.precio) * Number(p.cantidad);
-                              }
-                            },
-                            0
-                          ) -
-                          ventaEdit.productos.reduce(
-                            (acc, p) => {
-                              // Para machimbre y deck, el precio ya incluye la cantidad
-                              const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                                ? Number(p.precio) 
-                                : Number(p.precio) * Number(p.cantidad);
-                              return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                            },
-                            0
-                          ) +
-                          (ventaEdit.tipoEnvio &&
-                          ventaEdit.tipoEnvio !== "retiro_local"
-                            ? Number(ventaEdit.costoEnvio) || 0
-                            : 0)
+                        <div>
+                          Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
+                        </div>
+                        {envio > 0 && (
+                          <div>
+                            Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
+                          </div>
                         )}
-                      </span>
-                    </div>
-                  </div>
+                        <div>
+                          Total: <span className="font-bold text-primary">${formatearNumeroArgentino(total + envio)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
               {(() => {
                 // Cálculo limpio y UI mejorada para pagos pendientes
-                const subtotal = (ventaEdit.productos || []).reduce(
-                  (acc, p) => {
-                    // Para machimbre y deck, el precio ya incluye la cantidad
-                    if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-                      return acc + Number(p.precio);
-                    } else {
-                      return acc + Number(p.precio) * Number(p.cantidad);
-                    }
-                  },
-                  0
-                );
-                const descuento = (ventaEdit.productos || []).reduce(
-                  (acc, p) => {
-                    // Para machimbre y deck, el precio ya incluye la cantidad
-                    const precioCalculado = p.subcategoria === "machimbre" || p.subcategoria === "deck" 
-                      ? Number(p.precio) 
-                      : Number(p.precio) * Number(p.cantidad);
-                    return acc + precioCalculado * (Number(p.descuento || 0) / 100);
-                  },
-                  0
-                );
+                const totalesEdicion = computeTotals(ventaEdit.productos || []);
+                const subtotal = totalesEdicion.subtotal;
+                const descuento = totalesEdicion.descuentoTotal;
 
                 // Calcular costo de envío basado en el tipo de envío actual
                 const envio =

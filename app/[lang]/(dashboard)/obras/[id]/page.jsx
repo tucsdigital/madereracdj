@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { computeLineBase } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2166,7 +2167,8 @@ const ObraDetallePage = () => {
                     }
                     return prods.map((p, idx) => {
                       const u = String(p.unidadMedida || 'UN').toUpperCase();
-                      const sub = Math.round((Number(p.precio) || 0) * (1 - (Number(p.descuento) || 0)/100));
+                      const base = computeLineBase(p);
+                      const sub = Math.round(base * (1 - (Number(p.descuento) || 0)/100));
                       return (
                         <tr key={idx} className="border-b last:border-0">
                           <td className="py-2 px-2">

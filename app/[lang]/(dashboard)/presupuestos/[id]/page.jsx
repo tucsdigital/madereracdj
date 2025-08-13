@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { isMachimbreOrDeck, computeLineBase, computeTotals } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
@@ -720,6 +721,8 @@ const PresupuestoDetalle = () => {
     return Math.round(precio * 100) / 100;
   }
 
+  // Centralizado en lib/pricing
+
   // Función para calcular precio de machimbre (precio por pie × alto × largo × cantidad)
   function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
     if (
@@ -875,22 +878,7 @@ const PresupuestoDetalle = () => {
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
-      const subtotal = productosArr.reduce((acc, p) => {
-        // Para machimbre y deck, el precio ya incluye la cantidad
-        if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
-          return acc + Number(p.precio);
-        } else {
-          return acc + Number(p.precio) * Number(p.cantidad);
-        }
-      }, 0);
-      const descuentoTotal = productosArr.reduce(
-        (acc, p) =>
-          acc +
-          Number(p.precio) *
-            Number(p.cantidad) *
-            (Number(p.descuento || 0) / 100),
-        0
-      );
+      const { subtotal, descuentoTotal, total: totalCalc } = computeTotals(productosArr);
       const costoEnvioCalculado =
         presupuestoEdit.tipoEnvio &&
         presupuestoEdit.tipoEnvio !== "retiro_local" &&
@@ -899,7 +887,7 @@ const PresupuestoDetalle = () => {
         !isNaN(Number(presupuestoEdit.costoEnvio))
           ? Number(presupuestoEdit.costoEnvio)
           : 0;
-      const total = subtotal - descuentoTotal + costoEnvioCalculado;
+      const total = totalCalc + costoEnvioCalculado; 
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
@@ -2536,11 +2524,10 @@ const PresupuestoDetalle = () => {
                               <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                                 $
                                 {formatearNumeroArgentino(
-                                  (p.subcategoria === "machimbre" ||
-                                  p.subcategoria === "deck"
-                                    ? Number(p.precio)
-                                    : Number(p.precio) * Number(p.cantidad)) *
-                                    (1 - Number(p.descuento || 0) / 100)
+                                  Math.round(
+                                    computeLineBase(p) *
+                                      (1 - Number(p.descuento || 0) / 100)
+                                  )
                                 )}
                               </td>
                               <td className="p-4 align-middle text-center text-sm text-default-600">
@@ -2576,101 +2563,30 @@ const PresupuestoDetalle = () => {
                 )}
 
                 {/* Totales y botones por debajo de la tabla */}
-                {(presupuestoEdit.productos || []).length > 0 && (
-                  <div className="flex flex-col items-end gap-2 mt-4">
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
-                      <div>
-                        Subtotal:{" "}
-                        <span className="font-bold">
-                          $
-                          {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce((acc, p) => {
-                              // Para machimbre y deck, el precio ya incluye la cantidad
-                              if (
-                                p.subcategoria === "machimbre" ||
-                                p.subcategoria === "deck"
-                              ) {
-                                return acc + Number(p.precio);
-                              } else {
-                                return (
-                                  acc + Number(p.precio) * Number(p.cantidad)
-                                );
-                              }
-                            }, 0)
-                          )}
-                        </span>
-                      </div>
-                      <div>
-                        Descuento:{" "}
-                        <span className="font-bold">
-                          $
-                          {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce((acc, p) => {
-                              // Para machimbre y deck, el precio ya incluye la cantidad
-                              const precioCalculado =
-                                p.subcategoria === "machimbre" ||
-                                p.subcategoria === "deck"
-                                  ? Number(p.precio)
-                                  : Number(p.precio) * Number(p.cantidad);
-                              return (
-                                acc +
-                                precioCalculado *
-                                  (Number(p.descuento || 0) / 100)
-                              );
-                            }, 0)
-                          )}
-                        </span>
-                      </div>
-                      {presupuestoEdit.costoEnvio &&
-                        Number(presupuestoEdit.costoEnvio) > 0 && (
+                {(presupuestoEdit.productos || []).length > 0 && (() => {
+                  const { subtotal, descuentoTotal, total } = computeTotals(presupuestoEdit.productos);
+                  const envio = Number(presupuestoEdit.costoEnvio) || 0;
+                  return (
+                    <div className="flex flex-col items-end gap-2 mt-4">
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                        <div>
+                          Subtotal: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span>
+                        </div>
+                        <div>
+                          Descuento: <span className="font-bold">$ {formatearNumeroArgentino(descuentoTotal)}</span>
+                        </div>
+                        {envio > 0 && (
                           <div>
-                            Costo de envío:{" "}
-                            <span className="font-bold">
-                              $
-                              {formatearNumeroArgentino(
-                                Number(presupuestoEdit.costoEnvio)
-                              )}
-                            </span>
+                            Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
                           </div>
                         )}
-                      <div>
-                        Total:{" "}
-                        <span className="font-bold text-primary">
-                          $
-                          {formatearNumeroArgentino(
-                            presupuestoEdit.productos.reduce((acc, p) => {
-                              // Para machimbre y deck, el precio ya incluye la cantidad
-                              if (
-                                p.subcategoria === "machimbre" ||
-                                p.subcategoria === "deck"
-                              ) {
-                                return acc + Number(p.precio);
-                              } else {
-                                return (
-                                  acc + Number(p.precio) * Number(p.cantidad)
-                                );
-                              }
-                            }, 0) -
-                              presupuestoEdit.productos.reduce((acc, p) => {
-                                // Para machimbre y deck, el precio ya incluye la cantidad
-                                const precioCalculado =
-                                  p.subcategoria === "machimbre" ||
-                                  p.subcategoria === "deck"
-                                    ? Number(p.precio)
-                                    : Number(p.precio) * Number(p.cantidad);
-                                return (
-                                  acc +
-                                  precioCalculado *
-                                    (Number(p.descuento || 0) / 100)
-                                );
-                              }, 0) +
-                              (Number(presupuestoEdit.costoEnvio) || 0)
-                          )}
-                        </span>
+                        <div>
+                          Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(total + envio)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Botones al final de todas las secciones editables */}
                 <div className="flex flex-wrap gap-2 mt-6">
@@ -2756,15 +2672,9 @@ const PresupuestoDetalle = () => {
                         <td className="p-3 text-right font-medium">
                           $
                           {formatearNumeroArgentino(
-                            (
-                              (producto.subcategoria === "machimbre" ||
-                                producto.subcategoria === "deck" ||
-                                producto.subCategoria === "machimbre" ||
-                                producto.subCategoria === "deck"
-                                ? safeNumber(producto.precio)
-                                : safeNumber(producto.precio) *
-                                  safeNumber(producto.cantidad)) *
-                              (1 - safeNumber(producto.descuento) / 100)
+                            Math.round(
+                              computeLineBase(producto) *
+                                (1 - safeNumber(producto.descuento) / 100)
                             )
                           )}
                         </td>
@@ -2775,68 +2685,42 @@ const PresupuestoDetalle = () => {
               </div>
             )}
 
-            {/* Totales */}
-            <div className="mt-6 flex justify-end">
-              <div className="bg-card rounded-lg p-4 min-w-[300px]">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>
-                      $
-                      {formatearNumeroArgentino(
-                        safeNumber(presupuesto.subtotal)
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Descuento total:</span>
-                    <span>
-                      $
-                      {formatearNumeroArgentino(
-                        safeNumber(presupuesto.descuentoTotal)
-                      )}
-                    </span>
-                  </div>
-                  {/* Mostrar costo de envío si existe y es >= 0 y no es retiro local */}
-                  {presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0 && (
+            {/* Totales (recalculados desde items para consistencia) */}
+            {(() => {
+              const items = (presupuesto.productos && presupuesto.productos.length > 0)
+                ? presupuesto.productos
+                : (presupuesto.items || []);
+              const { subtotal, descuentoTotal, total } = computeTotals(items);
+              const envio = (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && Number(presupuesto.costoEnvio) > 0)
+                ? Number(presupuesto.costoEnvio)
+                : 0;
+              return (
+                <div className="mt-6 flex justify-end">
+                  <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Cotización de envío:</span>
-                        <span>
-                          $
-                          {formatearNumeroArgentino(
-                            safeNumber(presupuesto.costoEnvio)
-                          )}
-                        </span>
+                        <span>Subtotal:</span>
+                        <span>$ {formatearNumeroArgentino(subtotal)}</span>
                       </div>
-                    )}
-                  <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                    <span>Total:</span>
-                    <span className="text-primary">
-                      $
-                      {formatearNumeroArgentino(
-                        (() => {
-                          const subtotal = safeNumber(presupuesto.subtotal);
-                          const descuento = safeNumber(
-                            presupuesto.descuentoTotal
-                          );
-                          const envio =
-                            presupuesto.costoEnvio !== undefined &&
-                            presupuesto.costoEnvio !== "" &&
-                            !isNaN(Number(presupuesto.costoEnvio)) &&
-                            Number(presupuesto.costoEnvio) > 0
-                              ? Number(presupuesto.costoEnvio)
-                              : 0;
-                          return subtotal - descuento + envio;
-                        })()
+                      <div className="flex justify-between">
+                        <span>Descuento total:</span>
+                        <span>$ {formatearNumeroArgentino(descuentoTotal)}</span>
+                      </div>
+                      {envio > 0 && (
+                        <div className="flex justify-between">
+                          <span>Cotización de envío:</span>
+                          <span>$ {formatearNumeroArgentino(envio)}</span>
+                        </div>
                       )}
-                    </span>
+                      <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span className="text-primary">$ {formatearNumeroArgentino(total + envio)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2873,41 +2757,25 @@ const PresupuestoDetalle = () => {
                     cliente: presupuesto.cliente,
                     productos: presupuesto.productos || presupuesto.items,
                     items: presupuesto.productos || presupuesto.items,
-                    subtotal: presupuesto.subtotal,
-                    descuentoTotal: presupuesto.descuentoTotal,
+                    subtotal: (() => {
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { subtotal } = computeTotals(items);
+                      return subtotal;
+                    })(),
+                    descuentoTotal: (() => {
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { descuentoTotal } = computeTotals(items);
+                      return descuentoTotal;
+                    })(),
                     // Calcular el total correcto incluyendo envío
                     total: (() => {
-                      // Recalcular el total correcto basado en los datos del presupuesto
-                      const subtotal = safeNumber(presupuesto.subtotal);
-                      const descuento = safeNumber(presupuesto.descuentoTotal);
-                      // Usar el costo de envío del formulario si existe, sino del presupuesto
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { total } = computeTotals(items);
                       const envio = ventaCampos.costoEnvio
                         ? Number(ventaCampos.costoEnvio)
                         : safeNumber(presupuesto.costoEnvio || 0);
-                      const totalCorrecto = subtotal - descuento + envio;
-
-                      // Debug para verificar el cálculo
-                      console.log(
-                        "[DEBUG] Cálculo total en conversión a venta:"
-                      );
-                      console.log("Subtotal presupuesto:", subtotal);
-                      console.log("Descuento presupuesto:", descuento);
-                      console.log(
-                        "Envío del formulario:",
-                        ventaCampos.costoEnvio
-                      );
-                      console.log(
-                        "Envío del presupuesto:",
-                        presupuesto.costoEnvio
-                      );
-                      console.log("Envío final usado:", envio);
-                      console.log("Total calculado correcto:", totalCorrecto);
-                      console.log(
-                        "Total presupuesto (puede estar incorrecto):",
-                        presupuesto.total
-                      );
-
-                      // Usar el total recalculado para asegurar consistencia
+                      const totalCorrecto = total + envio;
+                      console.log("[DEBUG] Total convertido desde computeTotals + envío:", totalCorrecto);
                       return totalCorrecto;
                     })(),
                     observaciones: presupuesto.observaciones,
@@ -2921,61 +2789,30 @@ const PresupuestoDetalle = () => {
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     montoAbonado: (() => {
-                      const totalVenta = (() => {
-                        const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(
-                          presupuesto.descuentoTotal
-                        );
-                        // Usar el costo de envío del formulario si existe, sino del presupuesto
-                        const envio = ventaCampos.costoEnvio
-                          ? Number(ventaCampos.costoEnvio)
-                          : safeNumber(presupuesto.costoEnvio || 0);
-                        return subtotal - descuento + envio;
-                      })();
-
-                      // Si NO es pago parcial → montoAbonado = total
-                      // Si ES pago parcial → usar el valor del formulario
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { total } = computeTotals(items);
+                      const envio = ventaCampos.costoEnvio
+                        ? Number(ventaCampos.costoEnvio)
+                        : safeNumber(presupuesto.costoEnvio || 0);
+                      const totalVenta = total + envio;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      return esPagoParcial
-                        ? ventaCampos.montoAbonado || 0
-                        : totalVenta;
+                      return esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
                     })(),
 
                     // Determinar estado de pago
                     estadoPago: (() => {
-                      const totalVenta = (() => {
-                        const subtotal = safeNumber(presupuesto.subtotal);
-                        const descuento = safeNumber(
-                          presupuesto.descuentoTotal
-                        );
-                        // Usar el costo de envío del formulario si existe, sino del presupuesto
-                        const envio = ventaCampos.costoEnvio
-                          ? Number(ventaCampos.costoEnvio)
-                          : safeNumber(presupuesto.costoEnvio || 0);
-                        return subtotal - descuento + envio;
-                      })();
-
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { total } = computeTotals(items);
+                      const envio = ventaCampos.costoEnvio
+                        ? Number(ventaCampos.costoEnvio)
+                        : safeNumber(presupuesto.costoEnvio || 0);
+                      const totalVenta = total + envio;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      const montoAbonado = esPagoParcial
-                        ? ventaCampos.montoAbonado || 0
-                        : totalVenta;
-
-                      console.log("[DEBUG] Cálculo estado de pago:");
-                      console.log("Total venta:", totalVenta);
-                      console.log("Es pago parcial:", esPagoParcial);
-                      console.log("Monto abonado:", montoAbonado);
-
-                      // Lógica inteligente: calcular estado según monto abonado
+                      const montoAbonado = esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
                       let estado;
-                      if (montoAbonado >= totalVenta) {
-                        estado = "pagado";
-                      } else if (montoAbonado > 0) {
-                        estado = "parcial";
-                      } else {
-                        estado = "pendiente";
-                      }
-
-                      console.log("Estado resultante:", estado);
+                      if (montoAbonado >= totalVenta) estado = "pagado";
+                      else if (montoAbonado > 0) estado = "parcial";
+                      else estado = "pendiente";
                       return estado;
                     })(),
 
