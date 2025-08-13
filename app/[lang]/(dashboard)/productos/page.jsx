@@ -120,6 +120,23 @@ function FormularioProducto({ onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
+  // Debug UI eliminado; se mantienen logs en consola
+  const UNIDADES_MADERAS = ["pie", "M2", "ML", "Unidad"];
+
+  // Normalizador robusto de números (acepta coma y punto)
+  const toNumber = (value) => {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === "number") return Number.isNaN(value) ? undefined : value;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const normalized = trimmed.replace(/,/g, ".");
+      const num = Number(normalized);
+      return Number.isNaN(num) ? undefined : num;
+    }
+    const num = Number(value);
+    return Number.isNaN(num) ? undefined : num;
+  };
   
   // Estados para agregar nuevos valores
   const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
@@ -152,6 +169,15 @@ function FormularioProducto({ onClose, onSuccess }) {
     }
   }, [categoria]);
 
+  // Preseleccionar unidad de medida en Maderas
+  useEffect(() => {
+    if (categoria === "Maderas") {
+      setValue("unidadMedida", "pie");
+    } else {
+      setValue("unidadMedida", "");
+    }
+  }, [categoria, setValue]);
+
   const cargarDatosPrecargados = async () => {
     try {
       const productosSnap = await getDocs(collection(db, "productos"));
@@ -164,6 +190,8 @@ function FormularioProducto({ onClose, onSuccess }) {
         const subCategorias = [...new Set(productosCategoria.map(p => p.subcategoria).filter(Boolean))];
         setTiposMaderaUnicos(tiposMadera);
         setSubCategoriasUnicas(subCategorias);
+        // Para Maderas, usar catálogo fijo de unidades
+        setUnidadesMedidaUnicas(UNIDADES_MADERAS);
       } else if (categoria === "Ferretería") {
         const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
         const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
@@ -215,8 +243,108 @@ function FormularioProducto({ onClose, onSuccess }) {
     setSubmitStatus(null);
     setSubmitMessage("");
     try {
+      // Normalizar datos antes de guardar
+      const payload = { ...data };
+
+      // Mapear subcategoría según la categoría seleccionada
+      if (payload.categoria === "Ferretería") {
+        if (payload.subcategoria) {
+          payload.subCategoria = payload.subcategoria;
+          delete payload.subcategoria;
+        }
+      } else if (payload.categoria === "Maderas") {
+        // Asegurar que no quede subCategoria en maderas
+        if (payload.subCategoria) delete payload.subCategoria;
+      }
+
+      // Convertir tipos numéricos para consistencia en Firestore
+      if (payload.categoria === "Maderas") {
+        if (payload.costo !== undefined) payload.costo = toNumber(payload.costo);
+        if (payload.largo !== undefined) payload.largo = toNumber(payload.largo);
+        if (payload.ancho !== undefined) payload.ancho = toNumber(payload.ancho);
+        if (payload.alto !== undefined) payload.alto = toNumber(payload.alto);
+        if (payload.precioPorPie !== undefined) payload.precioPorPie = toNumber(payload.precioPorPie);
+        // Valor por defecto recomendado
+        if (!payload.unidadMedida) payload.unidadMedida = "pie";
+      } else if (payload.categoria === "Ferretería") {
+        if (payload.costo !== undefined) payload.costo = toNumber(payload.costo);
+        if (payload.stockMinimo !== undefined) payload.stockMinimo = toNumber(payload.stockMinimo);
+        if (payload.valorCompra !== undefined) payload.valorCompra = toNumber(payload.valorCompra);
+        if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
+      }
+
+      // Eliminar claves con undefined para evitar errores de Firestore
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === undefined) {
+          delete payload[k];
+        }
+      });
+
+      // Construir expectativas y posibles faltantes
+      const expectedFields = payload.categoria === "Maderas"
+        ? [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "categoria",
+            "subcategoria",
+            "estado",
+            "costo",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "ubicacion",
+          ]
+        : [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "categoria",
+            "subCategoria",
+            "estado",
+            "costo",
+            "stockMinimo",
+            "unidadMedida",
+            "valorCompra",
+            "valorVenta",
+            "proveedor",
+          ];
+
+      const missing = expectedFields.filter((field) => {
+        const value = payload[field];
+        if (value === 0) return false;
+        return value === undefined || value === null || value === "" || Number.isNaN(value);
+      });
+
+      const typeMap = Object.fromEntries(
+        Object.entries(payload).map(([k, v]) => [k, Array.isArray(v) ? "array" : typeof v])
+      );
+
+      // Log profesional agrupado en consola
+      // Útil para inspección en devtools
+      try {
+        // eslint-disable-next-line no-console
+        console.groupCollapsed("FormularioProducto › onSubmit");
+        // eslint-disable-next-line no-console
+        console.info("Raw data (RHF):", data);
+        // eslint-disable-next-line no-console
+        console.info("Payload normalizado:", payload);
+        // eslint-disable-next-line no-console
+        console.info("Campos esperados:", expectedFields);
+        // eslint-disable-next-line no-console
+        console.warn("Faltantes:", missing);
+        // eslint-disable-next-line no-console
+        console.info("Tipos:", typeMap);
+      } finally {
+        // eslint-disable-next-line no-console
+        console.groupEnd();
+      }
+
       await addDoc(collection(db, "productos"), {
-        ...data,
+        ...payload,
         fechaCreacion: new Date().toISOString(),
         fechaActualizacion: new Date().toISOString(),
       });
@@ -236,8 +364,31 @@ function FormularioProducto({ onClose, onSuccess }) {
     }
   };
 
+  const onSubmitError = (errors) => {
+    const fieldNames = Object.keys(errors || {});
+    const messages = fieldNames.map((k) => errors[k]?.message || k);
+    // Solo logs en consola, sin UI
+    setSubmitStatus("error");
+    setSubmitMessage(
+      messages.length
+        ? `Validación fallida: ${messages.join("; ")}`
+        : "Validación fallida. Revisa los campos obligatorios."
+    );
+    try {
+      // eslint-disable-next-line no-console
+      console.groupCollapsed("FormularioProducto › validation errors");
+      // eslint-disable-next-line no-console
+      console.warn("Campos con error:", fieldNames);
+      // eslint-disable-next-line no-console
+      console.warn("Detalle de errores:", errors);
+    } finally {
+      // eslint-disable-next-line no-console
+      console.groupEnd();
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit, onSubmitError)} className="space-y-6">
       {/* Feedback de guardado con animación */}
       {submitStatus && (
         <div
@@ -262,6 +413,8 @@ function FormularioProducto({ onClose, onSuccess }) {
           </div>
         </div>
       )}
+
+      {/* Debug UI removido: usar consola para inspección */}
 
       {/* Selector de categoría con diseño moderno */}
       <div className="space-y-3">
@@ -636,6 +789,33 @@ function FormularioProducto({ onClose, onSuccess }) {
                     <div className="flex items-center gap-2 text-red-600 text-sm">
                       <AlertCircle className="w-4 h-4" />
                       {errors.alto.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
                     </div>
                   )}
                 </div>
@@ -2844,16 +3024,16 @@ const ProductosPage = () => {
                       Código
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Categoría
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Producto
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Tipo de Madera
+                      Categoría
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Subcategoría
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Tipo de Madera
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Unidad Medida
