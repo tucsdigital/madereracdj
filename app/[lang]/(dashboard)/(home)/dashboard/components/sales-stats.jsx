@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { useAuth } from "@/provider/auth.provider";
 
 const SalesStats = () => {
+  const { user } = useAuth();
   const hoyISO = new Date().toISOString().split("T")[0];
   const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -19,6 +21,8 @@ const SalesStats = () => {
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [clientesData, setClientesData] = useState({});
+  const COMMISSION_RATE = 0.8; // % comisión fija para clientes nuevos
 
   const toDateSafe = useCallback((value) => {
     if (!value) return null;
@@ -65,6 +69,12 @@ const SalesStats = () => {
         setPresupuestosData(
           presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
         );
+        const clientesSnap = await getDocs(collection(db, "clientes"));
+        const map = {};
+        clientesSnap.docs.forEach((d) => {
+          map[d.id] = { id: d.id, ...d.data() };
+        });
+        setClientesData(map);
       } catch (error) {
         console.error("Error al cargar datos de estadísticas:", error);
       } finally {
@@ -224,6 +234,51 @@ const SalesStats = () => {
     ];
   }, [kpis.envios.domicilio, kpis.envios.retiro, kpis.envios.otro]);
 
+  // Clientes nuevos vs viejos (solo clientes que aparecen en ventas del rango)
+  const clientesCounts = useMemo(() => {
+    let nuevo = 0;
+    let viejo = 0;
+    const ids = new Set((ventasFiltradas || []).map((v) => v.clienteId).filter(Boolean));
+    ids.forEach((id) => {
+      const c = clientesData[id];
+      if (!c) return;
+      if (c.esClienteViejo) viejo += 1; else nuevo += 1;
+    });
+    return { nuevo, viejo };
+  }, [ventasFiltradas, clientesData]);
+
+  const clientesTotal = useMemo(() => clientesCounts.nuevo + clientesCounts.viejo, [clientesCounts]);
+
+  const clientesSegments = useMemo(() => {
+    return [
+      { label: "Nuevos", value: clientesCounts.nuevo || 0, color: "#14b8a6" },
+      { label: "Viejos", value: clientesCounts.viejo || 0, color: "#f97316" },
+    ];
+  }, [clientesCounts]);
+
+  // Comisión sobre ventas de clientes nuevos
+  const totalVendidoClientesNuevos = useMemo(() => {
+    const idsNuevos = new Set(
+      Object.entries(clientesData)
+        .filter(([_, c]) => !c.esClienteViejo)
+        .map(([id]) => id)
+    );
+    return ventasFiltradas
+      .filter((v) => v.clienteId && idsNuevos.has(v.clienteId))
+      .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+  }, [ventasFiltradas, clientesData]);
+
+  // Comisión clientes nuevos (proporcional): Total vendido × (Nuevos / Total clientes) × 0.008
+  const ventasProporcionalesNuevos = useMemo(() => {
+    const total = Number(kpis.ventasMonto) || 0;
+    const propor = clientesTotal > 0 ? (clientesCounts.nuevo / clientesTotal) : 0;
+    return total * propor;
+  }, [kpis.ventasMonto, clientesTotal, clientesCounts.nuevo]);
+
+  const comisionClientesNuevos = useMemo(() => {
+    return ventasProporcionalesNuevos * 0.008;
+  }, [ventasProporcionalesNuevos]);
+
   const Chart = useMemo(() => dynamic(() => import("react-apexcharts"), { ssr: false }), []);
 
   // Apex options
@@ -304,6 +359,32 @@ const SalesStats = () => {
       },
     },
   }), [enviosSegments, enviosTotal]);
+
+  const clientesOptions = useMemo(() => ({
+    chart: { toolbar: { show: false } },
+    labels: clientesSegments.map((s) => s.label.toUpperCase()),
+    stroke: { width: 0 },
+    legend: { show: false },
+    dataLabels: { enabled: false },
+    colors: clientesSegments.map((s) => s.color),
+    plotOptions: {
+      pie: {
+        donut: {
+          size: "78%",
+          labels: {
+            show: true,
+            name: { show: false },
+            value: { show: false },
+            total: {
+              show: true,
+              label: "Total",
+              formatter: () => `${clientesTotal}`,
+            },
+          },
+        },
+      },
+    },
+  }), [clientesSegments, clientesTotal]);
 
   const formasPagoOptions = useMemo(() => ({
     chart: { toolbar: { show: false } },
@@ -398,6 +479,7 @@ const SalesStats = () => {
             </div>
           </div>
         )}
+        {/* Comisión fija 0.8% - sin input editable */}
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
         {loading ? (
@@ -445,9 +527,24 @@ const SalesStats = () => {
                 </div>
                 <div className="text-3xl font-extrabold tracking-tight">{kpis.presupuestosCount}</div>
               </div>
+              {/* Comisión clientes nuevos (proporcional) */}
+                             {user?.email === "mazalautaro.dev@gmail.com" && (
+                 <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión clientes nuevos</div>
+                    <span className="inline-flex w-8 h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
+                      <Icon icon="heroicons:currency-dollar" className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionClientesNuevos))}</div>
+                  <div className="text-xs text-default-500">
+                    Datos: Ventas totales {nf.format(Math.round(kpis.ventasMonto))} · Total clientes {clientesTotal} · Nuevos {clientesCounts.nuevo} · Proporción {(clientesTotal>0?Math.round((clientesCounts.nuevo/clientesTotal)*100):0)}% · Comisión 0.8% (0,008)
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Estado de pago (donut) */}
               <div className="p-4 rounded-xl border border-default-200 bg-card shadow-sm">
                 <div className="text-sm font-semibold mb-3">Estado de pago</div>
@@ -540,6 +637,42 @@ const SalesStats = () => {
                               <span className="truncate max-w-[220px]">{seg.label.toUpperCase()}</span>
                             </span>
                             <span className="font-semibold whitespace-nowrap">{seg.value} ({pct}%)</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Clientes nuevos vs viejos */}
+              <div className="p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+                <div className="text-sm font-semibold mb-3">Clientes (nuevos vs viejos)</div>
+                {clientesTotal === 0 ? (
+                  <div className="text-default-500 text-sm">Sin datos</div>
+                ) : (
+                  <div className="flex items-center gap-6">
+                    <div className="shrink-0 w-[200px] h-[200px]">
+                      {typeof window !== "undefined" && (
+                        <Chart
+                          options={clientesOptions}
+                          series={clientesSegments.map((s) => s.value)}
+                          type="donut"
+                          height={200}
+                          width={200}
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 grid grid-cols-1 gap-2 text-sm">
+                      {clientesSegments.map((seg) => {
+                        const pct = clientesTotal ? Math.round((seg.value / clientesTotal) * 100) : 0;
+                        const color = seg.color;
+                        return (
+                          <div key={seg.label} className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-2 text-default-700">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                              {seg.label}
+                            </span>
+                            <span className="font-semibold">{seg.value} ({pct}%)</span>
                           </div>
                         );
                       })}
