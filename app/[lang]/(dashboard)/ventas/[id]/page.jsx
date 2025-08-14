@@ -845,67 +845,54 @@ const VentaDetalle = () => {
     console.log("venta.clienteId:", venta.clienteId);
     console.log("venta.cliente:", venta.cliente);
 
-    // Validación más robusta del cliente
+    // Validación robusta del cliente (sin bloquear por falta de clienteId)
     if (!ventaEdit.clienteId) {
-      console.log("Error: No hay clienteId en ventaEdit");
-      console.log("Intentando restaurar desde venta original...");
-
-      // Intentar restaurar desde la venta original
-      if (venta.clienteId) {
-        ventaEdit.clienteId = venta.clienteId;
-        console.log("clienteId restaurado:", ventaEdit.clienteId);
-      } else {
-        // Si no hay clienteId, usar el CUIT como identificador alternativo
-        if (ventaEdit.cliente?.cuit) {
-          ventaEdit.clienteId = ventaEdit.cliente.cuit;
-          console.log("Usando CUIT como clienteId:", ventaEdit.clienteId);
-        } else if (venta.cliente?.cuit) {
-          ventaEdit.clienteId = venta.cliente.cuit;
-          console.log(
-            "Usando CUIT de venta original como clienteId:",
-            ventaEdit.clienteId
-          );
-        } else {
-          setErrorForm(
-            "Error: No se encontró ID del cliente ni CUIT en la venta."
-          );
-          return;
-        }
-      }
+      console.log("Advertencia: No hay clienteId en ventaEdit, generando fallback...");
+      // Priorizar: id → CUIT → teléfono → email → id de venta → 'sin-id'
+      const telefonoLimpio = (
+        (ventaEdit.cliente?.telefono || venta.cliente?.telefono || "") + ""
+      )
+        .replace(/\D/g, "")
+        .trim();
+      const fallbackId =
+        venta.clienteId ||
+        ventaEdit.cliente?.cuit ||
+        venta.cliente?.cuit ||
+        (telefonoLimpio || undefined) ||
+        ventaEdit.cliente?.email ||
+        ventaEdit.id ||
+        "sin-id";
+      ventaEdit.clienteId = fallbackId;
+      console.log("clienteId asignado (fallback):", ventaEdit.clienteId);
     }
 
     if (!ventaEdit.cliente) {
-      console.log("Error: No hay objeto cliente en ventaEdit");
-      console.log("Intentando restaurar desde venta original...");
-
-      // Intentar restaurar desde la venta original
-      if (venta.cliente) {
-        ventaEdit.cliente = venta.cliente;
-        console.log("cliente restaurado:", ventaEdit.cliente);
-      } else {
-        // Si no hay objeto cliente, crear uno básico con los datos disponibles
-        const clienteBasico = {
-          nombre: ventaEdit.clienteId || "Cliente sin nombre",
+      console.log("Advertencia: No hay objeto cliente en ventaEdit, armando objeto mínimo...");
+      ventaEdit.cliente =
+        venta.cliente || {
+          nombre: ventaEdit.clienteId || "Cliente",
           cuit: ventaEdit.clienteId || "",
           direccion: "",
           telefono: "",
           email: "",
         };
-        ventaEdit.cliente = clienteBasico;
-        console.log("Cliente básico creado:", ventaEdit.cliente);
-      }
+      console.log("cliente asignado:", ventaEdit.cliente);
     }
 
-    if (!ventaEdit.cliente.nombre) {
-      console.log("Error: No hay nombre del cliente");
-      // Intentar usar CUIT como nombre si no hay nombre
-      if (ventaEdit.cliente.cuit) {
-        ventaEdit.cliente.nombre = `Cliente ${ventaEdit.cliente.cuit}`;
-        console.log("Nombre generado desde CUIT:", ventaEdit.cliente.nombre);
-      } else {
-        ventaEdit.cliente.nombre = "Cliente sin nombre";
-        console.log("Nombre por defecto asignado:", ventaEdit.cliente.nombre);
-      }
+    if (!ventaEdit.cliente?.nombre) {
+      // Evitar confusión por nombres repetidos: priorizar teléfono o CUIT si existen
+      const telefonoLimpio = (
+        (ventaEdit.cliente?.telefono || venta.cliente?.telefono || "") + ""
+      )
+        .replace(/\D/g, "")
+        .trim();
+      ventaEdit.cliente.nombre =
+        (telefonoLimpio ? `Cliente ${telefonoLimpio}` : undefined) ||
+        ventaEdit.cliente?.cuit ||
+        venta.cliente?.nombre ||
+        ventaEdit.clienteId ||
+        "Cliente sin nombre";
+      console.log("Nombre de cliente asignado:", ventaEdit.cliente.nombre);
     }
 
     console.log("✅ Validación del cliente exitosa");
@@ -1603,10 +1590,18 @@ const VentaDetalle = () => {
                 <span className="font-medium">CUIT / DNI:</span>{" "}
                 {venta.cliente?.cuit || "-"}
               </div>
-              <div>
-                <span className="font-medium">Dirección:</span>{" "}
-                {venta.cliente?.direccion || "-"}
-              </div>
+                <div>
+                  <span className="font-medium">Dirección:</span>{" "}
+                  {venta.usarDireccionCliente === false
+                    ? (venta.direccionEnvio || "-")
+                    : (venta.cliente?.direccion || "-")}
+                </div>
+                <div>
+                  <span className="font-medium">Localidad:</span>{" "}
+                  {venta.usarDireccionCliente === false
+                    ? (venta.localidadEnvio || "-")
+                    : (venta.cliente?.localidad || "-")}
+                </div>
               <div>
                 <span className="font-medium">Teléfono:</span>{" "}
                 {venta.cliente?.telefono || "-"}
@@ -1666,7 +1661,15 @@ const VentaDetalle = () => {
                   </div>
                   <div>
                     <span className="font-medium">Dirección:</span>{" "}
-                    {venta.cliente?.direccion || "-"}
+                    {venta.usarDireccionCliente === false
+                      ? (venta.direccionEnvio || "-")
+                      : (venta.cliente?.direccion || "-")}
+                  </div>
+                  <div>
+                    <span className="font-medium">Localidad:</span>{" "}
+                    {venta.usarDireccionCliente === false
+                      ? (venta.localidadEnvio || "-")
+                      : (venta.cliente?.localidad || "-")}
                   </div>
                   <div>
                     <span className="font-medium">Fecha de envío:</span>{" "}

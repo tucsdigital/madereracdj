@@ -40,6 +40,7 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
+import { computeTotals } from "@/lib/pricing";
 
 export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const { user } = useAuth();
@@ -3354,6 +3355,10 @@ const VentasPage = () => {
   const params = useParams();
   const { lang } = params;
 
+  // (Estadísticas movidas al dashboard)
+
+  // Helpers de fecha removidos (usados ahora en dashboard)
+
   React.useEffect(() => {
     const fetchData = async () => {
       try {
@@ -3379,8 +3384,12 @@ const VentasPage = () => {
 
   // Ya no usamos modal ni submit aquí
 
+  // Se eliminaron cálculos de KPIs aquí
+
   return (
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
+      {/* Estadísticas removidas: ahora se muestran en el dashboard */}
+
       <div className="flex flex-col sm:flex-row gap-4 mb-6 px-2">
         <div className="flex-1">
           <Button

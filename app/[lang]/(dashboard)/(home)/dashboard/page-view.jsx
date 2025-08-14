@@ -1,6 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ReportsSnapshot from "./components/reports-snapshot";
+import SalesStats from "./components/sales-stats";
 import CountryMap from "./components/country-map";
 import UserDeviceReport from "./components/user-device-report";
 import UserStats from "./components/user-stats-chart";
@@ -15,16 +16,10 @@ import Link from "next/link";
 const DashboardPageView = ({ trans }) => {
   return (
     <div className="space-y-6">
-      <div className="flex items-center flex-wrap justify-between gap-4">
-        <div className="text-2xl font-medium text-default-800 ">
-          Panel Administrativo
-        </div>
-        {/* <DatePickerWithRange /> */}
-      </div>
       {/* área de reportes */}
       <div className="grid grid-cols-12  gap-6 ">
-        <div className="col-span-12 lg:col-span-8">
-          <ReportsSnapshot />
+        <div className="col-span-12 lg:col-span-12">
+          <SalesStats />
         </div>
         {/* <div className="col-span-12 lg:col-span-4">
           <UsersStat />
