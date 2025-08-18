@@ -294,7 +294,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         let precioPorPie = Number(real.precioPorPie) || 0;
 
         // Verificar si es machimbre o deck para usar cálculo especial
-        if (real.subcategoria === "machimbre" || real.subcategoria === "deck") {
+        if (real.unidad === "M2" || real.unidadMedida === "M2") {
           if (ancho > 0 && largo > 0 && precioPorPie > 0) {
             // Para machimbre, el precio se calcula por m2 y luego se multiplica por cantidad
             precio = calcularPrecioMachimbre({
@@ -307,6 +307,18 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             setSubmitStatus("error");
             setSubmitMessage(
               "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
+            );
+            return;
+          }
+        } else if (real.unidad === "Unidad" || real.unidadMedida === "Unidad") {
+          // Madera por unidad: usar precioPorPie como precio unitario directo
+          if (precioPorPie > 0) {
+            // Redondear a centenas para consistencia
+            precio = Math.round(precioPorPie / 100) * 100;
+          } else {
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto de madera por unidad no tiene un precio válido."
             );
             return;
           }
@@ -390,8 +402,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id) {
           // Si es machimbre o deck, recalcular precio
           if (
-            p.categoria === "Maderas" &&
-            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+            p.categoria === "Maderas" && p.unidad === "M2"
           ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
@@ -427,8 +438,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           // Si es machimbre o deck, recalcular precio
           if (
-            p.categoria === "Maderas" &&
-            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+            p.categoria === "Maderas" && p.unidad === "M2"
           ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
@@ -464,8 +474,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
           // Si es machimbre o deck, recalcular precio
           if (
-            p.categoria === "Maderas" &&
-            (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+            p.categoria === "Maderas" && p.unidad === "M2"
           ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
@@ -525,7 +534,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+          if (p.unidad === "M2") {
             precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -567,7 +576,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+          if (p.unidad === "M2") {
             precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -610,7 +619,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: parsedAlto === "" ? 0 : parsedAlto,
@@ -645,7 +654,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
@@ -680,7 +689,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
@@ -715,8 +724,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria !== "machimbre" &&
-          p.subcategoria !== "deck"
+          p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: parsedAlto === "" ? 0 : parsedAlto,
@@ -750,8 +758,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria !== "machimbre" &&
-          p.subcategoria !== "deck"
+          p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
@@ -785,8 +792,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria !== "machimbre" &&
-          p.subcategoria !== "deck"
+          p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
@@ -820,8 +826,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         if (
           p.id === id &&
           p.categoria === "Maderas" &&
-          p.subcategoria !== "machimbre" &&
-          p.subcategoria !== "deck"
+          p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
@@ -872,7 +877,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => {
       // Para machimbre y deck, el precio ya incluye la cantidad
-      if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+      if (p.unidad === "M2") {
         return acc + Number(p.precio);
       } else {
         return acc + Number(p.precio) * Number(p.cantidad);
@@ -2002,38 +2007,78 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       const alto = Number(prod.alto) || 0;
                                       const ancho = Number(prod.ancho) || 0;
                                       const largo = Number(prod.largo) || 0;
-                                      const precioPorPie =
-                                        Number(prod.precioPorPie) || 0;
-                                      if (
-                                        alto > 0 &&
-                                        ancho > 0 &&
-                                        largo > 0 &&
-                                        precioPorPie > 0
-                                      ) {
-                                        const precio =
-                                          calcularPrecioCorteMadera({
+                                      const precioPorPie = Number(prod.precioPorPie) || 0;
+
+                                      if (prod.unidadMedida === "Unidad") {
+                                        if (precioPorPie > 0) {
+                                          const precioUnidad = Math.round(precioPorPie / 100) * 100;
+                                          handleAgregarProducto({
+                                            id: prod.id,
+                                            nombre: prod.nombre,
+                                            precio: precioUnidad,
+                                            unidad: prod.unidadMedida,
+                                            stock: prod.stock,
                                             alto,
                                             ancho,
                                             largo,
                                             precioPorPie,
                                           });
-                                        handleAgregarProducto({
-                                          id: prod.id,
-                                          nombre: prod.nombre,
-                                          precio,
-                                          unidad: prod.unidadMedida,
-                                          stock: prod.stock,
-                                          alto,
-                                          ancho,
-                                          largo,
-                                          precioPorPie,
-                                        });
+                                        } else {
+                                          setSubmitStatus("error");
+                                          setSubmitMessage("El producto de madera por unidad no tiene un precio válido.");
+                                          return;
+                                        }
+                                      } else if (prod.unidadMedida === "M2") {
+                                        if (alto > 0 && largo > 0 && precioPorPie > 0) {
+                                          const precioM2 = calcularPrecioMachimbre({
+                                            alto,
+                                            largo,
+                                            cantidad: 1,
+                                            precioPorPie,
+                                          });
+                                          handleAgregarProducto({
+                                            id: prod.id,
+                                            nombre: prod.nombre,
+                                            precio: precioM2,
+                                            unidad: prod.unidadMedida,
+                                            stock: prod.stock,
+                                            alto,
+                                            largo,
+                                            precioPorPie,
+                                          });
+                                        } else {
+                                          setSubmitStatus("error");
+                                          setSubmitMessage(
+                                            "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
+                                          );
+                                          return;
+                                        }
                                       } else {
-                                        setSubmitStatus("error");
-                                        setSubmitMessage(
-                                          "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                        );
-                                        return;
+                                        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                          const precioCorte = calcularPrecioCorteMadera({
+                                            alto,
+                                            ancho,
+                                            largo,
+                                            precioPorPie,
+                                          });
+                                          handleAgregarProducto({
+                                            id: prod.id,
+                                            nombre: prod.nombre,
+                                            precio: precioCorte,
+                                            unidad: prod.unidadMedida,
+                                            stock: prod.stock,
+                                            alto,
+                                            ancho,
+                                            largo,
+                                            precioPorPie,
+                                          });
+                                        } else {
+                                          setSubmitStatus("error");
+                                          setSubmitMessage(
+                                            "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                          );
+                                          return;
+                                        }
                                       }
                                     } else {
                                       handleAgregarProducto({
@@ -2305,8 +2350,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               </div>
                             )}
 
-                            {/* Campos editables para maderas */}
-                            {p.categoria === "Maderas" && (
+                            {/* Campos editables para maderas (ocultar cuando unidad es "Unidad") */}
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
                               <div className="mt-2 flex flex-wrap items-start gap-3">
                                 {/* Sección de dimensiones (compacta) */}
                                 <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
@@ -2315,7 +2360,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
                                       Dimensiones
                                     </span>
-                                    {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                    {p.unidad === "M2" ? (
                                       <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
                                         Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
                                       </span>
@@ -2326,7 +2371,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     )}
                                   </div>
 
-                                  {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                  {p.unidad === "M2" ? (
                                     <div className="flex flex-wrap items-end gap-2">
                                       <div className="flex flex-col gap-0.5">
                                         <label className="text-[11px] font-semibold text-orange-700">Alto</label>
@@ -2425,7 +2470,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         step="0.01"
                                         value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
                                         onChange={(e) => {
-                                          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                          if (p.unidad === "M2") {
                                             handlePrecioPorPieChange(p.id, e.target.value);
                                           } else {
                                             handlePrecioPorPieChangeMadera(p.id, e.target.value);
@@ -2504,7 +2549,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             </div>
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
-                            {p.categoria === "Maderas" ? (
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
                               <div className="flex items-center justify-center">
                                 <input
                                   type="checkbox"
@@ -2561,8 +2606,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                             ${formatearNumeroArgentino(
                               // Para machimbres y deck, el precio ya incluye la cantidad
-                              p.categoria === "Maderas" && 
-                              (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+                              p.categoria === "Maderas" && p.unidad === "M2"
                                 ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
                                 : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
                             )}

@@ -1198,6 +1198,19 @@ const ProductosPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
 
+  // Estados para dropdowns
+  const [importDropdownOpen, setImportDropdownOpen] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+
+  // Estados para edición masiva
+  const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
+  const [bulkEditForm, setBulkEditForm] = useState({
+    estado: "",
+    unidadMedida: "",
+  });
+  const [bulkEditLoading, setBulkEditLoading] = useState(false);
+  const [bulkEditMessage, setBulkEditMessage] = useState("");
+
   // Estados para paginación optimizada
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina, setProductosPorPagina] = useState(20);
@@ -2764,6 +2777,29 @@ const ProductosPage = () => {
     setSelectAll(false);
   }, [filtro, cat, filtroTipoMadera, filtroSubCategoria]);
 
+  // Efecto para cerrar dropdowns cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.dropdown-container')) {
+        setImportDropdownOpen(false);
+        setExportDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Efecto para cerrar dropdowns cuando se abren modales
+  useEffect(() => {
+    if (open || openBulk || openBulkFerreteria || openBulkObras || editModalOpen || deleteModalOpen || bulkEditModalOpen) {
+      setImportDropdownOpen(false);
+      setExportDropdownOpen(false);
+    }
+  }, [open, openBulk, openBulkFerreteria, openBulkObras, editModalOpen, deleteModalOpen, bulkEditModalOpen]);
+
   // Funciones para selección múltiple
   const handleSelectProduct = (productId) => {
     setSelectedProducts(prev => {
@@ -2817,6 +2853,68 @@ const ProductosPage = () => {
     }
   };
 
+  // Función para edición masiva de productos
+  const handleBulkEdit = async () => {
+    if (selectedProducts.length === 0) return;
+    
+    setBulkEditLoading(true);
+    setBulkEditMessage("");
+    
+    try {
+      const batch = writeBatch(db);
+      const updates = {};
+      
+      // Solo incluir campos que han sido modificados
+      if (bulkEditForm.estado) {
+        updates.estado = bulkEditForm.estado;
+      }
+      if (bulkEditForm.unidadMedida) {
+        updates.unidadMedida = bulkEditForm.unidadMedida;
+      }
+      
+      // Si no hay campos para actualizar, mostrar mensaje
+      if (Object.keys(updates).length === 0) {
+        setBulkEditMessage("No hay campos para actualizar. Selecciona al menos un campo.");
+        setBulkEditLoading(false);
+        return;
+      }
+      
+      // Agregar fecha de actualización
+      updates.fechaActualizacion = new Date().toISOString();
+      
+      // Aplicar actualizaciones a todos los productos seleccionados
+      selectedProducts.forEach(productId => {
+        const productRef = doc(db, "productos", productId);
+        batch.update(productRef, updates);
+      });
+      
+      await batch.commit();
+      
+      setBulkEditMessage(`Se actualizaron ${selectedProducts.length} producto(s) correctamente`);
+      
+      // Limpiar formulario y cerrar modal después de un delay
+      setTimeout(() => {
+        setBulkEditModalOpen(false);
+        setBulkEditForm({ estado: "", unidadMedida: "" });
+        setBulkEditMessage("");
+        setSelectedProducts([]);
+        setSelectAll(false);
+      }, 2000);
+      
+    } catch (error) {
+      setBulkEditMessage("Error al actualizar productos: " + error.message);
+    } finally {
+      setBulkEditLoading(false);
+    }
+  };
+
+  // Función para abrir modal de edición masiva
+  const openBulkEditModal = () => {
+    setBulkEditForm({ estado: "", unidadMedida: "" });
+    setBulkEditMessage("");
+    setBulkEditModalOpen(true);
+  };
+
   return (
     <div className="py-8 px-2 max-w-8xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
@@ -2830,8 +2928,9 @@ const ProductosPage = () => {
       </div>
       <Card>
         <CardHeader className="flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
+            {/* Filtros y búsqueda */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
               <select
                 value={cat}
                 onChange={(e) => {
@@ -2840,7 +2939,7 @@ const ProductosPage = () => {
                   setFiltroTipoMadera("");
                   setFiltroSubCategoria("");
                 }}
-                className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm hover:border-gray-400 transition-colors"
               >
                 <option value="">Todas las categorías</option>
                 {categorias.map((c) => (
@@ -2851,57 +2950,176 @@ const ProductosPage = () => {
                 placeholder="Buscar producto..."
                 value={filtro}
                 onChange={(e) => setFiltro(e.target.value)}
-                className="w-full md:w-64"
+                className="w-full sm:w-64 shadow-sm hover:shadow-md transition-shadow"
               />
-              <Button variant="default" onClick={() => setOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" />
+            </div>
+
+            {/* Botones de acción principales */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+              {/* Botón Agregar Producto */}
+              <Button 
+                variant="default" 
+                onClick={() => setOpen(true)}
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
+              >
+                <Plus className="w-4 h-4 mr-2" />
                 Agregar Producto
               </Button>
-              <Button variant="outline" onClick={() => setOpenBulk(true)}>
-                <Upload className="w-4 h-4 mr-1" />
-                Importar Maderas
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setOpenBulkFerreteria(true)}
-              >
-                <Upload className="w-4 h-4 mr-1" />
-                Importar Ferretería
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setOpenBulkObras(true)}
-              >
-                <Upload className="w-4 h-4 mr-1" />
-                Importar Obras
-              </Button>
-              <Button
-                variant="outline"
-                onClick={exportarMaderasCSV}
-                className="bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Exportar Maderas
-              </Button>
-              <Button
-                variant="outline"
-                onClick={exportarFerreteriaCSV}
-                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                Exportar Ferretería
-              </Button>
-              {selectedProducts.length > 0 && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteModalOpen(true)}
-                  className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+
+              {/* Botón Importar con dropdown */}
+              <div className="relative dropdown-container">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setImportDropdownOpen(!importDropdownOpen)}
+                  className="w-full sm:w-auto border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 font-medium"
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar
+                  <svg className={`w-4 h-4 ml-2 transition-transform duration-200 ${importDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
-                  Borrar Seleccionados ({selectedProducts.length})
                 </Button>
+                
+                {/* Dropdown de importación */}
+                {importDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-100">
+                        Seleccionar tipo de importación
+                      </div>
+                      <button
+                        onClick={() => {
+                          setOpenBulk(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                          🌲
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Importar Maderas</div>
+                          <div className="text-xs text-gray-500">Productos de madera desde CSV</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOpenBulkFerreteria(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                          🔧
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Importar Ferretería</div>
+                          <div className="text-xs text-gray-500">Herramientas y accesorios</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOpenBulkObras(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-green-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                          🏗️
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Importar Obras</div>
+                          <div className="text-xs text-gray-500">Productos para construcción</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón Exportar con dropdown */}
+              <div className="relative dropdown-container">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                  className="w-full sm:w-auto border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all duration-200 font-medium"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar
+                  <svg className={`w-4 h-4 ml-2 transition-transform duration-200 ${exportDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Button>
+                
+                {/* Dropdown de exportación */}
+                {exportDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-100">
+                        Seleccionar tipo de exportación
+                      </div>
+                      <button
+                        onClick={() => {
+                          exportarMaderasCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                          🌲
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Exportar Maderas</div>
+                          <div className="text-xs text-gray-500">Descargar catálogo de maderas</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportarFerreteriaCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                          🔧
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Exportar Ferretería</div>
+                          <div className="text-xs text-gray-500">Descargar catálogo de ferretería</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botones de acción para productos seleccionados (solo visible cuando hay selección) */}
+              {selectedProducts.length > 0 && (
+                <>
+                  {/* Botón Editar Masivo */}
+                  <Button
+                    variant="outline"
+                    onClick={openBulkEditModal}
+                    className="w-full sm:w-auto border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 font-medium text-blue-700"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Editar ({selectedProducts.length})
+                  </Button>
+
+                  {/* Botón Borrar Seleccionados */}
+                  <Button
+                    variant="destructive"
+                    onClick={() => setDeleteModalOpen(true)}
+                    className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Borrar ({selectedProducts.length})
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -4420,26 +4638,181 @@ const ProductosPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de confirmación de borrado */}
-      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className="w-[95vw] max-w-[500px]">
+      {/* Modal de Edición Masiva */}
+      <Dialog open={bulkEditModalOpen} onOpenChange={setBulkEditModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              Confirmar Borrado
+              Edición Masiva de Productos
             </DialogTitle>
           </DialogHeader>
           
           <div className="py-4">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            {/* Información de productos seleccionados */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-semibold text-blue-800">Productos Seleccionados</span>
+              </div>
+              <p className="text-blue-700">
+                Se editarán <strong>{selectedProducts.length}</strong> producto(s) seleccionado(s).
+                Los cambios se aplicarán a todos los productos de la selección.
+              </p>
+            </div>
+
+            {/* Formulario de edición masiva */}
+            <div className="space-y-6">
+              {/* Campo Estado */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Estado de los Productos
+                </label>
+                <select
+                  value={bulkEditForm.estado}
+                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, estado: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">No cambiar estado</option>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+                <p className="text-xs text-gray-500">
+                  Selecciona un nuevo estado para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              {/* Campo Unidad de Medida */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Unidad de Medida
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={bulkEditForm.unidadMedida}
+                    onChange={(e) => setBulkEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">No cambiar unidad de medida</option>
+                    {unidadesMedida.map((unidad) => (
+                      <option key={unidad} value={unidad}>
+                        {unidad}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddUnidadMedida(true)}
+                    className="px-3"
+                  >
+                    +
+                  </Button>
+                </div>
+                {showAddUnidadMedida && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      placeholder="Nueva unidad de medida"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                    >
+                      Agregar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddUnidadMedida(false);
+                        setNewValue("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  Selecciona una nueva unidad de medida para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              {/* Mensaje de estado */}
+              {bulkEditMessage && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  bulkEditMessage.startsWith("Error")
+                    ? "bg-red-50 text-red-800 border border-red-200"
+                    : "bg-green-50 text-green-800 border border-green-200"
+                }`}>
+                  {bulkEditMessage}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setBulkEditModalOpen(false)}
+              disabled={bulkEditLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleBulkEdit}
+              disabled={bulkEditLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {bulkEditLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Actualizar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación de borrado */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-red-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                <span className="font-semibold text-red-800">¡Atención!</span>
-              </div>
+                Confirmar Borrado
+              </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span className="font-semibold text-red-800">¡Atención!</span>
+                  </div>
               <p className="text-red-700">
                 Estás a punto de eliminar <strong>{selectedProducts.length}</strong> producto(s) de forma permanente.
                 Esta acción no se puede deshacer.

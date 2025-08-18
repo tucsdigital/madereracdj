@@ -321,7 +321,7 @@ const VentaDetalle = () => {
         if (p.id === productoId && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+          if (p.unidad === "M2") {
             // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
               alto: p.alto,
@@ -361,7 +361,7 @@ const VentaDetalle = () => {
         if (p.id === id && p.categoria === "Maderas") {
           let precioBase;
 
-          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+          if (p.unidad === "M2") {
             // Para machimbres/deck: usar la fórmula específica
             precioBase = calcularPrecioMachimbre({
               alto: p.alto,
@@ -517,8 +517,8 @@ const VentaDetalle = () => {
         if (p.id === id) {
           const nuevaCantidad = Math.max(1, p.cantidad - 1);
           
-          // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && p.unidad === "M2") {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -553,8 +553,8 @@ const VentaDetalle = () => {
         if (p.id === id) {
           const nuevaCantidad = p.cantidad + 1;
           
-          // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && p.unidad === "M2") {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -587,8 +587,8 @@ const VentaDetalle = () => {
       ...prev,
       productos: prev.productos.map((p) => {
         if (p.id === id) {
-          // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && p.unidad === "M2") {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -660,8 +660,7 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.categoria === "Maderas" && p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: Number(nuevoAlto),
@@ -694,8 +693,7 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.categoria === "Maderas" && p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: Number(nuevoAncho),
@@ -728,8 +726,7 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" &&
-          (p.subcategoria === "machimbre" || p.subcategoria === "deck")
+          p.categoria === "Maderas" && p.unidad !== "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
@@ -761,7 +758,7 @@ const VentaDetalle = () => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
           const alto = Number(nuevoAlto);
           const ancho = Number(p.ancho);
           const largo = Number(p.largo);
@@ -783,7 +780,7 @@ const VentaDetalle = () => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
           const alto = Number(p.alto);
           const ancho = Number(nuevoAncho);
           const largo = Number(p.largo);
@@ -805,7 +802,7 @@ const VentaDetalle = () => {
     setVentaEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.subcategoria !== "machimbre" && p.subcategoria !== "deck") {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
           const alto = Number(p.alto);
           const ancho = Number(p.ancho);
           const largo = Number(nuevoLargo);
@@ -2706,7 +2703,7 @@ const VentaDetalle = () => {
                                 </div>
                               )}
 
-                              {p.categoria === "Maderas" && (
+                              {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
                                 <div className="mt-2 flex flex-wrap items-start gap-3">
                                   <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
                                     <div className="flex items-center gap-1.5 mb-1">
@@ -2714,7 +2711,7 @@ const VentaDetalle = () => {
                                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
                                         Dimensiones
                                       </span>
-                                      {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                      {p.unidad === "M2" ? (
                                         <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
                                           Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
                                         </span>
@@ -2725,7 +2722,7 @@ const VentaDetalle = () => {
                                       )}
                                     </div>
 
-                                    {p.subcategoria === "machimbre" || p.subcategoria === "deck" ? (
+                                    {p.unidad === "M2" ? (
                                       <div className="flex flex-wrap items-end gap-2">
                                         <div className="flex flex-col gap-0.5">
                                           <label className="text-[11px] font-semibold text-orange-700">Alto</label>
@@ -2764,7 +2761,7 @@ const VentaDetalle = () => {
                                       <div className="relative">
                                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
                                         <input type="number" min="0" step="0.01" value={p.precioPorPie === "" ? "" : p.precioPorPie || ""} onChange={(e) => {
-                                          if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                                          if (p.unidad === "M2") {
                                             handlePrecioPorPieChange(p.id, e.target.value);
                                           } else {
                                             handlePrecioPorPieChangeMadera(p.id, e.target.value);
