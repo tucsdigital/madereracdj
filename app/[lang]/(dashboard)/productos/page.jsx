@@ -73,6 +73,21 @@ function calcularPrecioCorteMadera({
   return Math.round(precio / 100) * 100;
 }
 
+// Función para calcular precio de machimbre/deck (unidad M2)
+function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
+  if (
+    [alto, largo, cantidad, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const metrosCuadrados = alto * largo;
+  const precio = metrosCuadrados * precioPorPie * cantidad;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
 // Esquemas de validación por categoría
 const baseSchema = {
   codigo: yup.string().required("El código es obligatorio"),
@@ -2642,18 +2657,31 @@ const ProductosPage = () => {
       const producto = productos.find((p) => p.id === id);
 
       if (producto && producto.categoria === "Maderas") {
-        // Calcular el nuevo precio con el nuevo precio por pie
-        const precioBase = calcularPrecioCorteMadera({
-          alto: Number(producto.alto) || 0,
-          ancho: Number(producto.ancho) || 0,
-          largo: Number(producto.largo) || 0,
-          precioPorPie: Number(nuevoPrecioPorPie),
-        });
+        // Calcular el nuevo precio considerando la unidad de medida
+        let precioBase = 0;
+        const unidad = (producto.unidadMedida || "").toString();
+        if (unidad === "M2") {
+          precioBase = calcularPrecioMachimbre({
+            alto: Number(producto.alto) || 0,
+            largo: Number(producto.largo) || 0,
+            cantidad: 1,
+            precioPorPie: Number(nuevoPrecioPorPie) || 0,
+          });
+        } else if (unidad === "Unidad") {
+          const p = Number(nuevoPrecioPorPie) || 0;
+          precioBase = Math.round(p / 100) * 100;
+        } else {
+          precioBase = calcularPrecioCorteMadera({
+            alto: Number(producto.alto) || 0,
+            ancho: Number(producto.ancho) || 0,
+            largo: Number(producto.largo) || 0,
+            precioPorPie: Number(nuevoPrecioPorPie) || 0,
+          });
+        }
 
         const precioConCepillado = precioBase * 1.066;
-        const precioFinal = producto.cepilladoAplicado
-          ? precioConCepillado
-          : precioBase;
+        const aplicarCepillado = unidad !== "Unidad" && (producto.cepilladoAplicado || false);
+        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
 
         // Redondear a centenas (múltiplos de 100)
         const precioRedondeado = Math.round(precioFinal / 100) * 100;
@@ -2688,16 +2716,31 @@ const ProductosPage = () => {
       const producto = productos.find((p) => p.id === id);
 
       if (producto && producto.categoria === "Maderas") {
-        // Calcular el nuevo precio con o sin cepillado
-        const precioBase = calcularPrecioCorteMadera({
-          alto: Number(producto.alto) || 0,
-          ancho: Number(producto.ancho) || 0,
-          largo: Number(producto.largo) || 0,
-          precioPorPie: Number(producto.precioPorPie) || 0,
-        });
+        // Calcular el nuevo precio con o sin cepillado, respetando la unidad de medida
+        let precioBase = 0;
+        const unidad = (producto.unidadMedida || "").toString();
+        if (unidad === "M2") {
+          precioBase = calcularPrecioMachimbre({
+            alto: Number(producto.alto) || 0,
+            largo: Number(producto.largo) || 0,
+            cantidad: 1,
+            precioPorPie: Number(producto.precioPorPie) || 0,
+          });
+        } else if (unidad === "Unidad") {
+          const p = Number(producto.precioPorPie) || 0;
+          precioBase = Math.round(p / 100) * 100;
+        } else {
+          precioBase = calcularPrecioCorteMadera({
+            alto: Number(producto.alto) || 0,
+            ancho: Number(producto.ancho) || 0,
+            largo: Number(producto.largo) || 0,
+            precioPorPie: Number(producto.precioPorPie) || 0,
+          });
+        }
 
         const precioConCepillado = precioBase * 1.066;
-        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
+        const debeAplicarCepillado = unidad !== "Unidad" && aplicarCepillado;
+        const precioFinal = debeAplicarCepillado ? precioConCepillado : precioBase;
 
         // Redondear a centenas (múltiplos de 100)
         const precioRedondeado = Math.round(precioFinal / 100) * 100;
@@ -3266,10 +3309,10 @@ const ProductosPage = () => {
                       Cantidad
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Cepillado
+                      Precio unit.
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Precio unit.
+                      Precio Cepillado
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Precio total
@@ -3374,58 +3417,65 @@ const ProductosPage = () => {
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         {p.categoria === "Maderas" ? (
-                          <div className="flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={p.cepilladoAplicado || false}
-                              onChange={(e) => {
-                                handleCepilladoChange(p.id, e.target.checked);
-                              }}
-                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                              title="Aplicar cepillado (+6.6%)"
-                            />
+                          <div className="flex items-center justify-center font-semibold text-default-900">
+                            ${formatearNumeroArgentino((() => {
+                              const unidad = (p.unidadMedida || "").toString();
+                              if (unidad === "M2") {
+                                return calcularPrecioMachimbre({
+                                  alto: Number(p.alto) || 0,
+                                  largo: Number(p.largo) || 0,
+                                  cantidad: 1,
+                                  precioPorPie: Number(p.precioPorPie) || 0,
+                                });
+                              } else if (unidad === "Unidad") {
+                                const pUnit = Number(p.precioPorPie) || 0;
+                                return Math.round(pUnit / 100) * 100;
+                              }
+                              return calcularPrecioCorteMadera({
+                                alto: Number(p.alto) || 0,
+                                ancho: Number(p.ancho) || 0,
+                                largo: Number(p.largo) || 0,
+                                precioPorPie: Number(p.precioPorPie) || 0,
+                              });
+                            })())}
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <div className="flex items-center justify-center font-semibold text-default-900">
+                            ${formatearNumeroArgentino(Number(p.valorVenta) || 0)}
+                          </div>
                         )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         {p.categoria === "Maderas" ? (
-                          <div className="flex flex-col items-center">
-                            <span className="font-bold text-lg">
-                              $
-                              {formatearNumeroArgentino(
-                                (() => {
-                                  const precioBase = calcularPrecioCorteMadera({
-                                    alto: Number(p.alto) || 0,
-                                    ancho: Number(p.ancho) || 0,
-                                    largo: Number(p.largo) || 0,
-                                    precioPorPie: Number(p.precioPorPie) || 0,
-                                  });
-                                  const precioConCepillado = precioBase * 1.066;
-                                  const precioFinal = p.cepilladoAplicado
-                                    ? precioConCepillado
-                                    : precioBase;
-                                  // Redondear a centenas (múltiplos de 100)
-                                  return Math.round(precioFinal / 100) * 100;
-                                })()
-                              )}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {p.cepilladoAplicado
-                                ? "Con cepillado"
-                                : "Sin cepillado"}
-                            </span>
+                          <div className="flex items-center justify-center font-semibold text-default-900">
+                            ${formatearNumeroArgentino((() => {
+                              const unidad = (p.unidadMedida || "").toString();
+                              let precioBase = 0;
+                              if (unidad === "M2") {
+                                precioBase = calcularPrecioMachimbre({
+                                  alto: Number(p.alto) || 0,
+                                  largo: Number(p.largo) || 0,
+                                  cantidad: 1,
+                                  precioPorPie: Number(p.precioPorPie) || 0,
+                                });
+                              } else if (unidad === "Unidad") {
+                                const pUnit = Number(p.precioPorPie) || 0;
+                                precioBase = Math.round(pUnit / 100) * 100;
+                              } else {
+                                precioBase = calcularPrecioCorteMadera({
+                                  alto: Number(p.alto) || 0,
+                                  ancho: Number(p.ancho) || 0,
+                                  largo: Number(p.largo) || 0,
+                                  precioPorPie: Number(p.precioPorPie) || 0,
+                                });
+                              }
+                              const aplicaCepillado = unidad !== "Unidad";
+                              const precioConCepillado = aplicaCepillado ? precioBase * 1.066 : precioBase;
+                              return Math.round(precioConCepillado / 100) * 100;
+                            })())}
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center">
-                            <span className="font-bold text-lg">
-                              ${formatearNumeroArgentino(p.valorVenta || 0)}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Valor de venta
-                            </span>
-                          </div>
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -3437,27 +3487,29 @@ const ProductosPage = () => {
                                 const precioUnitario =
                                   p.categoria === "Maderas"
                                     ? (() => {
-                                        const precioBase =
-                                          calcularPrecioCorteMadera({
+                                        const unidad = (p.unidadMedida || "").toString();
+                                        const cantidad = Number(p.cantidad) || 1;
+                                        if (unidad === "M2") {
+                                          return calcularPrecioMachimbre({
                                             alto: Number(p.alto) || 0,
-                                            ancho: Number(p.ancho) || 0,
                                             largo: Number(p.largo) || 0,
-                                            precioPorPie:
-                                              Number(p.precioPorPie) || 0,
+                                            cantidad,
+                                            precioPorPie: Number(p.precioPorPie) || 0,
                                           });
-                                        const precioConCepillado =
-                                          precioBase * 1.066;
-                                        const precioFinal = p.cepilladoAplicado
-                                          ? precioConCepillado
-                                          : precioBase;
-                                        // Redondear a centenas (múltiplos de 100)
-                                        return (
-                                          Math.round(precioFinal / 100) * 100
-                                        );
+                                        } else if (unidad === "Unidad") {
+                                          const pUnit = Math.round((Number(p.precioPorPie) || 0) / 100) * 100;
+                                          return Math.round((pUnit * cantidad) / 100) * 100;
+                                        }
+                                        const base = calcularPrecioCorteMadera({
+                                          alto: Number(p.alto) || 0,
+                                          ancho: Number(p.ancho) || 0,
+                                          largo: Number(p.largo) || 0,
+                                          precioPorPie: Number(p.precioPorPie) || 0,
+                                        });
+                                        return Math.round((base * cantidad) / 100) * 100;
                                       })()
-                                    : Number(p.valorVenta) || 0;
-                                const cantidad = Number(p.cantidad) || 1;
-                                return precioUnitario * cantidad;
+                                    : (Number(p.valorVenta) || 0) * (Number(p.cantidad) || 1);
+                                return precioUnitario;
                               })()
                             )}
                           </span>
