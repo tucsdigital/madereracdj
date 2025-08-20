@@ -28,6 +28,7 @@ export async function GET(request) {
     const cepillado = (searchParams.get("cepillado") || "false").toLowerCase() === "true";
     const redondearParam = searchParams.get("redondear");
     const redondear = redondearParam == null ? true : redondearParam.toLowerCase() !== "false";
+    const modoRedondeo = (searchParams.get("modoRedondeo") || "total").toLowerCase();
 
     let producto = null;
 
@@ -61,7 +62,7 @@ export async function GET(request) {
     }
 
     const normalized = normalizarProductoEntrada(producto);
-    const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear });
+    const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
     return withCors(NextResponse.json({ id: producto.id, producto: normalized, pricing }));
   } catch (err) {
     return withCors(NextResponse.json({ error: err.message }, { status: 500 }));
@@ -74,6 +75,7 @@ export async function POST(request) {
     const body = await request.json();
     const items = Array.isArray(body?.items) ? body.items : [];
     const redondear = body?.redondear == null ? true : Boolean(body.redondear);
+    const modoRedondeo = typeof body?.modoRedondeo === "string" ? String(body.modoRedondeo).toLowerCase() : "total";
     if (!Array.isArray(items) || items.length === 0) {
       return withCors(NextResponse.json({ error: "items vacío" }, { status: 400 }));
     }
@@ -93,7 +95,7 @@ export async function POST(request) {
       const cantidad = typeof it.cantidad === "number" ? it.cantidad : parseFloat(String(it.cantidad || "1"));
       const cepillado = Boolean(it.cepillado);
       const normalized = normalizarProductoEntrada(prod);
-      const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear });
+      const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
       out.push({ id: normalized.id, producto: normalized, pricing });
     }
 
