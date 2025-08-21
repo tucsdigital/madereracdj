@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { aplicarCorsPublico, preflightCorsPublico, jsonPublico } from "@/lib/cors-publico";
-
-// Misma fuente que /settings/general
-const sucursales = [
-  { nombre: "Sucursal Centro", direccion: "Av. Siempre Viva 742", lat: -34.6037, lng: -58.3816, radio: 5000 },
-];
+import { obtenerSettingsGeneral } from "@/lib/settings";
 
 function distanciaKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -27,7 +23,7 @@ export async function GET(request) {
     return jsonPublico({ error: "Coordenadas inválidas" }, { status: 400 }, request);
   }
 
-  const locations = sucursales;
+  const { locations } = await obtenerSettingsGeneral();
   if (!locations || locations.length === 0) {
     return jsonPublico({ error: "No hay tiendas registradas" }, { status: 404 }, request);
   }
