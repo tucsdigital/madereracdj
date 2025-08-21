@@ -29,6 +29,21 @@ export async function GET(request) {
     const redondearParam = searchParams.get("redondear");
     const redondear = redondearParam == null ? true : redondearParam.toLowerCase() !== "false";
     const modoRedondeo = (searchParams.get("modoRedondeo") || "total").toLowerCase();
+    const allParam = searchParams.get("all");
+    const listarTodos = allParam != null && ["1", "true", "t", "si", "sí", "yes"].includes(allParam.toLowerCase());
+
+    // Listado completo del catálogo con pricing
+    if (listarTodos) {
+      const snap = await getDocs(collection(db, "productos"));
+      const items = [];
+      snap.forEach((d) => {
+        const prod = { id: d.id, ...d.data() };
+        const normalized = normalizarProductoEntrada(prod);
+        const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
+        items.push({ id: normalized.id, producto: normalized, pricing });
+      });
+      return withCors(NextResponse.json({ items, total: items.length }));
+    }
 
     let producto = null;
 
