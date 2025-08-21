@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { verifyFirebaseToken } from "@/lib/firebase-admin";
+import { verifyFirebaseToken, isDevBypassEnabled } from "@/lib/firebase-admin";
 import { json, errorJson, corsPreflight } from "@/lib/api-helpers";
 import { validateDireccionUpsert, trimOrEmpty } from "@/lib/validation";
 
@@ -18,7 +18,9 @@ export async function PUT(request, { params }) {
     const uid = params?.uid;
     const id = params?.id;
     if (!uid || !id) return errorJson("Missing uid or id", 400, request);
-    if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    if (!isDevBypassEnabled()) {
+      if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    }
 
     const body = await request.json();
     const { direccion, localidad, codigoPostal, lat, lng } = validateDireccionUpsert(body || {});
@@ -70,7 +72,9 @@ export async function DELETE(request, { params }) {
     const uid = params?.uid;
     const id = params?.id;
     if (!uid || !id) return errorJson("Missing uid or id", 400, request);
-    if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    if (!isDevBypassEnabled()) {
+      if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    }
 
     const nowIso = new Date().toISOString();
     const ref = doc(db, "clientes", uid);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { verifyFirebaseToken } from "@/lib/firebase-admin";
+import { verifyFirebaseToken, isDevBypassEnabled } from "@/lib/firebase-admin";
 import { json, errorJson, corsPreflight } from "@/lib/api-helpers";
 import { validateClienteUpsert, trimOrEmpty } from "@/lib/validation";
 
@@ -21,8 +21,10 @@ export async function POST(request) {
     const uid = uidFromBody || uidFromToken;
 
     if (!uid) return errorJson("uid es obligatorio", 400, request);
-    if (uidFromBody && uidFromBody !== uidFromToken) {
-      return errorJson("forbidden", 403, request);
+    if (!isDevBypassEnabled()) {
+      if (uidFromBody && uidFromBody !== uidFromToken) {
+        return errorJson("forbidden", 403, request);
+      }
     }
 
     const { nombre, telefono, cuit, email } = validateClienteUpsert(body || {});

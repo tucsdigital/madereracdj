@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { verifyFirebaseToken } from "@/lib/firebase-admin";
+import { verifyFirebaseToken, isDevBypassEnabled } from "@/lib/firebase-admin";
 import { json, errorJson, corsPreflight } from "@/lib/api-helpers";
 import { validateDireccionUpsert, trimOrEmpty } from "@/lib/validation";
 
@@ -17,7 +17,9 @@ export async function GET(request, { params }) {
     const uidFromToken = decoded?.uid;
     const uid = params?.uid;
     if (!uid) return errorJson("Missing uid", 400, request);
-    if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    if (!isDevBypassEnabled()) {
+      if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    }
 
     const ref = doc(db, "clientes", uid);
     const snap = await getDoc(ref);
@@ -41,7 +43,9 @@ export async function POST(request, { params }) {
     const uidFromToken = decoded?.uid;
     const uid = params?.uid;
     if (!uid) return errorJson("Missing uid", 400, request);
-    if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    if (!isDevBypassEnabled()) {
+      if (uid !== uidFromToken) return errorJson("forbidden", 403, request);
+    }
 
     const body = await request.json();
     const { direccion, localidad, codigoPostal, lat, lng } = validateDireccionUpsert(body || {});
