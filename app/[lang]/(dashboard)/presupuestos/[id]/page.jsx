@@ -1050,51 +1050,92 @@ const PresupuestoDetalle = () => {
   return (
     <div className="min-h-screen py-8">
       <style>{`
-        @media print {
-          @page { 
-            margin: 20px !important; 
-            size: A4;
-          }
-          body { 
-            margin: 0 !important; 
-            padding: 0 !important; 
-          }
-          body * { visibility: hidden !important; }
-          #presupuesto-print, #presupuesto-print * { visibility: visible !important; }
-          #presupuesto-print .no-print, #presupuesto-print .no-print * { display: none !important; }
-          #presupuesto-print {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            background: white !important;
-          }
-          /* Layout de 2 columnas para impresión */
-          #presupuesto-print .grid { 
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 20px !important;
-            margin-bottom: 20px !important;
-          }
-          #presupuesto-print .bg-card {
-            background: #f9fafb !important;
-            padding: 15px !important;
-            border-radius: 8px !important;
-          }
-          /* Reducir tamaños de fuente para que quepa todo */
-          #presupuesto-print h3 {
-            font-size: 14px !important;
-            margin-bottom: 8px !important;
-          }
-          #presupuesto-print .text-sm {
-            font-size: 11px !important;
-          }
-          #presupuesto-print .space-y-2 > div {
-            margin-bottom: 4px !important;
-          }
-        }
+    @media print {
+      @page { 
+        margin: 20px !important; 
+        size: A4;
+      }
+      body { 
+        margin: 0 !important; 
+        padding: 0 !important; 
+      }
+      body * { visibility: hidden !important; }
+      #presupuesto-print, #presupuesto-print * { visibility: visible !important; }
+      #presupuesto-print .no-print, #presupuesto-print .no-print * { display: none !important; }
+      #presupuesto-print {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        background: white !important;
+      }
+      /* Layout 2 columnas con espaciado sutil para legibilidad (igual a ventas) */
+      #presupuesto-print .grid { 
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 16px !important;
+        margin-bottom: 12px !important;
+      }
+      /* Tarjetas sin sombras pero con separación mínima */
+      #presupuesto-print .bg-card {
+        background: #fff !important;
+        padding: 8px !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+      }
+      /* Reducir tamaños de fuente para que quepa todo */
+      #presupuesto-print h3 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      #presupuesto-print .text-sm { font-size: 11px !important; }
+      #presupuesto-print h3 { margin: 0 0 6px 0 !important; }
+      #presupuesto-print .space-y-2 > div { margin-bottom: 3px !important; }
+      /* Reducir espaciados utilitarios en impresión */
+      #presupuesto-print .p-6, 
+      #presupuesto-print .p-4 { padding: 8px !important; }
+      #presupuesto-print .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+      #presupuesto-print .py-4 { padding-top: 8px !important; padding-bottom: 8px !important; }
+      #presupuesto-print .mb-6 { margin-bottom: 10px !important; }
+      #presupuesto-print .mb-4 { margin-bottom: 8px !important; }
+      #presupuesto-print .mt-6 { margin-top: 10px !important; }
+      #presupuesto-print .mt-4 { margin-top: 8px !important; }
+      /* Compactar tabla de productos */
+      #presupuesto-print table th, 
+      #presupuesto-print table td { padding-top: 6px !important; padding-bottom: 6px !important; }
+      #presupuesto-print .border-b { border-bottom: 1px solid #e5e7eb !important; }
+
+      /* Estilos específicos para impresión de empleados (compatibles con ventas) */
+      body.print-empleado #presupuesto-print .precio-empleado,
+      body.print-empleado #presupuesto-print .subtotal-empleado,
+      body.print-empleado #presupuesto-print .total-empleado,
+      body.print-empleado #presupuesto-print .descuento-empleado,
+      body.print-empleado #presupuesto-print .costo-envio-empleado,
+      body.print-empleado #presupuesto-print .monto-abonado-empleado,
+      body.print-empleado #presupuesto-print .saldo-pendiente-empleado,
+      body.print-empleado #presupuesto-print .estado-pago-empleado,
+      body.print-empleado #presupuesto-print .forma-pago-empleado,
+      body.print-empleado #presupuesto-print .historial-pagos-empleado {
+        display: none !important;
+      }
+
+      /* Mostrar/ocultar mensaje empleados (si existiera) */
+      body.print-empleado #presupuesto-print .mensaje-empleado {
+        display: block !important;
+        background: #f0f9ff !important;
+        border: 2px solid #0ea5e9 !important;
+        padding: 15px !important;
+        margin: 20px 0 !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        color: #0c4a6e !important;
+      }
+      body:not(.print-empleado) #presupuesto-print .mensaje-empleado { display: none !important; }
+    }
       `}</style>
       <div id="presupuesto-print" className="mx-auto px-4">
         {/* Logo y cabecera profesional para impresión */}
