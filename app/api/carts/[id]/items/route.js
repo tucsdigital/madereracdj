@@ -24,7 +24,7 @@ export function OPTIONS(request) {
 }
 
 export async function POST(request, { params }) {
-  const carritoId = params?.carritoId ? String(params.carritoId) : "";
+  const carritoId = params?.id ? String(params.id) : "";
   try {
     if (!carritoId) return jsonError("carritoId requerido", { status: 400 }, request);
     const body = await request.json().catch(() => ({}));

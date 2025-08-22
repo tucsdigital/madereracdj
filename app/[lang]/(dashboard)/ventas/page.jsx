@@ -117,13 +117,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       .min(1, "Agrega al menos un ítem"),
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
+    pagoPendiente: yup.boolean(),
     montoAbonado: yup
       .number()
       .transform((value, originalValue) =>
         originalValue === "" ? undefined : value
       )
-      .when("pagoParcial", {
-        is: true,
+      .when(["pagoParcial", "pagoPendiente"], {
+        is: (pagoParcial, pagoPendiente) => Boolean(pagoParcial) && !Boolean(pagoPendiente),
         then: (s) =>
           s
             .typeError("Debe ingresar un monto")
@@ -1029,8 +1030,13 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       if (tipo === "venta") {
         const esPagoParcial = cleanData.pagoParcial || false;
+        const esPagoPendiente = cleanData.pagoPendiente || false;
 
-        if (!esPagoParcial) {
+        if (esPagoPendiente) {
+          // Forzar pendiente: no tomar montoAbonado y marcar 0
+          montoAbonadoFinal = 0;
+          estadoPagoFinal = "pendiente";
+        } else if (!esPagoParcial) {
           // Si NO es pago parcial → montoAbonado = total y estado = "pagado"
           montoAbonadoFinal = total;
           estadoPagoFinal = "pagado";
@@ -1300,10 +1306,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [prioridad, setPrioridad] = useState("");
 
   React.useEffect(() => {
-    if (!watch("pagoParcial")) {
+    if (!watch("pagoParcial") || watch("pagoPendiente")) {
       setValue("montoAbonado", "");
     }
-  }, [watch("pagoParcial")]);
+  }, [watch("pagoParcial"), watch("pagoPendiente")]);
 
   React.useEffect(() => {
     if (watch("tipoEnvio") === "retiro_local") {
@@ -2899,17 +2905,22 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       {errors.formaPago.message}
                     </span>
                   )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      id="pagoParcial"
-                      {...register("pagoParcial")}
-                    />
-                    <label htmlFor="pagoParcial" className="text-sm">
-                      ¿Pago parcial?
+                  <div className="flex items-center gap-4 mt-2">
+                    <label className="inline-flex items-center gap-2">
+                      <input type="checkbox" id="pagoPendiente" {...register("pagoPendiente")} />
+                      <span className="text-sm">¿Pago pendiente?</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="pagoParcial"
+                        {...register("pagoParcial")}
+                        disabled={watch("pagoPendiente")}
+                      />
+                      <span className="text-sm">¿Pago parcial?</span>
                     </label>
                   </div>
-                  {watch("pagoParcial") && (
+                  {watch("pagoParcial") && !watch("pagoPendiente") && (
                     <>
                       <Input
                         type="number"

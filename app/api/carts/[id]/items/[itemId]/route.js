@@ -7,7 +7,7 @@ export function OPTIONS(request) {
 }
 
 export async function PATCH(request, { params }) {
-  const carritoId = String(params?.carritoId || "");
+  const carritoId = String(params?.id || "");
   const itemId = String(params?.itemId || "");
   try {
     if (!carritoId || !itemId) return jsonError("parámetros requeridos", { status: 400 }, request);
@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const carritoId = String(params?.carritoId || "");
+  const carritoId = String(params?.id || "");
   const itemId = String(params?.itemId || "");
   try {
     if (!carritoId || !itemId) return jsonError("parámetros requeridos", { status: 400 }, request);

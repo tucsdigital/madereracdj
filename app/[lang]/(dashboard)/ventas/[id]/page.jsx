@@ -1415,6 +1415,9 @@ const VentaDetalle = () => {
     .animate-fade-in {
       animation: fade-in 0.5s;
     }
+    #venta-print .sello-pendiente { color: #b91c1c; border-color: #b91c1c; }
+    #venta-print .sello-parcial { color: #b45309; border-color: #b45309; }
+    #venta-print .sello-pagado { color: #065f46; border-color: #065f46; }
     @media print {
       @page { 
         margin: 20px !important; 
@@ -1436,29 +1439,42 @@ const VentaDetalle = () => {
         width: 100% !important;
         background: white !important;
       }
-      /* Layout de 2 columnas para impresión */
+      /* Layout 2 columnas con espaciado sutil para legibilidad */
       #venta-print .grid { 
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 20px !important;
-        margin-bottom: 20px !important;
+        gap: 16px !important;
+        margin-bottom: 12px !important;
       }
+      /* Tarjetas sin sombras pero con separación mínima */
       #venta-print .bg-card {
-        background: #f9fafb !important;
-        padding: 15px !important;
-        border-radius: 8px !important;
+        background: #fff !important;
+        padding: 8px !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
       }
       /* Reducir tamaños de fuente para que quepa todo */
       #venta-print h3 {
         font-size: 14px !important;
         margin-bottom: 8px !important;
       }
-      #venta-print .text-sm {
-        font-size: 11px !important;
-      }
-      #venta-print .space-y-2 > div {
-        margin-bottom: 4px !important;
-      }
+      #venta-print .text-sm { font-size: 11px !important; }
+      #venta-print h3 { margin: 0 0 6px 0 !important; }
+      #venta-print .space-y-2 > div { margin-bottom: 3px !important; }
+      /* Reducir espaciados utilitarios en impresión, no eliminarlos */
+      #venta-print .p-6, 
+      #venta-print .p-4 { padding: 8px !important; }
+      #venta-print .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+      #venta-print .py-4 { padding-top: 8px !important; padding-bottom: 8px !important; }
+      #venta-print .mb-6 { margin-bottom: 10px !important; }
+      #venta-print .mb-4 { margin-bottom: 8px !important; }
+      #venta-print .mt-6 { margin-top: 10px !important; }
+      #venta-print .mt-4 { margin-top: 8px !important; }
+      /* Compactar tabla de productos */
+      #venta-print table th, 
+      #venta-print table td { padding-top: 6px !important; padding-bottom: 6px !important; }
+      #venta-print .border-b { border-bottom: 1px solid #e5e7eb !important; }
       
       /* Estilos específicos para impresión de empleados */
       body.print-empleado #venta-print .precio-empleado,
@@ -1491,6 +1507,7 @@ const VentaDetalle = () => {
       body:not(.print-empleado) #venta-print .mensaje-empleado {
         display: none !important;
       }
+      
     }
   `}</style>
       <div id="venta-print" className="mx-auto px-4">
@@ -1762,12 +1779,12 @@ const VentaDetalle = () => {
         </div>
 
         {/* 3. Información de Pagos */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-4 no-print">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
           <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
 
           {/* Estado de pago */}
-          <div className="mb-4 bg-card rounded-lg">
-            <div className="flex justify-between items-center">
+          <div className="mb-4 bg-card rounded-lg no-print">
+            <div className="flex justify-between">
               <span className="font-medium">Estado de pago:</span>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -1813,10 +1830,10 @@ const VentaDetalle = () => {
             )}
           </div>
 
-          {/* Historial de pagos si existe */}
-          {Array.isArray(venta.pagos) && venta.pagos.length > 0 && (
-            <div className="mt-4 historial-pagos-empleado">
-              <h4 className="font-medium mb-2">Historial de pagos:</h4>
+          {/* Historial de pagos */}
+          <div className="mt-4 historial-pagos-empleado">
+            <h4 className="font-medium mb-2">Historial de pagos:</h4>
+            {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
               <div className="bg-card rounded-lg p-3">
                 <table className="w-full text-sm">
                   <thead>
@@ -1824,7 +1841,6 @@ const VentaDetalle = () => {
                       <th className="text-left py-1">Fecha</th>
                       <th className="text-left py-1">Método</th>
                       <th className="text-right py-1">Monto</th>
-                      <th className="text-left py-1">Usuario</th>
                       {user?.email === "mazalautaro.dev@gmail.com" && (
                         <th className="text-center py-1">Acciones</th>
                       )}
@@ -1838,7 +1854,6 @@ const VentaDetalle = () => {
                         <td className="py-1 text-right">
                           ${Number(pago.monto).toFixed(2)}
                         </td>
-                        <td className="py-1">{pago.usuario || "-"}</td>
                         {user?.email === "mazalautaro.dev@gmail.com" && (
                           <td className="py-1 text-center">
                             <button
@@ -1883,8 +1898,10 @@ const VentaDetalle = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="text-sm text-gray-600">Sin pagos registrados</div>
+            )}
+          </div>
         </div>
 
         {/* Productos y Servicios */}
