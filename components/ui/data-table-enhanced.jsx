@@ -51,8 +51,64 @@ export function DataTableEnhanced({
   const [globalFilter, setGlobalFilter] = useState("");
   const [rowSelection, setRowSelection] = useState({});
 
+  // Función de filtrado global personalizada que busca en campos anidados
+  const globalFilterFn = useMemo(() => {
+    return (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      
+      const searchValue = filterValue.toLowerCase();
+      const rowData = row.original;
+      
+      // Buscar en todos los campos de la fila
+      for (const column of columns) {
+        if (column.accessorKey) {
+          const value = getNestedValue(rowData, column.accessorKey);
+          if (value && String(value).toLowerCase().includes(searchValue)) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    };
+  }, [columns]);
+
+  // Función auxiliar para obtener valores anidados (ej: cliente.nombre)
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((current, key) => {
+      return current && current[key] !== undefined ? current[key] : null;
+    }, obj);
+  };
+
+  // Filtrar datos localmente antes de pasarlos a la tabla
+  const filteredData = useMemo(() => {
+    if (!globalFilter) return data;
+    
+    const searchValue = globalFilter.toLowerCase();
+    return data.filter(row => {
+      // Buscar en campos específicos que sabemos que existen
+      const searchableFields = [
+        row.numeroPedido,
+        row.cliente?.nombre,
+        row.cliente?.cuit,
+        row.cliente?.email,
+        row.fechaCreacion,
+        row.total,
+        row.vendedor,
+        row.estadoPago,
+        row.estado,
+        row.tipoEnvio,
+        row.costoEnvio
+      ];
+      
+      return searchableFields.some(field => 
+        field && String(field).toLowerCase().includes(searchValue)
+      );
+    });
+  }, [data, globalFilter]);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -64,9 +120,10 @@ export function DataTableEnhanced({
     state: {
       sorting,
       columnFilters,
-      globalFilter,
       rowSelection,
     },
+    // Configurar el filtrado global personalizado
+    globalFilterFn,
   });
 
   const totalRows = table.getFilteredRowModel().rows.length;

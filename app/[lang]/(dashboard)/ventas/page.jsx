@@ -3551,36 +3551,36 @@ const VentasPage = () => {
           {/* Botones de acción mejorados */}
     <div className="flex justify-center gap-4 mb-8 px-2">
       <div>
-        <Button
-          variant="default"
+          <Button
+            variant="default"
           className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-          onClick={() => router.push(`/${lang}/ventas/create`)}
-          disabled={deleting}
-        >
-          <Icon
-            icon="heroicons:shopping-cart"
+            onClick={() => router.push(`/${lang}/ventas/create`)}
+            disabled={deleting}
+          >
+            <Icon
+              icon="heroicons:shopping-cart"
             className="w-5 h-5"
-          />
+            />
           <span className="hidden sm:inline">Crear Venta</span>
-          <span className="sm:hidden">Venta</span>
-        </Button>
-      </div>
+            <span className="sm:hidden">Venta</span>
+          </Button>
+        </div>
       <div>
-        <Button
+          <Button
           variant="default"
           className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
           onClick={() => router.push(`/${lang}/presupuestos/create`)}
-          disabled={deleting}
-        >
-          <Icon
+            disabled={deleting}
+          >
+            <Icon
             icon="heroicons:document-plus"
             className="w-5 h-5"
-          />
+            />
           <span className="hidden sm:inline">Crear Presupuesto</span>
           <span className="sm:hidden">Presupuesto</span>
-        </Button>
+          </Button>
+        </div>
       </div>
-    </div>
 
           {/* Tablas mejoradas */}
     <div className="flex flex-col gap-8 px-2">
@@ -3598,16 +3598,16 @@ const VentasPage = () => {
               <div className="text-2xl font-bold text-gray-900">Ventas</div>
               <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
             </div>
-            {deleting && (
-              <div className="flex items-center gap-2 ml-auto">
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
                 <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                 </div>
                 <span className="text-sm font-medium text-emerald-600">Procesando...</span>
-              </div>
-            )}
-          </CardTitle>
-        </CardHeader>
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
         <CardContent className="pt-6 p-0">
           <div className="overflow-hidden rounded-b-2xl">
             <DataTableEnhanced 
@@ -3621,8 +3621,8 @@ const VentasPage = () => {
               }}
             />
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Tabla de Presupuestos - ÚLTIMA */}
       <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
@@ -3638,16 +3638,16 @@ const VentasPage = () => {
               <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
               <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
             </div>
-            {deleting && (
-              <div className="flex items-center gap-2 ml-auto">
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
                 <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                 </div>
                 <span className="text-sm font-medium text-blue-600">Procesando...</span>
-              </div>
-            )}
-          </CardTitle>
-        </CardHeader>
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
         <CardContent className="pt-6 p-0">
           <div className="overflow-hidden rounded-b-2xl">
             <DataTableEnhanced 
@@ -3661,9 +3661,9 @@ const VentasPage = () => {
               }}
             />
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Diálogo de confirmación de eliminación mejorado */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

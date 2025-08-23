@@ -37,3 +37,10 @@ tsconfig.tsbuildinfo
 /.contentlayer/
 
 .vercel
+
+# public bucket folder
+/public/bucket/
+
+# data folder - generated files
+/data/
+data/
