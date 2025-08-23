@@ -25,6 +25,7 @@ import {
   Star,
   Gift,
   Zap,
+  GripVertical,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -72,12 +73,12 @@ const ProductoDetailPage = () => {
     subcategoria: "",
     tipoMadera: "",
     // Nuevos campos para tienda
-    srcUrl: "",
     imagenes: [],
     discount: {
       amount: 0,
       percentage: 0,
     },
+    rating: 0,
     // Etiquetas
     freeShipping: false,
     featuredBrand: false,
@@ -86,7 +87,6 @@ const ProductoDetailPage = () => {
   });
 
   // Estados para nuevos campos
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
 
   useEffect(() => {
@@ -117,9 +117,9 @@ const ProductoDetailPage = () => {
           subcategoria: productoData.subcategoria || productoData.subCategoria || "",
           tipoMadera: productoData.tipoMadera || "",
           // Nuevos campos para tienda
-          srcUrl: productoData.srcUrl || "",
           imagenes: productoData.imagenes || [],
           discount: productoData.discount || { amount: 0, percentage: 0 },
+          rating: productoData.rating || 0,
           // Etiquetas
           freeShipping: productoData.freeShipping || false,
           featuredBrand: productoData.featuredBrand || false,
@@ -284,14 +284,14 @@ const ProductoDetailPage = () => {
       }
 
       // Nuevos campos para tienda
-      if (editForm.srcUrl !== producto.srcUrl) {
-        updates.srcUrl = editForm.srcUrl;
-      }
       if (JSON.stringify(editForm.imagenes) !== JSON.stringify(producto.imagenes || [])) {
         updates.imagenes = editForm.imagenes;
       }
       if (JSON.stringify(editForm.discount) !== JSON.stringify(producto.discount || { amount: 0, percentage: 0 })) {
         updates.discount = editForm.discount;
+      }
+      if (editForm.rating !== producto.rating) {
+        updates.rating = editForm.rating;
       }
       if (editForm.freeShipping !== producto.freeShipping) {
         updates.freeShipping = editForm.freeShipping;
@@ -321,42 +321,6 @@ const ProductoDetailPage = () => {
       setMessageType("error");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleImageUpload = async (file, type) => {
-    if (!file) return;
-    
-    try {
-      setUploadingImage(true);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al subir imagen');
-      }
-      
-      const result = await response.json();
-      
-      if (type === 'main') {
-        setEditForm(prev => ({
-          ...prev,
-          srcUrl: result.url
-        }));
-      }
-      
-    } catch (error) {
-      setMessage("Error al subir imagen: " + error.message);
-      setMessageType("error");
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -403,6 +367,21 @@ const ProductoDetailPage = () => {
       ...prev,
       imagenes: prev.imagenes.filter((_, i) => i !== index)
     }));
+  };
+
+  const moveImage = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    setEditForm(prev => {
+      const newImagenes = [...prev.imagenes];
+      const [movedImage] = newImagenes.splice(fromIndex, 1);
+      newImagenes.splice(toIndex, 0, movedImage);
+      
+      return {
+        ...prev,
+        imagenes: newImagenes
+      };
+    });
   };
 
   const updateDiscount = (field, value) => {
@@ -917,57 +896,30 @@ const ProductoDetailPage = () => {
               <CardTitle>Configuración de Tienda</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Imagen principal */}
+              {/* Rating */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Imagen Principal
+                  Calificación del Producto
                 </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Selecciona una imagen para la vista principal del producto. Se subirá automáticamente a Vercel Blob.
-                </p>
                 <div className="flex gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e.target.files[0], 'main')}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('mainImageInput').click()}
-                    disabled={uploadingImage}
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Subiendo...
-                      </>
-                    ) : (
-                      'Seleccionar'
-                    )}
-                  </Button>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setEditForm(prev => ({ ...prev, rating: star }))}
+                      className={`p-2 rounded-lg transition-colors ${
+                        editForm.rating >= star
+                          ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Star className="w-6 h-6 fill-current" />
+                    </button>
+                  ))}
                 </div>
-                {editForm.srcUrl && (
-                  <div className="mt-2">
-                    <img 
-                      src={editForm.srcUrl} 
-                      alt="Vista previa" 
-                      className="w-32 h-32 object-cover rounded-lg border border-gray-200"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
-                <input
-                  id="mainImageInput"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e.target.files[0], 'main')}
-                  className="hidden"
-                />
+                <p className="text-xs text-gray-500">
+                  Selecciona la calificación del producto (1-5 estrellas)
+                </p>
               </div>
 
               {/* Galería de imágenes */}
@@ -976,7 +928,7 @@ const ProductoDetailPage = () => {
                   Galería de Imágenes
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Selecciona múltiples imágenes para la galería del producto. Se subirán automáticamente a Vercel Blob.
+                  Selecciona múltiples imágenes para la galería del producto. Arrastra y suelta para reordenar.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -1004,24 +956,47 @@ const ProductoDetailPage = () => {
                   </Button>
                 </div>
                 {editForm.imagenes.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+                  <div className="space-y-3 mt-3">
                     {editForm.imagenes.map((url, index) => (
-                      <div key={index} className="relative">
+                      <div 
+                        key={index} 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', index.toString());
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                          moveImage(fromIndex, index);
+                        }}
+                      >
+                        <div className="cursor-move text-gray-400 hover:text-gray-600">
+                          <GripVertical className="w-5 h-5" />
+                        </div>
                         <img 
                           src={url} 
                           alt={`Imagen ${index + 1}`} 
-                          className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
                           onError={(e) => {
                             e.target.style.display = 'none';
                           }}
                         />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-700">
+                            Imagen {index + 1}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Posición: {index + 1} de {editForm.imagenes.length}
+                          </div>
+                        </div>
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="absolute top-1 right-1 w-6 h-6 p-0"
                           onClick={() => removeImage(index)}
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-4 h-4" />
                         </Button>
                       </div>
                     ))}
