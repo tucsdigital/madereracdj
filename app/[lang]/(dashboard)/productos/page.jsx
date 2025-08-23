@@ -3572,12 +3572,14 @@ const ProductosPage = () => {
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            (p.estadoTienda || "Activo") === "Activo"
+                            p.estadoTienda === "Activo"
                               ? "bg-green-100 text-green-800"
-                              : "bg-gray-200 text-gray-700"
+                              : p.estadoTienda === "Inactivo"
+                              ? "bg-gray-200 text-gray-700"
+                              : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
-                          {p.estadoTienda || "Activo"}
+                          {p.estadoTienda ? p.estadoTienda : "No definido"}
                         </span>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
