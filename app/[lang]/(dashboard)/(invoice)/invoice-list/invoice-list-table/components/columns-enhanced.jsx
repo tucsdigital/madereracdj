@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import { Eye, Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
 
 // Función para formatear fecha
 const formatDate = (dateString) => {
@@ -201,18 +201,10 @@ export const columnsPresupuestos = [
           <Button
             size="sm"
             variant="outline"
-            className="h-8 px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
-            title="Ver detalle"
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Ver
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
             className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
             title="Eliminar"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Prevenir que se active el click de la fila
               window.dispatchEvent(
                 new CustomEvent("deletePresupuesto", {
                   detail: { id: row.original.id },
@@ -390,18 +382,10 @@ export const columnsVentas = [
           <Button
             size="sm"
             variant="outline"
-            className="h-8 px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200"
-            title="Ver detalle"
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Ver
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
             className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
             title="Eliminar"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Prevenir que se active el click de la fila
               window.dispatchEvent(
                 new CustomEvent("deleteVenta", {
                   detail: { id: row.original.id },

@@ -44,6 +44,7 @@ export function DataTableEnhanced({
   showPageSize = true,
   className = "",
   defaultSorting = [],
+  onRowClick,
 }) {
   const [sorting, setSorting] = useState(defaultSorting);
   const [columnFilters, setColumnFilters] = useState([]);
@@ -162,13 +163,14 @@ export function DataTableEnhanced({
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row, rowIndex) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className={`border-b border-gray-100 transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 ${
-                      rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                    }`}
-                  >
+                                     <TableRow
+                     key={row.id}
+                     data-state={row.getIsSelected() && "selected"}
+                     className={`border-b border-gray-100 transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 cursor-pointer ${
+                       rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                     }`}
+                     onClick={() => onRowClick && onRowClick(row.original)}
+                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
