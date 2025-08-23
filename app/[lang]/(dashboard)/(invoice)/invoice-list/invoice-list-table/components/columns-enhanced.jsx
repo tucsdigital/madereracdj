@@ -318,6 +318,28 @@ export const columnsVentas = [
     enableSorting: true,
   },
   {
+    accessorKey: "vendedor",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-purple-600" />
+        <span className="font-semibold">Vendedor</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-purple-700">
+            {(row?.original?.vendedor || "V")[0].toUpperCase()}
+          </span>
+        </div>
+        <span className="text-sm font-medium text-gray-700">
+          {row?.original?.vendedor || "-"}
+        </span>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
     accessorKey: "estadoPago",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
@@ -351,9 +373,30 @@ export const columnsVentas = [
       </div>
     ),
     cell: ({ row }) => {
-      const montoAbonado = row.getValue("montoAbonado") || 0;
+      // Calcular monto abonado desde el array pagos
+      const pagos = row.original.pagos || [];
+      const montoAbonado = Array.isArray(pagos) && pagos.length > 0 
+        ? pagos.reduce((acc, pago) => acc + Number(pago.monto || 0), 0)
+        : Number(row.original.montoAbonado || 0); // Fallback al campo antiguo
+      
       const total = row.getValue("total") || 0;
       const porcentaje = total > 0 ? (montoAbonado / total) * 100 : 0;
+      
+      // Determinar el color basado en el estado de pago
+      const estadoPago = row.original.estadoPago;
+      let colorClase = "text-gray-900";
+      let porcentajeColor = "text-gray-500";
+      
+      if (estadoPago === "pagado") {
+        colorClase = "text-green-700";
+        porcentajeColor = "text-green-600";
+      } else if (estadoPago === "parcial") {
+        colorClase = "text-blue-700";
+        porcentajeColor = "text-blue-600";
+      } else if (estadoPago === "pendiente") {
+        colorClase = "text-red-700";
+        porcentajeColor = "text-red-600";
+      }
       
       return (
         <div className="flex items-center gap-2">
@@ -361,10 +404,10 @@ export const columnsVentas = [
             <DollarSign className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sm text-gray-900">
+            <span className={`font-semibold text-sm ${colorClase}`}>
               {formatCurrency(montoAbonado)}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className={`text-xs ${porcentajeColor}`}>
               {porcentaje.toFixed(0)}% del total
             </span>
           </div>
