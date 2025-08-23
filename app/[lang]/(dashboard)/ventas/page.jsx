@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   columnsPresupuestos,
   columnsVentas,
-} from "../(invoice)/invoice-list/invoice-list-table/components/columns";
-import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
+} from "../(invoice)/invoice-list/invoice-list-table/components/columns-enhanced";
+import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Trash2, X, AlertTriangle, Info } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -3408,13 +3408,12 @@ const VentasPage = () => {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState("");
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
-
-  // (Estadísticas movidas al dashboard)
-
-  // Helpers de fecha removidos (usados ahora en dashboard)
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -3439,10 +3438,17 @@ const VentasPage = () => {
     fetchData();
   }, []);
 
-  // Función para borrar presupuesto
-  const handleDeletePresupuesto = async (id) => {
-    if (!user) {
-      setDeleteMessage("Error: Usuario no autenticado");
+  // Función para mostrar el diálogo de confirmación
+  const showDeleteConfirmation = (id, type, itemName) => {
+    setItemToDelete({ id, name: itemName });
+    setDeleteType(type);
+    setShowDeleteDialog(true);
+  };
+
+  // Función para confirmar la eliminación
+  const confirmDelete = async () => {
+    if (!itemToDelete || !user) {
+      setShowDeleteDialog(false);
       return;
     }
 
@@ -3456,8 +3462,8 @@ const VentasPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          documentId: id,
-          collectionName: 'presupuestos',
+          documentId: itemToDelete.id,
+          collectionName: deleteType === 'venta' ? 'ventas' : 'presupuestos',
           userId: user.uid,
           userEmail: user.email
         }),
@@ -3465,13 +3471,17 @@ const VentasPage = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error al eliminar presupuesto');
+        throw new Error(error.error || `Error al eliminar ${deleteType}`);
       }
 
       const result = await response.json();
       
       // Actualizar la lista local
-      setPresupuestosData(prev => prev.filter(p => p.id !== id));
+      if (deleteType === 'venta') {
+        setVentasData(prev => prev.filter(v => v.id !== itemToDelete.id));
+      } else {
+        setPresupuestosData(prev => prev.filter(p => p.id !== itemToDelete.id));
+      }
       
       setDeleteMessage(`✅ ${result.message}`);
       
@@ -3479,74 +3489,32 @@ const VentasPage = () => {
       setTimeout(() => setDeleteMessage(""), 3000);
 
     } catch (error) {
-      console.error('Error al eliminar presupuesto:', error);
+      console.error(`Error al eliminar ${deleteType}:`, error);
       setDeleteMessage(`❌ Error: ${error.message}`);
       
       // Limpiar mensaje después de 5 segundos
       setTimeout(() => setDeleteMessage(""), 5000);
     } finally {
       setDeleting(false);
-    }
-  };
-
-  // Función para borrar venta
-  const handleDeleteVenta = async (id) => {
-    if (!user) {
-      setDeleteMessage("Error: Usuario no autenticado");
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      setDeleteMessage("");
-
-      const response = await fetch('/api/delete-document', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId: id,
-          collectionName: 'ventas',
-          userId: user.uid,
-          userEmail: user.email
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al eliminar venta');
-      }
-
-      const result = await response.json();
-      
-      // Actualizar la lista local
-      setVentasData(prev => prev.filter(v => v.id !== id));
-      
-      setDeleteMessage(`✅ ${result.message} - Stock repuesto y movimientos registrados automáticamente`);
-      
-      // Limpiar mensaje después de 3 segundos
-      setTimeout(() => setDeleteMessage(""), 3000);
-
-    } catch (error) {
-      console.error('Error al eliminar venta:', error);
-      setDeleteMessage(`❌ Error: ${error.message}`);
-      
-      // Limpiar mensaje después de 5 segundos
-      setTimeout(() => setDeleteMessage(""), 5000);
-    } finally {
-      setDeleting(false);
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
     }
   };
 
   // Event listeners para los botones de borrado
   useEffect(() => {
     const handleDeletePresupuestoEvent = (event) => {
-      handleDeletePresupuesto(event.detail.id);
+      const presupuesto = presupuestosData.find(p => p.id === event.detail.id);
+      if (presupuesto) {
+        showDeleteConfirmation(event.detail.id, 'presupuesto', presupuesto.cliente?.nombre || 'Presupuesto');
+      }
     };
 
     const handleDeleteVentaEvent = (event) => {
-      handleDeleteVenta(event.detail.id);
+      const venta = ventasData.find(v => v.id === event.detail.id);
+      if (venta) {
+        showDeleteConfirmation(event.detail.id, 'venta', venta.cliente?.nombre || 'Venta');
+      }
     };
 
     window.addEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
@@ -3556,122 +3524,206 @@ const VentasPage = () => {
       window.removeEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
       window.removeEventListener('deleteVenta', handleDeleteVentaEvent);
     };
-  }, [user]);
-
-  // Ya no usamos modal ni submit aquí
-
-  // Se eliminaron cálculos de KPIs aquí
+  }, [presupuestosData, ventasData]);
 
   return (
-    <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
-      {/* Estadísticas removidas: ahora se muestran en el dashboard */}
-
+    <div className="flex flex-col gap-8 py-8 mx-auto font-sans max-w-7xl">
       {/* Mensaje de estado del borrado */}
       {deleteMessage && (
-        <div className={`mb-4 p-4 rounded-lg flex items-center gap-3 text-base font-medium shadow border ${
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
           deleteMessage.startsWith('✅') 
-            ? "bg-green-50 border-green-200 text-green-800" 
-            : "bg-red-50 border-red-200 text-red-800"
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
+            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
         }`}>
           {deleteMessage.startsWith('✅') ? (
-            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
           ) : (
-            <AlertCircle className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
           )}
-          <span>{deleteMessage}</span>
+          <span className="font-semibold">{deleteMessage}</span>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6 px-2">
+      {/* Botones de acción mejorados */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
         <div className="flex-1">
           <Button
             variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
             onClick={() => router.push(`/${lang}/presupuestos/create`)}
             disabled={deleting}
           >
             <Icon
               icon="heroicons:document-plus"
-              className="w-4 h-4 sm:w-5 sm:h-5"
+              className="w-5 h-5"
             />
-            <span className="hidden sm:inline">Agregar Presupuesto</span>
+            <span className="hidden sm:inline">Crear Presupuesto</span>
             <span className="sm:hidden">Presupuesto</span>
           </Button>
         </div>
         <div className="flex-1">
           <Button
             variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
             onClick={() => router.push(`/${lang}/ventas/create`)}
             disabled={deleting}
           >
             <Icon
               icon="heroicons:shopping-cart"
-              className="w-4 h-4 sm:w-5 sm:h-5"
+              className="w-5 h-5"
             />
-            <span className="hidden sm:inline">Agregar Venta</span>
+            <span className="hidden sm:inline">Crear Venta</span>
             <span className="sm:hidden">Venta</span>
           </Button>
         </div>
-        <div className="flex-1">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md border-orange-200 text-orange-700 hover:bg-orange-50 transition-all"
-            onClick={() => router.push(`/${lang}/auditoria`)}
-            disabled={deleting}
-          >
-            <Icon
-              icon="heroicons:clipboard-document-list"
-              className="w-4 h-4 sm:w-5 sm:h-5"
-            />
-            <span className="hidden sm:inline">Ver Auditoría</span>
-            <span className="sm:hidden">Auditoría</span>
-          </Button>
-        </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
-        <Card className="rounded-xl shadow-lg border border-default-200">
-          <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
-            <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
-              <Icon
-                icon="heroicons:document-text"
-                className="w-6 h-6 text-primary"
-              />
-              Presupuestos
+
+      {/* Tablas mejoradas */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 px-2">
+        {/* Tabla de Presupuestos */}
+        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
+          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Icon
+                  icon="heroicons:document-text"
+                  className="w-7 h-7 text-white"
+                />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
+                <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
+              </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  <span className="text-sm text-primary">Eliminando...</span>
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-blue-600">Procesando...</span>
                 </div>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <DataTable data={presupuestosData} columns={columnsPresupuestos} />
+          <CardContent className="pt-6 p-0">
+            <div className="overflow-hidden rounded-b-2xl">
+              <DataTableEnhanced 
+                data={presupuestosData} 
+                columns={columnsPresupuestos}
+                searchPlaceholder="Buscar presupuestos..."
+                className="border-0"
+                defaultSorting={[{ id: "numeroPedido", desc: true }]}
+              />
+            </div>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-lg border border-default-200">
-          <CardHeader className="pb-2 border-b border-default-100 bg-default-50 rounded-t-xl">
-            <CardTitle className="text-2xl font-bold text-default-900 flex items-center gap-2">
-              <Icon
-                icon="heroicons:shopping-cart"
-                className="w-6 h-6 text-green-600"
-              />
-              Ventas
+
+        {/* Tabla de Ventas */}
+        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
+          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
+            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Icon
+                  icon="heroicons:shopping-cart"
+                  className="w-7 h-7 text-white"
+                />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">Ventas</div>
+                <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
+              </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                  <Loader2 className="w-4 h-4 animate-spin text-green-600" />
-                  <span className="text-sm text-green-600">Eliminando...</span>
+                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  </div>
+                  <span className="text-sm font-medium text-emerald-600">Procesando...</span>
                 </div>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <DataTable data={ventasData} columns={columnsVentas} />
+          <CardContent className="pt-6 p-0">
+            <div className="overflow-hidden rounded-b-2xl">
+              <DataTableEnhanced 
+                data={ventasData} 
+                columns={columnsVentas}
+                searchPlaceholder="Buscar ventas..."
+                className="border-0"
+                defaultSorting={[{ id: "numeroPedido", desc: true }]}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
-      {/* Modal eliminado en favor de páginas dedicadas de creación */}
+
+      {/* Diálogo de confirmación de eliminación mejorado */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
+          <DialogHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Confirmar Eliminación
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Info className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-red-800">
+                  {itemToDelete?.name || 'Elemento'}
+                </div>
+                <div className="text-sm text-red-700">
+                  {deleteType === 'venta' 
+                    ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
+                    : 'Esta acción eliminará el presupuesto permanentemente.'
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              disabled={deleting}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
