@@ -86,8 +86,8 @@ const ProductoDetailPage = () => {
   });
 
   // Estados para nuevos campos
-  const [newImageUrl, setNewImageUrl] = useState("");
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -324,13 +324,77 @@ const ProductoDetailPage = () => {
     }
   };
 
-  const addImage = () => {
-    if (newImageUrl.trim() && !editForm.imagenes.includes(newImageUrl.trim())) {
+  const handleImageUpload = async (file, type) => {
+    if (!file) return;
+    
+    try {
+      setUploadingImage(true);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al subir imagen');
+      }
+      
+      const result = await response.json();
+      
+      if (type === 'main') {
+        setEditForm(prev => ({
+          ...prev,
+          srcUrl: result.url
+        }));
+      }
+      
+    } catch (error) {
+      setMessage("Error al subir imagen: " + error.message);
+      setMessageType("error");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleMultipleImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    try {
+      setUploadingGallery(true);
+      const newUrls = [];
+      
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error al subir imagen');
+        }
+        
+        const result = await response.json();
+        newUrls.push(result.url);
+      }
+      
       setEditForm(prev => ({
         ...prev,
-        imagenes: [...prev.imagenes, newImageUrl.trim()]
+        imagenes: [...prev.imagenes, ...newUrls]
       }));
-      setNewImageUrl("");
+      
+    } catch (error) {
+      setMessage("Error al subir imágenes: " + error.message);
+      setMessageType("error");
+    } finally {
+      setUploadingGallery(false);
     }
   };
 
@@ -856,14 +920,35 @@ const ProductoDetailPage = () => {
               {/* Imagen principal */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Imagen Principal (URL)
+                  Imagen Principal
                 </label>
-                <Input
-                  value={editForm.srcUrl}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, srcUrl: e.target.value }))}
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  type="url"
-                />
+                <p className="text-xs text-gray-500 mb-2">
+                  Selecciona una imagen para la vista principal del producto. Se subirá automáticamente a Vercel Blob.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e.target.files[0], 'main')}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('mainImageInput').click()}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      'Seleccionar'
+                    )}
+                  </Button>
+                </div>
                 {editForm.srcUrl && (
                   <div className="mt-2">
                     <img 
@@ -876,6 +961,13 @@ const ProductoDetailPage = () => {
                     />
                   </div>
                 )}
+                <input
+                  id="mainImageInput"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e.target.files[0], 'main')}
+                  className="hidden"
+                />
               </div>
 
               {/* Galería de imágenes */}
@@ -883,15 +975,32 @@ const ProductoDetailPage = () => {
                 <label className="text-sm font-medium text-gray-700">
                   Galería de Imágenes
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Selecciona múltiples imágenes para la galería del producto. Se subirán automáticamente a Vercel Blob.
+                </p>
                 <div className="flex gap-2">
-                  <Input
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    type="url"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleMultipleImageUpload(e.target.files)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <Button onClick={addImage} size="sm">
-                    <Plus className="w-4 h-4" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('galleryInput').click()}
+                    disabled={uploadingGallery}
+                  >
+                    {uploadingGallery ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      'Seleccionar'
+                    )}
                   </Button>
                 </div>
                 {editForm.imagenes.length > 0 && (
@@ -918,6 +1027,14 @@ const ProductoDetailPage = () => {
                     ))}
                   </div>
                 )}
+                <input
+                  id="galleryInput"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => handleMultipleImageUpload(e.target.files)}
+                  className="hidden"
+                />
               </div>
 
               {/* Descuento */}
