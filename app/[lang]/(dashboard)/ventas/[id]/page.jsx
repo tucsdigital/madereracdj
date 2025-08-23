@@ -1340,9 +1340,9 @@ const VentaDetalle = () => {
         : "pendiente";
     })();
 
-  // Función para borrar pago del historial (solo para mazalautaro.dev@gmail.com)
+  // Función para borrar pago del historial (solo para admin@admin.com)
   const handleBorrarPago = async (pagoIndex) => {
-    if (user?.email !== "mazalautaro.dev@gmail.com") {
+    if (user?.email !== "admin@admin.com") {
       console.log("Usuario no autorizado para borrar pagos");
       return;
     }
@@ -1383,7 +1383,7 @@ const VentaDetalle = () => {
 
   // Función para confirmar borrado de pago
   const confirmarBorradoPago = (pagoIndex) => {
-    if (user?.email !== "mazalautaro.dev@gmail.com") {
+    if (user?.email !== "admin@admin.com") {
       return;
     }
     setPagoABorrar(pagoIndex);
@@ -1841,7 +1841,7 @@ const VentaDetalle = () => {
                       <th className="text-left py-1">Fecha</th>
                       <th className="text-left py-1">Método</th>
                       <th className="text-right py-1">Monto</th>
-                      {user?.email === "mazalautaro.dev@gmail.com" && (
+                      {user?.email === "admin@admin.com" && (
                         <th className="text-center py-1">Acciones</th>
                       )}
                     </tr>
@@ -1854,7 +1854,7 @@ const VentaDetalle = () => {
                         <td className="py-1 text-right">
                           ${Number(pago.monto).toFixed(2)}
                         </td>
-                        {user?.email === "mazalautaro.dev@gmail.com" && (
+                        {user?.email === "admin@admin.com" && (
                           <td className="py-1 text-center">
                             <button
                               type="button"

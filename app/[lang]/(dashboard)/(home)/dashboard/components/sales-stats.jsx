@@ -528,7 +528,7 @@ const SalesStats = () => {
                 <div className="text-3xl font-extrabold tracking-tight">{kpis.presupuestosCount}</div>
               </div>
               {/* Comisión clientes nuevos (proporcional) */}
-                             {user?.email === "mazalautaro.dev@gmail.com" && (
+                             {user?.email === "admin@admin.com" && (
                  <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión clientes nuevos</div>
