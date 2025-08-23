@@ -4,7 +4,7 @@ import {
   Building,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet } from "lucide-react";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardDocumentList } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -53,6 +53,11 @@ export const menusConfig = {
       icon: DollarSign,
       href: "/precios",
     },
+    {
+      title: "Auditoría",
+      icon: ClipboardDocumentList,
+      href: "/auditoria",
+    },
   ],
   sidebarNav: {
     modern: [
@@ -100,6 +105,11 @@ export const menusConfig = {
         title: "Precios",
         icon: DollarSign,
         href: "/precios",
+      },
+      {
+        title: "Auditoría",
+        icon: ClipboardDocumentList,
+        href: "/auditoria",
       },
     ],
     classic: [
@@ -151,6 +161,11 @@ export const menusConfig = {
         title: "Precios",
         icon: DollarSign,
         href: "/precios",
+      },
+      {
+        title: "Auditoría",
+        icon: ClipboardDocumentList,
+        href: "/auditoria",
       },
     ],
   },

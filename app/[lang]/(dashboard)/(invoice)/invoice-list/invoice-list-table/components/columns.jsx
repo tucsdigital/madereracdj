@@ -261,6 +261,44 @@ export const columnsPresupuestos = [
     ),
     enableSorting: true,
   },
+  {
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      const presupuesto = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/es/presupuestos/${presupuesto.id}`}>
+              <Icon icon="heroicons:eye" className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/es/presupuestos/${presupuesto.id}?edit=true`}>
+              <Icon icon="heroicons:pencil" className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => {
+              if (window.confirm('¿Estás seguro de que quieres eliminar este presupuesto? Esta acción no se puede deshacer.')) {
+                // La función de borrado se manejará en el componente padre
+                window.dispatchEvent(new CustomEvent('deletePresupuesto', { 
+                  detail: { id: presupuesto.id, tipo: 'presupuesto' } 
+                }));
+              }
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Icon icon="heroicons:trash" className="w-4 h-4" />
+          </Button>
+        </div>
+      );
+    },
+    enableSorting: false,
+    enableHiding: false,
+  },
 ];
 
 // Columnas para la tabla de ventas
@@ -394,6 +432,44 @@ export const columnsVentas = [
         {row.getValue("prioridad") || "-"}
       </span>
     ),
+  },
+  {
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      const venta = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/es/ventas/${venta.id}`}>
+              <Icon icon="heroicons:eye" className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/es/ventas/${venta.id}?edit=true`}>
+              <Icon icon="heroicons:pencil" className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => {
+              if (window.confirm('¿Estás seguro de que quieres eliminar esta venta? Esta acción no se puede deshacer y repondrá el stock de los productos.')) {
+                // La función de borrado se manejará en el componente padre
+                window.dispatchEvent(new CustomEvent('deleteVenta', { 
+                  detail: { id: venta.id, tipo: 'venta' } 
+                }));
+              }
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Icon icon="heroicons:trash" className="w-4 h-4" />
+          </Button>
+        </div>
+      );
+    },
+    enableSorting: false,
+    enableHiding: false,
   },
 ];
 

@@ -3406,6 +3406,8 @@ const VentasPage = () => {
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
@@ -3437,6 +3439,125 @@ const VentasPage = () => {
     fetchData();
   }, []);
 
+  // Función para borrar presupuesto
+  const handleDeletePresupuesto = async (id) => {
+    if (!user) {
+      setDeleteMessage("Error: Usuario no autenticado");
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteMessage("");
+
+      const response = await fetch('/api/delete-document', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: id,
+          collectionName: 'presupuestos',
+          userId: user.uid,
+          userEmail: user.email
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar presupuesto');
+      }
+
+      const result = await response.json();
+      
+      // Actualizar la lista local
+      setPresupuestosData(prev => prev.filter(p => p.id !== id));
+      
+      setDeleteMessage(`✅ ${result.message}`);
+      
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setDeleteMessage(""), 3000);
+
+    } catch (error) {
+      console.error('Error al eliminar presupuesto:', error);
+      setDeleteMessage(`❌ Error: ${error.message}`);
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Función para borrar venta
+  const handleDeleteVenta = async (id) => {
+    if (!user) {
+      setDeleteMessage("Error: Usuario no autenticado");
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteMessage("");
+
+      const response = await fetch('/api/delete-document', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: id,
+          collectionName: 'ventas',
+          userId: user.uid,
+          userEmail: user.email
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar venta');
+      }
+
+      const result = await response.json();
+      
+      // Actualizar la lista local
+      setVentasData(prev => prev.filter(v => v.id !== id));
+      
+      setDeleteMessage(`✅ ${result.message} - Stock repuesto y movimientos registrados automáticamente`);
+      
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setDeleteMessage(""), 3000);
+
+    } catch (error) {
+      console.error('Error al eliminar venta:', error);
+      setDeleteMessage(`❌ Error: ${error.message}`);
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Event listeners para los botones de borrado
+  useEffect(() => {
+    const handleDeletePresupuestoEvent = (event) => {
+      handleDeletePresupuesto(event.detail.id);
+    };
+
+    const handleDeleteVentaEvent = (event) => {
+      handleDeleteVenta(event.detail.id);
+    };
+
+    window.addEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+    window.addEventListener('deleteVenta', handleDeleteVentaEvent);
+
+    return () => {
+      window.removeEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+      window.removeEventListener('deleteVenta', handleDeleteVentaEvent);
+    };
+  }, [user]);
+
   // Ya no usamos modal ni submit aquí
 
   // Se eliminaron cálculos de KPIs aquí
@@ -3445,12 +3566,29 @@ const VentasPage = () => {
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
       {/* Estadísticas removidas: ahora se muestran en el dashboard */}
 
+      {/* Mensaje de estado del borrado */}
+      {deleteMessage && (
+        <div className={`mb-4 p-4 rounded-lg flex items-center gap-3 text-base font-medium shadow border ${
+          deleteMessage.startsWith('✅') 
+            ? "bg-green-50 border-green-200 text-green-800" 
+            : "bg-red-50 border-red-200 text-red-800"
+        }`}>
+          {deleteMessage.startsWith('✅') ? (
+            <CheckCircle className="w-5 h-5 text-green-600" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-red-600" />
+          )}
+          <span>{deleteMessage}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 mb-6 px-2">
         <div className="flex-1">
           <Button
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-primary hover:bg-primary/90 transition-all"
             onClick={() => router.push(`/${lang}/presupuestos/create`)}
+            disabled={deleting}
           >
             <Icon
               icon="heroicons:document-plus"
@@ -3465,6 +3603,7 @@ const VentasPage = () => {
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md bg-green-600 hover:bg-green-700 transition-all"
             onClick={() => router.push(`/${lang}/ventas/create`)}
+            disabled={deleting}
           >
             <Icon
               icon="heroicons:shopping-cart"
@@ -3472,6 +3611,21 @@ const VentasPage = () => {
             />
             <span className="hidden sm:inline">Agregar Venta</span>
             <span className="sm:hidden">Venta</span>
+          </Button>
+        </div>
+        <div className="flex-1">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 text-sm sm:text-base font-semibold rounded-lg shadow-md border-orange-200 text-orange-700 hover:bg-orange-50 transition-all"
+            onClick={() => router.push(`/${lang}/auditoria`)}
+            disabled={deleting}
+          >
+            <Icon
+              icon="heroicons:clipboard-document-list"
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            />
+            <span className="hidden sm:inline">Ver Auditoría</span>
+            <span className="sm:hidden">Auditoría</span>
           </Button>
         </div>
       </div>
@@ -3484,6 +3638,12 @@ const VentasPage = () => {
                 className="w-6 h-6 text-primary"
               />
               Presupuestos
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-sm text-primary">Eliminando...</span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
@@ -3498,6 +3658,12 @@ const VentasPage = () => {
                 className="w-6 h-6 text-green-600"
               />
               Ventas
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                  <span className="text-sm text-green-600">Eliminando...</span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
