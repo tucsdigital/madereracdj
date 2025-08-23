@@ -256,28 +256,140 @@ const SalesStats = () => {
     ];
   }, [clientesCounts]);
 
-  // Comisión sobre ventas de clientes nuevos
-  const totalVendidoClientesNuevos = useMemo(() => {
-    const idsNuevos = new Set(
-      Object.entries(clientesData)
-        .filter(([_, c]) => !c.esClienteViejo)
-        .map(([id]) => id)
-    );
-    return ventasFiltradas
-      .filter((v) => v.clienteId && idsNuevos.has(v.clienteId))
-      .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
-  }, [ventasFiltradas, clientesData]);
+  // Comisión sobre ventas de clientes nuevos y viejos (solo los que aparecen en ventas del rango)
+  const comisionesPorTipoCliente = useMemo(() => {
+    let totalVendidoClientesNuevos = 0;
+    let totalVendidoClientesViejos = 0;
+    let ventasSinCliente = 0;
+    let totalVentasProcesadas = 0;
+    let ventasSinClienteIds = [];
+    let ventasClienteNoEncontradoIds = [];
+    let ventasSinClasificarIds = [];
+    
+    ventasFiltradas.forEach((venta) => {
+      let clienteEncontrado = null;
+      let metodoBusqueda = '';
+      
+      // Buscar cliente por clienteId primero
+      if (venta.clienteId) {
+        clienteEncontrado = clientesData[venta.clienteId];
+        metodoBusqueda = 'clienteId';
+      }
+      
+      // Si no se encontró por clienteId, buscar por teléfono del objeto cliente
+      if (!clienteEncontrado && venta.cliente && venta.cliente.telefono) {
+        const telefono = venta.cliente.telefono;
+        // Buscar en clientesData por teléfono
+        for (const [clienteId, cliente] of Object.entries(clientesData)) {
+          if (cliente.telefono === telefono) {
+            clienteEncontrado = cliente;
+            metodoBusqueda = 'telefono';
+            break;
+          }
+        }
+      }
+      
+      // Si no se encontró por teléfono, buscar por CUIT del objeto cliente
+      if (!clienteEncontrado && venta.cliente && venta.cliente.cuit) {
+        const cuit = venta.cliente.cuit;
+        // Buscar en clientesData por CUIT
+        for (const [clienteId, cliente] of Object.entries(clientesData)) {
+          if (cliente.cuit === cuit) {
+            clienteEncontrado = cliente;
+            metodoBusqueda = 'cuit';
+            break;
+          }
+        }
+      }
+      
+      if (!clienteEncontrado) {
+        ventasSinCliente++;
+        ventasClienteNoEncontradoIds.push({
+          id: venta.id,
+          numeroPedido: venta.numeroPedido,
+          cliente: venta.cliente,
+          monto: venta.total
+        });
+        return;
+      }
+      
+      const montoVenta = Number(venta.total) || 0;
+      totalVentasProcesadas += montoVenta;
+      
+      // Clasificar según esClienteViejo
+      if (clienteEncontrado.esClienteViejo === true) {
+        totalVendidoClientesViejos += montoVenta;
+      } else if (clienteEncontrado.esClienteViejo === false) {
+        totalVendidoClientesNuevos += montoVenta;
+      } else {
+        // Cliente encontrado pero no tiene el campo esClienteViejo definido
+        ventasSinClasificarIds.push({
+          id: venta.id,
+          numeroPedido: venta.numeroPedido,
+          clienteId: clienteEncontrado.id,
+          clienteNombre: clienteEncontrado.nombre || 'Sin nombre',
+          telefono: clienteEncontrado.telefono,
+          cuit: clienteEncontrado.cuit,
+          monto: montoVenta,
+          esClienteViejo: clienteEncontrado.esClienteViejo
+        });
+      }
+    });
+    
+    // Calcular comisiones: 0.8% para viejos, 2.5% para nuevos
+    const comisionClientesViejos = totalVendidoClientesViejos * 0.008; // 0.8%
+    const comisionClientesNuevos = totalVendidoClientesNuevos * 0.025; // 2.5%
+    const comisionTotal = comisionClientesViejos + comisionClientesNuevos;
+    
+    // Debug logs
+    console.log('=== DEBUG COMISIONES ===');
+    console.log('Total ventas filtradas:', ventasFiltradas.length);
+    console.log('Total monto ventas filtradas:', kpis.ventasMonto);
+    console.log('Total ventas procesadas:', totalVentasProcesadas);
+    console.log('Ventas con cliente pero sin clasificar (esClienteViejo undefined):', ventasSinClasificarIds);
+    console.log('Ventas con cliente no encontrado:', ventasClienteNoEncontradoIds);
+    console.log('Total vendido clientes nuevos:', totalVendidoClientesNuevos);
+    console.log('Total vendido clientes viejos:', totalVendidoClientesViejos);
+    console.log('Comisión clientes nuevos (2.5%):', comisionClientesNuevos);
+    console.log('Comisión clientes viejos (0.8%):', comisionClientesViejos);
+    console.log('Comisión total:', comisionTotal);
+    console.log('========================');
+    
+    return {
+      totalVendidoClientesNuevos,
+      totalVendidoClientesViejos,
+      comisionClientesViejos,
+      comisionClientesNuevos,
+      comisionTotal,
+      ventasSinCliente,
+      totalVentasProcesadas,
+      ventasSinClienteIds,
+      ventasClienteNoEncontradoIds,
+      ventasSinClasificarIds
+    };
+  }, [ventasFiltradas, clientesData, kpis.ventasMonto]);
 
-  // Comisión clientes nuevos (proporcional): Total vendido × (Nuevos / Total clientes) × 0.008
-  const ventasProporcionalesNuevos = useMemo(() => {
-    const total = Number(kpis.ventasMonto) || 0;
-    const propor = clientesTotal > 0 ? (clientesCounts.nuevo / clientesTotal) : 0;
-    return total * propor;
-  }, [kpis.ventasMonto, clientesTotal, clientesCounts.nuevo]);
+  // Eliminar cálculos anteriores que ya no se usan
+  // const totalVendidoClientesNuevos = useMemo(() => {
+  //   const idsNuevos = new Set(
+  //     Object.entries(clientesData)
+  //       .filter(([_, c]) => !c.esClienteViejo)
+  //       .map(([id]) => id)
+  //   );
+  //   return ventasFiltradas
+  //     .filter((v) => v.clienteId && idsNuevos.has(v.clienteId))
+  //     .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+  // }, [ventasFiltradas, clientesData]);
 
-  const comisionClientesNuevos = useMemo(() => {
-    return ventasProporcionalesNuevos * 0.008;
-  }, [ventasProporcionalesNuevos]);
+  // const ventasProporcionalesNuevos = useMemo(() => {
+  //   const total = Number(kpis.ventasMonto) || 0;
+  //   const propor = clientesTotal > 0 ? (clientesCounts.nuevo / clientesTotal) : 0;
+  //   return total * propor;
+  // }, [kpis.ventasMonto, clientesTotal, clientesCounts.nuevo]);
+
+  // const comisionClientesNuevos = useMemo(() => {
+  //   return ventasProporcionalesNuevos * 0.008;
+  // }, [ventasProporcionalesNuevos]);
 
   const Chart = useMemo(() => dynamic(() => import("react-apexcharts"), { ssr: false }), []);
 
@@ -531,14 +643,14 @@ const SalesStats = () => {
                              {user?.email === "admin@admin.com" && (
                  <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión clientes nuevos</div>
+                    <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión por ventas</div>
                     <span className="inline-flex w-8 h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
                       <Icon icon="heroicons:currency-dollar" className="w-4 h-4" />
                     </span>
                   </div>
-                  <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionClientesNuevos))}</div>
+                  <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}</div>
                   <div className="text-xs text-default-500">
-                    Datos: Ventas totales {nf.format(Math.round(kpis.ventasMonto))} · Total clientes {clientesTotal} · Nuevos {clientesCounts.nuevo} · Proporción {(clientesTotal>0?Math.round((clientesCounts.nuevo/clientesTotal)*100):0)}% · Comisión 0.8% (0,008)
+                    Nuevos: {nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesNuevos))} (2.5% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesNuevos))}) · Viejos: {nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesViejos))} (0.8% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesViejos))}) · Total: ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}
                   </div>
                 </div>
               )}
