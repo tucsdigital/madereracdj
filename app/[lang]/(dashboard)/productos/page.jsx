@@ -1176,6 +1176,7 @@ const ProductosPage = () => {
   const [cat, setCat] = useState("");
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  const [filtroTienda, setFiltroTienda] = useState("");
 
   const [reload, setReload] = useState(false);
   const [productos, setProductos] = useState([]);
@@ -1415,7 +1416,14 @@ const ProductosPage = () => {
         filtroSubCategoria === "" ||
         p.subCategoria === filtroSubCategoria;
 
-      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria;
+      // Filtro por estado de tienda
+      // Si no tiene estadoTienda, se considera "Inactivo" por defecto
+      const estadoTiendaProducto = p.estadoTienda || "Inactivo";
+      const cumpleTienda =
+        filtroTienda === "" ||
+        estadoTiendaProducto === filtroTienda;
+
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleTienda;
     }).sort((a, b) => {
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
@@ -1427,7 +1435,7 @@ const ProductosPage = () => {
       // Si ambos tienen stock o ambos no tienen stock, mantener orden original
       return 0;
     });
-  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria]);
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
@@ -1456,7 +1464,7 @@ const ProductosPage = () => {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria]);
+  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
 
   // Obtener tipos de madera únicos
   const tiposMaderaUnicos = [
@@ -2727,7 +2735,7 @@ const ProductosPage = () => {
   useEffect(() => {
     setSelectedProducts([]);
     setSelectAll(false);
-  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria]);
+  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
 
   // Efecto para cerrar dropdowns cuando se hace clic fuera
   useEffect(() => {
@@ -3146,11 +3154,67 @@ const ProductosPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Filtro de estado de tienda - siempre visible */}
+            <div className="flex-1">
+              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                <button
+                  type="button"
+                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroTienda === ""
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroTienda("")}
+                >
+                  🏪 Todas las tiendas
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroTienda === "Activo"
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroTienda("Activo")}
+                >
+                  ✅ Activos en tienda
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "Activo"
+                      ? "bg-white/20"
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {productos.filter(p => p.estadoTienda === "Activo").length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroTienda === "Inactivo"
+                      ? "bg-red-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroTienda("Inactivo")}
+                >
+                  ❌ Inactivos en tienda
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "Inactivo"
+                      ? "bg-white/20"
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    {productos.filter(p => !p.estadoTienda || p.estadoTienda === "Inactivo").length}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Indicador de productos filtrados */}
           <div className="flex items-center justify-between">
-            {(filtro || cat || filtroTipoMadera || filtroSubCategoria) && (
+            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -3159,6 +3223,7 @@ const ProductosPage = () => {
                   setCat("");
                   setFiltroTipoMadera("");
                   setFiltroSubCategoria("");
+                  setFiltroTienda("");
                 }}
                 className="text-xs"
               >
@@ -3444,17 +3509,17 @@ const ProductosPage = () => {
                           {p.estado}
                         </span>
                       </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:rtl:pl-0">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             p.estadoTienda === "Activo"
                               ? "bg-green-100 text-green-800"
-                              : p.estadoTienda === "Inactivo"
-                              ? "bg-gray-200 text-gray-700"
+                              : p.estadoTienda === "Inactivo" || !p.estadoTienda
+                              ? "bg-red-100 text-red-800"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
-                          {p.estadoTienda ? p.estadoTienda : "No definido"}
+                          {p.estadoTienda || "Inactivo"}
                         </span>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
