@@ -3549,23 +3549,8 @@ const VentasPage = () => {
       )}
 
           {/* Botones de acción mejorados */}
-    <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
-      <div className="flex-1">
-        <Button
-          variant="default"
-          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-          onClick={() => router.push(`/${lang}/presupuestos/create`)}
-          disabled={deleting}
-        >
-          <Icon
-            icon="heroicons:document-plus"
-            className="w-5 h-5"
-          />
-          <span className="hidden sm:inline">Crear Presupuesto</span>
-          <span className="sm:hidden">Presupuesto</span>
-        </Button>
-      </div>
-      <div className="flex-1">
+    <div className="flex justify-center gap-4 mb-8 px-2">
+      <div>
         <Button
           variant="default"
           className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
@@ -3578,6 +3563,21 @@ const VentasPage = () => {
           />
           <span className="hidden sm:inline">Crear Venta</span>
           <span className="sm:hidden">Venta</span>
+        </Button>
+      </div>
+      <div>
+        <Button
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/presupuestos/create`)}
+          disabled={deleting}
+        >
+          <Icon
+            icon="heroicons:document-plus"
+            className="w-5 h-5"
+          />
+          <span className="hidden sm:inline">Crear Presupuesto</span>
+          <span className="sm:hidden">Presupuesto</span>
         </Button>
       </div>
     </div>
