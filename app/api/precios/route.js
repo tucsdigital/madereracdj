@@ -3,6 +3,18 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricing";
 
+/**
+ * API de Precios - IMPORTANTE: SOLO devuelve productos con estadoTienda: "Activo"
+ * 
+ * Esta API está configurada para mostrar ÚNICAMENTE productos que estén activos en tienda.
+ * Los productos sin campo estadoTienda o con estadoTienda diferente a "Activo" NO se muestran.
+ * 
+ * Filtros aplicados:
+ * - estadoTienda debe ser "Activo"
+ * - Productos sin estadoTienda se consideran inactivos
+ * - Productos con estadoTienda: "Inactivo" se rechazan
+ */
+
 // Sencillo helper CORS
 function withCors(resp) {
   const headers = new Headers(resp.headers);
@@ -33,8 +45,13 @@ export async function GET(request) {
     const listarTodos = allParam != null && ["1", "true", "t", "si", "sí", "yes"].includes(allParam.toLowerCase());
 
     // Listado completo del catálogo con pricing
+    // SOLO productos activos en tienda (estadoTienda: "Activo")
     if (listarTodos) {
-      const snap = await getDocs(collection(db, "productos"));
+      const q = query(
+        collection(db, "productos"),
+        where("estadoTienda", "==", "Activo")
+      );
+      const snap = await getDocs(q);
       const items = [];
       snap.forEach((d) => {
         const prod = { id: d.id, ...d.data() };
@@ -42,7 +59,11 @@ export async function GET(request) {
         const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
         items.push({ id: normalized.id, producto: normalized, pricing });
       });
-      return withCors(NextResponse.json({ items, total: items.length }));
+      return withCors(NextResponse.json({ 
+        items, 
+        total: items.length,
+        filtro: "Solo productos activos en tienda (estadoTienda: 'Activo')"
+      }));
     }
 
     let producto = null;
@@ -50,20 +71,35 @@ export async function GET(request) {
     if (id) {
       const ref = doc(db, "productos", id);
       const snap = await getDoc(ref);
-      if (snap.exists()) producto = { id: snap.id, ...snap.data() };
+      if (snap.exists()) {
+        const prodData = snap.data();
+        // Verificar que el producto esté activo en tienda
+        if (prodData.estadoTienda === "Activo") {
+          producto = { id: snap.id, ...prodData };
+        } else {
+          return withCors(NextResponse.json({ 
+            error: "Producto inactivo en tienda", 
+            estadoTienda: prodData.estadoTienda || "No definido",
+            mensaje: "Solo se pueden consultar precios de productos activos en tienda"
+          }, { status: 403 }));
+        }
+      }
     } else if (codigo) {
       const qq = query(
         collection(db, "productos"),
         where("codigo", "==", codigo),
+        where("estadoTienda", "==", "Activo"),
         limit(1)
       );
       const snap = await getDocs(qq);
       snap.forEach((d) => (producto = { id: d.id, ...d.data() }));
     } else if (nombre) {
       // Búsqueda simple por igualdad; para fuzzy ver /api/productos/search
+      // SOLO productos activos en tienda
       const qq = query(
         collection(db, "productos"),
         where("nombre", "==", nombre),
+        where("estadoTienda", "==", "Activo"),
         limit(1)
       );
       const snap = await getDocs(qq);
@@ -101,10 +137,34 @@ export async function POST(request) {
       if (!prod && it.id) {
         const ref = doc(db, "productos", String(it.id));
         const snap = await getDoc(ref);
-        if (snap.exists()) prod = { id: snap.id, ...snap.data() };
+        if (snap.exists()) {
+          const prodData = snap.data();
+          // Verificar que el producto esté activo en tienda
+          if (prodData.estadoTienda === "Activo") {
+            prod = { id: snap.id, ...prodData };
+          } else {
+            out.push({ 
+              error: "Producto inactivo en tienda", 
+              estadoTienda: prodData.estadoTienda || "No definido",
+              mensaje: "Solo se pueden consultar precios de productos activos en tienda",
+              input: it 
+            });
+            continue;
+          }
+        }
       }
       if (!prod) {
         out.push({ error: "Producto no encontrado", input: it });
+        continue;
+      }
+      // Verificar que el producto en el body también esté activo en tienda
+      if (prod.estadoTienda !== "Activo") {
+        out.push({ 
+          error: "Producto inactivo en tienda", 
+          estadoTienda: prod.estadoTienda || "No definido",
+          mensaje: "Solo se pueden consultar precios de productos activos en tienda",
+          input: it 
+        });
         continue;
       }
       const cantidad = typeof it.cantidad === "number" ? it.cantidad : parseFloat(String(it.cantidad || "1"));
