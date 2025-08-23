@@ -115,7 +115,7 @@ const ClientesPage = () => {
   };
 
   return (
-    <div className="py-8 px-2 max-w-5xl mx-auto">
+    <div className="py-8 px-2 max-w-7xl mx-auto">
       <div className="mb-8 flex items-center gap-4">
         <Users className="w-10 h-10 text-primary" />
         <div>

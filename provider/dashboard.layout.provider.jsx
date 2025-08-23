@@ -41,7 +41,7 @@ const DashBoardLayoutProvider = ({ children, trans }) => {
               {}
             )}
           >
-            <div>
+            <div className="semibox-content-wrapper">
               <LayoutWrapper
                 isMobile={isMobile}
                 setOpen={setOpen}

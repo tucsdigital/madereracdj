@@ -3548,109 +3548,69 @@ const VentasPage = () => {
         </div>
       )}
 
-      {/* Botones de acción mejorados */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
-        <div className="flex-1">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/presupuestos/create`)}
-            disabled={deleting}
-          >
-            <Icon
-              icon="heroicons:document-plus"
-              className="w-5 h-5"
-            />
-            <span className="hidden sm:inline">Crear Presupuesto</span>
-            <span className="sm:hidden">Presupuesto</span>
-          </Button>
-        </div>
-        <div className="flex-1">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/ventas/create`)}
-            disabled={deleting}
-          >
-            <Icon
-              icon="heroicons:shopping-cart"
-              className="w-5 h-5"
-            />
-            <span className="hidden sm:inline">Crear Venta</span>
-            <span className="sm:hidden">Venta</span>
-          </Button>
-        </div>
+          {/* Botones de acción mejorados */}
+    <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
+      <div className="flex-1">
+        <Button
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/presupuestos/create`)}
+          disabled={deleting}
+        >
+          <Icon
+            icon="heroicons:document-plus"
+            className="w-5 h-5"
+          />
+          <span className="hidden sm:inline">Crear Presupuesto</span>
+          <span className="sm:hidden">Presupuesto</span>
+        </Button>
       </div>
+      <div className="flex-1">
+        <Button
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/ventas/create`)}
+          disabled={deleting}
+        >
+          <Icon
+            icon="heroicons:shopping-cart"
+            className="w-5 h-5"
+          />
+          <span className="hidden sm:inline">Crear Venta</span>
+          <span className="sm:hidden">Venta</span>
+        </Button>
+      </div>
+    </div>
 
-      {/* Tablas mejoradas */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 px-2">
-        {/* Tabla de Presupuestos */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:document-text"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
-                <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-blue-600">Procesando...</span>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-                          <DataTableEnhanced 
-              data={presupuestosData} 
-              columns={columnsPresupuestos}
-              searchPlaceholder="Buscar presupuestos..."
-              className="border-0"
-              defaultSorting={[{ id: "numeroPedido", desc: true }]}
-              onRowClick={(presupuesto) => {
-                router.push(`/${lang}/presupuestos/${presupuesto.id}`);
-              }}
-            />
+          {/* Tablas mejoradas */}
+    <div className="flex flex-col gap-8 px-2">
+      {/* Tabla de Ventas - PRIMERA */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:shopping-cart"
+                className="w-7 h-7 text-white"
+              />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabla de Ventas */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:shopping-cart"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Ventas</div>
-                <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                  </div>
-                  <span className="text-sm font-medium text-emerald-600">Procesando...</span>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Ventas</div>
+              <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
+            </div>
+            {deleting && (
+              <div className="flex items-center gap-2 ml-auto">
+                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                 </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-                          <DataTableEnhanced 
+                <span className="text-sm font-medium text-emerald-600">Procesando...</span>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
               data={ventasData} 
               columns={columnsVentas}
               searchPlaceholder="Buscar ventas..."
@@ -3660,10 +3620,50 @@ const VentasPage = () => {
                 router.push(`/${lang}/ventas/${venta.id}`);
               }}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla de Presupuestos - ÚLTIMA */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:document-text"
+                className="w-7 h-7 text-white"
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
+              <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
+            </div>
+            {deleting && (
+              <div className="flex items-center gap-2 ml-auto">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+                <span className="text-sm font-medium text-blue-600">Procesando...</span>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
+              data={presupuestosData} 
+              columns={columnsPresupuestos}
+              searchPlaceholder="Buscar presupuestos..."
+              className="border-0"
+              defaultSorting={[{ id: "numeroPedido", desc: true }]}
+              onRowClick={(presupuesto) => {
+                router.push(`/${lang}/presupuestos/${presupuesto.id}`);
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
 
       {/* Diálogo de confirmación de eliminación mejorado */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
