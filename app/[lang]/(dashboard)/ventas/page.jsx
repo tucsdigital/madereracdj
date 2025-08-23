@@ -3527,204 +3527,202 @@ const VentasPage = () => {
   }, [presupuestosData, ventasData]);
 
   return (
-    <div className="flex flex-col gap-8 py-8 mx-auto font-sans max-w-7xl">
-      {/* Mensaje de estado del borrado */}
-      {deleteMessage && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
-          deleteMessage.startsWith('✅') 
-            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
-            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
-        }`}>
-          {deleteMessage.startsWith('✅') ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+    {/* Mensaje de estado del borrado */}
+    {deleteMessage && (
+      <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+        deleteMessage.startsWith('✅') 
+          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
+          : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+      }`}>
+        {deleteMessage.startsWith('✅') ? (
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-red-600" />
+          </div>
+        )}
+        <span className="font-semibold">{deleteMessage}</span>
+      </div>
+    )}
+
+    {/* Botones de acción mejorados */}
+    <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
+      <div className="flex-1">
+        <Button
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/presupuestos/create`)}
+          disabled={deleting}
+        >
+          <Icon
+            icon="heroicons:document-plus"
+            className="w-5 h-5"
+          />
+          <span className="hidden sm:inline">Crear Presupuesto</span>
+          <span className="sm:hidden">Presupuesto</span>
+        </Button>
+      </div>
+      <div className="flex-1">
+        <Button
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/ventas/create`)}
+          disabled={deleting}
+        >
+          <Icon
+            icon="heroicons:shopping-cart"
+            className="w-5 h-5"
+          />
+          <span className="hidden sm:inline">Crear Venta</span>
+          <span className="sm:hidden">Venta</span>
+        </Button>
+      </div>
+    </div>
+
+    {/* Tablas mejoradas */}
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 px-2">
+      {/* Tabla de Presupuestos */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:document-text"
+                className="w-7 h-7 text-white"
+              />
             </div>
-          ) : (
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
+              <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
+            </div>
+            {deleting && (
+              <div className="flex items-center gap-2 ml-auto">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+                <span className="text-sm font-medium text-blue-600">Procesando...</span>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
+              data={presupuestosData} 
+              columns={columnsPresupuestos}
+              searchPlaceholder="Buscar presupuestos..."
+              className="border-0"
+              defaultSorting={[{ id: "numeroPedido", desc: true }]}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla de Ventas */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:shopping-cart"
+                className="w-7 h-7 text-white"
+              />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Ventas</div>
+              <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
+            </div>
+            {deleting && (
+              <div className="flex items-center gap-2 ml-auto">
+                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                </div>
+                <span className="text-sm font-medium text-emerald-600">Procesando...</span>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
+              data={ventasData} 
+              columns={columnsVentas}
+              searchPlaceholder="Buscar ventas..."
+              className="border-0"
+              defaultSorting={[{ id: "numeroPedido", desc: true }]}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    {/* Diálogo de confirmación de eliminación mejorado */}
+    <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
+        <DialogHeader className="text-center pb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+          </div>
+          <DialogTitle className="text-xl font-bold text-gray-900">
+            Confirmar Eliminación
+          </DialogTitle>
+          <DialogDescription className="text-gray-600 mt-2">
+            ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+              <Info className="w-5 h-5 text-red-600" />
             </div>
-          )}
-          <span className="font-semibold">{deleteMessage}</span>
-        </div>
-      )}
-
-      {/* Botones de acción mejorados */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8 px-2">
-        <div className="flex-1">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/presupuestos/create`)}
-            disabled={deleting}
-          >
-            <Icon
-              icon="heroicons:document-plus"
-              className="w-5 h-5"
-            />
-            <span className="hidden sm:inline">Crear Presupuesto</span>
-            <span className="sm:hidden">Presupuesto</span>
-          </Button>
-        </div>
-        <div className="flex-1">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/ventas/create`)}
-            disabled={deleting}
-          >
-            <Icon
-              icon="heroicons:shopping-cart"
-              className="w-5 h-5"
-            />
-            <span className="hidden sm:inline">Crear Venta</span>
-            <span className="sm:hidden">Venta</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Tablas mejoradas */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 px-2">
-        {/* Tabla de Presupuestos */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:document-text"
-                  className="w-7 h-7 text-white"
-                />
+            <div className="flex-1">
+              <div className="font-semibold text-red-800">
+                {itemToDelete?.name || 'Elemento'}
               </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
-                <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-blue-600">Procesando...</span>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced 
-                data={presupuestosData} 
-                columns={columnsPresupuestos}
-                searchPlaceholder="Buscar presupuestos..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabla de Ventas */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:shopping-cart"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Ventas</div>
-                <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                  </div>
-                  <span className="text-sm font-medium text-emerald-600">Procesando...</span>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced 
-                data={ventasData} 
-                columns={columnsVentas}
-                searchPlaceholder="Buscar ventas..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Diálogo de confirmación de eliminación mejorado */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
-          <DialogHeader className="text-center pb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-            <DialogTitle className="text-xl font-bold text-gray-900">
-              Confirmar Eliminación
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2">
-              ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Info className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-red-800">
-                  {itemToDelete?.name || 'Elemento'}
-                </div>
-                <div className="text-sm text-red-700">
-                  {deleteType === 'venta' 
-                    ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
-                    : 'Esta acción eliminará el presupuesto permanentemente.'
-                  }
-                </div>
+              <div className="text-sm text-red-700">
+                {deleteType === 'venta' 
+                  ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
+                  : 'Esta acción eliminará el presupuesto permanentemente.'
+                }
               </div>
             </div>
           </div>
+        </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-              disabled={deleting}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105"
-              disabled={deleting}
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowDeleteDialog(false)}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+            disabled={deleting}
+          >
+            <X className="w-4 h-4 mr-2" />
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirmDelete}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105"
+            disabled={deleting}
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Eliminando...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
