@@ -3459,7 +3459,7 @@ const ProductosPage = () => {
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="flex gap-2 justify-center">
-                          <Link href={`/productos/${p.id}/detail`}>
+                          <Link href={`/productos/${p.id}`}>
                             <Button
                               size="sm"
                               variant="outline"
