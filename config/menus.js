@@ -4,7 +4,7 @@ import {
   Building,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardDocumentList } from "lucide-react";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -55,7 +55,7 @@ export const menusConfig = {
     },
     {
       title: "Auditoría",
-      icon: ClipboardDocumentList,
+      icon: ClipboardList,
       href: "/auditoria",
     },
   ],
@@ -108,7 +108,7 @@ export const menusConfig = {
       },
       {
         title: "Auditoría",
-        icon: ClipboardDocumentList,
+        icon: ClipboardList,
         href: "/auditoria",
       },
     ],
@@ -164,7 +164,7 @@ export const menusConfig = {
       },
       {
         title: "Auditoría",
-        icon: ClipboardDocumentList,
+        icon: ClipboardList,
         href: "/auditoria",
       },
     ],
