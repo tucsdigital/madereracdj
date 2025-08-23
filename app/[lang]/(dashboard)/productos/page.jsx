@@ -99,6 +99,10 @@ const baseSchema = {
     .string()
     .oneOf(["Activo", "Inactivo", "Descontinuado"])
     .required(),
+  estadoTienda: yup
+    .string()
+    .oneOf(["Activo", "Inactivo"])
+    .required("El estado de tienda es obligatorio"),
   costo: yup.number().positive().required("El costo es obligatorio"),
 };
 
@@ -175,7 +179,7 @@ function FormularioProducto({ onClose, onSuccess }) {
     setValue,
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: { estado: "Activo" },
+    defaultValues: { estado: "Activo", estadoTienda: "Activo" },
   });
 
   useEffect(() => {
@@ -304,6 +308,7 @@ function FormularioProducto({ onClose, onSuccess }) {
             "categoria",
             "subcategoria",
             "estado",
+            "estadoTienda",
             "costo",
             "tipoMadera",
             "largo",
@@ -320,6 +325,7 @@ function FormularioProducto({ onClose, onSuccess }) {
             "categoria",
             "subCategoria",
             "estado",
+            "estadoTienda",
             "costo",
             "stockMinimo",
             "unidadMedida",
@@ -633,6 +639,27 @@ function FormularioProducto({ onClose, onSuccess }) {
                   </div>
                 )}
               </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="text-red-500">*</span>
+                Tienda
+              </label>
+              <select
+                {...register("estadoTienda")}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                disabled={isSubmitting}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
+              {errors.estadoTienda && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.estadoTienda.message}
+                </div>
+              )}
+            </div>
               
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -1156,6 +1183,7 @@ const ProductosPage = () => {
     proveedor: "",
     unidadMedida: "",
     estado: "",
+    estadoTienda: "",
     subcategoria: "",
     tipoMadera: "",
   });
@@ -1221,6 +1249,7 @@ const ProductosPage = () => {
   const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
   const [bulkEditForm, setBulkEditForm] = useState({
     estado: "",
+    estadoTienda: "",
     unidadMedida: "",
   });
   const [bulkEditLoading, setBulkEditLoading] = useState(false);
@@ -1333,6 +1362,7 @@ const ProductosPage = () => {
       proveedor: producto.proveedor || "",
       unidadMedida: producto.unidadMedida || "",
       estado: producto.estado || "Activo",
+      estadoTienda: producto.estadoTienda || "Activo",
       subcategoria: producto.subcategoria || producto.subCategoria || "",
       tipoMadera: producto.tipoMadera || "",
     });
@@ -1393,6 +1423,9 @@ const ProductosPage = () => {
       if (editForm.estado !== editProduct.estado) {
         updates.estado = editForm.estado;
       }
+      if (editForm.estadoTienda !== editProduct.estadoTienda) {
+        updates.estadoTienda = editForm.estadoTienda;
+      }
       
       // Guardar subcategoría en el campo correcto según la categoría
       if (editProduct.categoria === "Ferretería") {
@@ -1423,6 +1456,7 @@ const ProductosPage = () => {
           proveedor: "", 
           unidadMedida: "", 
           estado: "", 
+          estadoTienda: "", 
           subcategoria: "", 
           tipoMadera: "" 
         });
@@ -2911,6 +2945,9 @@ const ProductosPage = () => {
       if (bulkEditForm.estado) {
         updates.estado = bulkEditForm.estado;
       }
+      if (bulkEditForm.estadoTienda) {
+        updates.estadoTienda = bulkEditForm.estadoTienda;
+      }
       if (bulkEditForm.unidadMedida) {
         updates.unidadMedida = bulkEditForm.unidadMedida;
       }
@@ -2938,7 +2975,7 @@ const ProductosPage = () => {
       // Limpiar formulario y cerrar modal después de un delay
       setTimeout(() => {
         setBulkEditModalOpen(false);
-        setBulkEditForm({ estado: "", unidadMedida: "" });
+        setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "" });
         setBulkEditMessage("");
         setSelectedProducts([]);
         setSelectAll(false);
@@ -2953,7 +2990,7 @@ const ProductosPage = () => {
 
   // Función para abrir modal de edición masiva
   const openBulkEditModal = () => {
-    setBulkEditForm({ estado: "", unidadMedida: "" });
+    setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "" });
     setBulkEditMessage("");
     setBulkEditModalOpen(true);
   };
@@ -3321,6 +3358,9 @@ const ProductosPage = () => {
                       Estado
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Tienda
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Acciones
                     </th>
                   </tr>
@@ -3527,6 +3567,17 @@ const ProductosPage = () => {
                           }`}
                         >
                           {p.estado}
+                        </span>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            (p.estadoTienda || "Activo") === "Activo"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-200 text-gray-700"
+                          }`}
+                        >
+                          {p.estadoTienda || "Activo"}
                         </span>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -4308,8 +4359,8 @@ const ProductosPage = () => {
                   </div>
                   <div className="text-xs text-amber-700">
                     {editProduct.categoria === "Maderas" 
-                      ? "Para maderas: nombre, descripción, unidad de medida, estado, subcategoría y tipo de madera"
-                      : "Para ferretería: nombre, descripción, unidad de medida, estado, subcategoría y proveedor"
+                      ? "Para maderas: nombre, descripción, unidad de medida, estado, tienda, subcategoría y tipo de madera"
+                      : "Para ferretería: nombre, descripción, unidad de medida, estado, tienda, subcategoría y proveedor"
                     }
                   </div>
                 </div>
@@ -4339,6 +4390,19 @@ const ProductosPage = () => {
                       <option value="Activo">Activo</option>
                       <option value="Inactivo">Inactivo</option>
                       <option value="Descontinuado">Descontinuado</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Tienda *
+                    </label>
+                    <select
+                      value={editForm.estadoTienda}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="Activo">Activo</option>
+                      <option value="Inactivo">Inactivo</option>
                     </select>
                   </div>
                 </div>
@@ -4736,6 +4800,25 @@ const ProductosPage = () => {
                 </select>
                 <p className="text-xs text-gray-500">
                   Selecciona un nuevo estado para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              {/* Campo Tienda */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Estado de Tienda
+                </label>
+                <select
+                  value={bulkEditForm.estadoTienda}
+                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">No cambiar estado de tienda</option>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+                <p className="text-xs text-gray-500">
+                  Selecciona un nuevo estado de tienda para todos los productos o déjalo vacío para no modificar
                 </p>
               </div>
 
