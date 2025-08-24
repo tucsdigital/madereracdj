@@ -95,7 +95,6 @@ export const columnsPresupuestos = [
           <span className="font-mono text-sm font-semibold text-gray-900">
             {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
           </span>
-          <span className="text-xs text-gray-500">Presupuesto</span>
         </div>
       </div>
     ),
@@ -241,7 +240,6 @@ export const columnsVentas = [
           <span className="font-mono text-sm font-semibold text-gray-900">
             {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
           </span>
-          <span className="text-xs text-gray-500">Venta</span>
         </div>
       </div>
     ),
@@ -312,28 +310,6 @@ export const columnsVentas = [
         </div>
         <span className="font-bold text-lg text-gray-900">
           {formatCurrency(row.getValue("total") || 0)}
-        </span>
-      </div>
-    ),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "vendedor",
-    header: ({ column }) => (
-      <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-purple-600" />
-        <span className="font-semibold">Vendedor</span>
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center">
-          <span className="text-xs font-semibold text-purple-700">
-            {(row?.original?.vendedor || "V")[0].toUpperCase()}
-          </span>
-        </div>
-        <span className="text-sm font-medium text-gray-700">
-          {row?.original?.vendedor || "-"}
         </span>
       </div>
     ),
@@ -414,6 +390,28 @@ export const columnsVentas = [
         </div>
       );
     },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "vendedor",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-purple-600" />
+        <span className="font-semibold">Vendedor</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-purple-700">
+            {(row?.original?.vendedor || "V")[0].toUpperCase()}
+          </span>
+        </div>
+        <span className="text-sm font-medium text-gray-700">
+          {row?.original?.vendedor || "-"}
+        </span>
+      </div>
+    ),
     enableSorting: true,
   },
   {
