@@ -928,7 +928,7 @@ const ProductoDetailPage = () => {
                   Galería de Imágenes
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Selecciona múltiples imágenes para la galería del producto. Arrastra y suelta para reordenar.
+                  Selecciona múltiples imágenes para la galería del producto. Arrastra y suelta para reordenar. (Medida: 420px x 530px)
                 </p>
                 <div className="flex gap-2">
                   <input
