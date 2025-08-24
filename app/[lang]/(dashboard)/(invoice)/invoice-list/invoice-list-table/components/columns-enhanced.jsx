@@ -67,10 +67,9 @@ const getStatusIcon = (status) => {
 
 // Función para formatear moneda
 const formatCurrency = (amount) => {
-  if (!amount || isNaN(amount)) return "$0.00";
+  if (!amount || isNaN(amount)) return "0";
   return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
+    style: "decimal",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
@@ -159,7 +158,7 @@ export const columnsPresupuestos = [
       </div>
     ),
     cell: ({ row }) => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
           <DollarSign className="w-4 h-4 text-emerald-600" />
         </div>
