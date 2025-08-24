@@ -382,9 +382,9 @@ export const columnsVentas = [
             <span className={`font-semibold text-sm ${colorClase}`}>
               {formatCurrency(montoAbonado)}
             </span>
-            <span className={`text-xs ${porcentajeColor}`}>
+            {/* <span className={`text-xs ${porcentajeColor}`}>
               {porcentaje.toFixed(0)}% del total
-            </span>
+            </span> */}
           </div>
         </div>
       );
