@@ -162,7 +162,7 @@ export const columnsPresupuestos = [
         <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
           <DollarSign className="w-4 h-4 text-emerald-600" />
         </div>
-        <span className="font-bold text-lg text-gray-900">
+        <span className="font-bold text-sm text-gray-900">
           {formatCurrency(row.getValue("total") || 0)}
         </span>
       </div>
@@ -307,7 +307,7 @@ export const columnsVentas = [
         <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
           <DollarSign className="w-4 h-4 text-emerald-600" />
         </div>
-        <span className="font-bold text-lg text-gray-900">
+        <span className="font-bold text-sm text-gray-900">
           {formatCurrency(row.getValue("total") || 0)}
         </span>
       </div>
