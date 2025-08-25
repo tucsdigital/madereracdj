@@ -54,7 +54,7 @@ GET /api/users/{email}/profiles
 
 ## 📦 **APIs de Pedidos**
 
-### **2. Obtener Pedidos del Usuario**
+### **2. Obtener Ventas del Usuario**
 ```
 GET /api/orders?userId={email}
 ```
@@ -68,34 +68,48 @@ GET /api/orders?userId={email}
   "success": true,
   "data": [
     {
-      "id": "pedido_id",
-      "numeroPedido": "pedido_id",
-      "estado": "completada",
-      "total": 15000.50,
-      "medioPago": "efectivo",
-      "datosEnvio": {
-        "direccion": "Calle 123",
-        "localidad": "Ciudad",
-        "tipoEnvio": "retiro"
-      },
-      "creadoEn": "2024-01-15T10:30:00.000Z",
-      "actualizadoEn": "2024-01-15T10:30:00.000Z",
-      "tipo": "venta"
+      "id": "3dYGoF5znMpx6U34bQSt",
+      "numeroPedido": "VENTA-00035",
+      "estado": "pagado",
+      "total": 28000,
+      "subtotal": 28000,
+      "medioPago": "transferencia",
+      "fecha": "2025-08-11",
+      "tipo": "venta",
+      "vendedor": "brian@maderascaballero.com",
+      "items": [
+        {
+          "nombre": "Tablas de Quebracho 1 X 4 X 1",
+          "precio": 2800,
+          "cantidad": 10
+        }
+      ],
+      "cliente": {
+        "nombre": "SIMARIA CASTELLI",
+        "email": "tucsdigital@gmail.com",
+        "telefono": "1168990631",
+        "cuit": "38405493",
+        "direccion": "DOLORES 1490"
+      }
     }
   ],
   "total": 1,
   "usuario": {
-    "id": "cliente_id",
-    "email": "usuario@email.com"
+    "email": "tucsdigital@gmail.com"
   }
 }
 ```
 
-**Respuesta de Error (404):**
+**Respuesta cuando no hay ventas (200):**
 ```json
 {
-  "error": "Usuario no encontrado",
-  "email": "usuario@email.com"
+  "success": true,
+  "data": [],
+  "total": 0,
+  "mensaje": "No se encontraron ventas para este usuario",
+  "usuario": {
+    "email": "tucsdigital@gmail.com"
+  }
 }
 ```
 
@@ -248,6 +262,11 @@ const AccountPage = () => {
 
 ## ⚠️ **Consideraciones Técnicas**
 
+### **Estructura de Datos**
+- **IMPORTANTE**: La API `/api/orders` lee desde la colección `ventas` de Firestore
+- Los documentos deben tener la estructura correcta con `cliente.email`
+- El campo `cliente.email` debe coincidir exactamente con el `userId` enviado
+
 ### **CORS**
 - Todas las APIs tienen CORS habilitado para `*`
 - Métodos permitidos: `GET`, `OPTIONS`
@@ -267,6 +286,14 @@ const AccountPage = () => {
 
 ## 🔧 **Solución de Problemas**
 
+### **Error 400 - Parámetros incorrectos**
+- Verifica que el parámetro `userId` esté presente en la query
+- El `userId` debe ser un email válido
+
+### **Error 403 - Error de permisos**
+- Error de permisos en la base de datos
+- Verifica las reglas de seguridad de Firestore
+
 ### **Error 404 - Usuario no encontrado**
 - Verifica que el email esté correctamente escrito
 - Asegúrate de que el usuario exista en la base de datos
@@ -275,7 +302,15 @@ const AccountPage = () => {
 ### **Error 500 - Error interno**
 - Revisa los logs del servidor
 - Verifica la conectividad con Firebase
-- Asegúrate de que las colecciones existan
+- Asegúrate de que la colección `ventas` exista
+
+### **Error 503 - Base de datos no disponible**
+- Error de conectividad con Firestore
+- Verifica el estado de la base de datos
+
+### **Respuesta exitosa con array vacío**
+- Si el usuario no tiene ventas, la API devuelve `data: []` con status 200
+- Esto NO es un error, es una respuesta válida
 
 ### **CORS Issues**
 - Las APIs responden con `Access-Control-Allow-Origin: *`

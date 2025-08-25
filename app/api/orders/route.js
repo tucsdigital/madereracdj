@@ -26,103 +26,83 @@ export async function GET(request) {
       }, { status: 400 }));
     }
 
-    // Primero buscar el cliente por email para obtener su ID
-    const clienteQuery = query(
-      collection(db, "clientes"),
-      where("email", "==", userId)
+    // Buscar ventas directamente en la colección ventas por cliente.email
+    const ventasQuery = query(
+      collection(db, "ventas"),
+      where("cliente.email", "==", userId),
+      orderBy("fecha", "desc")
     );
     
-    const clienteSnap = await getDocs(clienteQuery);
+    const ventasSnap = await getDocs(ventasQuery);
     
-    if (clienteSnap.empty) {
-      return withCors(NextResponse.json({ 
-        error: "Usuario no encontrado",
-        email: userId
-      }, { status: 404 }));
-    }
-
-    const clienteId = clienteSnap.docs[0].id;
-
-    // Buscar pedidos por clienteId
-    const pedidosQuery = query(
-      collection(db, "pedidos"),
-      where("clienteId", "==", clienteId),
-      orderBy("creadoEn", "desc")
-    );
-    
-    const pedidosSnap = await getDocs(pedidosQuery);
-    
-    const pedidos = [];
-    pedidosSnap.forEach((doc) => {
-      const pedido = doc.data();
-      pedidos.push({
+    const ventas = [];
+    ventasSnap.forEach((doc) => {
+      const venta = doc.data();
+      ventas.push({
         id: doc.id,
-        numeroPedido: doc.id,
-        estado: pedido.estado || "pendiente",
-        total: pedido.total || 0,
-        medioPago: pedido.medioPago || "",
-        datosEnvio: pedido.datosEnvio || null,
-        creadoEn: pedido.creadoEn || null,
-        actualizadoEn: pedido.actualizadoEn || null,
-        carritoId: pedido.carritoId || null
+        numeroPedido: venta.numeroPedido || doc.id,
+        estado: venta.estadoPago || "pendiente",
+        total: venta.total || 0,
+        subtotal: venta.subtotal || 0,
+        medioPago: venta.formaPago || "efectivo",
+        fecha: venta.fecha || null,
+        tipo: venta.tipo || "venta",
+        vendedor: venta.vendedor || "",
+        items: venta.items || [],
+        cliente: {
+          nombre: venta.cliente?.nombre || "",
+          email: venta.cliente?.email || "",
+          telefono: venta.cliente?.telefono || "",
+          cuit: venta.cliente?.cuit || "",
+          direccion: venta.cliente?.direccion || ""
+        }
       });
     });
 
-    // También buscar en la colección de ventas (si existe)
-    try {
-      const ventasQuery = query(
-        collection(db, "ventas"),
-        where("cliente.email", "==", userId),
-        orderBy("fechaCreacion", "desc")
-      );
-      
-      const ventasSnap = await getDocs(ventasQuery);
-      
-      ventasSnap.forEach((doc) => {
-        const venta = doc.data();
-        pedidos.push({
-          id: doc.id,
-          numeroPedido: venta.numeroPedido || doc.id,
-          estado: venta.estado || "completada",
-          total: venta.total || 0,
-          medioPago: venta.medioPago || "efectivo",
-          datosEnvio: {
-            direccion: venta.direccionEnvio || "",
-            localidad: venta.localidadEnvio || "",
-            tipoEnvio: venta.tipoEnvio || ""
-          },
-          creadoEn: venta.fechaCreacion || null,
-          actualizadoEn: venta.fechaActualizacion || null,
-          tipo: "venta"
-        });
-      });
-    } catch (ventasError) {
-      // Si no existe la colección ventas, continuar
-      console.log("Colección ventas no disponible:", ventasError.message);
+    // Si no hay ventas, devolver array vacío en lugar de error
+    if (ventas.length === 0) {
+      return withCors(NextResponse.json({
+        success: true,
+        data: [],
+        total: 0,
+        mensaje: "No se encontraron ventas para este usuario",
+        usuario: {
+          email: userId
+        }
+      }));
     }
-
-    // Ordenar todos los pedidos por fecha de creación
-    pedidos.sort((a, b) => {
-      const fechaA = new Date(a.creadoEn || 0);
-      const fechaB = new Date(b.creadoEn || 0);
-      return fechaB - fechaA;
-    });
 
     return withCors(NextResponse.json({
       success: true,
-      data: pedidos,
-      total: pedidos.length,
+      data: ventas,
+      total: ventas.length,
       usuario: {
-        id: clienteId,
         email: userId
       }
     }));
 
   } catch (err) {
     console.error("Error en /api/orders:", err);
+    
+    // Manejar errores específicos de Firestore
+    if (err.code === 'permission-denied') {
+      return withCors(NextResponse.json({ 
+        error: "Error de permisos en la base de datos",
+        message: "No se puede acceder a la colección de ventas"
+      }, { status: 403 }));
+    }
+    
+    if (err.code === 'unavailable') {
+      return withCors(NextResponse.json({ 
+        error: "Base de datos no disponible",
+        message: "Error de conectividad con Firestore"
+      }, { status: 503 }));
+    }
+    
+    // Error genérico
     return withCors(NextResponse.json({ 
       error: "Error interno del servidor",
-      message: err.message
+      message: "Error al consultar las ventas del usuario"
     }, { status: 500 }));
   }
 }
