@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, getDocs, updateDoc, query, where, orderBy } from "firebase/firestore";
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
@@ -46,16 +46,47 @@ export async function POST(request) {
   }
 }
 
-// Obtener pedido
+// Obtener pedido por ID o por clienteId
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const pedidoId = searchParams.get("pedidoId");
-    if (!pedidoId) return withCors(NextResponse.json({ error: "pedidoId requerido" }, { status: 400 }));
-    const ref = doc(db, "pedidos", pedidoId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return withCors(NextResponse.json({ error: "No encontrado" }, { status: 404 }));
-    return withCors(NextResponse.json({ pedido: { id: snap.id, ...snap.data() } }));
+    const clienteId = searchParams.get("clienteId");
+    
+    // Si se proporciona clienteId, buscar todos los pedidos del cliente
+    if (clienteId) {
+      const q = query(
+        collection(db, "pedidos"),
+        where("clienteId", "==", clienteId),
+        orderBy("creadoEn", "desc")
+      );
+      
+      const snap = await getDocs(q);
+      const pedidos = [];
+      snap.forEach((doc) => {
+        pedidos.push({ id: doc.id, ...doc.data() });
+      });
+      
+      return withCors(NextResponse.json({ 
+        pedidos, 
+        total: pedidos.length,
+        clienteId 
+      }));
+    }
+    
+    // Si se proporciona pedidoId, buscar pedido específico
+    if (pedidoId) {
+      const ref = doc(db, "pedidos", pedidoId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return withCors(NextResponse.json({ error: "No encontrado" }, { status: 404 }));
+      return withCors(NextResponse.json({ pedido: { id: snap.id, ...snap.data() } }));
+    }
+    
+    // Si no se proporciona ninguno, error
+    return withCors(NextResponse.json({ 
+      error: "Debe proporcionar pedidoId o clienteId" 
+    }, { status: 400 }));
+    
   } catch (err) {
     return withCors(NextResponse.json({ error: err.message }, { status: 500 }));
   }
