@@ -1948,15 +1948,22 @@ const VentaDetalle = () => {
                       <td className="p-3 text-right font-medium subtotal-empleado">
                         $
                         {formatearNumeroArgentino(
-                          computeLineSubtotal({
-                            precio: producto.precio,
-                            cantidad: producto.cantidad,
-                            descuento: producto.descuento,
-                            subcategoria: producto.subcategoria,
-                            subCategoria: producto.subCategoria,
-                            nombre: producto.nombre,
-                            descripcion: producto.descripcion,
-                          })
+                          (() => {
+                            // Para productos de categoría "Eventual", calcular directamente precio × cantidad
+                            if (producto.categoria === "Eventual") {
+                              return Number(producto.precio) * Number(producto.cantidad);
+                            }
+                            // Para otros productos, usar la función computeLineSubtotal
+                            return computeLineSubtotal({
+                              precio: producto.precio,
+                              cantidad: producto.cantidad,
+                              descuento: producto.descuento,
+                              subcategoria: producto.subcategoria,
+                              subCategoria: producto.subCategoria,
+                              nombre: producto.nombre,
+                              descripcion: producto.descripcion,
+                            });
+                          })()
                         )}
                       </td>
                     </tr>

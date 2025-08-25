@@ -20,15 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import {
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Trash2,
-  X,
-  AlertTriangle,
-  Info,
-} from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Trash2, X, AlertTriangle, Info } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -132,8 +124,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         originalValue === "" ? undefined : value
       )
       .when(["pagoParcial", "pagoPendiente"], {
-        is: (pagoParcial, pagoPendiente) =>
-          Boolean(pagoParcial) && !Boolean(pagoPendiente),
+        is: (pagoParcial, pagoPendiente) => Boolean(pagoParcial) && !Boolean(pagoPendiente),
         then: (s) =>
           s
             .typeError("Debe ingresar un monto")
@@ -236,16 +227,16 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const unsubscribe = onSnapshot(
       qRef,
       (snap) => {
-        const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setProductosState(productos);
-        const agrupados = {};
-        productos.forEach((p) => {
-          if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
-          agrupados[p.categoria].push(p);
-        });
-        setProductosPorCategoria(agrupados);
-        setCategoriasState(Object.keys(agrupados));
-        setProductosLoading(false);
+      const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setProductosState(productos);
+      const agrupados = {};
+      productos.forEach((p) => {
+        if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
+        agrupados[p.categoria].push(p);
+      });
+      setProductosPorCategoria(agrupados);
+      setCategoriasState(Object.keys(agrupados));
+      setProductosLoading(false);
       },
       () => setProductosLoading(false)
     );
@@ -270,7 +261,11 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Sin búsqueda remota: todo se filtra en memoria
 
+  
+
   // Sin cache por categoría: se deriva desde la suscripción global
+
+  
 
   // Estados para paginación
   const [paginaActual, setPaginaActual] = useState(1);
@@ -280,120 +275,112 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   // Al escribir en el input ya se actualiza busquedaDebounced; no se requiere botón
 
-  const handleAgregarProducto = useCallback(
-    (producto) => {
-      // Intentar resolver el producto real desde distintas fuentes locales (estado inicial o agrupación por categoría)
-      let real = productosState.find((p) => p.id === producto.id);
-      if (!real && categoriaId && productosPorCategoria[categoriaId]) {
-        real = (productosPorCategoria[categoriaId] || []).find(
-          (p) => p.id === producto.id
-        );
-      }
-      // Si aún no se encontró, usar el objeto recibido (proviene del catálogo remoto)
-      if (!real) {
-        real = producto;
-      }
-      if (!productosSeleccionados.some((p) => p.id === real.id)) {
-        let precio;
+  const handleAgregarProducto = useCallback((producto) => {
+    // Intentar resolver el producto real desde distintas fuentes locales (estado inicial o agrupación por categoría)
+    let real = productosState.find((p) => p.id === producto.id);
+    if (!real && categoriaId && productosPorCategoria[categoriaId]) {
+      real = (productosPorCategoria[categoriaId] || []).find((p) => p.id === producto.id);
+    }
+    // Si aún no se encontró, usar el objeto recibido (proviene del catálogo remoto)
+    if (!real) {
+      real = producto;
+    }
+    if (!productosSeleccionados.some((p) => p.id === real.id)) {
+      let precio;
 
-        if (real.categoria === "Maderas") {
-          let alto = Number(real.alto) || 0;
-          let ancho = Number(real.ancho) || 0;
-          let largo = Number(real.largo) || 0;
-          let precioPorPie = Number(real.precioPorPie) || 0;
+      if (real.categoria === "Maderas") {
+        let alto = Number(real.alto) || 0;
+        let ancho = Number(real.ancho) || 0;
+        let largo = Number(real.largo) || 0;
+        let precioPorPie = Number(real.precioPorPie) || 0;
 
-          // Verificar si es machimbre o deck para usar cálculo especial
-          if (real.unidad === "M2" || real.unidadMedida === "M2") {
-            if (ancho > 0 && largo > 0 && precioPorPie > 0) {
-              // Para machimbre, el precio se calcula por m2 y luego se multiplica por cantidad
-              precio = calcularPrecioMachimbre({
-                alto,
-                largo,
-                cantidad: 1, // Cantidad inicial por defecto
-                precioPorPie,
-              });
-            } else {
-              setSubmitStatus("error");
-              setSubmitMessage(
-                "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
-              );
-              return;
-            }
-          } else if (
-            real.unidad === "Unidad" ||
-            real.unidadMedida === "Unidad"
-          ) {
-            // Madera por unidad: usar precioPorPie como precio unitario directo
-            if (precioPorPie > 0) {
-              // Redondear a centenas para consistencia
-              precio = Math.round(precioPorPie / 100) * 100;
-            } else {
-              setSubmitStatus("error");
-              setSubmitMessage(
-                "El producto de madera por unidad no tiene un precio válido."
-              );
-              return;
-            }
+        // Verificar si es machimbre o deck para usar cálculo especial
+        if (real.unidad === "M2" || real.unidadMedida === "M2") {
+          if (ancho > 0 && largo > 0 && precioPorPie > 0) {
+            // Para machimbre, el precio se calcula por m2 y luego se multiplica por cantidad
+            precio = calcularPrecioMachimbre({
+              alto,
+              largo,
+              cantidad: 1, // Cantidad inicial por defecto
+              precioPorPie,
+            });
           } else {
-            if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-              precio = calcularPrecioCorteMadera({
-                alto,
-                ancho,
-                largo,
-                precioPorPie,
-              });
-            } else {
-              setSubmitStatus("error");
-              setSubmitMessage(
-                "El producto de madera no tiene dimensiones válidas en la base de datos."
-              );
-              return;
-            }
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
+            );
+            return;
+          }
+        } else if (real.unidad === "Unidad" || real.unidadMedida === "Unidad") {
+          // Madera por unidad: usar precioPorPie como precio unitario directo
+          if (precioPorPie > 0) {
+            // Redondear a centenas para consistencia
+            precio = Math.round(precioPorPie / 100) * 100;
+          } else {
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto de madera por unidad no tiene un precio válido."
+            );
+            return;
           }
         } else {
-          if (real.categoria === "Ferretería") {
-            precio = real.valorVenta || 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioCorteMadera({
+              alto,
+              ancho,
+              largo,
+              precioPorPie,
+            });
           } else {
-            precio =
-              real.precioUnidad ||
-              real.precioUnidadVenta ||
-              real.precioUnidadHerraje ||
-              real.precioUnidadQuimico ||
-              real.precioUnidadHerramienta ||
-              0;
+            setSubmitStatus("error");
+            setSubmitMessage(
+              "El producto de madera no tiene dimensiones válidas en la base de datos."
+            );
+            return;
           }
         }
-
-        setProductosSeleccionados([
-          ...productosSeleccionados,
-          {
-            id: real.id,
-            nombre: real.nombre,
-            precio,
-            unidad:
-              real.unidadMedida ||
-              real.unidadVenta ||
-              real.unidadVentaHerraje ||
-              real.unidadVentaQuimico ||
-              real.unidadVentaHerramienta,
-            stock: real.stock,
-            cantidad: 1, // Cantidad de paquetes (siempre empieza en 1)
-            descuento: 0,
-            categoria: real.categoria,
-            alto: Number(real.alto) || 0,
-            ancho: Number(real.ancho) || 0,
-            largo: Number(real.largo) || 0,
-            precioPorPie: Number(real.precioPorPie) || 0,
-            // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-            cepilladoAplicado: false, // Por defecto sin cepillado
-            tipoMadera: real.tipoMadera || "",
-            subcategoria: real.subcategoria || "",
-          },
-        ]);
+      } else {
+        if (real.categoria === "Ferretería") {
+          precio = real.valorVenta || 0;
+        } else {
+          precio =
+            real.precioUnidad ||
+            real.precioUnidadVenta ||
+            real.precioUnidadHerraje ||
+            real.precioUnidadQuimico ||
+            real.precioUnidadHerramienta ||
+            0;
+        }
       }
-    },
-    [productosState, productosSeleccionados, productosPorCategoria, categoriaId]
-  );
+
+      setProductosSeleccionados([
+        ...productosSeleccionados,
+        {
+          id: real.id,
+          nombre: real.nombre,
+          precio,
+          unidad:
+            real.unidadMedida ||
+            real.unidadVenta ||
+            real.unidadVentaHerraje ||
+            real.unidadVentaQuimico ||
+            real.unidadVentaHerramienta,
+          stock: real.stock,
+          cantidad: 1, // Cantidad de paquetes (siempre empieza en 1)
+          descuento: 0,
+          categoria: real.categoria,
+          alto: Number(real.alto) || 0,
+          ancho: Number(real.ancho) || 0,
+          largo: Number(real.largo) || 0,
+          precioPorPie: Number(real.precioPorPie) || 0,
+          // Para machimbre ya no usamos cantidadPaquete, solo cantidad
+          cepilladoAplicado: false, // Por defecto sin cepillado
+          tipoMadera: real.tipoMadera || "",
+          subcategoria: real.subcategoria || "",
+        },
+      ]);
+    }
+  }, [productosState, productosSeleccionados, productosPorCategoria, categoriaId]);
   const handleQuitarProducto = (id) => {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
@@ -415,7 +402,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       productosSeleccionados.map((p) => {
         if (p.id === id) {
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
+          if (
+            p.categoria === "Maderas" && p.unidad === "M2"
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -449,7 +438,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           const nuevaCantidad = Number(p.cantidad) + 1;
 
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
+          if (
+            p.categoria === "Maderas" && p.unidad === "M2"
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -483,7 +474,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           const nuevaCantidad = Math.max(1, Number(p.cantidad) - 1);
 
           // Si es machimbre o deck, recalcular precio
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
+          if (
+            p.categoria === "Maderas" && p.unidad === "M2"
+          ) {
             const precioBase = calcularPrecioMachimbre({
               alto: p.alto,
               largo: p.largo,
@@ -512,12 +505,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
   const handleDescuentoChange = (id, descuento) => {
     const parsedDescuento = parseNumericValue(descuento);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
-        p.id === id
-          ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento }
-          : p
+        p.id === id ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento } : p
       )
     );
   };
@@ -530,12 +521,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
   const handlePrecioChange = (id, precio) => {
     const parsedPrecio = parseNumericValue(precio);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) =>
-        p.id === id
-          ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio }
-          : p
+        p.id === id ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio } : p
       )
     );
   };
@@ -582,7 +571,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
         if (p.id === id && p.categoria === "Maderas") {
@@ -625,10 +614,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Función para manejar cambios en alto para machimbre/deck
   const handleAltoChange = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad === "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad === "M2"
+        ) {
           const precioBase = calcularPrecioMachimbre({
             alto: parsedAlto === "" ? 0 : parsedAlto,
             largo: p.largo,
@@ -656,10 +649,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Función para manejar cambios en ancho para machimbre/deck
   const handleAnchoChange = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad === "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad === "M2"
+        ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
             largo: p.largo,
@@ -687,10 +684,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Función para manejar cambios en largo para machimbre/deck
   const handleLargoChange = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad === "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad === "M2"
+        ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
             largo: parsedLargo === "" ? 0 : parsedLargo,
@@ -718,10 +719,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
   const handleAltoChangeMadera = (id, nuevoAlto) => {
     const parsedAlto = parseNumericValue(nuevoAlto);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad !== "M2"
+        ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: parsedAlto === "" ? 0 : parsedAlto,
             ancho: p.ancho,
@@ -748,10 +753,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handleAnchoChangeMadera = (id, nuevoAncho) => {
     const parsedAncho = parseNumericValue(nuevoAncho);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad !== "M2"
+        ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: parsedAncho === "" ? 0 : parsedAncho,
@@ -778,10 +787,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handleLargoChangeMadera = (id, nuevoLargo) => {
     const parsedLargo = parseNumericValue(nuevoLargo);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad !== "M2"
+        ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: p.ancho,
@@ -808,10 +821,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
     const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
-
+    
     setProductosSeleccionados(
       productosSeleccionados.map((p) => {
-        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" &&
+          p.unidad !== "M2"
+        ) {
           const precioBase = calcularPrecioCorteMadera({
             alto: p.alto,
             ancho: p.ancho,
@@ -839,40 +856,36 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Obtener tipos de madera únicos (memoizado)
   const tiposMadera = useMemo(() => {
     return [
-      ...new Set(
-        productosState
-          .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
-          .map((p) => p.tipoMadera)
-      ),
-    ].filter(Boolean);
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
   }, [productosState]);
 
   // Obtener subcategorías de ferretería únicas (memoizado)
   const subCategoriasFerreteria = useMemo(() => {
     return [
-      ...new Set(
-        productosState
-          .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
-          .map((p) => p.subCategoria)
-      ),
-    ].filter(Boolean);
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
   }, [productosState]);
 
-  const subtotal = productosSeleccionados.reduce((acc, p) => {
-    // Para machimbre y deck, el precio ya incluye la cantidad
-    if (p.categoria === "Maderas" && p.unidad === "M2") {
-      return acc + Number(p.precio);
-    } else {
-      // Para todos los demás productos (incluyendo productos de ejemplo), multiplicar precio por cantidad
-      const subtotalProducto = Number(p.precio) * Number(p.cantidad);
-      console.log(
-        `Producto: ${p.nombre}, Precio: ${p.precio}, Cantidad: ${p.cantidad}, Subtotal: ${subtotalProducto}`
-      );
-      return acc + subtotalProducto;
-    }
-  }, 0);
-
-  console.log("Subtotal calculado:", subtotal);
+  const subtotal = productosSeleccionados.reduce(
+    (acc, p) => {
+      // Para machimbre y deck, el precio ya incluye la cantidad
+      if (p.unidad === "M2") {
+        return acc + Number(p.precio);
+      } else {
+        return acc + Number(p.precio) * Number(p.cantidad);
+      }
+    },
+    0
+  );
   const descuentoTotal = productosSeleccionados.reduce(
     (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
     0
@@ -887,13 +900,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       ? Number(costoEnvio)
       : 0;
   const total = subtotal - descuentoTotal + costoEnvioCalculado;
-
-  console.log("Cálculo del total:", {
-    subtotal,
-    descuentoTotal,
-    costoEnvioCalculado,
-    total,
-  });
 
   const handleClienteChange = (val) => {
     if (val === "nuevo") {
@@ -927,26 +933,26 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }, [clienteSeleccionado, setValue]);
 
   React.useEffect(() => {
-    const itemsFormateados = productosSeleccionados.map((p) => ({
-      descripcion: p.nombre,
-      cantidad: p.cantidad,
-      precio: p.precio,
-      unidad: p.unidad,
-      moneda: "$",
-      descuento: p.descuento || 0,
-      categoria: p.categoria,
-      // Agregar propiedades específicas de madera
-      ...(p.categoria === "Maderas" && {
-        alto: Number(p.alto) || 0,
-        ancho: Number(p.ancho) || 0,
-        largo: Number(p.largo) || 0,
-        precioPorPie: Number(p.precioPorPie) || 0,
-        cepilladoAplicado: p.cepilladoAplicado || false,
-      }),
-    }));
-
-    console.log("Items formateados para el formulario:", itemsFormateados);
-    setValue("items", itemsFormateados);
+    setValue(
+      "items",
+      productosSeleccionados.map((p) => ({
+        descripcion: p.nombre,
+        cantidad: p.cantidad,
+        precio: p.precio,
+        unidad: p.unidad,
+        moneda: "$",
+        descuento: p.descuento || 0,
+        categoria: p.categoria,
+        // Agregar propiedades específicas de madera
+        ...(p.categoria === "Maderas" && {
+          alto: Number(p.alto) || 0,
+          ancho: Number(p.ancho) || 0,
+          largo: Number(p.largo) || 0,
+          precioPorPie: Number(p.precioPorPie) || 0,
+          cepilladoAplicado: p.cepilladoAplicado || false,
+        }),
+      }))
+    );
   }, [productosSeleccionados, setValue]);
 
   useEffect(() => {
@@ -1087,11 +1093,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       await onSubmit(formData);
       // Dejar la navegación al onSubmit de la página caller; no cerrar aquí
       setSubmitStatus("success");
-      setSubmitMessage(
-        `${
-          tipo === "presupuesto" ? "Presupuesto" : "Venta"
-        } guardado exitosamente`
-      );
+      setSubmitMessage(`${tipo === "presupuesto" ? "Presupuesto" : "Venta"} guardado exitosamente`);
     } catch (error) {
       console.error("Error al guardar:", error);
       setSubmitStatus("error");
@@ -1218,7 +1220,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const cambiarPagina = useCallback(
     (nuevaPagina) => {
       startTransition(() => {
-        setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
       });
     },
     [totalPaginas, startTransition]
@@ -1271,10 +1273,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   }
 
   // Formateador memoizado para números en formato argentino
-  const numberFormatter = React.useMemo(
-    () => new Intl.NumberFormat("es-AR"),
-    []
-  );
+  const numberFormatter = React.useMemo(() => new Intl.NumberFormat("es-AR"), []);
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
     return numberFormatter.format(Number(numero));
@@ -1284,10 +1283,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Debounce para búsqueda de clientes (dropdown)
   const [busquedaClienteDebounced, setBusquedaClienteDebounced] = useState("");
   useEffect(() => {
-    const id = setTimeout(
-      () => setBusquedaClienteDebounced(busquedaCliente),
-      300
-    );
+    const id = setTimeout(() => setBusquedaClienteDebounced(busquedaCliente), 300);
     return () => clearTimeout(id);
   }, [busquedaCliente]);
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
@@ -1296,9 +1292,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (c) =>
       c.nombre.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
       c.cuit.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
-      (c.localidad || "")
-        .toLowerCase()
-        .includes(busquedaClienteDebounced.toLowerCase())
+      (c.localidad || "").toLowerCase().includes(busquedaClienteDebounced.toLowerCase())
   );
 
   const generarId = (tipo) => {
@@ -1598,8 +1592,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       onClick={() => {
                         const productoEjemplo = {
                           id: "ejemplo-" + Date.now(),
-                          nombre: "MACHIMBRE DE 1/2X5 X300",
-                          precio: 3100,
+                          nombre: "Producto de Ejemplo",
+                          precio: 15000,
                           unidad: "unidad",
                           stock: 100,
                           cantidad: 2,
@@ -1775,7 +1769,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         value={busquedaProducto}
                         onChange={(e) => setBusquedaProducto(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === 'Enter') {
                             e.preventDefault();
                           }
                         }}
@@ -1813,8 +1807,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Agrega productos a las categorías para comenzar
                     </p>
                   </div>
-                ) : !categoriaId &&
-                  (!busquedaDefer || busquedaDefer.trim() === "") ? (
+                ) : (!categoriaId && (!busquedaDefer || busquedaDefer.trim() === "")) ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                       <svg
@@ -2020,14 +2013,11 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       const alto = Number(prod.alto) || 0;
                                       const ancho = Number(prod.ancho) || 0;
                                       const largo = Number(prod.largo) || 0;
-                                      const precioPorPie =
-                                        Number(prod.precioPorPie) || 0;
+                                      const precioPorPie = Number(prod.precioPorPie) || 0;
 
                                       if (prod.unidadMedida === "Unidad") {
                                         if (precioPorPie > 0) {
-                                          const precioUnidad =
-                                            Math.round(precioPorPie / 100) *
-                                            100;
+                                          const precioUnidad = Math.round(precioPorPie / 100) * 100;
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
@@ -2041,24 +2031,17 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           });
                                         } else {
                                           setSubmitStatus("error");
-                                          setSubmitMessage(
-                                            "El producto de madera por unidad no tiene un precio válido."
-                                          );
+                                          setSubmitMessage("El producto de madera por unidad no tiene un precio válido.");
                                           return;
                                         }
                                       } else if (prod.unidadMedida === "M2") {
-                                        if (
-                                          alto > 0 &&
-                                          largo > 0 &&
-                                          precioPorPie > 0
-                                        ) {
-                                          const precioM2 =
-                                            calcularPrecioMachimbre({
-                                              alto,
-                                              largo,
-                                              cantidad: 1,
-                                              precioPorPie,
-                                            });
+                                        if (alto > 0 && largo > 0 && precioPorPie > 0) {
+                                          const precioM2 = calcularPrecioMachimbre({
+                                            alto,
+                                            largo,
+                                            cantidad: 1,
+                                            precioPorPie,
+                                          });
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
@@ -2077,19 +2060,13 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                           return;
                                         }
                                       } else {
-                                        if (
-                                          alto > 0 &&
-                                          ancho > 0 &&
-                                          largo > 0 &&
-                                          precioPorPie > 0
-                                        ) {
-                                          const precioCorte =
-                                            calcularPrecioCorteMadera({
-                                              alto,
-                                              ancho,
-                                              largo,
-                                              precioPorPie,
-                                            });
+                                        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                          const precioCorte = calcularPrecioCorteMadera({
+                                            alto,
+                                            ancho,
+                                            largo,
+                                            precioPorPie,
+                                          });
                                           handleAgregarProducto({
                                             id: prod.id,
                                             nombre: prod.nombre,
@@ -2251,9 +2228,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón página siguiente */}
                           <button
                             onClick={() => cambiarPagina(paginaActual + 1)}
-                            disabled={
-                              paginaActual === totalPaginas || isPending
-                            }
+                            disabled={paginaActual === totalPaginas || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
                               isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
@@ -2279,9 +2254,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           {/* Botón última página */}
                           <button
                             onClick={() => cambiarPagina(totalPaginas)}
-                            disabled={
-                              paginaActual === totalPaginas || isPending
-                            }
+                            disabled={paginaActual === totalPaginas || isPending}
                             className={`p-2 rounded-md transition-all duration-200 ${
                               isPending
                                 ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
@@ -2315,12 +2288,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             {productosSeleccionados.length > 0 && (
               <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
                 <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
-                  <h3 className="text-base md:text-lg font-semibold text-default-900">
-                    Productos Seleccionados
-                  </h3>
+                  <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
-                    {productosSeleccionados.length} producto
-                    {productosSeleccionados.length !== 1 ? "s" : ""}
+                    {productosSeleccionados.length} producto{productosSeleccionados.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
@@ -2328,30 +2298,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   <table className="min-w-full text-[15px]">
                     <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
                       <tr className="border-b border-default-200">
-                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Categoría
-                        </th>
-                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Producto
-                        </th>
-                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Cant.
-                        </th>
-                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Cepillado
-                        </th>
-                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Precio unit.
-                        </th>
-                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Desc.
-                        </th>
-                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Subtotal
-                        </th>
-                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
-                          Acción
-                        </th>
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cant.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-default-200">
@@ -2403,228 +2357,140 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             )}
 
                             {/* Campos editables para maderas (ocultar cuando unidad es "Unidad") */}
-                            {p.categoria === "Maderas" &&
-                              p.unidad !== "Unidad" && (
-                                <div className="mt-2 flex flex-wrap items-start gap-3">
-                                  {/* Sección de dimensiones (compacta) */}
-                                  <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path
-                                            fillRule="evenodd"
-                                            d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
-                                            clipRule="evenodd"
-                                          />
-                                        </svg>
-                                        Dimensiones
-                                      </span>
-                                      {p.unidad === "M2" ? (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
-                                          Total{" "}
-                                          {(
-                                            (p.alto || 0) *
-                                            (p.largo || 0) *
-                                            (p.cantidad || 1)
-                                          ).toFixed(2)}{" "}
-                                          m²
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
-                                          Volumen{" "}
-                                          {(
-                                            (p.alto || 0) *
-                                            (p.ancho || 0) *
-                                            (p.largo || 0)
-                                          ).toFixed(2)}{" "}
-                                          m³
-                                        </span>
-                                      )}
-                                    </div>
-
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
+                              <div className="mt-2 flex flex-wrap items-start gap-3">
+                                {/* Sección de dimensiones (compacta) */}
+                                <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
+                                      Dimensiones
+                                    </span>
                                     {p.unidad === "M2" ? (
-                                      <div className="flex flex-wrap items-end gap-2">
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">
-                                            Alto
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={
-                                              p.alto === "" ? "" : p.alto || ""
-                                            }
-                                            onChange={(e) =>
-                                              handleAltoChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                            disabled={isSubmitting}
-                                          />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">
-                                            Largo
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={
-                                              p.largo === ""
-                                                ? ""
-                                                : p.largo || ""
-                                            }
-                                            onChange={(e) =>
-                                              handleLargoChange(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                            disabled={isSubmitting}
-                                          />
-                                        </div>
-                                      </div>
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
+                                      </span>
                                     ) : (
-                                      <div className="flex flex-wrap items-end gap-2">
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">
-                                            Alto
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={
-                                              p.alto === "" ? "" : p.alto || ""
-                                            }
-                                            onChange={(e) =>
-                                              handleAltoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                            disabled={isSubmitting}
-                                          />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">
-                                            Ancho
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={
-                                              p.ancho === ""
-                                                ? ""
-                                                : p.ancho || ""
-                                            }
-                                            onChange={(e) =>
-                                              handleAnchoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                            disabled={isSubmitting}
-                                          />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5">
-                                          <label className="text-[11px] font-semibold text-orange-700">
-                                            Largo
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={
-                                              p.largo === ""
-                                                ? ""
-                                                : p.largo || ""
-                                            }
-                                            onChange={(e) =>
-                                              handleLargoChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              )
-                                            }
-                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                            disabled={isSubmitting}
-                                          />
-                                        </div>
-                                      </div>
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2))} m³
+                                      </span>
                                     )}
                                   </div>
 
-                                  {/* Sección de precio por pie (compacta y no ancha) */}
-                                  <div className="inline-block w-fit p-1.5 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700 align-top">
-                                    <div className="flex items-center gap-1 mb-1">
-                                      <svg
-                                        className="w-3 h-3 text-green-600 dark:text-green-400"
-                                        fill="currentColor"
-                                        viewBox="0 0 20 20"
-                                      >
-                                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">
-                                        Precio
-                                      </span>
-                                    </div>
-                                    {/* Precio compacto (más angosto) */}
-                                    <div className="inline-block w-fit">
-                                      <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">
-                                        Valor
-                                      </label>
-                                      <div className="relative">
-                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">
-                                          $
-                                        </span>
+                                  {p.unidad === "M2" ? (
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Alto</label>
                                         <input
                                           type="number"
                                           min="0"
                                           step="0.01"
-                                          value={
-                                            p.precioPorPie === ""
-                                              ? ""
-                                              : p.precioPorPie || ""
-                                          }
-                                          onChange={(e) => {
-                                            if (p.unidad === "M2") {
-                                              handlePrecioPorPieChange(
-                                                p.id,
-                                                e.target.value
-                                              );
-                                            } else {
-                                              handlePrecioPorPieChangeMadera(
-                                                p.id,
-                                                e.target.value
-                                              );
-                                            }
-                                          }}
-                                          className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
+                                          value={p.alto === "" ? "" : p.alto || ""}
+                                          onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
                                           disabled={isSubmitting}
-                                          placeholder="0.00"
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.largo === "" ? "" : p.largo || ""}
+                                          onChange={(e) => handleLargoChange(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
                                         />
                                       </div>
                                     </div>
+                                  ) : (
+                                    <div className="flex flex-wrap items-end gap-2">
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.alto === "" ? "" : p.alto || ""}
+                                          onChange={(e) => handleAltoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.ancho === "" ? "" : p.ancho || ""}
+                                          onChange={(e) => handleAnchoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-0.5">
+                                        <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={p.largo === "" ? "" : p.largo || ""}
+                                          onChange={(e) => handleLargoChangeMadera(p.id, e.target.value)}
+                                          className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                          disabled={isSubmitting}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Sección de precio por pie (compacta y no ancha) */}
+                                <div className="inline-block w-fit p-1.5 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700 align-top">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <svg
+                                      className="w-3 h-3 text-green-600 dark:text-green-400"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                    <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                                      Precio
+                                    </span>
+                                  </div>
+                                  {/* Precio compacto (más angosto) */}
+                                  <div className="inline-block w-fit">
+                                    <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
+                                        onChange={(e) => {
+                                          if (p.unidad === "M2") {
+                                            handlePrecioPorPieChange(p.id, e.target.value);
+                                          } else {
+                                            handlePrecioPorPieChangeMadera(p.id, e.target.value);
+                                          }
+                                        }}
+                                        className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
+                                        disabled={isSubmitting}
+                                        placeholder="0.00"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
-                              )}
+                              </div>
+                            )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
                             <div className="flex items-center justify-center">
@@ -2689,8 +2555,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             </div>
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
-                            {p.categoria === "Maderas" &&
-                            p.unidad !== "Unidad" ? (
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
                               <div className="flex items-center justify-center">
                                 <input
                                   type="checkbox"
@@ -2725,9 +2590,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 placeholder="0"
                               />
                             ) : (
-                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(
-                                p.precio
-                              )}`}</span>
+                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(p.precio)}`}</span>
                             )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
@@ -2736,30 +2599,22 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 type="number"
                                 min={0}
                                 max={100}
-                                value={
-                                  p.descuento === "" ? "" : p.descuento || ""
-                                }
+                                value={p.descuento === "" ? "" : p.descuento || ""}
                                 onChange={(e) =>
                                   handleDescuentoChange(p.id, e.target.value)
                                 }
                                 className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                                 disabled={isSubmitting}
                               />
-                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">
-                                %
-                              </span>
+                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
                             </div>
                           </td>
                           <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
-                            $
-                            {formatearNumeroArgentino(
+                            ${formatearNumeroArgentino(
                               // Para machimbres y deck, el precio ya incluye la cantidad
                               p.categoria === "Maderas" && p.unidad === "M2"
-                                ? Number(p.precio) *
-                                    (1 - Number(p.descuento || 0) / 100)
-                                : Number(p.precio) *
-                                    Number(p.cantidad) *
-                                    (1 - Number(p.descuento || 0) / 100)
+                                ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
+                                : Number(p.precio) * Number(p.cantidad) * (1 - Number(p.descuento || 0) / 100)
                             )}
                           </td>
                           <td className="p-4 align-middle text-center text-sm text-default-600">
@@ -2772,18 +2627,11 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                 title="Eliminar"
                               >
-                                <svg
-                                  className="w-4 h-4"
-                                  viewBox="0 0 24 24"
-                                  fill="currentColor"
-                                  aria-hidden="true"
-                                >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                   <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" />
                                 </svg>
                               </button>
-                              <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                Eliminar
-                              </span>
+                              <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
                             </span>
                           </td>
                         </tr>
@@ -3059,11 +2907,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   )}
                   <div className="flex items-center gap-4 mt-2">
                     <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="pagoPendiente"
-                        {...register("pagoPendiente")}
-                      />
+                      <input type="checkbox" id="pagoPendiente" {...register("pagoPendiente")} />
                       <span className="text-sm">¿Pago pendiente?</span>
                     </label>
                     <label className="inline-flex items-center gap-2">
@@ -3612,16 +3456,16 @@ const VentasPage = () => {
       setDeleting(true);
       setDeleteMessage("");
 
-      const response = await fetch("/api/delete-document", {
-        method: "DELETE",
+      const response = await fetch('/api/delete-document', {
+        method: 'DELETE',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           documentId: itemToDelete.id,
-          collectionName: deleteType === "venta" ? "ventas" : "presupuestos",
+          collectionName: deleteType === 'venta' ? 'ventas' : 'presupuestos',
           userId: user.uid,
-          userEmail: user.email,
+          userEmail: user.email
         }),
       });
 
@@ -3631,24 +3475,23 @@ const VentasPage = () => {
       }
 
       const result = await response.json();
-
+      
       // Actualizar la lista local
-      if (deleteType === "venta") {
-        setVentasData((prev) => prev.filter((v) => v.id !== itemToDelete.id));
+      if (deleteType === 'venta') {
+        setVentasData(prev => prev.filter(v => v.id !== itemToDelete.id));
       } else {
-        setPresupuestosData((prev) =>
-          prev.filter((p) => p.id !== itemToDelete.id)
-        );
+        setPresupuestosData(prev => prev.filter(p => p.id !== itemToDelete.id));
       }
-
+      
       setDeleteMessage(`✅ ${result.message}`);
-
+      
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setDeleteMessage(""), 3000);
+
     } catch (error) {
       console.error(`Error al eliminar ${deleteType}:`, error);
       setDeleteMessage(`❌ Error: ${error.message}`);
-
+      
       // Limpiar mensaje después de 5 segundos
       setTimeout(() => setDeleteMessage(""), 5000);
     } finally {
@@ -3661,38 +3504,25 @@ const VentasPage = () => {
   // Event listeners para los botones de borrado
   useEffect(() => {
     const handleDeletePresupuestoEvent = (event) => {
-      const presupuesto = presupuestosData.find(
-        (p) => p.id === event.detail.id
-      );
+      const presupuesto = presupuestosData.find(p => p.id === event.detail.id);
       if (presupuesto) {
-        showDeleteConfirmation(
-          event.detail.id,
-          "presupuesto",
-          presupuesto.cliente?.nombre || "Presupuesto"
-        );
+        showDeleteConfirmation(event.detail.id, 'presupuesto', presupuesto.cliente?.nombre || 'Presupuesto');
       }
     };
 
     const handleDeleteVentaEvent = (event) => {
-      const venta = ventasData.find((v) => v.id === event.detail.id);
+      const venta = ventasData.find(v => v.id === event.detail.id);
       if (venta) {
-        showDeleteConfirmation(
-          event.detail.id,
-          "venta",
-          venta.cliente?.nombre || "Venta"
-        );
+        showDeleteConfirmation(event.detail.id, 'venta', venta.cliente?.nombre || 'Venta');
       }
     };
 
-    window.addEventListener("deletePresupuesto", handleDeletePresupuestoEvent);
-    window.addEventListener("deleteVenta", handleDeleteVentaEvent);
+    window.addEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+    window.addEventListener('deleteVenta', handleDeleteVentaEvent);
 
     return () => {
-      window.removeEventListener(
-        "deletePresupuesto",
-        handleDeletePresupuestoEvent
-      );
-      window.removeEventListener("deleteVenta", handleDeleteVentaEvent);
+      window.removeEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+      window.removeEventListener('deleteVenta', handleDeleteVentaEvent);
     };
   }, [presupuestosData, ventasData]);
 
@@ -3700,14 +3530,12 @@ const VentasPage = () => {
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
       {/* Mensaje de estado del borrado */}
       {deleteMessage && (
-        <div
-          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
-            deleteMessage.startsWith("✅")
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100"
-              : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
-          }`}
-        >
-          {deleteMessage.startsWith("✅") ? (
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+          deleteMessage.startsWith('✅') 
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
+            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+        }`}>
+          {deleteMessage.startsWith('✅') ? (
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
@@ -3720,125 +3548,121 @@ const VentasPage = () => {
         </div>
       )}
 
-      {/* Botones de acción mejorados */}
-      <div className="flex justify-between gap-4 mb-8 px-2">
-        <div>
+          {/* Botones de acción mejorados */}
+    <div className="flex justify-between gap-4 mb-8 px-2">
+      <div>
           <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/presupuestos/create`)}
+          variant="default"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          onClick={() => router.push(`/${lang}/presupuestos/create`)}
             disabled={deleting}
           >
-            <Icon icon="heroicons:document-plus" className="w-5 h-5" />
-            <span className="hidden sm:inline">Crear Presupuesto</span>
-            <span className="sm:hidden">Presupuesto</span>
+            <Icon
+            icon="heroicons:document-plus"
+            className="w-5 h-5"
+            />
+          <span className="hidden sm:inline">Crear Presupuesto</span>
+          <span className="sm:hidden">Presupuesto</span>
           </Button>
         </div>
-        <div>
+      <div>
           <Button
             variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
             onClick={() => router.push(`/${lang}/ventas/create`)}
             disabled={deleting}
           >
-            <Icon icon="heroicons:shopping-cart" className="w-5 h-5" />
-            <span className="hidden sm:inline">Crear Venta</span>
+            <Icon
+              icon="heroicons:shopping-cart"
+            className="w-5 h-5"
+            />
+          <span className="hidden sm:inline">Crear Venta</span>
             <span className="sm:hidden">Venta</span>
           </Button>
         </div>
       </div>
 
-      {/* Tablas mejoradas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
-        {/* Tabla de Presupuestos - IZQUIERDA */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:document-text"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">
-                  Presupuestos
-                </div>
-                <div className="text-sm font-medium text-gray-600">
-                  Gestión de cotizaciones
-                </div>
-              </div>
+          {/* Tablas mejoradas */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
+      {/* Tabla de Presupuestos - IZQUIERDA */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:document-text"
+                className="w-7 h-7 text-white"
+              />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
+              <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
+            </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-blue-600">
-                    Procesando...
-                  </span>
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+                <span className="text-sm font-medium text-blue-600">Procesando...</span>
                 </div>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced
-                data={presupuestosData}
-                columns={columnsPresupuestos}
-                searchPlaceholder="Buscar presupuestos..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-                onRowClick={(presupuesto) => {
-                  router.push(`/${lang}/presupuestos/${presupuesto.id}`);
-                }}
-                compact={true}
-              />
-            </div>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
+              data={presupuestosData} 
+              columns={columnsPresupuestos}
+              searchPlaceholder="Buscar presupuestos..."
+              className="border-0"
+              defaultSorting={[{ id: "numeroPedido", desc: true }]}
+              onRowClick={(presupuesto) => {
+                router.push(`/${lang}/presupuestos/${presupuesto.id}`);
+              }}
+              compact={true}
+            />
+          </div>
           </CardContent>
         </Card>
 
-        {/* Tabla de Ventas - DERECHA */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:shopping-cart"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Ventas</div>
-                <div className="text-sm font-medium text-gray-600">
-                  Transacciones realizadas
-                </div>
-              </div>
+      {/* Tabla de Ventas - DERECHA */}
+      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Icon
+                icon="heroicons:shopping-cart"
+                className="w-7 h-7 text-white"
+              />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">Ventas</div>
+              <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
+            </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                  </div>
-                  <span className="text-sm font-medium text-emerald-600">
-                    Procesando...
-                  </span>
+                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                </div>
+                <span className="text-sm font-medium text-emerald-600">Procesando...</span>
                 </div>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced
-                data={ventasData}
-                columns={columnsVentas}
-                searchPlaceholder="Buscar ventas..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-                onRowClick={(venta) => {
-                  router.push(`/${lang}/ventas/${venta.id}`);
-                }}
-                compact={true}
-              />
-            </div>
+        <CardContent className="pt-6 p-0">
+          <div className="overflow-hidden rounded-b-2xl">
+            <DataTableEnhanced 
+              data={ventasData} 
+              columns={columnsVentas}
+              searchPlaceholder="Buscar ventas..."
+              className="border-0"
+              defaultSorting={[{ id: "numeroPedido", desc: true }]}
+              onRowClick={(venta) => {
+                router.push(`/${lang}/ventas/${venta.id}`);
+              }}
+              compact={true}
+            />
+          </div>
           </CardContent>
         </Card>
       </div>
@@ -3854,8 +3678,7 @@ const VentasPage = () => {
               Confirmar Eliminación
             </DialogTitle>
             <DialogDescription className="text-gray-600 mt-2">
-              ¿Estás seguro de que quieres eliminar este{" "}
-              {deleteType === "venta" ? "venta" : "presupuesto"}?
+              ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
             </DialogDescription>
           </DialogHeader>
 
@@ -3866,12 +3689,13 @@ const VentasPage = () => {
               </div>
               <div className="flex-1">
                 <div className="font-semibold text-red-800">
-                  {itemToDelete?.name || "Elemento"}
+                  {itemToDelete?.name || 'Elemento'}
                 </div>
                 <div className="text-sm text-red-700">
-                  {deleteType === "venta"
-                    ? "Esta acción eliminará la venta y restaurará el stock de productos."
-                    : "Esta acción eliminará el presupuesto permanentemente."}
+                  {deleteType === 'venta' 
+                    ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
+                    : 'Esta acción eliminará el presupuesto permanentemente.'
+                  }
                 </div>
               </div>
             </div>
