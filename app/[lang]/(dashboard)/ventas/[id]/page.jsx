@@ -2834,9 +2834,16 @@ const VentaDetalle = () => {
                             </td>
                             <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                               ${formatearNumeroArgentino(
-                                Math.round(
-                                  computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
-                                )
+                                (() => {
+                                  if (p.categoria === "Eventual") {
+                                    const subtotal = Number(p.precio) * Number(p.cantidad);
+                                    return Math.round(subtotal * (1 - Number(p.descuento || 0) / 100));
+                                  }
+                                  // Para otros productos, usar la función computeLineBase
+                                  return Math.round(
+                                    computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
+                                  );
+                                })()
                               )}
                             </td>
                             <td className="p-4 align-middle text-center text-sm text-default-600">

@@ -2545,10 +2545,17 @@ const PresupuestoDetalle = () => {
                               <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                                 $
                                 {formatearNumeroArgentino(
-                                  Math.round(
-                                    computeLineBase(p) *
-                                      (1 - Number(p.descuento || 0) / 100)
-                                  )
+                                  (() => {
+                                    // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
+                                    if (p.categoria === "Eventual") {
+                                      const subtotal = Number(p.precio) * Number(p.cantidad);
+                                      return Math.round(subtotal * (1 - Number(p.descuento || 0) / 100));
+                                    }
+                                    // Para otros productos, usar la función computeLineBase
+                                    return Math.round(
+                                      computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
+                                    );
+                                  })()
                                 )}
                               </td>
                               <td className="p-4 align-middle text-center text-sm text-default-600">
@@ -2693,10 +2700,17 @@ const PresupuestoDetalle = () => {
                         <td className="p-3 text-right font-medium">
                           $
                           {formatearNumeroArgentino(
-                            Math.round(
-                              computeLineBase(producto) *
-                                (1 - safeNumber(producto.descuento) / 100)
-                            )
+                            (() => {
+                              // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
+                              if (producto.categoria === "Eventual") {
+                                const subtotal = Number(producto.precio) * Number(producto.cantidad);
+                                return Math.round(subtotal * (1 - safeNumber(producto.descuento) / 100));
+                              }
+                              // Para otros productos, usar la función computeLineBase
+                              return Math.round(
+                                computeLineBase(producto) * (1 - safeNumber(producto.descuento) / 100)
+                              );
+                            })()
                           )}
                         </td>
                       </tr>
