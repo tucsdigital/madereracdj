@@ -68,28 +68,51 @@ GET /api/orders?userId={email}
   "success": true,
   "data": [
     {
-      "id": "3dYGoF5znMpx6U34bQSt",
-      "numeroPedido": "VENTA-00035",
+      "id": "oIXjlBQp9RppxE45RCS7",
+      "numeroPedido": "VENTA-00079",
       "estado": "pagado",
-      "total": 28000,
-      "subtotal": 28000,
-      "medioPago": "transferencia",
-      "fecha": "2025-08-11",
-      "tipo": "venta",
-      "vendedor": "brian@maderascaballero.com",
-      "items": [
+      "total": 88200,
+      "fecha": "2025-08-22",
+      "fechaEntrega": "2025-08-22",
+      "medioPago": "efectivo",
+      
+      "productos": [
         {
-          "nombre": "Tablas de Quebracho 1 X 4 X 1",
-          "precio": 2800,
-          "cantidad": 10
+          "id": "NiObfTFwvzO9wWHTRa5X",
+          "nombre": "Machimbre de Pino 1/2 X 5 X 3.70",
+          "categoria": "Maderas",
+          "cantidad": 20,
+          "precio": 46200,
+          "unidad": "M2",
+          "alto": 0.12,
+          "ancho": 1,
+          "largo": 3.7,
+          "cepilladoAplicado": false
+        },
+        {
+          "id": "cURQX9bDGt45Knxbkpkr",
+          "nombre": "Tirante de Pino 2 X 6 X 4",
+          "categoria": "Maderas",
+          "cantidad": 3,
+          "precio": 14000,
+          "unidad": "pie",
+          "alto": 6,
+          "ancho": 2,
+          "largo": 4,
+          "cepilladoAplicado": true
         }
       ],
+      
+      "envio": {
+        "estado": "entregado",
+        "direccion": "SCHWEITZER 141",
+        "transportista": "camion",
+        "fechaEntrega": "2025-08-22"
+      },
+      
       "cliente": {
-        "nombre": "SIMARIA CASTELLI",
-        "email": "tucsdigital@gmail.com",
-        "telefono": "1168990631",
-        "cuit": "38405493",
-        "direccion": "DOLORES 1490"
+        "nombre": "WALTER ALVAREZ",
+        "telefono": "1130175421"
       }
     }
   ],
@@ -237,22 +260,56 @@ const AccountPage = () => {
         </div>
       )}
       
-      {/* Sección de Pedidos */}
-      <div>
-        <h2>Mis Pedidos</h2>
-        {pedidos.length > 0 ? (
-          pedidos.map(pedido => (
-            <div key={pedido.id}>
-              <h3>Pedido #{pedido.numeroPedido}</h3>
-              <p>Estado: {pedido.estado}</p>
-              <p>Total: ${pedido.total}</p>
-              <p>Fecha: {new Date(pedido.creadoEn).toLocaleDateString()}</p>
-            </div>
-          ))
-        ) : (
-          <p>No tienes pedidos aún</p>
-        )}
-      </div>
+              {/* Sección de Pedidos */}
+        <div>
+          <h2>Mis Pedidos</h2>
+          {pedidos.length > 0 ? (
+            pedidos.map(pedido => (
+              <div key={pedido.id} className="pedido-card">
+                <h3>Pedido #{pedido.numeroPedido}</h3>
+                                 <div className="pedido-info">
+                   <p><strong>Estado:</strong> {pedido.estado}</p>
+                   <p><strong>Total:</strong> ${pedido.total?.toLocaleString()}</p>
+                   <p><strong>Fecha:</strong> {pedido.fecha ? new Date(pedido.fecha).toLocaleDateString() : 'N/A'}</p>
+                   <p><strong>Medio de Pago:</strong> {pedido.medioPago}</p>
+                   <p><strong>Fecha Entrega:</strong> {pedido.fechaEntrega ? new Date(pedido.fechaEntrega).toLocaleDateString() : 'N/A'}</p>
+                 </div>
+                
+                                 {/* Productos */}
+                 {pedido.productos && pedido.productos.length > 0 && (
+                   <div className="productos-section">
+                     <h4>Productos:</h4>
+                     {pedido.productos.map((producto, index) => (
+                       <div key={producto.id || index} className="producto-item">
+                         <p><strong>{producto.nombre}</strong></p>
+                         <p>Cantidad: {producto.cantidad} {producto.unidad}</p>
+                         <p>Precio: ${producto.precio?.toLocaleString()}</p>
+                         <p>Categoría: {producto.categoria}</p>
+                         {producto.categoria === "Maderas" && producto.alto && (
+                           <p>Dimensiones: {producto.alto} x {producto.ancho} x {producto.largo}</p>
+                         )}
+                         {producto.cepilladoAplicado && <p>✅ Cepillado aplicado</p>}
+                       </div>
+                     ))}
+                   </div>
+                 )}
+                
+                                 {/* Información de Envío */}
+                 {pedido.envio && (
+                   <div className="envio-section">
+                     <h4>Información de Envío:</h4>
+                     <p><strong>Estado:</strong> {pedido.envio.estado}</p>
+                     <p><strong>Dirección:</strong> {pedido.envio.direccion}</p>
+                     <p><strong>Transportista:</strong> {pedido.envio.transportista}</p>
+                     <p><strong>Fecha Entrega:</strong> {pedido.envio.fechaEntrega ? new Date(pedido.envio.fechaEntrega).toLocaleDateString() : 'N/A'}</p>
+                   </div>
+                 )}
+              </div>
+            ))
+          ) : (
+            <p>No tienes pedidos aún</p>
+          )}
+        </div>
     </div>
   );
 };
@@ -262,10 +319,42 @@ const AccountPage = () => {
 
 ## ⚠️ **Consideraciones Técnicas**
 
-### **Estructura de Datos**
+### **Estructura de Datos Optimizada**
 - **IMPORTANTE**: La API `/api/orders` lee desde la colección `ventas` de Firestore
 - Los documentos deben tener la estructura correcta con `cliente.email`
 - El campo `cliente.email` debe coincidir exactamente con el `userId` enviado
+- **Adicional**: La API también consulta la colección `envios` para información de envío
+- **OPTIMIZACIÓN**: La respuesta está simplificada para ecommerce externo, incluyendo solo los campos más relevantes
+
+### **Campos Disponibles en la Respuesta (Simplificados)**
+
+#### **Información Básica de la Venta**
+- `id`: ID único de la venta
+- `numeroPedido`: Número de pedido (ej: "VENTA-00079")
+- `estado`: Estado del pago (ej: "pagado", "pendiente")
+- `total`: Monto total de la venta
+- `fecha`: Fecha de la venta
+- `fechaEntrega`: Fecha de entrega programada
+- `medioPago`: Forma de pago (ej: "efectivo", "transferencia")
+
+#### **Productos (Solo lo Esencial)**
+- `productos`: Array de productos simplificados
+- Cada producto incluye:
+  - `id`, `nombre`, `categoria`, `cantidad`, `precio`, `unidad`
+  - **Para Maderas**: `alto`, `ancho`, `largo`, `cepilladoAplicado`
+  - **Para otros**: Solo información básica
+
+#### **Información de Envío (Simplificada)**
+- `envio`: Objeto con solo lo relevante:
+  - `estado`: Estado del envío
+  - `direccion`: Dirección de entrega
+  - `transportista`: Transportista asignado
+  - `fechaEntrega`: Fecha de entrega
+
+#### **Cliente (Básico)**
+- `cliente`: Solo información esencial:
+  - `nombre`: Nombre del cliente
+  - `telefono`: Teléfono de contacto
 
 ### **CORS**
 - Todas las APIs tienen CORS habilitado para `*`
