@@ -1138,6 +1138,20 @@ const ObraDetallePage = () => {
               <div class="info-value">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</div>
             </div>
             ` : ''}
+            ${obra?.tipo === "presupuesto" ? `
+            <div class="info-item">
+              <div class="info-label">Subtotal</div>
+              <div class="info-value">${formatearNumeroArgentino(obra?.subtotal || 0)}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Descuento Total</div>
+              <div class="info-value">${formatearNumeroArgentino(obra?.descuentoTotal || 0)}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Total Presupuestado</div>
+              <div class="info-value" style="font-weight: bold; color: #2563eb;">${formatearNumeroArgentino(obra?.total || 0)}</div>
+            </div>
+            ` : ''}
             ${obra?.costoEnvio && obra.costoEnvio > 0 ? `
             <div class="info-item">
               <div class="info-label">Costo de Envío</div>
@@ -1175,7 +1189,12 @@ const ObraDetallePage = () => {
                 const altoNum = Number(p.alto) || 0;
                 const largoNum = Number(p.largo) || 0;
                 const cantNum = Number(p.cantidad) || 1;
-                const medidaValor = unidad === "M2" ? p.m2 ?? altoNum * largoNum * cantNum : unidad === "ML" ? p.ml ?? largoNum * cantNum : null;
+                let medidaValor = null;
+                if (unidad === "M2") {
+                  medidaValor = altoNum * largoNum * cantNum;
+                } else if (unidad === "ML") {
+                  medidaValor = largoNum * cantNum;
+                }
                 return `
                   <tr>
                     <td>
@@ -1186,9 +1205,9 @@ const ObraDetallePage = () => {
                     <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
                     <td style="text-align: center;">${esMadera ? largoNum : "-"}</td>
                     <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                    <td style="text-align: right;">${formatearNumeroArgentino(valor)}</td>
+                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                     <td style="text-align: center;">${descuento}</td>
-                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                    <td style="text-align: center; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                   </tr>
                 `;
               }).join('')}
@@ -1204,7 +1223,6 @@ const ObraDetallePage = () => {
             <thead>
               <tr>
                 <th>Producto</th>
-                <th>Unidad</th>
                 <th>Cant.</th>
                 <th>Alto</th>
                 <th>Largo</th>
@@ -1224,19 +1242,23 @@ const ObraDetallePage = () => {
                 const altoNum = Number(p.alto) || 0;
                 const largoNum = Number(p.largo) || 0;
                 const cantNum = Number(p.cantidad) || 1;
-                const medidaValor = unidad === "M2" ? p.m2 ?? altoNum * largoNum * cantNum : unidad === "ML" ? p.ml ?? largoNum * cantNum : null;
+                let medidaValor = null;
+                if (unidad === "M2") {
+                  medidaValor = altoNum * largoNum * cantNum;
+                } else if (unidad === "ML") {
+                  medidaValor = largoNum * cantNum;
+                }
                 return `
                   <tr>
                     <td>
                       <div><strong>${p.nombre}</strong></div>
                       <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
                     </td>
-                    <td style="text-align: center;">${unidad}</td>
                     <td style="text-align: center;">${cantNum}</td>
                     <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
                     <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
                     <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                    <td style="text-align: center;">${valor}</td>
+                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                     <td style="text-align: center;">${descuento}</td>
                     <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                   </tr>
@@ -1254,7 +1276,6 @@ const ObraDetallePage = () => {
             <thead>
               <tr>
                 <th>Producto</th>
-                <th>Unidad</th>
                 <th>Cant.</th>
                 <th>Alto</th>
                 <th>Largo</th>
@@ -1274,17 +1295,23 @@ const ObraDetallePage = () => {
                 const altoNum = Number(p.alto) || 0;
                 const largoNum = Number(p.largo) || 0;
                 const cantNum = Number(p.cantidad) || 1;
+                let medidaValor = null;
+                if (unidad === "M2") {
+                  medidaValor = altoNum * largoNum * cantNum;
+                } else if (unidad === "ML") {
+                  medidaValor = largoNum * cantNum;
+                }
                 return `
                   <tr>
                     <td>
                       <div><strong>${p.nombre}</strong></div>
-                      <div style="font-size: 12px; color: #666;">${p.nombre || ""}</div>
+                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
                     </td>
-                    <td style="text-align: center;">${unidad}</td>
                     <td style="text-align: center;">${cantNum}</td>
                     <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
                     <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
-                    <td style="text-align: right;">${formatearNumeroArgentino(valor)}</td>
+                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                     <td style="text-align: center;">${descuento}</td>
                     <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                   </tr>
