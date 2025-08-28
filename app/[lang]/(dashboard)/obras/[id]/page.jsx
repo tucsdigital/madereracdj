@@ -950,7 +950,7 @@ const ObraDetallePage = () => {
         <style>
           @media print {
             body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .header { margin-bottom: 30px; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; }
             .logo { width: 60px; height: 60px; margin: 0 auto 20px; }
             .section { margin-bottom: 25px; }
             .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; }
@@ -976,9 +976,8 @@ const ObraDetallePage = () => {
             color: #333;
           }
           .header { 
-            text-align: center; 
             margin-bottom: 30px; 
-            border-bottom: 2px solid #333; 
+            border-bottom: 1px solid #e5e7eb; 
             padding-bottom: 20px; 
           }
           .logo { 
@@ -1032,21 +1031,23 @@ const ObraDetallePage = () => {
         <div class="header">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
             <div style="flex: 1;">
-              <div style="margin-bottom: 10px;">
-                <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 80px; height: 60px; object-fit: contain;">
-              </div>
-              <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">
-                Maderas Caballero
-              </div>
-              <div style="font-size: 16px; color: #666; margin-bottom: 5px;">
-                ${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"}
-              </div>
-              <div style="font-size: 14px; color: #666;">
-                www.caballeromaderas.com
+              <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 60px; height: 60px; object-fit: contain;">
+                <div>
+                  <div style="font-size: 20px; font-weight: bold; color: #333; margin-bottom: 3px;">
+                    Maderas Caballero
+                  </div>
+                  <div style="font-size: 16px; color: #666; margin-bottom: 3px;">
+                    ${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"} / Comprobante
+                  </div>
+                  <div style="font-size: 14px; color: #666;">
+                    www.caballeromaderas.com
+                  </div>
+                </div>
               </div>
             </div>
             <div style="text-align: right; flex: 1;">
-              <div style="margin-bottom: 10px;">
+              <div style="margin-bottom: 8px;">
                 <span style="font-weight: bold; color: #666;">Fecha:</span>
                 <span style="margin-left: 10px; color: #333;">${new Date().toLocaleDateString('es-AR')}</span>
               </div>
