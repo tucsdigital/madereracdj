@@ -948,138 +948,367 @@ const ObraDetallePage = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"} - ${obra?.numeroPedido || ""}</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          
+          * { box-sizing: border-box; }
+          
           @media print {
-            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            .header { margin-bottom: 30px; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; }
-            .logo { width: 60px; height: 60px; margin: 0 auto 20px; }
-            .section { margin-bottom: 25px; }
-            .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-            .info-item { margin-bottom: 10px; }
-            .info-label { font-weight: bold; color: #666; font-size: 14px; }
-            .info-value { font-size: 16px; margin-top: 5px; }
-            .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            .table th { background-color: #f8f9fa; font-weight: bold; }
-            .totals { margin-top: 20px; text-align: right; }
-            .total-row { margin-bottom: 8px; }
-            .total-label { font-weight: bold; margin-right: 20px; }
+            body { margin: 0; padding: 15px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+            .container { max-width: none; }
             .page-break { page-break-before: always; }
-            @page { margin: 1cm; }
+            @page { margin: 1.5cm; }
           }
+          
           /* Estilos para vista previa */
           body { 
             margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+            padding: 15px; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #fafafa;
+            color: #1f2937;
+            line-height: 1.6;
+          }
+          
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
-            color: #333;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
           }
-          .header { 
-            margin-bottom: 30px; 
-            border-bottom: 1px solid #e5e7eb; 
-            padding-bottom: 20px; 
+          
+          .header {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            color: white;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
           }
-          .logo { 
-            width: 60px; 
-            height: 60px; 
-            margin: 0 auto 20px; 
+          
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
           }
-          .section { margin-bottom: 25px; }
-          .section-title { 
-            font-size: 18px; 
-            font-weight: bold; 
-            margin-bottom: 15px; 
-            color: #333; 
+          
+          .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
           }
-          .info-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-            margin-bottom: 20px; 
+          
+          .company-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
           }
-          .info-item { margin-bottom: 10px; }
-          .info-label { 
-            font-weight: bold; 
-            color: #666; 
-            font-size: 14px; 
+          
+          .logo {
+            width: 64px;
+            height: 64px;
+            background: white;
+            border-radius: 16px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
-          .info-value { 
-            font-size: 16px; 
-            margin-top: 5px; 
+          
+          .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
           }
-          .table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 15px; 
+          
+          .company-details h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.025em;
           }
-          .table th, .table td { 
-            border: 1px solid #ddd; 
-            padding: 8px; 
-            text-align: left; 
+          
+          .company-details .subtitle {
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 4px 0;
+            opacity: 0.9;
           }
-          .table th { 
-            background-color: #f8f9fa; 
-            font-weight: bold; 
+          
+          .company-details .website {
+            font-size: 14px;
+            font-weight: 400;
+            margin: 0;
+            opacity: 0.7;
           }
-
+          
+          .document-info {
+            text-align: right;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          }
+          
+          .document-info .date {
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0 0 12px 0;
+            opacity: 0.9;
+          }
+          
+          .document-info .number {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.025em;
+          }
+          
+          .content {
+            padding: 32px;
+          }
+          
+          .section {
+            margin-bottom: 32px;
+          }
+          
+          .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+            position: relative;
+          }
+          
+          .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+          }
+          
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+          }
+          
+          .info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s ease;
+          }
+          
+          .info-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+          }
+          
+          .info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0 0 8px 0;
+          }
+          
+          .info-value {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+            margin: 0;
+          }
+          
+          .table-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+          }
+          
+          .table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          
+          .table th {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 16px 12px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          
+          .table td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+            color: #4b5563;
+          }
+          
+          .table tr:hover {
+            background: #f8fafc;
+          }
+          
+          .table tr:last-child td {
+            border-bottom: none;
+          }
+          
+          .totals-section {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-top: 24px;
+          }
+          
+          .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          }
+          
+          .total-row:last-child {
+            margin-bottom: 0;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+          }
+          
+          .total-label {
+            font-size: 16px;
+            font-weight: 500;
+            opacity: 0.9;
+          }
+          
+          .total-value {
+            font-size: 18px;
+            font-weight: 600;
+          }
+          
+          .grand-total {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fbbf24;
+          }
+          
+          .footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 24px 32px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+          }
+          
+          .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+          }
+          
+          .footer-section {
+            text-align: center;
+          }
+          
+          .footer-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0 0 8px 0;
+            color: #374151;
+          }
+          
+          .footer-text {
+            font-size: 14px;
+            margin: 0;
+            color: #64748b;
+          }
+          
+          .thank-you {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 24px;
+          }
         </style>
       </head>
       <body>
-
-        
-        <div class="header">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
-            <div style="flex: 1;">
-              <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 60px; height: 60px; object-fit: contain;">
-                <div>
-                  <div style="font-size: 20px; font-weight: bold; color: #333; margin-bottom: 3px;">
-                    Maderas Caballero
-                  </div>
-                  <div style="font-size: 16px; color: #666; margin-bottom: 3px;">
-                    ${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"} / Comprobante
-                  </div>
-                  <div style="font-size: 14px; color: #666;">
-                    www.caballeromaderas.com
-                  </div>
+        <div class="container">
+          <!-- Header -->
+          <div class="header">
+            <div class="header-content">
+              <div class="company-info">
+                <div class="logo">
+                  <img src="/logo-maderera.png" alt="Logo Maderera">
+                </div>
+                <div class="company-details">
+                  <h1>Maderas Caballero</h1>
+                  <div class="subtitle">${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"} / Comprobante</div>
+                  <div class="website">www.caballeromaderas.com</div>
                 </div>
               </div>
-            </div>
-            <div style="text-align: right; flex: 1;">
-              <div style="margin-bottom: 8px;">
-                <span style="font-weight: bold; color: #666;">Fecha:</span>
-                <span style="margin-left: 10px; color: #333;">${new Date().toLocaleDateString('es-AR')}</span>
-              </div>
-              <div>
-                <span style="font-weight: bold; color: #666;">N°:</span>
-                <span style="margin-left: 10px; color: #333; font-size: 18px; font-weight: bold;">${obra?.numeroPedido || ""}</span>
+              <div class="document-info">
+                <div class="date">Fecha: ${new Date().toLocaleDateString('es-AR')}</div>
+                <div class="number">N°: ${obra?.numeroPedido || ""}</div>
               </div>
             </div>
           </div>
-        </div>
+          
+          <!-- Contenido -->
+          <div class="content">
 
         <div class="section">
           <div class="section-title">Información General</div>
-          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div class="info-item">
+          <div class="info-grid">
+            <div class="info-card">
               <div class="info-label">Cliente</div>
               <div class="info-value">${obra?.cliente?.nombre || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Email</div>
               <div class="info-value">${obra?.cliente?.email || "No especificado"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Teléfono</div>
               <div class="info-value">${obra?.cliente?.telefono || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Dirección</div>
               <div class="info-value">${obra?.cliente?.direccion || "-"}</div>
             </div>
             ${obra?.cliente?.cuit ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">CUIT</div>
               <div class="info-value">${obra?.cliente?.cuit}</div>
             </div>
@@ -1090,48 +1319,48 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "obra" ? `
         <div class="section">
           <div class="section-title">Detalles de la Obra</div>
-          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div class="info-item">
+          <div class="info-grid">
+            <div class="info-card">
               <div class="info-label">Nombre de la Obra</div>
               <div class="info-value">${obra?.nombreObra || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Tipo de Obra</div>
               <div class="info-value">${obra?.tipoObra || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Prioridad</div>
               <div class="info-value">${obra?.prioridad || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Responsable</div>
               <div class="info-value">${obra?.responsable || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Estado</div>
               <div class="info-value">${getEstadoLabel(obra?.estado) || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Fecha de Creación</div>
               <div class="info-value">${formatearFecha(obra?.fechaCreacion) || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Fecha de Inicio</div>
               <div class="info-value">${obra?.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Fecha de Fin</div>
               <div class="info-value">${obra?.fechas?.fin ? formatearFecha(obra.fechas.fin) : "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Dirección de la Obra</div>
               <div class="info-value">${obra?.ubicacion?.direccion || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Localidad</div>
               <div class="info-value">${obra?.ubicacion?.localidad || "-"}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Provincia</div>
               <div class="info-value">${obra?.ubicacion?.provincia || "-"}</div>
             </div>
@@ -1142,21 +1371,21 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "obra" ? `
         <div class="section">
           <div class="section-title">Resumen Financiero</div>
-          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div class="info-item">
+          <div class="info-grid">
+            <div class="info-card">
               <div class="info-label">Base Total</div>
               <div class="info-value">${formatearNumeroArgentino(baseTotalVisual)}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Total Pagado</div>
               <div class="info-value">${formatearNumeroArgentino(totalMovimientos)}</div>
             </div>
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Saldo Pendiente</div>
               <div class="info-value">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</div>
             </div>
             ${obra?.costoEnvio && obra.costoEnvio > 0 ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Costo de Envío</div>
               <div class="info-value">${formatearNumeroArgentino(obra.costoEnvio)}</div>
             </div>
@@ -1168,118 +1397,122 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "obra" && obra?.materialesCatalogo && obra.materialesCatalogo.length > 0 ? `
         <div class="section">
           <div class="section-title">Materiales de la Obra</div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Alto</th>
-                <th>Largo</th>
-                <th>m²/ml</th>
-                <th>Valor</th>
-                <th>Desc. %</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${obra.materialesCatalogo.map((p) => {
-                const unidad = String(p.unidad || "UN").toUpperCase();
-                const valor = Number(p.precio) || 0;
-                const descuento = Number(p.descuento) || 0;
-                const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
-                const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
-                const base = isMachDeck ? valor : valor * (Number(p.cantidad) || 0);
-                const sub = Math.round(base * (1 - descuento / 100));
-                const altoNum = Number(p.alto) || 0;
-                const largoNum = Number(p.largo) || 0;
-                const cantNum = Number(p.cantidad) || 1;
-                let medidaValor = null;
-                if (unidad === "M2") {
-                  medidaValor = altoNum * largoNum * cantNum;
-                } else if (unidad === "ML") {
-                  medidaValor = largoNum * cantNum;
-                }
-                return `
-                  <tr>
-                    <td>
-                      <div><strong>${p.nombre}</strong></div>
-                    </td>
-                    <td style="text-align: center;">${cantNum}</td>
-                    <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
-                    <td style="text-align: center;">${esMadera ? largoNum : "-"}</td>
-                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
-                    <td style="text-align: center;">${descuento}</td>
-                    <td style="text-align: center; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th>Alto</th>
+                  <th>Largo</th>
+                  <th>m²/ml</th>
+                  <th>Valor</th>
+                  <th>Desc. %</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${obra.materialesCatalogo.map((p) => {
+                  const unidad = String(p.unidad || "UN").toUpperCase();
+                  const valor = Number(p.precio) || 0;
+                  const descuento = Number(p.descuento) || 0;
+                  const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+                  const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+                  const base = isMachDeck ? valor : valor * (Number(p.cantidad) || 0);
+                  const sub = Math.round(base * (1 - descuento / 100));
+                  const altoNum = Number(p.alto) || 0;
+                  const largoNum = Number(p.largo) || 0;
+                  const cantNum = Number(p.cantidad) || 1;
+                  let medidaValor = null;
+                  if (unidad === "M2") {
+                    medidaValor = altoNum * largoNum * cantNum;
+                  } else if (unidad === "ML") {
+                    medidaValor = largoNum * cantNum;
+                  }
+                  return `
+                    <tr>
+                      <td>
+                        <div><strong>${p.nombre}</strong></div>
+                      </td>
+                      <td style="text-align: center;">${cantNum}</td>
+                      <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
+                      <td style="text-align: center;">${esMadera ? largoNum : "-"}</td>
+                      <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
+                      <td style="text-align: center;">${descuento}</td>
+                      <td style="text-align: center; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
         ` : ''}
 
         ${presupuesto && presupuesto.productos && presupuesto.productos.length > 0 ? `
         <div class="section">
           <div class="section-title">Presupuesto Inicial</div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Alto</th>
-                <th>Largo</th>
-                <th>m²/ml</th>
-                <th>Valor</th>
-                <th>Desc. %</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${presupuesto.productos.map((p) => {
-                const unidad = String(p.unidadMedida || "UN").toUpperCase();
-                const valor = Number(p.valorVenta) || 0;
-                const descuento = Number(p.descuento) || 0;
-                const precio = Number(p.precio) || 0;
-                const sub = Math.round(precio * (1 - descuento / 100));
-                const altoNum = Number(p.alto) || 0;
-                const largoNum = Number(p.largo) || 0;
-                const cantNum = Number(p.cantidad) || 1;
-                let medidaValor = null;
-                if (unidad === "M2") {
-                  medidaValor = altoNum * largoNum * cantNum;
-                } else if (unidad === "ML") {
-                  medidaValor = largoNum * cantNum;
-                }
-                return `
-                  <tr>
-                    <td>
-                      <div><strong>${p.nombre}</strong></div>
-                    </td>
-                    <td style="text-align: center;">${cantNum}</td>
-                    <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
-                    <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
-                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
-                    <td style="text-align: center;">${descuento}</td>
-                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <div style="margin-top: 20px; text-align: right; font-size: 16px;">
-            <div style="margin-bottom: 8px;">
-              <span style="font-weight: bold; margin-right: 20px;">Subtotal:</span>
-              <span>${formatearNumeroArgentino(presupuesto.subtotal || 0)}</span>
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th>Alto</th>
+                  <th>Largo</th>
+                  <th>m²/ml</th>
+                  <th>Valor</th>
+                  <th>Desc. %</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${presupuesto.productos.map((p) => {
+                  const unidad = String(p.unidadMedida || "UN").toUpperCase();
+                  const valor = Number(p.valorVenta) || 0;
+                  const descuento = Number(p.descuento) || 0;
+                  const precio = Number(p.precio) || 0;
+                  const sub = Math.round(precio * (1 - descuento / 100));
+                  const altoNum = Number(p.alto) || 0;
+                  const largoNum = Number(p.largo) || 0;
+                  const cantNum = Number(p.cantidad) || 1;
+                  let medidaValor = null;
+                  if (unidad === "M2") {
+                    medidaValor = altoNum * largoNum * cantNum;
+                  } else if (unidad === "ML") {
+                    medidaValor = largoNum * cantNum;
+                  }
+                  return `
+                    <tr>
+                      <td>
+                        <div><strong>${p.nombre}</strong></div>
+                      </td>
+                      <td style="text-align: center;">${cantNum}</td>
+                      <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
+                      <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
+                      <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
+                      <td style="text-align: center;">${descuento}</td>
+                      <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="totals-section">
+            <div class="total-row">
+              <span class="total-label">Subtotal:</span>
+              <span class="total-value">${formatearNumeroArgentino(presupuesto.subtotal || 0)}</span>
             </div>
-            <div style="margin-bottom: 8px;">
-              <span style="font-weight: bold; margin-right: 20px;">Descuento total:</span>
-              <span>${formatearNumeroArgentino(presupuesto.descuentoTotal || 0)}</span>
+            <div class="total-row">
+              <span class="total-label">Descuento total:</span>
+              <span class="total-value">${formatearNumeroArgentino(presupuesto.descuentoTotal || 0)}</span>
             </div>
-            <div style="font-weight: bold; font-size: 18px; color: #2563eb;">
-              <span style="margin-right: 20px;">Total:</span>
-              <span>${formatearNumeroArgentino(presupuesto.total || 0)}</span>
+            <div class="total-row">
+              <span class="total-label">Total:</span>
+              <span class="total-value grand-total">${formatearNumeroArgentino(presupuesto.total || 0)}</span>
             </div>
           </div>
         </div>
@@ -1288,64 +1521,66 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "presupuesto" && obra?.productos && obra.productos.length > 0 ? `
         <div class="section">
           <div class="section-title">Productos del Presupuesto</div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Alto</th>
-                <th>Largo</th>
-                <th>m²/ml</th>
-                <th>Valor</th>
-                <th>Desc. %</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${obra.productos.map((p) => {
-                const unidad = String(p.unidadMedida || "UN").toUpperCase();
-                const valor = Number(p.valorVenta) || 0;
-                const descuento = Number(p.descuento) || 0;
-                const precio = Number(p.precio) || 0;
-                const sub = Math.round(precio * (1 - descuento / 100));
-                const altoNum = Number(p.alto) || 0;
-                const largoNum = Number(p.largo) || 0;
-                const cantNum = Number(p.cantidad) || 1;
-                let medidaValor = null;
-                if (unidad === "M2") {
-                  medidaValor = altoNum * largoNum * cantNum;
-                } else if (unidad === "ML") {
-                  medidaValor = largoNum * cantNum;
-                }
-                return `
-                  <tr>
-                    <td>
-                      <div><strong>${p.nombre}</strong></div>
-                    </td>
-                    <td style="text-align: center;">${cantNum}</td>
-                    <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
-                    <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
-                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                    <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
-                    <td style="text-align: center;">${descuento}</td>
-                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <div style="margin-top: 20px; text-align: right; font-size: 16px;">
-            <div style="margin-bottom: 8px;">
-              <span style="font-weight: bold; margin-right: 20px;">Subtotal:</span>
-              <span>${formatearNumeroArgentino(obra.subtotal || 0)}</span>
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th>Alto</th>
+                  <th>Largo</th>
+                  <th>m²/ml</th>
+                  <th>Valor</th>
+                  <th>Desc. %</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${obra.productos.map((p) => {
+                  const unidad = String(p.unidadMedida || "UN").toUpperCase();
+                  const valor = Number(p.valorVenta) || 0;
+                  const descuento = Number(p.descuento) || 0;
+                  const precio = Number(p.precio) || 0;
+                  const sub = Math.round(precio * (1 - descuento / 100));
+                  const altoNum = Number(p.alto) || 0;
+                  const largoNum = Number(p.largo) || 0;
+                  const cantNum = Number(p.cantidad) || 1;
+                  let medidaValor = null;
+                  if (unidad === "M2") {
+                    medidaValor = altoNum * largoNum * cantNum;
+                  } else if (unidad === "ML") {
+                    medidaValor = largoNum * cantNum;
+                  }
+                  return `
+                    <tr>
+                      <td>
+                        <div><strong>${p.nombre}</strong></div>
+                      </td>
+                      <td style="text-align: center;">${cantNum}</td>
+                      <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
+                      <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
+                      <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
+                      <td style="text-align: center;">${descuento}</td>
+                      <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="totals-section">
+            <div class="total-row">
+              <span class="total-label">Subtotal:</span>
+              <span class="total-value">${formatearNumeroArgentino(obra.subtotal || 0)}</span>
             </div>
-            <div style="margin-bottom: 8px;">
-              <span style="font-weight: bold; margin-right: 20px;">Descuento total:</span>
-              <span>${formatearNumeroArgentino(obra.descuentoTotal || 0)}</span>
+            <div class="total-row">
+              <span class="total-label">Descuento total:</span>
+              <span class="total-value">${formatearNumeroArgentino(obra.descuentoTotal || 0)}</span>
             </div>
-            <div style="font-weight: bold; font-size: 18px; color: #2563eb;">
-              <span style="margin-right: 20px;">Total:</span>
-              <span>${formatearNumeroArgentino(obra.total || 0)}</span>
+            <div class="total-row">
+              <span class="total-label">Total:</span>
+              <span class="total-value grand-total">${formatearNumeroArgentino(obra.total || 0)}</span>
             </div>
           </div>
         </div>
@@ -1354,65 +1589,67 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "obra" && movimientos && movimientos.length > 0 ? `
         <div class="section">
           <div class="section-title">Movimientos de Cobranza</div>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Método</th>
-                <th>Monto</th>
-                <th>Nota</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${movimientos.map((m) => `
+          <div class="table-container">
+            <table class="table">
+              <thead>
                 <tr>
-                  <td>${m.fecha || '-'}</td>
-                  <td style="text-transform: capitalize;">${m.tipo}</td>
-                  <td style="text-transform: capitalize;">${m.metodo}</td>
-                  <td style="text-align: right;">${formatearNumeroArgentino(Number(m.monto || 0))}</td>
-                  <td>${m.nota || '-'}</td>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Método</th>
+                  <th>Monto</th>
+                  <th>Nota</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${movimientos.map((m) => `
+                  <tr>
+                    <td>${m.fecha || '-'}</td>
+                    <td style="text-transform: capitalize;">${m.tipo}</td>
+                    <td style="text-transform: capitalize;">${m.metodo}</td>
+                    <td style="text-align: right;">${formatearNumeroArgentino(Number(m.monto || 0))}</td>
+                    <td>${m.nota || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
         ` : ''}
 
         ${obra?.tipoEnvio && obra.tipoEnvio !== "retiro_local" ? `
         <div class="section">
           <div class="section-title">Información de Envío</div>
-          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div class="info-item">
+          <div class="info-grid">
+            <div class="info-card">
               <div class="info-label">Tipo de Envío</div>
               <div class="info-value">${obra.tipoEnvio}</div>
             </div>
             ${obra.direccionEnvio ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Dirección de Envío</div>
               <div class="info-value">${obra.direccionEnvio}</div>
             </div>
             ` : ''}
             ${obra.localidadEnvio ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Localidad</div>
               <div class="info-value">${obra.localidadEnvio}</div>
             </div>
             ` : ''}
             ${obra.transportista ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Transportista</div>
               <div class="info-value">${obra.transportista}</div>
             </div>
             ` : ''}
             ${obra.fechaEntrega ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Fecha de Entrega</div>
               <div class="info-value">${formatearFecha(obra.fechaEntrega)}</div>
             </div>
             ` : ''}
             ${obra.rangoHorario ? `
-            <div class="info-item">
+            <div class="info-card">
               <div class="info-label">Rango Horario</div>
               <div class="info-value">${obra.rangoHorario}</div>
             </div>
@@ -1424,15 +1661,40 @@ const ObraDetallePage = () => {
         <div class="section">
           <div class="section-title">Documentación</div>
           ${docLinks && docLinks.length > 0 ? `
-          <ul style="list-style: disc; padding-left: 20px; margin: 10px 0;">
-            ${docLinks.map((link) => `<li style="margin-bottom: 5px;"><a href="${link}" target="_blank">${link}</a></li>`).join('')}
-          </ul>
-          ` : '<p style="margin: 10px 0;">Sin documentación</p>'}
+          <div class="info-grid">
+            ${docLinks.map((link) => `
+            <div class="info-card">
+              <div class="info-label">Enlace</div>
+              <div class="info-value">
+                <a href="${link}" target="_blank" style="color: #3b82f6; text-decoration: none;">${link}</a>
+              </div>
+            </div>
+            `).join('')}
+          </div>
+          ` : '<div class="info-card"><div class="info-label">Estado</div><div class="info-value">Sin documentación</div></div>'}
         </div>
 
-        <div style="margin-top: 40px; text-align: center; color: #666; font-size: 14px;">
-          <p>Documento generado el ${new Date().toLocaleDateString('es-AR')}</p>
+        <!-- Footer -->
+        <div class="footer">
+          <div class="footer-content">
+            <div class="footer-section">
+              <div class="footer-title">Información de Pago</div>
+              <div class="footer-text">Maderas Caballero</div>
+              <div class="footer-text">Transferencia bancaria</div>
+            </div>
+            <div class="footer-section">
+              <div class="footer-title">Contacto</div>
+              <div class="footer-text">www.caballeromaderas.com</div>
+              <div class="footer-text">+54 9 11 1234-5678</div>
+            </div>
+          </div>
         </div>
+
+        <!-- Mensaje de agradecimiento -->
+        <div class="thank-you">
+          ¡GRACIAS POR SU CONFIANZA!
+        </div>
+      </div>
       </body>
       </html>
     `;
