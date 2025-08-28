@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SiteLogo } from "@/components/svg";
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -931,6 +932,456 @@ const ObraDetallePage = () => {
     setEditando(false);
   };
 
+  // Función para imprimir la obra/presupuesto
+  const handleImprimir = () => {
+    // Crear un modal moderno con iframe para la vista previa de impresión
+    setOpenPrint(true);
+  };
+
+  // Función para generar el contenido HTML de impresión
+  const generarContenidoImpresion = () => {
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"} - ${obra?.numeroPedido || ""}</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .logo { width: 60px; height: 60px; margin: 0 auto 20px; }
+            .section { margin-bottom: 25px; }
+            .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+            .info-item { margin-bottom: 10px; }
+            .info-label { font-weight: bold; color: #666; font-size: 14px; }
+            .info-value { font-size: 16px; margin-top: 5px; }
+            .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .table th { background-color: #f8f9fa; font-weight: bold; }
+            .totals { margin-top: 20px; text-align: right; }
+            .total-row { margin-bottom: 8px; }
+            .total-label { font-weight: bold; margin-right: 20px; }
+            .page-break { page-break-before: always; }
+            @page { margin: 1cm; }
+          }
+          /* Estilos para vista previa */
+          body { 
+            margin: 0; 
+            padding: 20px; 
+            font-family: Arial, sans-serif; 
+            background: white;
+            color: #333;
+          }
+          .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #333; 
+            padding-bottom: 20px; 
+          }
+          .logo { 
+            width: 60px; 
+            height: 60px; 
+            margin: 0 auto 20px; 
+          }
+          .section { margin-bottom: 25px; }
+          .section-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #333; 
+          }
+          .info-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-bottom: 20px; 
+          }
+          .info-item { margin-bottom: 10px; }
+          .info-label { 
+            font-weight: bold; 
+            color: #666; 
+            font-size: 14px; 
+          }
+          .info-value { 
+            font-size: 16px; 
+            margin-top: 5px; 
+          }
+          .table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+          }
+          .table th, .table td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+          }
+          .table th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+          }
+
+        </style>
+      </head>
+      <body>
+
+        
+        <div class="header">
+          <div class="logo">
+            <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 100%; height: 100%; object-fit: contain;">
+          </div>
+          <h1 style="font-size: 24px; margin: 0; color: #333;">
+            ${obra?.tipo === "presupuesto" ? "PRESUPUESTO" : "OBRA"}
+          </h1>
+          <p style="font-size: 18px; margin: 10px 0 0; color: #666;">
+            ${obra?.numeroPedido || ""}
+          </p>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Información General</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Cliente</div>
+              <div class="info-value">${obra?.cliente?.nombre || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Email</div>
+              <div class="info-value">${obra?.cliente?.email || "No especificado"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Teléfono</div>
+              <div class="info-value">${obra?.cliente?.telefono || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Dirección</div>
+              <div class="info-value">${obra?.cliente?.direccion || "-"}</div>
+            </div>
+            ${obra?.cliente?.cuit ? `
+            <div class="info-item">
+              <div class="info-label">CUIT</div>
+              <div class="info-value">${obra?.cliente?.cuit}</div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        ${obra?.tipo === "obra" ? `
+        <div class="section">
+          <div class="section-title">Detalles de la Obra</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Nombre de la Obra</div>
+              <div class="info-value">${obra?.nombreObra || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Tipo de Obra</div>
+              <div class="info-value">${obra?.tipoObra || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Prioridad</div>
+              <div class="info-value">${obra?.prioridad || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Responsable</div>
+              <div class="info-value">${obra?.responsable || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Estado</div>
+              <div class="info-value">${getEstadoLabel(obra?.estado) || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Fecha de Creación</div>
+              <div class="info-value">${formatearFecha(obra?.fechaCreacion) || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Fecha de Inicio</div>
+              <div class="info-value">${obra?.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Fecha de Fin</div>
+              <div class="info-value">${obra?.fechas?.fin ? formatearFecha(obra.fechas.fin) : "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Dirección de la Obra</div>
+              <div class="info-value">${obra?.ubicacion?.direccion || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Localidad</div>
+              <div class="info-value">${obra?.ubicacion?.localidad || "-"}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Provincia</div>
+              <div class="info-value">${obra?.ubicacion?.provincia || "-"}</div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Resumen Financiero</div>
+          <div class="info-grid">
+            ${obra?.tipo === "obra" ? `
+            <div class="info-item">
+              <div class="info-label">Base Total</div>
+              <div class="info-value">${formatearNumeroArgentino(baseTotalVisual)}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Total Pagado</div>
+              <div class="info-value">${formatearNumeroArgentino(totalMovimientos)}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Saldo Pendiente</div>
+              <div class="info-value">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</div>
+            </div>
+            ` : ''}
+            ${obra?.costoEnvio && obra.costoEnvio > 0 ? `
+            <div class="info-item">
+              <div class="info-label">Costo de Envío</div>
+              <div class="info-value">${formatearNumeroArgentino(obra.costoEnvio)}</div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        ${obra?.tipo === "obra" && obra?.materialesCatalogo && obra.materialesCatalogo.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Materiales de la Obra</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>Alto</th>
+                <th>Largo</th>
+                <th>m²/ml</th>
+                <th>Valor</th>
+                <th>Desc. %</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${obra.materialesCatalogo.map((p) => {
+                const unidad = String(p.unidad || "UN").toUpperCase();
+                const valor = Number(p.precio) || 0;
+                const descuento = Number(p.descuento) || 0;
+                const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+                const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+                const base = isMachDeck ? valor : valor * (Number(p.cantidad) || 0);
+                const sub = Math.round(base * (1 - descuento / 100));
+                const altoNum = Number(p.alto) || 0;
+                const largoNum = Number(p.largo) || 0;
+                const cantNum = Number(p.cantidad) || 1;
+                const medidaValor = unidad === "M2" ? p.m2 ?? altoNum * largoNum * cantNum : unidad === "ML" ? p.ml ?? largoNum * cantNum : null;
+                return `
+                  <tr>
+                    <td>
+                      <div><strong>${p.nombre}</strong></div>
+                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
+                    </td>
+                    <td style="text-align: center;">${cantNum}</td>
+                    <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
+                    <td style="text-align: center;">${esMadera ? largoNum : "-"}</td>
+                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                    <td style="text-align: right;">${formatearNumeroArgentino(valor)}</td>
+                    <td style="text-align: center;">${descuento}</td>
+                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${presupuesto && presupuesto.productos && presupuesto.productos.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Presupuesto Inicial</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Unidad</th>
+                <th>Cant.</th>
+                <th>Alto</th>
+                <th>Largo</th>
+                <th>m²/ml</th>
+                <th>Valor</th>
+                <th>Desc. %</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${presupuesto.productos.map((p) => {
+                const unidad = String(p.unidadMedida || "UN").toUpperCase();
+                const valor = Number(p.valorVenta) || 0;
+                const descuento = Number(p.descuento) || 0;
+                const precio = Number(p.precio) || 0;
+                const sub = Math.round(precio * (1 - descuento / 100));
+                const altoNum = Number(p.alto) || 0;
+                const largoNum = Number(p.largo) || 0;
+                const cantNum = Number(p.cantidad) || 1;
+                const medidaValor = unidad === "M2" ? p.m2 ?? altoNum * largoNum * cantNum : unidad === "ML" ? p.ml ?? largoNum * cantNum : null;
+                return `
+                  <tr>
+                    <td>
+                      <div><strong>${p.nombre}</strong></div>
+                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
+                    </td>
+                    <td style="text-align: center;">${unidad}</td>
+                    <td style="text-align: center;">${cantNum}</td>
+                    <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
+                    <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
+                    <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
+                    <td style="text-align: center;">${valor}</td>
+                    <td style="text-align: center;">${descuento}</td>
+                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${obra?.tipo === "presupuesto" && obra?.productos && obra.productos.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Productos del Presupuesto</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Unidad</th>
+                <th>Cant.</th>
+                <th>Alto</th>
+                <th>Largo</th>
+                <th>m²/ml</th>
+                <th>Valor</th>
+                <th>Desc. %</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${obra.productos.map((p) => {
+                const unidad = String(p.unidadMedida || "UN").toUpperCase();
+                const valor = Number(p.valorVenta) || 0;
+                const descuento = Number(p.descuento) || 0;
+                const precio = Number(p.precio) || 0;
+                const sub = Math.round(precio * (1 - descuento / 100));
+                const altoNum = Number(p.alto) || 0;
+                const largoNum = Number(p.largo) || 0;
+                const cantNum = Number(p.cantidad) || 1;
+                return `
+                  <tr>
+                    <td>
+                      <div><strong>${p.nombre}</strong></div>
+                      <div style="font-size: 12px; color: #666;">${p.nombre || ""}</div>
+                    </td>
+                    <td style="text-align: center;">${unidad}</td>
+                    <td style="text-align: center;">${cantNum}</td>
+                    <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
+                    <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
+                    <td style="text-align: right;">${formatearNumeroArgentino(valor)}</td>
+                    <td style="text-align: center;">${descuento}</td>
+                    <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${obra?.tipo === "obra" && movimientos && movimientos.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Movimientos de Cobranza</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Método</th>
+                <th>Monto</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${movimientos.map((m) => `
+                <tr>
+                  <td>${m.fecha || '-'}</td>
+                  <td style="text-transform: capitalize;">${m.tipo}</td>
+                  <td style="text-transform: capitalize;">${m.metodo}</td>
+                  <td style="text-align: right;">${formatearNumeroArgentino(Number(m.monto || 0))}</td>
+                  <td>${m.nota || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${obra?.tipoEnvio && obra.tipoEnvio !== "retiro_local" ? `
+        <div class="section">
+          <div class="section-title">Información de Envío</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Tipo de Envío</div>
+              <div class="info-value">${obra.tipoEnvio}</div>
+            </div>
+            ${obra.direccionEnvio ? `
+            <div class="info-item">
+              <div class="info-label">Dirección de Envío</div>
+              <div class="info-value">${obra.direccionEnvio}</div>
+            </div>
+            ` : ''}
+            ${obra.localidadEnvio ? `
+            <div class="info-item">
+              <div class="info-label">Localidad</div>
+              <div class="info-value">${obra.localidadEnvio}</div>
+            </div>
+            ` : ''}
+            ${obra.transportista ? `
+            <div class="info-item">
+              <div class="info-label">Transportista</div>
+              <div class="info-value">${obra.transportista}</div>
+            </div>
+            ` : ''}
+            ${obra.fechaEntrega ? `
+            <div class="info-item">
+              <div class="info-label">Fecha de Entrega</div>
+              <div class="info-value">${formatearFecha(obra.fechaEntrega)}</div>
+            </div>
+            ` : ''}
+            ${obra.rangoHorario ? `
+            <div class="info-item">
+              <div class="info-label">Rango Horario</div>
+              <div class="info-value">${obra.rangoHorario}</div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Documentación</div>
+          ${docLinks && docLinks.length > 0 ? `
+          <ul style="list-style: disc; padding-left: 20px;">
+            ${docLinks.map((link) => `<li><a href="${link}" target="_blank">${link}</a></li>`).join('')}
+          </ul>
+          ` : '<p>Sin documentación</p>'}
+        </div>
+
+        <div style="margin-top: 40px; text-align: center; color: #666; font-size: 14px;">
+          <p>Documento generado el ${new Date().toLocaleDateString('es-AR')}</p>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -983,6 +1434,17 @@ const ObraDetallePage = () => {
             <ArrowLeft className="w-4 h-4" />
             Volver
           </Button>
+          <div className="flex items-center gap-3 ml-4">
+            <SiteLogo className="w-8 h-8 text-primary" />
+            <div className="text-left">
+              <h1 className="text-xl font-semibold text-gray-900">
+                {obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"}
+              </h1>
+              <p className="text-sm text-gray-600">
+                {obra?.numeroPedido || "Sin número"}
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setEditando((v) => !v)}>
@@ -991,7 +1453,7 @@ const ObraDetallePage = () => {
           {editando && (
             <Button onClick={guardarEdicion}>Guardar cambios</Button>
           )}
-          <Button variant="outline" onClick={() => setOpenPrint(true)}>
+          <Button variant="outline" onClick={handleImprimir}>
             <Printer className="w-4 h-4 mr-2" />
             Imprimir
           </Button>
@@ -2170,6 +2632,43 @@ const ObraDetallePage = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Modal: Vista previa de impresión */}
+      <Dialog open={openPrint} onOpenChange={setOpenPrint}>
+        <DialogContent className="max-w-6xl max-h-[90vh] w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5" />
+              Vista Previa de Impresión - {obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"}
+            </DialogTitle>
+            <DialogDescription>
+              Revise el documento antes de imprimir. Use los botones de acción dentro del documento para imprimir o cerrar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <iframe
+              srcDoc={generarContenidoImpresion()}
+              className="w-full h-[70vh] border border-gray-200 rounded-lg"
+              title="Vista previa de impresión"
+              sandbox="allow-scripts allow-same-origin allow-modals"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOpenPrint(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => {
+              const iframe = document.querySelector('iframe');
+              if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.print();
+              }
+            }}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
