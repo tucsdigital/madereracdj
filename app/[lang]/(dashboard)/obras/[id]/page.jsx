@@ -1030,20 +1030,37 @@ const ObraDetallePage = () => {
 
         
         <div class="header">
-          <div class="logo">
-            <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 100%; height: 100%; object-fit: contain;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+            <div style="flex: 1;">
+              <div style="margin-bottom: 10px;">
+                <img src="/logo-maderera.png" alt="Logo Maderera" style="width: 80px; height: 60px; object-fit: contain;">
+              </div>
+              <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">
+                Maderas Caballero
+              </div>
+              <div style="font-size: 16px; color: #666; margin-bottom: 5px;">
+                ${obra?.tipo === "presupuesto" ? "Presupuesto" : "Obra"}
+              </div>
+              <div style="font-size: 14px; color: #666;">
+                www.caballeromaderas.com
+              </div>
+            </div>
+            <div style="text-align: right; flex: 1;">
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; color: #666;">Fecha:</span>
+                <span style="margin-left: 10px; color: #333;">${new Date().toLocaleDateString('es-AR')}</span>
+              </div>
+              <div>
+                <span style="font-weight: bold; color: #666;">N°:</span>
+                <span style="margin-left: 10px; color: #333; font-size: 18px; font-weight: bold;">${obra?.numeroPedido || ""}</span>
+              </div>
+            </div>
           </div>
-          <h1 style="font-size: 24px; margin: 0; color: #333;">
-            ${obra?.tipo === "presupuesto" ? "PRESUPUESTO" : "OBRA"}
-          </h1>
-          <p style="font-size: 18px; margin: 10px 0 0; color: #666;">
-            ${obra?.numeroPedido || ""}
-          </p>
         </div>
 
         <div class="section">
           <div class="section-title">Información General</div>
-          <div class="info-grid">
+          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div class="info-item">
               <div class="info-label">Cliente</div>
               <div class="info-value">${obra?.cliente?.nombre || "-"}</div>
@@ -1072,7 +1089,7 @@ const ObraDetallePage = () => {
         ${obra?.tipo === "obra" ? `
         <div class="section">
           <div class="section-title">Detalles de la Obra</div>
-          <div class="info-grid">
+          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div class="info-item">
               <div class="info-label">Nombre de la Obra</div>
               <div class="info-value">${obra?.nombreObra || "-"}</div>
@@ -1121,10 +1138,10 @@ const ObraDetallePage = () => {
         </div>
         ` : ''}
 
+        ${obra?.tipo === "obra" ? `
         <div class="section">
           <div class="section-title">Resumen Financiero</div>
-          <div class="info-grid">
-            ${obra?.tipo === "obra" ? `
+          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div class="info-item">
               <div class="info-label">Base Total</div>
               <div class="info-value">${formatearNumeroArgentino(baseTotalVisual)}</div>
@@ -1137,21 +1154,6 @@ const ObraDetallePage = () => {
               <div class="info-label">Saldo Pendiente</div>
               <div class="info-value">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</div>
             </div>
-            ` : ''}
-            ${obra?.tipo === "presupuesto" ? `
-            <div class="info-item">
-              <div class="info-label">Subtotal</div>
-              <div class="info-value">${formatearNumeroArgentino(obra?.subtotal || 0)}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Descuento Total</div>
-              <div class="info-value">${formatearNumeroArgentino(obra?.descuentoTotal || 0)}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Total Presupuestado</div>
-              <div class="info-value" style="font-weight: bold; color: #2563eb;">${formatearNumeroArgentino(obra?.total || 0)}</div>
-            </div>
-            ` : ''}
             ${obra?.costoEnvio && obra.costoEnvio > 0 ? `
             <div class="info-item">
               <div class="info-label">Costo de Envío</div>
@@ -1160,6 +1162,7 @@ const ObraDetallePage = () => {
             ` : ''}
           </div>
         </div>
+        ` : ''}
 
         ${obra?.tipo === "obra" && obra?.materialesCatalogo && obra.materialesCatalogo.length > 0 ? `
         <div class="section">
@@ -1199,7 +1202,6 @@ const ObraDetallePage = () => {
                   <tr>
                     <td>
                       <div><strong>${p.nombre}</strong></div>
-                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
                     </td>
                     <td style="text-align: center;">${cantNum}</td>
                     <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
@@ -1252,7 +1254,6 @@ const ObraDetallePage = () => {
                   <tr>
                     <td>
                       <div><strong>${p.nombre}</strong></div>
-                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
                     </td>
                     <td style="text-align: center;">${cantNum}</td>
                     <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
@@ -1266,6 +1267,20 @@ const ObraDetallePage = () => {
               }).join('')}
             </tbody>
           </table>
+          <div style="margin-top: 20px; text-align: right; font-size: 16px;">
+            <div style="margin-bottom: 8px;">
+              <span style="font-weight: bold; margin-right: 20px;">Subtotal:</span>
+              <span>${formatearNumeroArgentino(presupuesto.subtotal || 0)}</span>
+            </div>
+            <div style="margin-bottom: 8px;">
+              <span style="font-weight: bold; margin-right: 20px;">Descuento total:</span>
+              <span>${formatearNumeroArgentino(presupuesto.descuentoTotal || 0)}</span>
+            </div>
+            <div style="font-weight: bold; font-size: 18px; color: #2563eb;">
+              <span style="margin-right: 20px;">Total:</span>
+              <span>${formatearNumeroArgentino(presupuesto.total || 0)}</span>
+            </div>
+          </div>
         </div>
         ` : ''}
 
@@ -1305,7 +1320,6 @@ const ObraDetallePage = () => {
                   <tr>
                     <td>
                       <div><strong>${p.nombre}</strong></div>
-                      <div style="font-size: 12px; color: #666;">${p.categoria || ""}</div>
                     </td>
                     <td style="text-align: center;">${cantNum}</td>
                     <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
@@ -1319,6 +1333,20 @@ const ObraDetallePage = () => {
               }).join('')}
             </tbody>
           </table>
+          <div style="margin-top: 20px; text-align: right; font-size: 16px;">
+            <div style="margin-bottom: 8px;">
+              <span style="font-weight: bold; margin-right: 20px;">Subtotal:</span>
+              <span>${formatearNumeroArgentino(obra.subtotal || 0)}</span>
+            </div>
+            <div style="margin-bottom: 8px;">
+              <span style="font-weight: bold; margin-right: 20px;">Descuento total:</span>
+              <span>${formatearNumeroArgentino(obra.descuentoTotal || 0)}</span>
+            </div>
+            <div style="font-weight: bold; font-size: 18px; color: #2563eb;">
+              <span style="margin-right: 20px;">Total:</span>
+              <span>${formatearNumeroArgentino(obra.total || 0)}</span>
+            </div>
+          </div>
         </div>
         ` : ''}
 
@@ -1353,7 +1381,7 @@ const ObraDetallePage = () => {
         ${obra?.tipoEnvio && obra.tipoEnvio !== "retiro_local" ? `
         <div class="section">
           <div class="section-title">Información de Envío</div>
-          <div class="info-grid">
+          <div class="info-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div class="info-item">
               <div class="info-label">Tipo de Envío</div>
               <div class="info-value">${obra.tipoEnvio}</div>
@@ -1395,10 +1423,10 @@ const ObraDetallePage = () => {
         <div class="section">
           <div class="section-title">Documentación</div>
           ${docLinks && docLinks.length > 0 ? `
-          <ul style="list-style: disc; padding-left: 20px;">
-            ${docLinks.map((link) => `<li><a href="${link}" target="_blank">${link}</a></li>`).join('')}
+          <ul style="list-style: disc; padding-left: 20px; margin: 10px 0;">
+            ${docLinks.map((link) => `<li style="margin-bottom: 5px;"><a href="${link}" target="_blank">${link}</a></li>`).join('')}
           </ul>
-          ` : '<p>Sin documentación</p>'}
+          ` : '<p style="margin: 10px 0;">Sin documentación</p>'}
         </div>
 
         <div style="margin-top: 40px; text-align: center; color: #666; font-size: 14px;">
