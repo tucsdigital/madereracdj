@@ -585,24 +585,24 @@ export default function CrearObraPage() {
         };
       })();
 
-              await addDoc(collection(db, "obras"), {
-          tipo: "obra",
-          numeroPedido,
-          tipoObra: tipoObra || "",
-          prioridad: prioridad || "",
-          estado: "pendiente_inicio",
-          clienteId,
-          cliente: clienteObj,
-          ubicacion: ubicacionObra,
-          responsable: responsable || "",
-          materialesCatalogo: materialesSanitizados,
-          presupuestoInicialId: presupuestoInicialId || null,
-          montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
-          productosSubtotal: Math.round(productosSubtotal),
-          productosDescuentoTotal: Math.round(productosDescuentoTotal),
-          productosTotal: Math.round(productosTotal),
-          fechaCreacion: new Date().toISOString(),
-        });
+      await addDoc(collection(db, "obras"), {
+        tipo: "obra",
+        numeroPedido,
+        tipoObra: tipoObra || "",
+        prioridad: prioridad || "",
+        estado: "pendiente_inicio",
+        clienteId,
+        cliente: clienteObj,
+        ubicacion: ubicacionObra,
+        responsable: responsable || "",
+        materialesCatalogo: materialesSanitizados,
+        presupuestoInicialId: presupuestoInicialId || null,
+        montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
+        productosSubtotal: Math.round(productosSubtotal),
+        productosDescuentoTotal: Math.round(productosDescuentoTotal),
+        productosTotal: Math.round(productosTotal),
+        fechaCreacion: new Date().toISOString(),
+      });
       router.push(`/${lang}/obras`);
     } finally {
       setGuardando(false);
@@ -630,7 +630,7 @@ export default function CrearObraPage() {
           <CardTitle>Datos Generales</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-                    {/* Cliente */}
+          {/* Cliente */}
           <div>
             <label className="text-sm text-gray-600">Cliente *</label>
             <div className="relative w-full mt-1">

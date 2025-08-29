@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
-import { Filter, Search, RefreshCw, Building, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { collection, getDocs, doc, getDoc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { Filter, Search, RefreshCw, Building, CheckCircle, Clock, AlertCircle, Trash2, X, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
+import { useAuth } from "@/provider/auth.provider";
 
 const estadosObra = {
   pendiente_inicio: { label: "Pendiente de Inicio", color: "bg-yellow-100 text-yellow-800 border-yellow-200", icon: Clock },
@@ -28,9 +30,15 @@ const ObrasPage = () => {
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState("");
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
+  const { user } = useAuth();
 
   // Columnas para presupuestos
   const presupuestosColumns = [
@@ -86,18 +94,20 @@ const ObrasPage = () => {
         
         try {
           const fecha = new Date(fechaCreacion);
+          // Ajustar a zona horaria de Argentina (UTC-3)
+          const fechaArgentina = new Date(fecha.getTime() - (3 * 60 * 60 * 1000));
           
           return (
             <div className="text-gray-600">
               <div className="font-medium">
-                {fecha.toLocaleDateString("es-AR", {
+                {fechaArgentina.toLocaleDateString("es-AR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric"
                 })}
               </div>
               <div className="text-xs text-gray-500">
-                {fecha.toLocaleTimeString("es-AR", {
+                {fechaArgentina.toLocaleTimeString("es-AR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false
@@ -123,14 +133,32 @@ const ObrasPage = () => {
       },
     },
     {
-      id: "estadoPago",
-      header: "Pago",
+      id: "actions",
+      header: "Acciones",
       cell: ({ row }) => {
-        const estadoPago = row.original.estadoPago || "pendiente";
-        const label = estadoPago === "pagado" ? "Pagado" : "Pendiente";
-        const color = estadoPago === "pagado" ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200";
-        return <Badge variant="outline" className={color}>{label}</Badge>;
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              title="Eliminar"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevenir que se active el click de la fila
+                window.dispatchEvent(
+                  new CustomEvent("deletePresupuesto", {
+                    detail: { id: row.original.id },
+                  })
+                );
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+        );
       },
+      enableSorting: false,
     },
   ];
 
@@ -183,18 +211,20 @@ const ObrasPage = () => {
       
         try {
           const fecha = new Date(fechaCreacion);
+          // Ajustar a zona horaria de Argentina (UTC-3)
+          const fechaArgentina = new Date(fecha.getTime() - (3 * 60 * 60 * 1000));
       
           return (
             <div className="text-gray-600">
               <div className="font-medium">
-                {fecha.toLocaleDateString("es-AR", {
+                {fechaArgentina.toLocaleDateString("es-AR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric"
                 })}
               </div>
               <div className="text-xs text-gray-500">
-                {fecha.toLocaleTimeString("es-AR", {
+                {fechaArgentina.toLocaleTimeString("es-AR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false
@@ -246,7 +276,117 @@ const ObrasPage = () => {
         return <Badge variant="outline" className={color}>{label}</Badge>;
       },
     },
+    {
+      id: "actions",
+      header: "Acciones",
+      cell: ({ row }) => {
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              title="Eliminar"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevenir que se active el click de la fila
+                window.dispatchEvent(
+                  new CustomEvent("deleteObra", {
+                    detail: { id: row.original.id },
+                  })
+                );
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+        );
+      },
+      enableSorting: false,
+    },
   ];
+
+  // Función para mostrar el diálogo de confirmación
+  const showDeleteConfirmation = (id, type, itemName) => {
+    setItemToDelete({ id, name: itemName });
+    setDeleteType(type);
+    setShowDeleteDialog(true);
+  };
+
+  // Función para confirmar la eliminación
+  const confirmDelete = async () => {
+    if (!itemToDelete || !user) {
+      setShowDeleteDialog(false);
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteMessage("");
+
+      // Crear registro de auditoría antes de eliminar
+      const auditData = {
+        action: "DELETE",
+        collectionName: "obras",
+        documentId: itemToDelete.id,
+        documentType: deleteType,
+        userId: user.uid,
+        userEmail: user.email,
+        timestamp: serverTimestamp(),
+        documentData: obrasData.find(item => item.id === itemToDelete.id) || {},
+      };
+
+      // Agregar a la colección de auditoría
+      await addDoc(collection(db, "auditoria"), auditData);
+
+      // Eliminar el documento
+      await deleteDoc(doc(db, "obras", itemToDelete.id));
+      
+      // Actualizar la lista local
+      setObrasData(prev => prev.filter(item => item.id !== itemToDelete.id));
+      
+      setDeleteMessage(`✅ ${deleteType === 'obra' ? 'Obra' : 'Presupuesto'} eliminado exitosamente`);
+      
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setDeleteMessage(""), 3000);
+
+    } catch (error) {
+      console.error(`Error al eliminar ${deleteType}:`, error);
+      setDeleteMessage(`❌ Error: ${error.message}`);
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
+    }
+  };
+
+  // Event listeners para los botones de borrado
+  useEffect(() => {
+    const handleDeletePresupuestoEvent = (event) => {
+      const presupuesto = obrasData.find(p => p.id === event.detail.id && p.tipo === "presupuesto");
+      if (presupuesto) {
+        showDeleteConfirmation(event.detail.id, 'presupuesto', presupuesto.cliente?.nombre || 'Presupuesto');
+      }
+    };
+
+    const handleDeleteObraEvent = (event) => {
+      const obra = obrasData.find(o => o.id === event.detail.id && o.tipo === "obra");
+      if (obra) {
+        showDeleteConfirmation(event.detail.id, 'obra', obra.cliente?.nombre || 'Obra');
+      }
+    };
+
+    window.addEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+    window.addEventListener('deleteObra', handleDeleteObraEvent);
+
+    return () => {
+      window.removeEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
+      window.removeEventListener('deleteObra', handleDeleteObraEvent);
+    };
+  }, [obrasData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -338,6 +478,26 @@ const ObrasPage = () => {
 
   return (
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
+      {/* Mensaje de estado del borrado */}
+      {deleteMessage && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+          deleteMessage.startsWith('✅') 
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
+            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+        }`}>
+          {deleteMessage.startsWith('✅') ? (
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+          )}
+          <span className="font-semibold">{deleteMessage}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Obras y Presupuestos</h1>
@@ -348,6 +508,7 @@ const ObrasPage = () => {
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
             onClick={() => router.push(`/${lang}/obras/presupuesto/create`)}
+            disabled={deleting}
           >
             <Icon icon="heroicons:document-plus" className="w-5 h-5" />
             <span className="hidden sm:inline">Nuevo Presupuesto</span>
@@ -357,12 +518,13 @@ const ObrasPage = () => {
             variant="default"
             className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
             onClick={() => router.push(`/${lang}/obras/create`)}
+            disabled={deleting}
           >
             <Icon icon="heroicons:building-office" className="w-5 h-5" />
             <span className="hidden sm:inline">Nueva Obra</span>
             <span className="sm:hidden">Obra</span>
           </Button>
-          <Button variant="outline" onClick={() => window.location.reload()}>
+          <Button variant="outline" onClick={() => window.location.reload()} disabled={deleting}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
@@ -471,6 +633,14 @@ const ObrasPage = () => {
                 <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
                 <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
               </div>
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-purple-600">Procesando...</span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 p-0">
@@ -504,6 +674,14 @@ const ObrasPage = () => {
                 <div className="text-2xl font-bold text-gray-900">Obras</div>
                 <div className="text-sm font-medium text-gray-600">Proyectos en ejecución</div>
               </div>
+              {deleting && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-blue-600">Procesando...</span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 p-0">
@@ -523,6 +701,72 @@ const ObrasPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Diálogo de confirmación de eliminación mejorado */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
+          <DialogHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Confirmar Eliminación
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              ¿Estás seguro de que quieres eliminar este {deleteType === 'obra' ? 'obra' : 'presupuesto'}?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Info className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-red-800">
+                  {itemToDelete?.name || 'Elemento'}
+                </div>
+                <div className="text-sm text-red-700">
+                  {deleteType === 'obra' 
+                    ? 'Esta acción eliminará la obra permanentemente.'
+                    : 'Esta acción eliminará el presupuesto permanentemente.'
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              disabled={deleting}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Eliminar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
