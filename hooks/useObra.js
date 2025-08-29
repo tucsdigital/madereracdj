@@ -102,6 +102,7 @@ export const useObra = (id) => {
           } else if (data.tipo === "presupuesto") {
             setEstadoObra(data.estado || "Activo");
             setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
+            setDescripcionGeneral(data.descripcionGeneral || "");
           }
           
           // Si tiene presupuesto inicial, cargarlo
@@ -170,6 +171,7 @@ export const useObra = (id) => {
     if (presupuesto) {
       const prods = Array.isArray(presupuesto.productos) ? presupuesto.productos : [];
       setItemsPresupuesto(prods);
+      setDescripcionGeneral(presupuesto.descripcionGeneral || "");
     }
   }, [presupuesto]);
 
@@ -269,6 +271,7 @@ export const useObra = (id) => {
       subtotal: 0,
       descuentoTotal: 0,
       total: 0,
+      descripcionGeneral: descripcionGeneral || "",
       fechaCreacion: new Date().toISOString(),
       estado: "Activo",
     };
@@ -374,6 +377,7 @@ export const useObra = (id) => {
         return acc + Math.round(base * desc / 100);
       }, 0);
       updateData.total = updateData.subtotal - updateData.descuentoTotal;
+      updateData.descripcionGeneral = descripcionGeneral || "";
     }
 
     try {

@@ -39,12 +39,14 @@ const PresupuestoPage = () => {
     categoriasObra,
     categoriaObraId,
     busquedaProductoObra,
+    descripcionGeneral,
     setEditando,
     setDocLinks,
     setMovimientos,
     setCategoriaObraId,
     setBusquedaProductoObra,
     setItemsPresupuesto,
+    setDescripcionGeneral,
     guardarEdicion,
   } = useObra(id);
 
@@ -121,6 +123,8 @@ const PresupuestoPage = () => {
             setBusquedaProductoObra={setBusquedaProductoObra}
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
+            descripcionGeneral={descripcionGeneral}
+            onDescripcionGeneralChange={setDescripcionGeneral}
           />
 
           <ObraCobranza
