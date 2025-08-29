@@ -953,74 +953,60 @@ const ObraDetallePage = () => {
           * { box-sizing: border-box; }
           
           @media print {
-            body { margin: 0; padding: 15px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+            body { margin: 0; padding: 8px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
             .container { max-width: none; }
             .page-break { page-break-before: always; }
-            @page { margin: 1.5cm; }
+            @page { margin: 1cm; }
           }
           
           /* Estilos para vista previa */
           body { 
             margin: 0; 
-            padding: 15px; 
+            padding: 8px; 
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
             background: #fafafa;
             color: #1f2937;
-            line-height: 1.6;
+            line-height: 1.4;
+            font-size: 12px;
           }
           
           .container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             overflow: hidden;
           }
           
           .header {
             background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
             color: white;
-            padding: 32px;
+            padding: 16px;
             position: relative;
-            overflow: hidden;
-          }
-          
-          .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            border-radius: 50%;
           }
           
           .header-content {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            position: relative;
-            z-index: 1;
+            align-items: center;
           }
           
           .company-info {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
           }
           
           .logo {
-            width: 64px;
-            height: 64px;
+            width: 48px;
+            height: 48px;
             background: white;
-            border-radius: 16px;
-            padding: 8px;
+            border-radius: 8px;
+            padding: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
           }
           
           .logo img {
@@ -1030,21 +1016,20 @@ const ObraDetallePage = () => {
           }
           
           .company-details h1 {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 700;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.025em;
+            margin: 0 0 4px 0;
           }
           
           .company-details .subtitle {
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 500;
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0;
             opacity: 0.9;
           }
           
           .company-details .website {
-            font-size: 14px;
+            font-size: 10px;
             font-weight: 400;
             margin: 0;
             opacity: 0.7;
@@ -1053,85 +1038,66 @@ const ObraDetallePage = () => {
           .document-info {
             text-align: right;
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            border-radius: 6px;
           }
           
           .document-info .date {
-            font-size: 14px;
+            font-size: 10px;
             font-weight: 500;
-            margin: 0 0 12px 0;
+            margin: 0 0 6px 0;
             opacity: 0.9;
           }
           
           .document-info .number {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: 700;
             margin: 0;
-            letter-spacing: -0.025em;
           }
           
           .content {
-            padding: 32px;
+            padding: 16px;
           }
           
           .section {
-            margin-bottom: 32px;
+            margin-bottom: 16px;
           }
           
           .section-title {
-            font-size: 20px;
+            font-size: 14px;
             font-weight: 600;
             color: #1f2937;
-            margin: 0 0 20px 0;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #e5e7eb;
-            position: relative;
-          }
-          
-          .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 60px;
-            height: 2px;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            margin: 0 0 8px 0;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e5e7eb;
           }
           
           .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
           }
           
           .info-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.2s ease;
-          }
-          
-          .info-card:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
           }
           
           .info-label {
-            font-size: 12px;
+            font-size: 9px;
             font-weight: 600;
-            color: #64748b;
+            color: #dc2626;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
           }
           
           .info-value {
-            font-size: 16px;
+            font-size: 11px;
             font-weight: 500;
             color: #1f2937;
             margin: 0;
@@ -1140,37 +1106,34 @@ const ObraDetallePage = () => {
           .table-container {
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            border-radius: 6px;
             overflow: hidden;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 12px;
           }
           
           .table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 11px;
           }
           
           .table th {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: #f8fafc;
             color: #374151;
-            font-size: 14px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            padding: 16px 12px;
+            padding: 8px 6px;
             text-align: left;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
           }
           
           .table td {
-            padding: 16px 12px;
+            padding: 6px;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 14px;
+            font-size: 11px;
             color: #4b5563;
-          }
-          
-          .table tr:hover {
-            background: #f8fafc;
           }
           
           .table tr:last-child td {
@@ -1178,88 +1141,79 @@ const ObraDetallePage = () => {
           }
           
           .totals-section {
-            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-            color: white;
-            padding: 24px;
-            border-radius: 12px;
-            margin-top: 24px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+          }
+          
+          .totals-content {
+            display: flex;
+            gap: 16px;
+          }
+          
+          .description-field {
+            flex: 1;
+          }
+          
+          .description-field textarea {
+            width: 100%;
+            height: 80px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 11px;
+            font-family: inherit;
+            resize: none;
+            background: white;
+          }
+          
+          .totals-right {
+            flex: 0 0 200px;
           }
           
           .total-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
+            font-size: 11px;
           }
           
           .total-row:last-child {
             margin-bottom: 0;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            font-weight: 600;
           }
           
           .total-label {
-            font-size: 16px;
             font-weight: 500;
-            opacity: 0.9;
-          }
-          
-          .total-value {
-            font-size: 18px;
-            font-weight: 600;
-          }
-          
-          .grand-total {
-            font-size: 24px;
-            font-weight: 700;
-            color: #fbbf24;
-          }
-          
-          .footer {
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            padding: 24px 32px;
-            text-align: center;
-            color: #64748b;
-            font-size: 14px;
-          }
-          
-          .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 600px;
-            margin: 0 auto;
-          }
-          
-          .footer-section {
-            text-align: center;
-          }
-          
-          .footer-title {
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 0 0 8px 0;
             color: #374151;
           }
           
-          .footer-text {
-            font-size: 14px;
-            margin: 0;
-            color: #64748b;
+          .total-value {
+            font-weight: 600;
+            color: #1f2937;
           }
           
-          .thank-you {
-            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-            color: white;
-            padding: 16px 32px;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: 600;
-            text-align: center;
-            margin-top: 24px;
+          .grand-total {
+            font-size: 14px;
+            font-weight: 700;
+            color: #dc2626;
+          }
+          
+          .product-details {
+            font-size: 9px;
+            color: #6b7280;
+            margin-top: 2px;
+            font-style: italic;
+          }
+          
+          .description-placeholder {
+            color: #9ca3af;
+            font-style: italic;
           }
         </style>
       </head>
@@ -1307,12 +1261,14 @@ const ObraDetallePage = () => {
               <div class="info-label">Dirección</div>
               <div class="info-value">${obra?.cliente?.direccion || "-"}</div>
             </div>
-            ${obra?.cliente?.cuit ? `
             <div class="info-card">
               <div class="info-label">CUIT</div>
-              <div class="info-value">${obra?.cliente?.cuit}</div>
+              <div class="info-value">${obra?.cliente?.cuit || "-"}</div>
             </div>
-            ` : ''}
+            <div class="info-card">
+              <div class="info-label">Estado</div>
+              <div class="info-value">${getEstadoLabel(obra?.estado) || "-"}</div>
+            </div>
           </div>
         </div>
 
@@ -1337,14 +1293,6 @@ const ObraDetallePage = () => {
               <div class="info-value">${obra?.responsable || "-"}</div>
             </div>
             <div class="info-card">
-              <div class="info-label">Estado</div>
-              <div class="info-value">${getEstadoLabel(obra?.estado) || "-"}</div>
-            </div>
-            <div class="info-card">
-              <div class="info-label">Fecha de Creación</div>
-              <div class="info-value">${formatearFecha(obra?.fechaCreacion) || "-"}</div>
-            </div>
-            <div class="info-card">
               <div class="info-label">Fecha de Inicio</div>
               <div class="info-value">${obra?.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</div>
             </div>
@@ -1364,32 +1312,6 @@ const ObraDetallePage = () => {
               <div class="info-label">Provincia</div>
               <div class="info-value">${obra?.ubicacion?.provincia || "-"}</div>
             </div>
-          </div>
-        </div>
-        ` : ''}
-
-        ${obra?.tipo === "obra" ? `
-        <div class="section">
-          <div class="section-title">Resumen Financiero</div>
-          <div class="info-grid">
-            <div class="info-card">
-              <div class="info-label">Base Total</div>
-              <div class="info-value">${formatearNumeroArgentino(baseTotalVisual)}</div>
-            </div>
-            <div class="info-card">
-              <div class="info-label">Total Pagado</div>
-              <div class="info-value">${formatearNumeroArgentino(totalMovimientos)}</div>
-            </div>
-            <div class="info-card">
-              <div class="info-label">Saldo Pendiente</div>
-              <div class="info-value">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</div>
-            </div>
-            ${obra?.costoEnvio && obra.costoEnvio > 0 ? `
-            <div class="info-card">
-              <div class="info-label">Costo de Envío</div>
-              <div class="info-value">${formatearNumeroArgentino(obra.costoEnvio)}</div>
-            </div>
-            ` : ''}
           </div>
         </div>
         ` : ''}
@@ -1433,6 +1355,7 @@ const ObraDetallePage = () => {
                     <tr>
                       <td>
                         <div><strong>${p.nombre}</strong></div>
+                        <div class="product-details">${p.categoria || ""} ${p.subcategoria ? `- ${p.subcategoria}` : ""}</div>
                       </td>
                       <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
@@ -1446,6 +1369,30 @@ const ObraDetallePage = () => {
                 }).join('')}
               </tbody>
             </table>
+          </div>
+          
+          <!-- Totales con campo de descripción -->
+          <div class="totals-section">
+            <div class="totals-content">
+              <div class="description-field">
+                <div class="info-label" style="margin-bottom: 4px;">Descripción de Materiales</div>
+                <textarea placeholder="Detalles adicionales sobre los materiales utilizados..." class="description-placeholder"></textarea>
+              </div>
+              <div class="totals-right">
+                <div class="total-row">
+                  <span class="total-label">Subtotal:</span>
+                  <span class="total-value">${formatearNumeroArgentino(productosSubtotal)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Descuento total:</span>
+                  <span class="total-value">${formatearNumeroArgentino(productosDescuentoTotal)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Total Materiales:</span>
+                  <span class="total-value grand-total">${formatearNumeroArgentino(productosTotal)}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         ` : ''}
@@ -1487,6 +1434,7 @@ const ObraDetallePage = () => {
                     <tr>
                       <td>
                         <div><strong>${p.nombre}</strong></div>
+                        <div class="product-details">${p.categoria || ""} ${p.subCategoria ? `- ${p.subCategoria}` : ""}</div>
                       </td>
                       <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
@@ -1501,18 +1449,28 @@ const ObraDetallePage = () => {
               </tbody>
             </table>
           </div>
+          
+          <!-- Totales con campo de descripción -->
           <div class="totals-section">
-            <div class="total-row">
-              <span class="total-label">Subtotal:</span>
-              <span class="total-value">${formatearNumeroArgentino(presupuesto.subtotal || 0)}</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">Descuento total:</span>
-              <span class="total-value">${formatearNumeroArgentino(presupuesto.descuentoTotal || 0)}</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">Total:</span>
-              <span class="total-value grand-total">${formatearNumeroArgentino(presupuesto.total || 0)}</span>
+            <div class="totals-content">
+              <div class="description-field">
+                <div class="info-label" style="margin-bottom: 4px;">Descripción del Presupuesto</div>
+                <textarea placeholder="Detalles adicionales sobre el presupuesto..." class="description-placeholder"></textarea>
+              </div>
+              <div class="totals-right">
+                <div class="total-row">
+                  <span class="total-label">Subtotal:</span>
+                  <span class="total-value">${formatearNumeroArgentino(presupuesto.subtotal || 0)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Descuento total:</span>
+                  <span class="total-value">${formatearNumeroArgentino(presupuesto.descuentoTotal || 0)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Total:</span>
+                  <span class="total-value grand-total">${formatearNumeroArgentino(presupuesto.total || 0)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1555,6 +1513,7 @@ const ObraDetallePage = () => {
                     <tr>
                       <td>
                         <div><strong>${p.nombre}</strong></div>
+                        <div class="product-details">${p.categoria || ""} ${p.subCategoria ? `- ${p.subCategoria}` : ""}</div>
                       </td>
                       <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
@@ -1569,18 +1528,28 @@ const ObraDetallePage = () => {
               </tbody>
             </table>
           </div>
+          
+          <!-- Totales con campo de descripción -->
           <div class="totals-section">
-            <div class="total-row">
-              <span class="total-label">Subtotal:</span>
-              <span class="total-value">${formatearNumeroArgentino(obra.subtotal || 0)}</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">Descuento total:</span>
-              <span class="total-value">${formatearNumeroArgentino(obra.descuentoTotal || 0)}</span>
-            </div>
-            <div class="total-row">
-              <span class="total-label">Total:</span>
-              <span class="total-value grand-total">${formatearNumeroArgentino(obra.total || 0)}</span>
+            <div class="totals-content">
+              <div class="description-field">
+                <div class="info-label" style="margin-bottom: 4px;">Descripción del Presupuesto</div>
+                <textarea placeholder="Detalles adicionales sobre el presupuesto..." class="description-placeholder"></textarea>
+              </div>
+              <div class="totals-right">
+                <div class="total-row">
+                  <span class="total-label">Subtotal:</span>
+                  <span class="total-value">${formatearNumeroArgentino(obra.subtotal || 0)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Descuento total:</span>
+                  <span class="total-value">${formatearNumeroArgentino(obra.descuentoTotal || 0)}</span>
+                </div>
+                <div class="total-row">
+                  <span class="total-label">Total:</span>
+                  <span class="total-value grand-total">${formatearNumeroArgentino(obra.total || 0)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1674,25 +1643,35 @@ const ObraDetallePage = () => {
           ` : '<div class="info-card"><div class="info-label">Estado</div><div class="info-value">Sin documentación</div></div>'}
         </div>
 
-        <!-- Footer -->
-        <div class="footer">
-          <div class="footer-content">
-            <div class="footer-section">
-              <div class="footer-title">Información de Pago</div>
-              <div class="footer-text">Maderas Caballero</div>
-              <div class="footer-text">Transferencia bancaria</div>
+        <!-- Totales finales con campo de descripción general -->
+        <div class="totals-section">
+          <div class="totals-content">
+            <div class="description-field">
+              <div class="info-label" style="margin-bottom: 4px;">Descripción General</div>
+              <textarea placeholder="Observaciones generales, condiciones especiales, notas adicionales..." class="description-placeholder"></textarea>
             </div>
-            <div class="footer-section">
-              <div class="footer-title">Contacto</div>
-              <div class="footer-text">www.caballeromaderas.com</div>
-              <div class="footer-text">+54 9 11 1234-5678</div>
+            <div class="totals-right">
+              ${obra?.tipo === "obra" ? `
+              <div class="total-row">
+                <span class="total-label">Base Total:</span>
+                <span class="total-value">${formatearNumeroArgentino(baseTotalVisual)}</span>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Total Pagado:</span>
+                <span class="total-value">${formatearNumeroArgentino(totalMovimientos)}</span>
+              </div>
+              <div class="total-row">
+                <span class="total-label">Saldo Pendiente:</span>
+                <span class="total-value grand-total">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</span>
+              </div>
+              ` : `
+              <div class="total-row">
+                <span class="total-label">Total:</span>
+                <span class="total-value grand-total">${formatearNumeroArgentino(obra?.total || 0)}</span>
+              </div>
+              `}
             </div>
           </div>
-        </div>
-
-        <!-- Mensaje de agradecimiento -->
-        <div class="thank-you">
-          ¡GRACIAS POR SU CONFIANZA!
         </div>
       </div>
       </body>
