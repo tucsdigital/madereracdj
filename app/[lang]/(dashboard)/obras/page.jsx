@@ -86,19 +86,18 @@ const ObrasPage = () => {
         
         try {
           const fecha = new Date(fechaCreacion);
-          const fechaArgentina = new Date(fecha.getTime() - (3 * 60 * 60 * 1000));
           
           return (
             <div className="text-gray-600">
               <div className="font-medium">
-                {fechaArgentina.toLocaleDateString("es-AR", {
+                {fecha.toLocaleDateString("es-AR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric"
                 })}
               </div>
               <div className="text-xs text-gray-500">
-                {fechaArgentina.toLocaleTimeString("es-AR", {
+                {fecha.toLocaleTimeString("es-AR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false
@@ -181,22 +180,21 @@ const ObrasPage = () => {
       cell: ({ row }) => {
         const fechaCreacion = row.getValue("fechaCreacion");
         if (!fechaCreacion) return <span className="text-gray-400">Sin fecha</span>;
-        
+      
         try {
           const fecha = new Date(fechaCreacion);
-          const fechaArgentina = new Date(fecha.getTime() - (3 * 60 * 60 * 1000));
-          
+      
           return (
             <div className="text-gray-600">
               <div className="font-medium">
-                {fechaArgentina.toLocaleDateString("es-AR", {
+                {fecha.toLocaleDateString("es-AR", {
                   day: "2-digit",
                   month: "2-digit",
                   year: "numeric"
                 })}
               </div>
               <div className="text-xs text-gray-500">
-                {fechaArgentina.toLocaleTimeString("es-AR", {
+                {fecha.toLocaleTimeString("es-AR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: false
@@ -207,7 +205,7 @@ const ObrasPage = () => {
         } catch (error) {
           return <span className="text-gray-400">Fecha inválida</span>;
         }
-      },
+      },      
     },
     {
       accessorKey: "estado",
