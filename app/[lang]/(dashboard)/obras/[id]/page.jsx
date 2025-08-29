@@ -1324,11 +1324,9 @@ const ObraDetallePage = () => {
               <thead>
                 <tr>
                   <th>Producto</th>
-                  <th>Cant.</th>
                   <th>Alto</th>
                   <th>Largo</th>
                   <th>m²/ml</th>
-                  <th>Valor</th>
                   <th>Desc. %</th>
                   <th>Subtotal</th>
                 </tr>
@@ -1357,11 +1355,9 @@ const ObraDetallePage = () => {
                         <div><strong>${p.nombre}</strong></div>
                         <div class="product-details">${p.categoria || ""} ${p.subcategoria ? `- ${p.subcategoria}` : ""}</div>
                       </td>
-                      <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${esMadera ? altoNum : "-"}</td>
                       <td style="text-align: center;">${esMadera ? largoNum : "-"}</td>
                       <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                       <td style="text-align: center;">${descuento}</td>
                       <td style="text-align: center; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                     </tr>
@@ -1405,11 +1401,9 @@ const ObraDetallePage = () => {
               <thead>
                 <tr>
                   <th>Producto</th>
-                  <th>Cant.</th>
                   <th>Alto</th>
                   <th>Largo</th>
                   <th>m²/ml</th>
-                  <th>Valor</th>
                   <th>Desc. %</th>
                   <th>Subtotal</th>
                 </tr>
@@ -1436,11 +1430,9 @@ const ObraDetallePage = () => {
                         <div><strong>${p.nombre}</strong></div>
                         <div class="product-details">${p.categoria || ""} ${p.subCategoria ? `- ${p.subCategoria}` : ""}</div>
                       </td>
-                      <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
                       <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
                       <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                       <td style="text-align: center;">${descuento}</td>
                       <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                     </tr>
@@ -1484,11 +1476,9 @@ const ObraDetallePage = () => {
               <thead>
                 <tr>
                   <th>Producto</th>
-                  <th>Cant.</th>
                   <th>Alto</th>
                   <th>Largo</th>
                   <th>m²/ml</th>
-                  <th>Valor</th>
                   <th>Desc. %</th>
                   <th>Subtotal</th>
                 </tr>
@@ -1515,11 +1505,9 @@ const ObraDetallePage = () => {
                         <div><strong>${p.nombre}</strong></div>
                         <div class="product-details">${p.categoria || ""} ${p.subCategoria ? `- ${p.subCategoria}` : ""}</div>
                       </td>
-                      <td style="text-align: center;">${cantNum}</td>
                       <td style="text-align: center;">${unidad === "M2" ? altoNum : "-"}</td>
                       <td style="text-align: center;">${unidad === "M2" || unidad === "ML" ? largoNum : "-"}</td>
                       <td style="text-align: center;">${medidaValor != null ? medidaValor.toLocaleString("es-AR") : "-"}</td>
-                      <td style="text-align: center;">${formatearNumeroArgentino(valor)}</td>
                       <td style="text-align: center;">${descuento}</td>
                       <td style="text-align: right; font-weight: bold;">${formatearNumeroArgentino(sub)}</td>
                     </tr>
@@ -1536,7 +1524,7 @@ const ObraDetallePage = () => {
                 <div class="info-label" style="margin-bottom: 4px;">Descripción del Presupuesto</div>
                 <textarea placeholder="Detalles adicionales sobre el presupuesto..." class="description-placeholder"></textarea>
               </div>
-              <div class="totals-right">
+              <div class="totals-right"></div>
                 <div class="total-row">
                   <span class="total-label">Subtotal:</span>
                   <span class="total-value">${formatearNumeroArgentino(obra.subtotal || 0)}</span>
@@ -2644,7 +2632,6 @@ const ObraDetallePage = () => {
                   <thead>
                     <tr className="border-b">
                       <th className="p-2 text-left">Producto</th>
-                      <th className="p-2 text-center">Cant.</th>
                       <th className="p-2 text-center">Unidad</th>
                       <th className="p-2 text-center">Alto</th>
                       <th className="p-2 text-center">Largo</th>
@@ -2663,7 +2650,6 @@ const ObraDetallePage = () => {
                       return (
                         <tr key={p.id} className="border-b">
                           <td className="p-2"><div className="font-medium">{p._esManual ? (<Input value={p.nombre} onChange={(e) => actualizarNombreObraManual(p.id, e.target.value)} className="h-8" />) : (p.nombre)}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
-                          <td className="p-2 text-center"><Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampoObra(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" /></td>
                           <td className="p-2 text-center">{p._esManual ? (
                             <Select value={u} onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}>
                               <SelectTrigger className="w-24 mx-auto h-8"><SelectValue /></SelectTrigger>
@@ -2827,7 +2813,6 @@ const ObraDetallePage = () => {
                   <thead>
                     <tr className="border-b">
                       <th className="p-2 text-left">Producto</th>
-                      <th className="p-2 text-center">Cant.</th>
                       <th className="p-2 text-center">Unidad</th>
                       <th className="p-2 text-center">Alto</th>
                       <th className="p-2 text-center">Largo</th>
@@ -2846,7 +2831,6 @@ const ObraDetallePage = () => {
                       return (
                         <tr key={p.id} className="border-b">
                           <td className="p-2"><div className="font-medium">{p._esManual ? (<Input value={p.nombre} onChange={(e) => actualizarNombreObraManual(p.id, e.target.value)} className="h-8" />) : (p.nombre)}</div><div className="text-xs text-gray-500">{p.categoria}</div></td>
-                          <td className="p-2 text-center"><Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampoObra(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" /></td>
                           <td className="p-2 text-center">{p._esManual ? (
                             <Select value={u} onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}>
                               <SelectTrigger className="w-24 mx-auto h-8"><SelectValue /></SelectTrigger>
