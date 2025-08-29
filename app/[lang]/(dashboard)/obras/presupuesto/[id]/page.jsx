@@ -40,8 +40,26 @@ const PresupuestoPage = () => {
     categoriaMaterial: "",
     productoSeleccionado: "",
     cantidadMaterial: "",
+    busquedaProducto: "",
     materialesAdicionales: []
   });
+
+  // Búsqueda debounced para productos (como en create/page.jsx)
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(datosConversion.busquedaProducto), 150);
+    return () => clearTimeout(id);
+  }, [datosConversion.busquedaProducto]);
+
+  // Paginación para productos (como en create/page.jsx)
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12);
+  const [isPending, startTransition] = React.useTransition();
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => { 
+    setPaginaActual(1); 
+  }, [datosConversion.categoriaMaterial, busquedaDebounced]);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -461,109 +479,254 @@ const PresupuestoPage = () => {
                     </div>
                     
                     <div className="space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Categoría
-                          </label>
-                          <Select
-                            value={datosConversion.categoriaMaterial}
-                            onValueChange={(value) => handleInputChange("categoriaMaterial", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar categoría" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categorias && categorias.length > 0 ? (
-                                categorias.map((cat) => (
-                                  <SelectItem key={cat} value={cat}>
-                                    {cat}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="" disabled>
-                                  {!catalogoCargado ? "Cargando..." : "No hay categorías disponibles"}
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                          <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                            {categorias && categorias.length > 0 ? (
+                              categorias.map((cat) => (
+                                <button 
+                                  key={cat} 
+                                  type="button" 
+                                  className={`rounded-full px-4 py-1 text-sm mr-2 ${datosConversion.categoriaMaterial === cat ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`} 
+                                  onClick={() => handleInputChange("categoriaMaterial", datosConversion.categoriaMaterial === cat ? "" : cat)}
+                                >
+                                  {cat}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-1 text-sm text-gray-500">
+                                {!catalogoCargado ? "Cargando categorías..." : "No hay categorías disponibles"}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Producto
-                          </label>
-                          <Select
-                            value={datosConversion.productoSeleccionado}
-                            onValueChange={(value) => handleInputChange("productoSeleccionado", value)}
-                            disabled={!datosConversion.categoriaMaterial}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar producto" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {datosConversion.categoriaMaterial && productosPorCategoria[datosConversion.categoriaMaterial] ? (
-                                productosPorCategoria[datosConversion.categoriaMaterial].map((prod) => (
-                                  <SelectItem key={prod.id} value={prod.id}>
-                                    {prod.nombre} - ${prod.valorVenta || prod.precio || 0}
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <SelectItem value="" disabled>
-                                  {!datosConversion.categoriaMaterial 
-                                    ? "Seleccione una categoría primero" 
-                                    : "No hay productos en esta categoría"
-                                  }
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Cantidad
-                          </label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={datosConversion.cantidadMaterial || ""}
-                            onChange={(e) => handleInputChange("cantidadMaterial", e.target.value)}
-                            placeholder="1"
-                            disabled={!datosConversion.productoSeleccionado}
+                        <div className="flex-1 relative flex items-center gap-2">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Icon icon="heroicons:magnifying-glass" className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Buscar productos..." 
+                            value={datosConversion.busquedaProducto || ""} 
+                            onChange={(e) => handleInputChange("busquedaProducto", e.target.value)} 
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} 
+                            className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card" 
                           />
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (datosConversion.productoSeleccionado && datosConversion.cantidadMaterial) {
-                            const producto = productosCatalogo.find(p => p.id === datosConversion.productoSeleccionado);
-                            console.log("Producto encontrado:", producto);
-                            if (producto) {
-                              const nuevoMaterial = {
-                                id: producto.id,
-                                nombre: producto.nombre,
-                                categoria: producto.categoria,
-                                precio: producto.valorVenta || producto.precio || 0,
-                                cantidad: parseInt(datosConversion.cantidadMaterial),
-                                unidad: producto.unidad || producto.unidadMedida || "unidad"
-                              };
-                              setDatosConversion(prev => ({
-                                ...prev,
-                                materialesAdicionales: [...(prev.materialesAdicionales || []), nuevoMaterial],
-                                categoriaMaterial: "",
-                                productoSeleccionado: "",
-                                cantidadMaterial: ""
-                              }));
-                            }
+                      
+                      <div className="max-h-150 overflow-y-auto">
+                        {categorias && categorias.length === 0 ? (
+                          <div className="p-8 text-center text-gray-500">No hay categorías disponibles</div>
+                        ) : !datosConversion.categoriaMaterial && (!busquedaDebounced || busquedaDebounced.trim() === "") ? (
+                          <div className="p-8 text-center">
+                            <h3 className="text-lg font-medium mb-2">Selecciona una categoría</h3>
+                            <p className="text-gray-500">Elige una categoría para ver los productos disponibles</p>
+                          </div>
+                        ) : (() => {
+                          // Filtrar productos basado en categoría y búsqueda
+                          let productosFiltrados = [];
+                          if (datosConversion.categoriaMaterial && productosPorCategoria[datosConversion.categoriaMaterial]) {
+                            productosFiltrados = productosPorCategoria[datosConversion.categoriaMaterial];
+                          } else                           if (busquedaDebounced && busquedaDebounced.trim() !== "") {
+                            productosFiltrados = productosCatalogo || [];
                           }
-                        }}
-                        disabled={!datosConversion.productoSeleccionado || !datosConversion.cantidadMaterial}
-                        className="flex items-center gap-2"
-                      >
-                        <Icon icon="heroicons:plus" className="w-4 h-4" />
-                        Agregar Material
-                      </Button>
+                          
+                          // Aplicar búsqueda si existe
+                          if (busquedaDebounced && busquedaDebounced.trim() !== "") {
+                            const busqueda = busquedaDebounced.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                            productosFiltrados = productosFiltrados.filter((prod) => {
+                              const nombre = (prod.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                              const unidad = (prod.unidad || prod.unidadMedida || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+                              if (busqueda === "") return true;
+                              if (busqueda.endsWith(".")) {
+                                const sinPunto = busqueda.slice(0, -1);
+                                return nombre.startsWith(sinPunto) || unidad.startsWith(sinPunto);
+                              }
+                              return nombre.includes(busqueda) || unidad.includes(busqueda);
+                            });
+                          }
+                          
+                          if (productosFiltrados.length === 0) {
+                            return (
+                              <div className="p-8 text-center">
+                                <h3 className="text-lg font-medium mb-2">No se encontraron productos</h3>
+                                <p className="text-gray-500">Intenta cambiar los filtros o la búsqueda</p>
+                              </div>
+                            );
+                          }
+                          
+                          const totalProductos = productosFiltrados.length;
+                          const totalPaginas = Math.ceil(totalProductos / productosPorPagina) || 1;
+                          const productosPaginados = productosFiltrados.slice(
+                            (paginaActual - 1) * productosPorPagina, 
+                            paginaActual * productosPorPagina
+                          );
+
+                          return (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
+                                {isPending && (
+                                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                                    <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
+                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                      <span className="text-sm font-medium text-gray-700">Cargando productos...</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {productosPaginados.map((prod) => {
+                                  const yaAgregado = datosConversion.materialesAdicionales?.some((p) => p.id === prod.id);
+                                  const precio = (() => {
+                                    if (prod.categoria === "Maderas") return Number(prod.precioPorPie) || 0;
+                                    if (prod.categoria === "Ferretería") return Number(prod.valorVenta) || 0;
+                                    return (
+                                      Number(prod.precioUnidad) ||
+                                      Number(prod.precioUnidadVenta) ||
+                                      Number(prod.precioUnidadHerraje) ||
+                                      Number(prod.precioUnidadQuimico) ||
+                                      Number(prod.precioUnidadHerramienta) ||
+                                      0
+                                    );
+                                  })();
+                                  return (
+                                    <div
+                                      key={prod.id}
+                                      className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
+                                        yaAgregado
+                                          ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
+                                          : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
+                                      }`}
+                                    >
+                                      <div className="p-4 flex flex-col h-full">
+                                        <div className="flex items-start justify-between mb-3">
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                              <div
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                                  prod.categoria === "Maderas"
+                                                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                                }`}
+                                              >
+                                                {prod.categoria === "Maderas" ? "🌲" : "🔧"}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{prod.nombre}</h4>
+                                                {prod.categoria === "Maderas" && prod.tipoMadera && (
+                                                  <div className="flex items-center gap-1 mt-1">
+                                                    <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">🌲 {prod.tipoMadera}</span>
+                                                  </div>
+                                                )}
+                                                {prod.categoria === "Ferretería" && prod.subCategoria && (
+                                                  <div className="flex items-center gap-1 mt-1">
+                                                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🔧 {prod.subCategoria}</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                              {yaAgregado && (
+                                                <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                                                  <span className="text-xs font-medium">Agregado</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Información del producto */}
+                                        <div className="flex-1 space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Precio:</span>
+                                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">${formatearNumeroArgentino(precio)}</span>
+                                          </div>
+                                          {(prod.unidadMedida || prod.unidad) && (
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">Unidad:</span>
+                                              <span className="text-xs text-gray-700 dark:text-gray-300">{prod.unidadMedida || prod.unidad}</span>
+                                            </div>
+                                          )}
+                                          {prod.stock !== undefined && (
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">Stock:</span>
+                                              <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Botón de agregar */}
+                                        <div className="mt-4">
+                                          <button
+                                            onClick={() => {
+                                              if (yaAgregado) return;
+                                              const nuevoMaterial = {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                categoria: prod.categoria || "",
+                                                subcategoria: prod.subcategoria || prod.subCategoria || "",
+                                                unidad: prod.unidad || prod.unidadMedida || "UN",
+                                                valorVenta: Number(prod.valorVenta) || 0,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                precio: precio
+                                              };
+                                              setDatosConversion(prev => ({
+                                                ...prev,
+                                                materialesAdicionales: [...(prev.materialesAdicionales || []), nuevoMaterial]
+                                              }));
+                                            }}
+                                            disabled={yaAgregado}
+                                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"}`}
+                                          >
+                                            {yaAgregado ? "Ya agregado" : "Agregar"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* Paginación */}
+                              {totalPaginas > 1 && (
+                                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                                  <div className="text-sm text-gray-700 flex items-center gap-2">
+                                    {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
+                                    <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button onClick={() => startTransition(() => setPaginaActual(1))} disabled={paginaActual === 1 || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Primera página">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoinjoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+                                    </button>
+                                    <button onClick={() => startTransition(() => setPaginaActual(Math.max(1, paginaActual - 1)))} disabled={paginaActual === 1 || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Página anterior">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoinjoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                                        let pageNum;
+                                        if (totalPaginas <= 5) pageNum = i + 1;
+                                        else if (paginaActual <= 3) pageNum = i + 1;
+                                        else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                                        else pageNum = paginaActual - 2 + i;
+                                        return (
+                                          <button key={pageNum} onClick={() => startTransition(() => setPaginaActual(pageNum))} disabled={isPending} className={`px-3 py-1 rounded-md text-sm font-medium ${paginaActual === pageNum ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-900"}`}>
+                                            {pageNum}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <button onClick={() => startTransition(() => setPaginaActual(Math.min(totalPaginas, paginaActual + 1)))} disabled={paginaActual === totalPaginas || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Página siguiente">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoinjoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                                    </button>
+                                    <button onClick={() => startTransition(() => setPaginaActual(totalPaginas))} disabled={paginaActual === totalPaginas || isPending} className="p-2 rounded-md text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Última página">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoinjoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                     
                     {/* Lista de materiales adicionales */}
@@ -572,10 +735,65 @@ const PresupuestoPage = () => {
                         <h5 className="font-medium text-gray-900 mb-2">Materiales adicionales seleccionados:</h5>
                         <div className="space-y-2">
                           {datosConversion.materialesAdicionales.map((mat, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border">
-                              <span className="text-sm">
-                                {mat.nombre} - {mat.cantidad} {mat.unidad}
-                              </span>
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-gray-900">{mat.nombre}</div>
+                                    <div className="text-sm text-gray-600">
+                                      {mat.categoria} {mat.subcategoria && `- ${mat.subcategoria}`}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600">Cantidad:</span>
+                                    <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                                      <button 
+                                        type="button" 
+                                        onClick={() => {
+                                          const nuevaCantidad = Math.max(1, (mat.cantidad || 1) - 1);
+                                          setDatosConversion(prev => ({
+                                            ...prev,
+                                            materialesAdicionales: prev.materialesAdicionales.map((m, i) => 
+                                              i === index ? { ...m, cantidad: nuevaCantidad } : m
+                                            )
+                                          }));
+                                        }} 
+                                        className="px-3 py-1 text-gray-500 hover:text-gray-900 hover:bg-gray-100 disabled:opacity-50" 
+                                        disabled={mat.cantidad <= 1}
+                                      >
+                                        -
+                                      </button>
+                                      <span className="w-12 text-center text-sm font-medium border-x border-gray-300 py-1">
+                                        {mat.cantidad || 1}
+                                      </span>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => {
+                                          const nuevaCantidad = (mat.cantidad || 1) + 1;
+                                          setDatosConversion(prev => ({
+                                            ...prev,
+                                            materialesAdicionales: prev.materialesAdicionales.map((m, i) => 
+                                              i === index ? { ...m, cantidad: nuevaCantidad } : m
+                                            )
+                                          }));
+                                        }} 
+                                        className="px-3 py-1 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                    <span className="text-sm text-gray-500 ml-2">{mat.unidad}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-gray-900">
+                                      ${formatearNumeroArgentino((mat.precio || 0) * (mat.cantidad || 1))}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      ${formatearNumeroArgentino(mat.precio || 0)} c/u
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -585,7 +803,7 @@ const PresupuestoPage = () => {
                                     materialesAdicionales: prev.materialesAdicionales.filter((_, i) => i !== index)
                                   }));
                                 }}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-4"
                               >
                                 <X className="w-4 h-4" />
                               </Button>
