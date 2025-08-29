@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, Download } from "lucide-react";
-import { generarContenidoImpresion, descargarPDF } from "@/lib/obra-utils";
+import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
 
 const PrintDownloadButtons = ({ 
   obra, 
@@ -27,9 +27,26 @@ const PrintDownloadButtons = ({
 
   const handleDescargarPDF = async () => {
     try {
-      await descargarPDF(obra, presupuesto, modoCosto, movimientos);
+      // Mostrar indicador de carga
+      const button = event.target.closest('button');
+      const originalText = button.innerHTML;
+      button.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div> Generando PDF...';
+      button.disabled = true;
+      
+      await descargarPDFDesdeIframe(obra, presupuesto, modoCosto, movimientos);
+      
+      // Restaurar botón
+      button.innerHTML = originalText;
+      button.disabled = false;
+      
     } catch (error) {
       console.error('Error al descargar PDF:', error);
+      
+      // Restaurar botón
+      const button = event.target.closest('button');
+      button.innerHTML = '<Download className="h-4 w-4" /> Descargar PDF';
+      button.disabled = false;
+      
       // Fallback: mostrar mensaje de error
       alert('Error al generar el PDF. Intente nuevamente.');
     }

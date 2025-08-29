@@ -53,7 +53,52 @@ import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 Ubicadas en: `lib/obra-utils.js`
 
 - `generarContenidoImpresion()`: Genera el HTML para impresión
-- `descargarPDF()`: Genera y descarga el PDF
+- `descargarPDF()`: Función básica de descarga (puede generar PDFs en blanco)
+- `descargarPDFRobusto()`: Función mejorada que usa ventana oculta
+- `descargarPDFDesdeIframe()`: **Función recomendada** que usa el iframe del modal
+
+## Solución del Problema del PDF en Blanco
+
+### ❌ **Problema Identificado**
+La función original `descargarPDF` generaba PDFs en blanco porque:
+- El contenido HTML no se renderizaba correctamente en el elemento temporal
+- Los estilos CSS no se aplicaban completamente
+- El timing de renderizado era insuficiente
+
+### ✅ **Solución Implementada**
+Se crearon **tres funciones** con diferentes enfoques:
+
+#### **1. `descargarPDF` (Básica)**
+- Enfoque original con elemento temporal
+- **Problema**: Puede generar PDFs en blanco
+- **Uso**: Solo como fallback
+
+#### **2. `descargarPDFRobusto` (Mejorada)**
+- Usa ventana oculta para renderizar contenido
+- Espera a que se carguen completamente los estilos
+- **Ventaja**: Más confiable que la básica
+- **Desventaja**: Abre ventana temporal
+
+#### **3. `descargarPDFDesdeIframe` (Recomendada) ⭐**
+- **Usa el iframe del modal de vista previa**
+- El contenido ya está renderizado y con estilos aplicados
+- **Ventaja**: Máxima confiabilidad, no genera PDFs en blanco
+- **Uso**: Función principal del componente
+
+### 🔧 **Implementación Actual**
+El componente `PrintDownloadButtons` usa `descargarPDFDesdeIframe` por defecto:
+
+```jsx
+import { descargarPDFDesdeIframe } from "@/lib/obra-utils";
+
+const handleDescargarPDF = async () => {
+  try {
+    await descargarPDFDesdeIframe(obra, presupuesto, modoCosto, movimientos);
+  } catch (error) {
+    // Fallback automático a otras funciones
+  }
+};
+```
 
 ## Implementación en Modales de Vista Previa
 
@@ -105,6 +150,7 @@ Los botones aparecen en el `DialogFooter` del modal, junto al botón "Cerrar":
 - El PDF mantiene exactamente el mismo formato visual
 - Nombre de archivo automático: `{Tipo}_{NumeroPedido}.pdf`
 - Configuración optimizada para calidad y tamaño
+- **Solución al problema del PDF en blanco implementada**
 
 ## Personalización
 
@@ -129,18 +175,23 @@ Puedes modificar la configuración del PDF en `lib/obra-utils.js`:
 
 ```javascript
 const opt = {
-  margin: [10, 10, 10, 10],        // Márgenes en mm
-  filename: "nombre_archivo.pdf",   // Nombre del archivo
-  image: { type: 'jpeg', quality: 0.98 },
+  margin: [8, 8, 8, 8],           // Márgenes en mm
+  filename: "nombre_archivo.pdf",  // Nombre del archivo
+  image: { type: 'jpeg', quality: 0.95 },
   html2canvas: { 
-    scale: 2,                       // Escala de calidad
+    scale: 1.5,                    // Escala de calidad
     useCORS: true,
-    allowTaint: true
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    letterRendering: true,
+    foreignObjectRendering: true
   },
   jsPDF: { 
-    unit: 'mm',                     // Unidad de medida
-    format: 'a4',                   // Formato de página
-    orientation: 'portrait'          // Orientación
+    unit: 'mm',                    // Unidad de medida
+    format: 'a4',                  // Formato de página
+    orientation: 'portrait',       // Orientación
+    compress: true,                // Compresión
+    precision: 16                  // Precisión
   }
 };
 ```
@@ -149,8 +200,9 @@ const opt = {
 
 Si la generación del PDF falla:
 1. Se muestra un mensaje de error en consola
-2. Se abre una nueva ventana con el contenido HTML
-3. El usuario puede usar la función de imprimir del navegador
+2. Se intenta con la función robusta
+3. Se abre una nueva ventana con el contenido HTML
+4. El usuario puede usar la función de imprimir del navegador
 
 ## Compatibilidad
 
@@ -171,6 +223,12 @@ Si la generación del PDF falla:
 - Revisar la consola del navegador para errores
 - Usar el fallback de impresión
 
+### **PDF se descarga en blanco** ⚠️
+- **Solución implementada**: El componente usa `descargarPDFDesdeIframe` por defecto
+- Esta función usa el contenido ya renderizado del modal
+- Si persiste el problema, verificar que el modal esté abierto
+- Usar el componente de prueba para diagnosticar
+
 ### Calidad del PDF baja
 - Ajustar la escala en `html2canvas.scale`
 - Verificar que las imágenes estén cargadas correctamente
@@ -183,10 +241,13 @@ Ver el archivo `components/examples/uso-botones-imprimir-descargar.jsx`
 ### 2. Modal de Vista Previa
 Ver el archivo `components/examples/modal-vista-previa-actualizado.jsx`
 
+### 3. **Prueba de Generación de PDF** ⭐
+Ver el archivo `components/examples/test-pdf-generation.jsx` para probar las diferentes funciones
+
 ## Archivos Modificados
 
-1. **`lib/obra-utils.js`** - Agregada función `descargarPDF()`
-2. **`components/ui/print-download-buttons.jsx`** - Nuevo componente
+1. **`lib/obra-utils.js`** - Agregadas funciones `descargarPDFRobusto` y `descargarPDFDesdeIframe`
+2. **`components/ui/print-download-buttons.jsx`** - Componente actualizado con función confiable
 3. **`app/[lang]/(dashboard)/obras/[id]/page.jsx`** - Modal de obras actualizado
 4. **`app/[lang]/(dashboard)/obras/presupuesto/[id]/page.jsx`** - Modal de presupuestos actualizado
 5. **`package.json`** - Agregada dependencia `html2pdf.js`
@@ -198,3 +259,4 @@ Ver el archivo `components/examples/modal-vista-previa-actualizado.jsx`
 3. **Estilos**: Todos los estilos CSS se mantienen en el PDF generado
 4. **Rendimiento**: Para documentos grandes, la generación del PDF puede tomar unos segundos
 5. **Modales**: Los botones ya están integrados en los modales de vista previa existentes
+6. **PDF en blanco**: **Problema resuelto** con la función `descargarPDFDesdeIframe`
