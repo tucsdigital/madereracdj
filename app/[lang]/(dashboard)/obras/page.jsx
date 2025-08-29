@@ -52,9 +52,9 @@ const ObrasPage = () => {
             <div className="font-medium cursor-pointer hover:underline text-purple-600">
               {numero || "Sin número"}
             </div>
-            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-              PO
-            </Badge>
+              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                PO
+              </Badge>
           </div>
         );
       },
@@ -722,7 +722,7 @@ const ObrasPage = () => {
                 </div>
               )}
             </CardTitle>
-          </CardHeader>
+        </CardHeader>
           <CardContent className="pt-6 p-0">
             <div className="overflow-hidden rounded-b-2xl">
               <DataTableEnhanced 
@@ -737,8 +737,8 @@ const ObrasPage = () => {
                 compact={true}
               />
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
       </div>
 
       {/* Diálogo de confirmación de eliminación mejorado */}

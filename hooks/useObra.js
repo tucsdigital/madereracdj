@@ -300,7 +300,7 @@ export const useObra = (id) => {
     setPresupuestosDisponibles((prev) => [{ id: created.id, ...nuevo }, ...prev]);
   };
 
-  const convertirPresupuestoToObra = async () => {
+  const convertirPresupuestoToObra = async (datosConversion = {}) => {
     if (!obra || obra.tipo !== "presupuesto") return;
 
     try {
@@ -315,11 +315,20 @@ export const useObra = (id) => {
         subtotal: obra.subtotal || 0,
         descuentoTotal: obra.descuentoTotal || 0,
         total: obra.total || 0,
-        descripcionGeneral: descripcionGeneral || obra.descripcionGeneral || "",
+        descripcionGeneral: datosConversion.descripcionGeneral || descripcionGeneral || obra.descripcionGeneral || "",
         fechaCreacion: serverTimestamp(),
         estado: "pendiente_inicio",
         presupuestoInicialId: obra.id,
-        prioridad: "media",
+        prioridad: datosConversion.prioridad || "media",
+        tipoObra: datosConversion.tipoObra || "",
+        responsable: datosConversion.responsable || "",
+        
+        // Ubicación de la obra
+        ubicacion: {
+          direccion: datosConversion.direccion || "",
+          localidad: datosConversion.localidad || "",
+          provincia: datosConversion.provincia || ""
+        },
         
         // Información de envío si existe
         tipoEnvio: obra.tipoEnvio || null,
@@ -357,8 +366,8 @@ export const useObra = (id) => {
         presupuestoOriginalId: obra.id,
         datosPresupuesto: obra,
         datosObra: nuevaObra,
-        usuarioId: 'sistema',
-        usuarioEmail: 'sistema@audit.com',
+        usuarioId: user?.uid || 'sistema',
+        usuarioEmail: user?.email || 'sistema@audit.com',
         fechaConversion: serverTimestamp(),
         tipo: 'conversion_presupuesto_obra'
       };

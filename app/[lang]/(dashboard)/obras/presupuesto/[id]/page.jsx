@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@iconify/react";
-import { Printer, Edit, Save, X, Building } from "lucide-react";
+import { Printer, Edit, Save, X, Building, MapPin, User, FileText } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useObra } from "@/hooks/useObra";
@@ -25,7 +25,18 @@ const PresupuestoPage = () => {
   const params = useParams();
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [convertMessage, setConvertMessage] = useState("");
+  const [datosConversion, setDatosConversion] = useState({
+    tipoObra: "",
+    prioridad: "",
+    responsable: "",
+    direccion: "",
+    localidad: "",
+    provincia: "",
+    descripcionGeneral: ""
+  });
   const router = useRouter();
   const { user } = useAuth();
 
@@ -48,7 +59,6 @@ const PresupuestoPage = () => {
     setDescripcionGeneral,
     guardarEdicion,
     convertirPresupuestoToObra,
-    convertMessage,
   } = useObra(id);
 
   const handlePrint = () => {
@@ -63,16 +73,38 @@ const PresupuestoPage = () => {
     }
   };
 
+  const handleOpenConvertModal = () => {
+    // Pre-llenar datos del cliente si existen
+    if (obra?.cliente) {
+      setDatosConversion(prev => ({
+        ...prev,
+        direccion: obra.cliente.direccion || "",
+        localidad: obra.cliente.localidad || "",
+        provincia: obra.cliente.provincia || "",
+        descripcionGeneral: obra.descripcionGeneral || ""
+      }));
+    }
+    setShowConvertModal(true);
+  };
+
   const handleConvertToObra = async () => {
     try {
       setConverting(true);
       setConvertMessage("");
       
-      await convertirPresupuestoToObra();
+      // Validar campos requeridos
+      if (!datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable) {
+        throw new Error("Por favor complete todos los campos requeridos");
+      }
+
+      // Llamar a la función de conversión con los datos del formulario
+      await convertirPresupuestoToObra(datosConversion);
       
       setConvertMessage("✅ Presupuesto convertido a obra exitosamente");
+      setShowConvertModal(false);
       
-      // El hook se encargará de la redirección
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setConvertMessage(""), 3000);
       
     } catch (error) {
       console.error("Error al convertir presupuesto a obra:", error);
@@ -83,6 +115,13 @@ const PresupuestoPage = () => {
     } finally {
       setConverting(false);
     }
+  };
+
+  const handleInputChange = (field, value) => {
+    setDatosConversion(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   if (loading) {
@@ -127,7 +166,7 @@ const PresupuestoPage = () => {
         editando={editando}
         onToggleEdit={handleToggleEdit}
         onPrint={handlePrint}
-        onConvertToObra={handleConvertToObra}
+        onConvertToObra={obra?.tipo === "presupuesto" ? handleOpenConvertModal : undefined}
         converting={converting}
         showBackButton={true}
         backUrl={`/${lang}/obras`}
@@ -273,6 +312,211 @@ const PresupuestoPage = () => {
               variant="default"
               size="sm"
             />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Convertir a Obra */}
+      <Dialog open={showConvertModal} onOpenChange={setShowConvertModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] w-full">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building className="w-5 h-5" />
+              Convertir Presupuesto a Obra
+            </DialogTitle>
+            <DialogDescription>
+              Complete los datos para convertir este presupuesto en una nueva obra. El cliente ya está seleccionado.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+            {/* Datos Generales */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Datos Generales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cliente
+                    </label>
+                    <Input
+                      value={obra?.cliente?.nombre || obra?.cliente?.razonSocial || "Cliente no especificado"}
+                      disabled
+                      className="bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Obra *
+                    </label>
+                    <Select
+                      value={datosConversion.tipoObra}
+                      onValueChange={(value) => handleInputChange("tipoObra", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tipo de obra" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mueble">Mueble</SelectItem>
+                        <SelectItem value="carpinteria">Carpintería</SelectItem>
+                        <SelectItem value="decoracion">Decoración</SelectItem>
+                        <SelectItem value="reparacion">Reparación</SelectItem>
+                        <SelectItem value="instalacion">Instalación</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Prioridad *
+                    </label>
+                    <Select
+                      value={datosConversion.prioridad}
+                      onValueChange={(value) => handleInputChange("prioridad", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar prioridad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="baja">Baja</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="urgente">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Responsable *
+                    </label>
+                    <Select
+                      value={datosConversion.responsable}
+                      onValueChange={(value) => handleInputChange("responsable", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar responsable" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Braian">Braian</SelectItem>
+                        <SelectItem value="Damian">Damian</SelectItem>
+                        <SelectItem value="Jonathan">Jonathan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción General
+                  </label>
+                  <textarea
+                    value={datosConversion.descripcionGeneral}
+                    onChange={(e) => handleInputChange("descripcionGeneral", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Describa los detalles de la obra..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ubicación */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Ubicación
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dirección
+                    </label>
+                    <Input
+                      value={datosConversion.direccion}
+                      onChange={(e) => handleInputChange("direccion", e.target.value)}
+                      placeholder="Dirección de la obra"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Localidad
+                    </label>
+                    <Input
+                      value={datosConversion.localidad}
+                      onChange={(e) => handleInputChange("localidad", e.target.value)}
+                      placeholder="Localidad"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Provincia
+                    </label>
+                    <Input
+                      value={datosConversion.provincia}
+                      onChange={(e) => handleInputChange("provincia", e.target.value)}
+                      placeholder="Provincia"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Materiales a Utilizar */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon icon="heroicons:cube" className="w-5 h-5" />
+                  Materiales a Utilizar
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-gray-600">
+                  <p>Los materiales del presupuesto se transferirán automáticamente a la nueva obra.</p>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <p className="font-medium text-blue-800">
+                      Productos del presupuesto: {itemsPresupuesto?.length || 0} items
+                    </p>
+                    <p className="text-blue-600 text-sm">
+                      Total: {formatearNumeroArgentino(obra?.total || 0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConvertModal(false)}
+              disabled={converting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConvertToObra}
+              disabled={converting || !datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable}
+              className="flex items-center gap-2"
+            >
+              {converting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Convirtiendo...
+                </>
+              ) : (
+                <>
+                  <Building className="w-4 h-4" />
+                  Convertir a Obra
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
