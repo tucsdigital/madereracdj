@@ -1070,44 +1070,205 @@ const ObraDetallePage = () => {
             margin-bottom: 12px;
           }
           
+          /* Estilos modernos para secciones */
+          .modern-section {
+            margin-bottom: 24px;
+            background: #fafafa;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          }
+          
+          .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e5e7eb;
+          }
+          
+          .section-icon {
+            width: 48px;
+            height: 48px;
+            background: #3b82f6;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+          }
+          
           .section-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #1f2937;
-            margin: 0 0 6px 0;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e5e7eb;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            letter-spacing: -0.025em;
           }
           
-          .info-grid {
+          .info-grid-modern {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            margin-bottom: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 0;
           }
           
-          .info-card {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 4px;
-            padding: 6px;
-            font-size: 10px;
+          .info-card-modern {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 14px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .info-card-modern::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #3b82f6;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+          }
+          
+          .info-card-modern:hover::before {
+            transform: scaleX(1);
+          }
+          
+          .info-card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            border-color: #3b82f6;
+          }
+          
+          .info-icon {
+            width: 40px;
+            height: 40px;
+            background: #f8fafc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            color: #6b7280;
+          }
+          
+          .info-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
           }
           
           .info-label {
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
-            color: #dc2626;
+            color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin: 0 0 4px 0;
+            letter-spacing: 0.1em;
+            margin: 0;
           }
           
           .info-value {
-            font-size: 11px;
-            font-weight: 500;
-            color: #1f2937;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
             margin: 0;
+            line-height: 1.4;
+          }
+          
+          .status-value {
+            color: #059669;
+            background: #ecfdf5;
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            font-size: 14px;
+            border: 1px solid #a7f3d0;
+          }
+          
+          .priority-value {
+            color: #dc2626;
+            background: #fef2f2;
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            font-size: 14px;
+            border: 1px solid #fecaca;
+          }
+          
+          /* Responsive design para móviles */
+          @media (max-width: 768px) {
+            .modern-section {
+              padding: 16px;
+              margin-bottom: 16px;
+            }
+            
+            .section-header {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 8px;
+              margin-bottom: 16px;
+            }
+            
+            .section-icon {
+              width: 40px;
+              height: 40px;
+              font-size: 20px;
+            }
+            
+            .section-title {
+              font-size: 18px;
+            }
+            
+            .info-grid-modern {
+              grid-template-columns: 1fr;
+              gap: 12px;
+            }
+            
+            .info-card-modern {
+              padding: 16px;
+            }
+            
+            .info-value {
+              font-size: 15px;
+            }
+          }
+          
+          /* Animaciones y transiciones suaves */
+          .info-card-modern {
+            animation: fadeInUp 0.6s ease-out;
+          }
+          
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          /* Efectos de hover mejorados */
+          .info-card-modern:hover .info-icon {
+            transform: scale(1.1);
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+          }
+          
+          .info-icon {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
           
           .table-container {
@@ -1249,75 +1410,220 @@ const ObraDetallePage = () => {
           <!-- Contenido -->
           <div class="content">
 
-        <div class="section">
-          <div class="section-title">Información General</div>
-          <div class="info-grid">
-            <div class="info-card">
-              <div class="info-label">Cliente</div>
-              <div class="info-value">${obra?.cliente?.nombre || "-"}</div>
+        <!-- Información General - Diseño Minimalista 2025 -->
+        <div class="section modern-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
             </div>
-            <div class="info-card">
-              <div class="info-label">Email</div>
-              <div class="info-value">${obra?.cliente?.email || "No especificado"}</div>
+            <div class="section-title">Información General</div>
+          </div>
+          <div class="info-grid-modern">
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Cliente</div>
+                <div class="info-value">${obra?.cliente?.nombre || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Teléfono</div>
-              <div class="info-value">${obra?.cliente?.telefono || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Email</div>
+                <div class="info-value">${obra?.cliente?.email || "No especificado"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Dirección</div>
-              <div class="info-value">${obra?.cliente?.direccion || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Teléfono</div>
+                <div class="info-value">${obra?.cliente?.telefono || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">CUIT</div>
-              <div class="info-value">${obra?.cliente?.cuit || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Dirección</div>
+                <div class="info-value">${obra?.cliente?.direccion || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Estado</div>
-              <div class="info-value">${getEstadoLabel(obra?.estado) || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">CUIT</div>
+                <div class="info-value">${obra?.cliente?.cuit || "-"}</div>
+              </div>
+            </div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12,6 12,12 16,14"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Estado</div>
+                <div class="info-value status-value">${getEstadoLabel(obra?.estado) || "-"}</div>
+              </div>
             </div>
           </div>
         </div>
 
         ${obra?.tipo === "obra" ? `
-        <div class="section">
-          <div class="section-title">Detalles de la Obra</div>
-          <div class="info-grid">
-            <div class="info-card">
-              <div class="info-label">Nombre de la Obra</div>
-              <div class="info-value">${obra?.nombreObra || "-"}</div>
+        <!-- Detalles de la Obra - Diseño Minimalista 2025 -->
+        <div class="section modern-section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
             </div>
-            <div class="info-card">
-              <div class="info-label">Tipo de Obra</div>
-              <div class="info-value">${obra?.tipoObra || "-"}</div>
+            <div class="section-title">Detalles de la Obra</div>
+          </div>
+          <div class="info-grid-modern">
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Nombre de la Obra</div>
+                <div class="info-value">${obra?.nombreObra || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Prioridad</div>
-              <div class="info-value">${obra?.prioridad || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Tipo de Obra</div>
+                <div class="info-value">${obra?.tipoObra || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Responsable</div>
-              <div class="info-value">${obra?.responsable || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Prioridad</div>
+                <div class="info-value priority-value">${obra?.prioridad || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Fecha de Inicio</div>
-              <div class="info-value">${obra?.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Responsable</div>
+                <div class="info-value">${obra?.responsable || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Fecha de Fin</div>
-              <div class="info-value">${obra?.fechas?.fin ? formatearFecha(obra.fechas.fin) : "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Fecha de Inicio</div>
+                <div class="info-value">${obra?.fechas?.inicio ? formatearFecha(obra.fechas.inicio) : "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Dirección de la Obra</div>
-              <div class="info-value">${obra?.ubicacion?.direccion || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Fecha de Fin</div>
+                <div class="info-value">${obra?.fechas?.fin ? formatearFecha(obra.fechas.fin) : "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Localidad</div>
-              <div class="info-value">${obra?.ubicacion?.localidad || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9,22 9,12 15,12 15,22"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Dirección de la Obra</div>
+                <div class="info-value">${obra?.ubicacion?.direccion || "-"}</div>
+              </div>
             </div>
-            <div class="info-card">
-              <div class="info-label">Provincia</div>
-              <div class="info-value">${obra?.ubicacion?.provincia || "-"}</div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Localidad</div>
+                <div class="info-value">${obra?.ubicacion?.localidad || "-"}</div>
+              </div>
+            </div>
+            <div class="info-card-modern">
+              <div class="info-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Provincia</div>
+                <div class="info-value">${obra?.ubicacion?.provincia || "-"}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1621,46 +1927,6 @@ const ObraDetallePage = () => {
           </div>
         </div>
         ` : ''}
-
-        <!-- Totales finales con campo de descripción general -->
-        <div class="totals-section">
-          <div class="totals-content">
-            <div class="description-field">
-              <div class="info-label" style="margin-bottom: 4px;">Descripción General</div>
-              ${descripcionGeneral ? `
-                <div class="description-content" style="width: 100%; height: 80px; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; font-size: 11px; font-family: inherit; background: white; overflow-y: auto; white-space: pre-wrap;">${descripcionGeneral}</div>
-              ` : `
-                <textarea 
-                  placeholder="Observaciones generales, condiciones especiales, notas adicionales..." 
-                  class="description-placeholder"
-                  value="${descripcionGeneral || ""}"
-                  onchange="window.descripcionGeneral = this.value"
-                ></textarea>
-              `}
-            </div>
-            <div class="totals-right">
-              ${obra?.tipo === "obra" ? `
-              <div class="total-row">
-                <span class="total-label">Base Total:</span>
-                <span class="total-value">${formatearNumeroArgentino(baseTotalVisual)}</span>
-              </div>
-              <div class="total-row">
-                <span class="total-label">Total Pagado:</span>
-                <span class="total-value">${formatearNumeroArgentino(totalMovimientos)}</span>
-              </div>
-              <div class="total-row">
-                <span class="total-label">Saldo Pendiente:</span>
-                <span class="total-value grand-total">${formatearNumeroArgentino(Math.max(0, baseTotalVisual - totalMovimientos))}</span>
-              </div>
-              ` : `
-              <div class="total-row">
-                <span class="total-label">Total:</span>
-                <span class="total-value grand-total">${formatearNumeroArgentino(obra?.total || 0)}</span>
-              </div>
-              `}
-            </div>
-          </div>
-        </div>
       </div>
       </body>
       </html>
