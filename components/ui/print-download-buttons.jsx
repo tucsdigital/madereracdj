@@ -64,6 +64,7 @@ const PrintDownloadButtons = ({
         Imprimir
       </Button>
       
+      {/* Botón de descarga PDF temporalmente oculto
       <Button
         variant={variant}
         size={size}
@@ -73,6 +74,7 @@ const PrintDownloadButtons = ({
         <Download className="h-4 w-4" />
         Descargar PDF
       </Button>
+      */}
     </div>
   );
 };
