@@ -15,7 +15,7 @@ npm install html2pdf.js
 ```json
 {
   "dependencies": {
-    "html2pdf.js": "^0.10.1"
+    "html2pdf.js": "^0.10.3"
   }
 }
 ```
@@ -54,6 +54,44 @@ Ubicadas en: `lib/obra-utils.js`
 
 - `generarContenidoImpresion()`: Genera el HTML para impresión
 - `descargarPDF()`: Genera y descarga el PDF
+
+## Implementación en Modales de Vista Previa
+
+### ✅ **Modales Actualizados**
+
+Los botones de impresión y descarga PDF ya están implementados en los modales de vista previa de:
+
+1. **Modal de Obras** - `app/[lang]/(dashboard)/obras/[id]/page.jsx`
+2. **Modal de Presupuestos** - `app/[lang]/(dashboard)/obras/presupuesto/[id]/page.jsx`
+
+### 🔄 **Cambios Realizados**
+
+- **Antes**: Solo había un botón "Imprimir"
+- **Ahora**: Hay dos botones: "Imprimir" y "Descargar PDF"
+- Se reemplazó el botón único por el componente `PrintDownloadButtons`
+- Se actualizó la descripción del modal para indicar ambas funcionalidades
+
+### 📱 **Ubicación en el Modal**
+
+Los botones aparecen en el `DialogFooter` del modal, junto al botón "Cerrar":
+
+```jsx
+<DialogFooter className="gap-2">
+  <Button variant="outline" onClick={() => setOpenPrint(false)}>
+    Cerrar
+  </Button>
+  
+  {/* Botones de impresión y descarga PDF */}
+  <PrintDownloadButtons
+    obra={obra}
+    presupuesto={presupuesto}
+    modoCosto={modoCosto}
+    movimientos={movimientos}
+    variant="default"
+    size="sm"
+  />
+</DialogFooter>
+```
 
 ## Características
 
@@ -137,9 +175,21 @@ Si la generación del PDF falla:
 - Ajustar la escala en `html2canvas.scale`
 - Verificar que las imágenes estén cargadas correctamente
 
-## Ejemplo Completo
+## Ejemplos de Implementación
 
-Ver el archivo `components/examples/uso-botones-imprimir-descargar.jsx` para un ejemplo completo de implementación.
+### 1. Uso Básico
+Ver el archivo `components/examples/uso-botones-imprimir-descargar.jsx`
+
+### 2. Modal de Vista Previa
+Ver el archivo `components/examples/modal-vista-previa-actualizado.jsx`
+
+## Archivos Modificados
+
+1. **`lib/obra-utils.js`** - Agregada función `descargarPDF()`
+2. **`components/ui/print-download-buttons.jsx`** - Nuevo componente
+3. **`app/[lang]/(dashboard)/obras/[id]/page.jsx`** - Modal de obras actualizado
+4. **`app/[lang]/(dashboard)/obras/presupuesto/[id]/page.jsx`** - Modal de presupuestos actualizado
+5. **`package.json`** - Agregada dependencia `html2pdf.js`
 
 ## Notas Importantes
 
@@ -147,3 +197,4 @@ Ver el archivo `components/examples/uso-botones-imprimir-descargar.jsx` para un 
 2. **Fuentes**: Las fuentes web se incluyen automáticamente en el PDF
 3. **Estilos**: Todos los estilos CSS se mantienen en el PDF generado
 4. **Rendimiento**: Para documentos grandes, la generación del PDF puede tomar unos segundos
+5. **Modales**: Los botones ya están integrados en los modales de vista previa existentes

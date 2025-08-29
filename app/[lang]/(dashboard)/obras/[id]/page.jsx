@@ -16,6 +16,8 @@ import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
+import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
+import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -1014,7 +1016,7 @@ const ObraDetallePage = () => {
               Vista Previa de Impresión - Obra
             </DialogTitle>
             <DialogDescription>
-              Revise el documento antes de imprimir. Use los botones de acción dentro del documento para imprimir o cerrar.
+              Revise el documento antes de imprimir. Use los botones de acción para imprimir, descargar PDF o cerrar.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0">
@@ -1029,15 +1031,16 @@ const ObraDetallePage = () => {
             <Button variant="outline" onClick={() => setOpenPrint(false)}>
               Cerrar
             </Button>
-            <Button onClick={() => {
-              const iframe = document.querySelector('iframe');
-              if (iframe && iframe.contentWindow) {
-                iframe.contentWindow.print();
-              }
-            }}>
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimir
-            </Button>
+            
+            {/* Botones de impresión y descarga PDF */}
+            <PrintDownloadButtons
+              obra={obra}
+              presupuesto={presupuesto}
+              modoCosto={modoCosto}
+              movimientos={movimientos}
+              variant="default"
+              size="sm"
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>
