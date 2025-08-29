@@ -409,7 +409,7 @@ const PresupuestoDetalle = ({
             </div>
 
             {/* Campo de descripción general del presupuesto */}
-            <div className="mt-6 p-4 border rounded-lg bg-gray-50">
+            <div className="mt-6 p-4 bg-gray-50">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Descripción General del Presupuesto
@@ -423,7 +423,7 @@ const PresupuestoDetalle = ({
                     rows={4}
                   />
                 ) : (
-                  <div className="min-h-[100px] p-3 bg-white border rounded-md">
+                  <div className="mt-3 min-h-[100px] p-3 bg-white border rounded-md">
                     {descripcionGeneral ? (
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{descripcionGeneral}</p>
                     ) : (

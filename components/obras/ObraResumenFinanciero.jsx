@@ -46,7 +46,7 @@ const ObraResumenFinanciero = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="space-y-3">
           {/* Total Principal */}
           <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
             <p className="text-xs text-emerald-700 mb-1 font-medium">Total</p>
