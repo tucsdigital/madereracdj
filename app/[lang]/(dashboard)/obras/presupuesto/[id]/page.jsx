@@ -233,16 +233,16 @@ const PresupuestoPage = () => {
       {convertMessage && (
         <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
           convertMessage.startsWith('✅') 
-            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
-            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+            ? "bg-green-50 border-green-200 text-green-800" 
+            : "bg-red-50 border-red-200 text-red-800"
         }`}>
           {convertMessage.startsWith('✅') ? (
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Building className="w-6 h-6 text-green-600" />
+              <Building className="w-5 h-5 text-green-600" />
             </div>
           ) : (
             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <Building className="w-6 h-6 text-red-600" />
+              <Building className="w-5 h-5 text-red-600" />
             </div>
           )}
           <span className="font-semibold">{convertMessage}</span>
@@ -270,19 +270,11 @@ const PresupuestoPage = () => {
 
           {/* Formulario de conversión a obra */}
           {showConvertForm && (
-            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-3">
-                  <Building className="w-6 h-6" />
+                  <Building className="w-5 h-5" />
                   Convertir Presupuesto a Obra
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleToggleConvertForm}
-                    className="ml-auto text-white hover:bg-blue-700 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
                 </CardTitle>
               </CardHeader>
               
@@ -290,7 +282,7 @@ const PresupuestoPage = () => {
                 {/* Datos Generales */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5" />
                     Datos Generales
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -368,7 +360,7 @@ const PresupuestoPage = () => {
                 {/* Ubicación */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-blue-600" />
+                    <MapPin className="w-5 h-5" />
                     Ubicación
                   </h3>
                   <div className="space-y-3">
@@ -380,7 +372,6 @@ const PresupuestoPage = () => {
                           value="cliente"
                           checked={datosConversion.ubicacionTipo === "cliente"}
                           onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
-                          className="text-blue-600"
                         />
                         <span className="text-sm font-medium">Usar ubicación del cliente</span>
                       </label>
@@ -391,15 +382,14 @@ const PresupuestoPage = () => {
                           value="nueva"
                           checked={datosConversion.ubicacionTipo === "nueva"}
                           onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
-                          className="text-blue-600"
                         />
                         <span className="text-sm font-medium">Especificar nueva ubicación</span>
                       </label>
                     </div>
                     
                     {datosConversion.ubicacionTipo === "cliente" ? (
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-800">
+                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-800">
                           <strong>Ubicación del cliente:</strong><br />
                           {obra?.cliente?.direccion || "Sin dirección"}<br />
                           {obra?.cliente?.localidad || "Sin localidad"}<br />
@@ -446,38 +436,11 @@ const PresupuestoPage = () => {
                 {/* Materiales a Utilizar */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Icon icon="heroicons:cube" className="w-5 h-5 text-blue-600" />
+                    <Icon icon="heroicons:cube" className="w-5 h-5" />
                     Materiales a Utilizar
                   </h3>
-                  <div className="text-sm text-gray-600">
-                    <p>Los materiales del presupuesto se transferirán automáticamente a la nueva obra.</p>
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="font-medium text-blue-800">
-                        Productos del presupuesto: {itemsPresupuesto?.length || 0} items
-                      </p>
-                      <p className="text-blue-600 text-sm">
-                        Total: {formatearNumeroArgentino(obra?.total || 0)}
-                      </p>
-                    </div>
-                  </div>
                   
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium text-gray-900 mb-3">Agregar materiales adicionales del catálogo</h4>
-                    
-                    {/* Indicador de estado del catálogo */}
-                    <div className="mb-3 p-2 rounded text-sm">
-                      {!catalogoCargado ? (
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                          Cargando catálogo de productos...
-                        </div>
-                      ) : (
-                        <div className="text-green-600">
-                          ✓ Catálogo cargado: {categorias?.length || 0} categorías, {productosCatalogo?.length || 0} productos
-                        </div>
-                      )}
-                    </div>
-                    
+                  <div>
                     <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1">
@@ -487,7 +450,7 @@ const PresupuestoPage = () => {
                                 <button 
                                   key={cat} 
                                   type="button" 
-                                  className={`rounded-full px-4 py-1 text-sm mr-2 ${datosConversion.categoriaMaterial === cat ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`} 
+                                  className={`rounded-full px-4 py-1 text-sm mr-2 ${datosConversion.categoriaMaterial === cat ? "bg-gray-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`} 
                                   onClick={() => handleInputChange("categoriaMaterial", datosConversion.categoriaMaterial === cat ? "" : cat)}
                                 >
                                   {cat}
@@ -510,7 +473,7 @@ const PresupuestoPage = () => {
                             value={datosConversion.busquedaProducto || ""} 
                             onChange={(e) => handleInputChange("busquedaProducto", e.target.value)} 
                             onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} 
-                            className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card" 
+                            className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 bg-card" 
                           />
                         </div>
                       </div>
@@ -565,11 +528,11 @@ const PresupuestoPage = () => {
 
                           return (
                             <div className="space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 p-4 relative">
                                 {isPending && (
                                   <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
                                     <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
-                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
                                       <span className="text-sm font-medium text-gray-700">Cargando productos...</span>
                                     </div>
                                   </div>
@@ -594,7 +557,7 @@ const PresupuestoPage = () => {
                                       className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
                                         yaAgregado
                                           ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
-                                          : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
+                                          : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                                       }`}
                                     >
                                       <div className="p-4 flex flex-col h-full">
@@ -675,7 +638,7 @@ const PresupuestoPage = () => {
                                               }));
                                             }}
                                             disabled={yaAgregado}
-                                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"}`}
+                                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-gray-600 text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"}`}
                                           >
                                             {yaAgregado ? "Ya agregado" : "Agregar"}
                                           </button>
@@ -690,7 +653,7 @@ const PresupuestoPage = () => {
                               {totalPaginas > 1 && (
                                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
                                   <div className="text-sm text-gray-700 flex items-center gap-2">
-                                    {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
+                                    {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>)}
                                     <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -708,7 +671,7 @@ const PresupuestoPage = () => {
                                         else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
                                         else pageNum = paginaActual - 2 + i;
                                         return (
-                                          <button key={pageNum} onClick={() => startTransition(() => setPaginaActual(pageNum))} disabled={isPending} className={`px-3 py-1 rounded-md text-sm font-medium ${paginaActual === pageNum ? "bg-blue-600 text-white" : "text-gray-600 hover:text-gray-900"}`}>
+                                          <button key={pageNum} onClick={() => startTransition(() => setPaginaActual(pageNum))} disabled={isPending} className={`px-3 py-1 rounded-md text-sm font-medium ${paginaActual === pageNum ? "bg-gray-600 text-white" : "text-gray-600 hover:text-gray-900"}`}>
                                             {pageNum}
                                           </button>
                                         );
@@ -818,7 +781,7 @@ const PresupuestoPage = () => {
                 {/* Descripción General */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5" />
                     Descripción General de la Obra
                   </h3>
                   <div>
@@ -828,7 +791,7 @@ const PresupuestoPage = () => {
                     <textarea
                       value={datosConversion.descripcionGeneral}
                       onChange={(e) => handleInputChange("descripcionGeneral", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                       rows={4}
                       placeholder="Describa en detalle los trabajos a realizar, especificaciones técnicas, materiales especiales, cronograma, etc..."
                     />
@@ -850,7 +813,7 @@ const PresupuestoPage = () => {
                   <Button 
                     onClick={handleConvertToObra}
                     disabled={converting || !datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable}
-                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    className="flex items-center gap-2"
                   >
                     {converting ? (
                       <>
