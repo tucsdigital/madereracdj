@@ -316,6 +316,7 @@ const ObrasPage = () => {
   // Función para confirmar la eliminación
   const confirmDelete = async () => {
     if (!itemToDelete || !user) {
+      console.error("Error: No hay item para eliminar o usuario no autenticado", { itemToDelete, user });
       setShowDeleteDialog(false);
       return;
     }
@@ -323,6 +324,16 @@ const ObrasPage = () => {
     try {
       setDeleting(true);
       setDeleteMessage("");
+
+      console.log("Iniciando proceso de eliminación:", { itemToDelete, deleteType, user });
+
+      // Obtener los datos completos del documento antes de eliminar
+      const documentToDelete = obrasData.find(item => item.id === itemToDelete.id);
+      if (!documentToDelete) {
+        throw new Error("Documento no encontrado en el estado local");
+      }
+
+      console.log("Documento a eliminar:", documentToDelete);
 
       // Crear registro de auditoría antes de eliminar
       const auditData = {
@@ -333,25 +344,49 @@ const ObrasPage = () => {
         userId: user.uid,
         userEmail: user.email,
         timestamp: serverTimestamp(),
-        documentData: obrasData.find(item => item.id === itemToDelete.id) || {},
+        documentData: documentToDelete,
+        deleteReason: "Eliminación manual por usuario",
+        deleteDate: new Date().toISOString(),
       };
 
+      console.log("Datos de auditoría a crear:", auditData);
+
       // Agregar a la colección de auditoría
-      await addDoc(collection(db, "auditoria"), auditData);
+      console.log("Creando registro de auditoría...");
+      const auditRef = await addDoc(collection(db, "auditoria"), auditData);
+      console.log("Registro de auditoría creado exitosamente:", auditRef.id);
+
+      // Verificar que se creó correctamente
+      const auditDoc = await getDoc(auditRef);
+      if (!auditDoc.exists()) {
+        throw new Error("No se pudo verificar la creación del registro de auditoría");
+      }
+      console.log("Verificación de auditoría exitosa:", auditDoc.data());
 
       // Eliminar el documento
+      console.log("Eliminando documento de la colección obras...");
       await deleteDoc(doc(db, "obras", itemToDelete.id));
+      console.log("Documento eliminado exitosamente");
       
       // Actualizar la lista local
       setObrasData(prev => prev.filter(item => item.id !== itemToDelete.id));
       
-      setDeleteMessage(`✅ ${deleteType === 'obra' ? 'Obra' : 'Presupuesto'} eliminado exitosamente`);
+      setDeleteMessage(`✅ ${deleteType === 'obra' ? 'Obra' : 'Presupuesto'} eliminado exitosamente. Auditoría registrada.`);
       
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setDeleteMessage(""), 3000);
 
     } catch (error) {
       console.error(`Error al eliminar ${deleteType}:`, error);
+      console.error("Detalles del error:", {
+        error: error.message,
+        code: error.code,
+        stack: error.stack,
+        itemToDelete,
+        deleteType,
+        user: user?.uid
+      });
+      
       setDeleteMessage(`❌ Error: ${error.message}`);
       
       // Limpiar mensaje después de 5 segundos
@@ -360,6 +395,82 @@ const ObrasPage = () => {
       setDeleting(false);
       setShowDeleteDialog(false);
       setItemToDelete(null);
+    }
+  };
+
+  // Función para verificar y crear la colección de auditoría si es necesario
+  const ensureAuditCollection = async () => {
+    try {
+      console.log("Verificando existencia de la colección de auditoría...");
+      
+      // Intentar crear un documento de prueba temporal
+      const testDoc = {
+        action: "INIT",
+        collectionName: "obras",
+        documentId: "init-check",
+        documentType: "system",
+        userId: "system",
+        userEmail: "system@audit.com",
+        timestamp: serverTimestamp(),
+        documentData: { init: true, message: "Verificación de colección" },
+        initDate: new Date().toISOString(),
+      };
+
+      const testRef = await addDoc(collection(db, "auditoria"), testDoc);
+      console.log("Colección de auditoría verificada, documento de prueba creado:", testRef.id);
+      
+      // Eliminar el documento de prueba
+      await deleteDoc(testRef);
+      console.log("Documento de prueba eliminado");
+      
+      return true;
+    } catch (error) {
+      console.error("Error al verificar la colección de auditoría:", error);
+      return false;
+    }
+  };
+
+  // Función para probar la conexión a Firestore y auditoría
+  const testAuditConnection = async () => {
+    try {
+      console.log("Probando conexión a Firestore y auditoría...");
+      
+      // Primero verificar que la colección existe
+      const collectionExists = await ensureAuditCollection();
+      if (!collectionExists) {
+        throw new Error("No se pudo verificar la colección de auditoría");
+      }
+      
+      const testAuditData = {
+        action: "TEST",
+        collectionName: "obras",
+        documentId: "test-connection",
+        documentType: "test",
+        userId: user?.uid || "test-user",
+        userEmail: user?.email || "test@test.com",
+        timestamp: serverTimestamp(),
+        documentData: { test: true, message: "Prueba de conexión" },
+        testDate: new Date().toISOString(),
+      };
+
+      console.log("Creando documento de prueba en auditoría...");
+      const testRef = await addDoc(collection(db, "auditoria"), testAuditData);
+      console.log("Documento de prueba creado exitosamente:", testRef.id);
+
+      // Verificar que se creó
+      const testDoc = await getDoc(testRef);
+      if (testDoc.exists()) {
+        console.log("Verificación exitosa:", testDoc.data());
+        setDeleteMessage("✅ Conexión a auditoría funcionando correctamente");
+        setTimeout(() => setDeleteMessage(""), 3000);
+      } else {
+        throw new Error("No se pudo verificar el documento de prueba");
+      }
+
+    } catch (error) {
+      console.error("Error en prueba de auditoría:", error);
+      setDeleteMessage(`❌ Error en auditoría: ${error.message}`);
+      setTimeout(() => setDeleteMessage(""), 5000);
     }
   };
 
@@ -527,6 +638,15 @@ const ObrasPage = () => {
           <Button variant="outline" onClick={() => window.location.reload()} disabled={deleting}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={testAuditConnection}
+            disabled={deleting}
+            className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300"
+          >
+            <Info className="w-4 h-4 mr-2" />
+            Probar Auditoría
           </Button>
         </div>
       </div>
