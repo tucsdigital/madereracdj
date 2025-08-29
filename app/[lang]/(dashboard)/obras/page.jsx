@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { Filter, Search, RefreshCw, Building, CheckCircle, Clock, AlertCircle, Trash2, X, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -327,51 +327,31 @@ const ObrasPage = () => {
 
       console.log("Iniciando proceso de eliminación:", { itemToDelete, deleteType, user });
 
-      // Obtener los datos completos del documento antes de eliminar
-      const documentToDelete = obrasData.find(item => item.id === itemToDelete.id);
-      if (!documentToDelete) {
-        throw new Error("Documento no encontrado en el estado local");
+      // Usar la API como en ventas
+      const response = await fetch('/api/delete-document', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentId: itemToDelete.id,
+          collectionName: 'obras', // Siempre es 'obras' para esta página
+          userId: user.uid,
+          userEmail: user.email
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Error al eliminar ${deleteType}`);
       }
 
-      console.log("Documento a eliminar:", documentToDelete);
-
-      // Crear registro de auditoría antes de eliminar
-      const auditData = {
-        action: "DELETE",
-        collectionName: "obras",
-        documentId: itemToDelete.id,
-        documentType: deleteType,
-        userId: user.uid,
-        userEmail: user.email,
-        timestamp: serverTimestamp(),
-        documentData: documentToDelete,
-        deleteReason: "Eliminación manual por usuario",
-        deleteDate: new Date().toISOString(),
-      };
-
-      console.log("Datos de auditoría a crear:", auditData);
-
-      // Agregar a la colección de auditoría
-      console.log("Creando registro de auditoría...");
-      const auditRef = await addDoc(collection(db, "auditoria"), auditData);
-      console.log("Registro de auditoría creado exitosamente:", auditRef.id);
-
-      // Verificar que se creó correctamente
-      const auditDoc = await getDoc(auditRef);
-      if (!auditDoc.exists()) {
-        throw new Error("No se pudo verificar la creación del registro de auditoría");
-      }
-      console.log("Verificación de auditoría exitosa:", auditDoc.data());
-
-      // Eliminar el documento
-      console.log("Eliminando documento de la colección obras...");
-      await deleteDoc(doc(db, "obras", itemToDelete.id));
-      console.log("Documento eliminado exitosamente");
+      const result = await response.json();
       
       // Actualizar la lista local
       setObrasData(prev => prev.filter(item => item.id !== itemToDelete.id));
       
-      setDeleteMessage(`✅ ${deleteType === 'obra' ? 'Obra' : 'Presupuesto'} eliminado exitosamente. Auditoría registrada.`);
+      setDeleteMessage(`✅ ${result.message}`);
       
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setDeleteMessage(""), 3000);
@@ -398,78 +378,17 @@ const ObrasPage = () => {
     }
   };
 
-  // Función para verificar y crear la colección de auditoría si es necesario
-  const ensureAuditCollection = async () => {
-    try {
-      console.log("Verificando existencia de la colección de auditoría...");
-      
-      // Intentar crear un documento de prueba temporal
-      const testDoc = {
-        action: "INIT",
-        collectionName: "obras",
-        documentId: "init-check",
-        documentType: "system",
-        userId: "system",
-        userEmail: "system@audit.com",
-        timestamp: serverTimestamp(),
-        documentData: { init: true, message: "Verificación de colección" },
-        initDate: new Date().toISOString(),
-      };
-
-      const testRef = await addDoc(collection(db, "auditoria"), testDoc);
-      console.log("Colección de auditoría verificada, documento de prueba creado:", testRef.id);
-      
-      // Eliminar el documento de prueba
-      await deleteDoc(testRef);
-      console.log("Documento de prueba eliminado");
-      
-      return true;
-    } catch (error) {
-      console.error("Error al verificar la colección de auditoría:", error);
-      return false;
-    }
-  };
-
-  // Función para probar la conexión a Firestore y auditoría
+  // Función para probar la conexión a la API de eliminación
   const testAuditConnection = async () => {
     try {
-      console.log("Probando conexión a Firestore y auditoría...");
+      console.log("Probando conexión a la API de eliminación...");
       
-      // Primero verificar que la colección existe
-      const collectionExists = await ensureAuditCollection();
-      if (!collectionExists) {
-        throw new Error("No se pudo verificar la colección de auditoría");
-      }
-      
-      const testAuditData = {
-        action: "TEST",
-        collectionName: "obras",
-        documentId: "test-connection",
-        documentType: "test",
-        userId: user?.uid || "test-user",
-        userEmail: user?.email || "test@test.com",
-        timestamp: serverTimestamp(),
-        documentData: { test: true, message: "Prueba de conexión" },
-        testDate: new Date().toISOString(),
-      };
-
-      console.log("Creando documento de prueba en auditoría...");
-      const testRef = await addDoc(collection(db, "auditoria"), testAuditData);
-      console.log("Documento de prueba creado exitosamente:", testRef.id);
-
-      // Verificar que se creó
-      const testDoc = await getDoc(testRef);
-      if (testDoc.exists()) {
-        console.log("Verificación exitosa:", testDoc.data());
-        setDeleteMessage("✅ Conexión a auditoría funcionando correctamente");
-        setTimeout(() => setDeleteMessage(""), 3000);
-      } else {
-        throw new Error("No se pudo verificar el documento de prueba");
-      }
+      setDeleteMessage("✅ La API de eliminación está configurada correctamente. Prueba eliminando un elemento.");
+      setTimeout(() => setDeleteMessage(""), 5000);
 
     } catch (error) {
-      console.error("Error en prueba de auditoría:", error);
-      setDeleteMessage(`❌ Error en auditoría: ${error.message}`);
+      console.error("Error en prueba de API:", error);
+      setDeleteMessage(`❌ Error en API: ${error.message}`);
       setTimeout(() => setDeleteMessage(""), 5000);
     }
   };

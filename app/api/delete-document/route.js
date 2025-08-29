@@ -14,7 +14,7 @@ export async function DELETE(request) {
     }
 
     // Verificar que la colección sea válida
-    if (!['presupuestos', 'ventas'].includes(collectionName)) {
+    if (!['presupuestos', 'ventas', 'obras'].includes(collectionName)) {
       return NextResponse.json(
         { error: 'Colección no válida' },
         { status: 400 }
@@ -111,6 +111,82 @@ export async function DELETE(request) {
       }
     }
 
+    // Si es una obra, verificar si tiene productos asociados y reponer stock si es necesario
+    if (collectionName === 'obras' && documentData.productos) {
+      const batch = [];
+      const movimientosBatch = [];
+      
+      for (const producto of documentData.productos) {
+        if (producto.id && producto.cantidad) {
+          const productoRef = doc(db, 'productos', producto.id);
+          
+          // Reponer stock solo si el producto existe
+          try {
+            const productoSnap = await getDoc(productoRef);
+            if (productoSnap.exists()) {
+              const productoData = productoSnap.data();
+              const stockActual = Number(productoData.stock) || 0;
+              const cantidadRepuesta = Number(producto.cantidad);
+              const nuevoStock = stockActual + cantidadRepuesta;
+              
+              // Actualizar stock
+              batch.push(
+                updateDoc(productoRef, {
+                  stock: increment(cantidadRepuesta)
+                })
+              );
+              
+              // Crear movimiento de entrada para reposición
+              movimientosBatch.push(
+                addDoc(collection(db, "movimientos"), {
+                  productoId: producto.id,
+                  tipo: "entrada",
+                  cantidad: cantidadRepuesta,
+                  usuario: userEmail,
+                  usuarioUid: userId,
+                  usuarioEmail: userEmail,
+                  fecha: serverTimestamp(),
+                  referencia: "reposicion_stock_obra_eliminada",
+                  referenciaId: documentId,
+                  observaciones: `Reposición automática de stock por eliminación de obra - Producto: ${producto.nombre || productoData.nombre}`,
+                  productoNombre: producto.nombre || productoData.nombre,
+                  stockAntes: stockActual,
+                  stockDelta: cantidadRepuesta,
+                  stockDespues: nuevoStock,
+                  categoria: productoData.categoria || "Sin categoría",
+                  origen: "sistema_eliminacion"
+                })
+              );
+            }
+          } catch (error) {
+            console.error(`Error al reponer stock del producto ${producto.id}:`, error);
+          }
+        }
+      }
+      
+      // Ejecutar todas las actualizaciones de stock
+      if (batch.length > 0) {
+        try {
+          await Promise.all(batch);
+          console.log(`✅ Stock repuesto para ${batch.length} productos de obra`);
+        } catch (error) {
+          console.error('Error al reponer stock de obra:', error);
+          // Continuar con el borrado aunque falle la reposición de stock
+        }
+      }
+      
+      // Registrar movimientos de reposición
+      if (movimientosBatch.length > 0) {
+        try {
+          await Promise.all(movimientosBatch);
+          console.log(`✅ Movimientos registrados para ${movimientosBatch.length} productos de obra`);
+        } catch (error) {
+          console.error('Error al registrar movimientos de obra:', error);
+          // Continuar aunque falle el registro de movimientos
+        }
+      }
+    }
+
     // Crear registro de auditoría
     const auditoriaData = {
       accion: 'ELIMINACION',
@@ -132,7 +208,7 @@ export async function DELETE(request) {
 
     return NextResponse.json({
       success: true,
-      message: `${collectionName === 'presupuestos' ? 'Presupuesto' : 'Venta'} eliminado exitosamente`,
+      message: `${collectionName === 'presupuestos' ? 'Presupuesto' : collectionName === 'ventas' ? 'Venta' : 'Obra'} eliminado exitosamente`,
       auditoriaId: auditoriaData.fechaEliminacion
     });
 

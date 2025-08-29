@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, updateDoc, addDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/provider/auth.provider";
+import { useRouter } from "next/navigation";
 
 export const useObra = (id) => {
   const [obra, setObra] = useState(null);
@@ -284,6 +286,80 @@ export const useObra = (id) => {
     setPresupuestosDisponibles((prev) => [{ id: created.id, ...nuevo }, ...prev]);
   };
 
+  const convertirPresupuestoToObra = async () => {
+    if (!obra || obra.tipo !== "presupuesto") return;
+
+    try {
+      const numeroPedido = await getNextObraNumber();
+      const nuevaObra = {
+        tipo: "obra",
+        numeroPedido,
+        fecha: new Date().toISOString().split("T")[0],
+        clienteId: obra.clienteId || obra.cliente?.id || null,
+        cliente: obra.cliente || null,
+        productos: itemsPresupuesto || [],
+        subtotal: obra.subtotal || 0,
+        descuentoTotal: obra.descuentoTotal || 0,
+        total: obra.total || 0,
+        descripcionGeneral: descripcionGeneral || obra.descripcionGeneral || "",
+        fechaCreacion: serverTimestamp(),
+        estado: "pendiente_inicio",
+        presupuestoInicialId: obra.id,
+        prioridad: "media",
+        
+        // Información de envío si existe
+        tipoEnvio: obra.tipoEnvio || null,
+        costoEnvio: obra.costoEnvio || 0,
+        direccionEnvio: obra.direccionEnvio || null,
+        localidadEnvio: obra.localidadEnvio || null,
+        transportista: obra.transportista || null,
+        fechaEntrega: obra.fechaEntrega || null,
+        rangoHorario: obra.rangoHorario || null,
+        
+        // Datos de cobranza
+        cobranzas: {
+          senia: 0,
+          monto: 0,
+          historialPagos: []
+        },
+        
+        // Auditoría
+        fechaConversion: serverTimestamp(),
+        presupuestoOriginal: {
+          id: obra.id,
+          numeroPedido: obra.numeroPedido,
+          fechaCreacion: obra.fechaCreacion,
+          total: obra.total
+        }
+      };
+
+      const created = await addDoc(collection(db, "obras"), nuevaObra);
+      
+      // Crear registro de auditoría de conversión
+      const auditoriaData = {
+        accion: 'CONVERSION_PRESUPUESTO_A_OBRA',
+        coleccion: 'obras',
+        documentoId: created.id,
+        presupuestoOriginalId: obra.id,
+        datosPresupuesto: obra,
+        datosObra: nuevaObra,
+        usuarioId: 'sistema',
+        usuarioEmail: 'sistema@audit.com',
+        fechaConversion: serverTimestamp(),
+        tipo: 'conversion_presupuesto_obra'
+      };
+
+      await addDoc(collection(db, "auditoria"), auditoriaData);
+      
+      // Redirigir a la nueva obra
+      window.location.href = `/obras/${created.id}`;
+      
+    } catch (error) {
+      console.error("Error al convertir presupuesto a obra:", error);
+      throw error;
+    }
+  };
+
   const guardarEdicion = async () => {
     if (!obra) return;
     
@@ -461,5 +537,6 @@ export const useObra = (id) => {
     handleVincularPresupuesto,
     handleCrearPresupuestoDesdeAqui,
     getNextObraNumber,
+    convertirPresupuestoToObra,
   };
 };

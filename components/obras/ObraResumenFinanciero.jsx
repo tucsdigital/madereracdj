@@ -50,7 +50,7 @@ const ObraResumenFinanciero = ({
           {/* Total Principal */}
           <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
             <p className="text-xs text-emerald-700 mb-1 font-medium">Total</p>
-            <p className="text-xl font-bold text-emerald-800">
+            <p className="text-sm font-bold text-emerald-800">
               {formatearNumeroArgentino(total)}
             </p>
           </div>

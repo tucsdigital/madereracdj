@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@iconify/react";
-import { Printer, Edit, Save, X } from "lucide-react";
+import { Printer, Edit, Save, X, Building } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useObra } from "@/hooks/useObra";
 import { formatearNumeroArgentino, formatearFecha, generarContenidoImpresion } from "@/lib/obra-utils";
 import ObraHeader from "@/components/obras/ObraHeader";
@@ -18,6 +18,8 @@ import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
+import { useAuth } from "@/provider/auth.provider";
+import { useRouter } from "next/navigation";
 
 const PresupuestoPage = () => {
   const params = useParams();
@@ -42,6 +44,8 @@ const PresupuestoPage = () => {
     setItemsPresupuesto,
     setDescripcionGeneral,
     guardarEdicion,
+    convertirPresupuestoToObra,
+    convertMessage,
   } = useObra(id);
 
   const handlePrint = () => {
@@ -53,6 +57,28 @@ const PresupuestoPage = () => {
       guardarEdicion();
     } else {
       setEditando(true);
+    }
+  };
+
+  const handleConvertToObra = async () => {
+    try {
+      setConverting(true);
+      setConvertMessage("");
+      
+      await convertirPresupuestoToObra();
+      
+      setConvertMessage("✅ Presupuesto convertido a obra exitosamente");
+      
+      // El hook se encargará de la redirección
+      
+    } catch (error) {
+      console.error("Error al convertir presupuesto a obra:", error);
+      setConvertMessage(`❌ Error: ${error.message}`);
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => setConvertMessage(""), 5000);
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -98,9 +124,31 @@ const PresupuestoPage = () => {
         editando={editando}
         onToggleEdit={handleToggleEdit}
         onPrint={handlePrint}
+        onConvertToObra={handleConvertToObra}
+        converting={converting}
         showBackButton={true}
         backUrl={`/${lang}/obras`}
       />
+
+      {/* Mensaje de conversión */}
+      {convertMessage && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+          convertMessage.startsWith('✅') 
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
+            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+        }`}>
+          {convertMessage.startsWith('✅') ? (
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <Building className="w-6 h-6 text-green-600" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <Building className="w-6 h-6 text-red-600" />
+            </div>
+          )}
+          <span className="font-semibold">{convertMessage}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}

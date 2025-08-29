@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Printer, Download, Save, X } from "lucide-react";
+import { ArrowLeft, Edit, Printer, Download, Save, X, Building, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const ObraHeader = ({ 
@@ -11,6 +11,8 @@ const ObraHeader = ({
   onPrint, 
   onDownload,
   onCancel,
+  onConvertToObra,
+  converting = false,
   showBackButton = true,
   backUrl = "/obras"
 }) => {
@@ -97,6 +99,22 @@ const ObraHeader = ({
           >
             <Download className="w-4 h-4" />
             Descargar
+          </Button>
+        )}
+
+        {onConvertToObra && (
+          <Button
+            variant="outline"
+            onClick={onConvertToObra}
+            className="flex items-center gap-2"
+            disabled={converting}
+          >
+            {converting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Building className="w-4 h-4" />
+            )}
+            {converting ? "Convirtiendo..." : "Convertir a Obra"}
           </Button>
         )}
       </div>
