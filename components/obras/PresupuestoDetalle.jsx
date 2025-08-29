@@ -230,7 +230,7 @@ const PresupuestoDetalle = ({
                   <tr className="border-b">
                     <th className="p-2 text-left">Producto</th>
                     <th className="p-2 text-center">Unidad</th>
-                    <th className="p-2 text-center">Alto</th>
+                    <th className="p-2 text-center">Ancho</th>
                     <th className="p-2 text-center">Largo</th>
                     <th className="p-2 text-right">Valor</th>
                     <th className="p-2 text-center">Desc. %</th>
@@ -384,7 +384,7 @@ const PresupuestoDetalle = ({
                                   rows={2}
                                 />
                               ) : (
-                                <div className="flex-1 min-h-[60px] p-3 bg-white border rounded-md">
+                                <div className="flex-1 min-h-[60px] p-3 bg-white border border-border rounded-md">
                                   {p.descripcion ? (
                                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{p.descripcion}</p>
                                   ) : (
@@ -423,7 +423,7 @@ const PresupuestoDetalle = ({
                     rows={4}
                   />
                 ) : (
-                  <div className="mt-3 min-h-[100px] p-3 bg-white border rounded-md">
+                  <div className="mt-3 min-h-[100px] p-3 bg-white border border-border rounded-md">
                     {descripcionGeneral ? (
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{descripcionGeneral}</p>
                     ) : (

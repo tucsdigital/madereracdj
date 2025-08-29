@@ -61,7 +61,6 @@ export default function CrearObraPage() {
   const { lang } = params || {};
 
   // Datos generales
-  const [nombreObra, setNombreObra] = useState("");
   const [tipoObra, setTipoObra] = useState("Obra Nueva");
   const [prioridad, setPrioridad] = useState("Alta");
 
@@ -509,8 +508,8 @@ export default function CrearObraPage() {
   // Submit
   const [guardando, setGuardando] = useState(false);
   const handleGuardarObra = async () => {
-    if (!nombreObra || !clienteId) {
-      alert("Nombre de obra y cliente son requeridos");
+    if (!clienteId) {
+      alert("Cliente es requerido");
       return;
     }
     setGuardando(true);
@@ -586,25 +585,24 @@ export default function CrearObraPage() {
         };
       })();
 
-      await addDoc(collection(db, "obras"), {
-        tipo: "obra",
-        numeroPedido,
-        nombreObra: nombreObra || "",
-        tipoObra: tipoObra || "",
-        prioridad: prioridad || "",
-        estado: "pendiente_inicio",
-        clienteId,
-        cliente: clienteObj,
-        ubicacion: ubicacionObra,
-        responsable: responsable || "",
-        materialesCatalogo: materialesSanitizados,
-        presupuestoInicialId: presupuestoInicialId || null,
-        montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
-        productosSubtotal: Math.round(productosSubtotal),
-        productosDescuentoTotal: Math.round(productosDescuentoTotal),
-        productosTotal: Math.round(productosTotal),
-        fechaCreacion: new Date().toISOString(),
-      });
+              await addDoc(collection(db, "obras"), {
+          tipo: "obra",
+          numeroPedido,
+          tipoObra: tipoObra || "",
+          prioridad: prioridad || "",
+          estado: "pendiente_inicio",
+          clienteId,
+          cliente: clienteObj,
+          ubicacion: ubicacionObra,
+          responsable: responsable || "",
+          materialesCatalogo: materialesSanitizados,
+          presupuestoInicialId: presupuestoInicialId || null,
+          montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
+          productosSubtotal: Math.round(productosSubtotal),
+          productosDescuentoTotal: Math.round(productosDescuentoTotal),
+          productosTotal: Math.round(productosTotal),
+          fechaCreacion: new Date().toISOString(),
+        });
       router.push(`/${lang}/obras`);
     } finally {
       setGuardando(false);
@@ -631,41 +629,9 @@ export default function CrearObraPage() {
         <CardHeader>
           <CardTitle>Datos Generales</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="text-sm text-gray-600">Nombre de la Obra *</label>
-            <Input value={nombreObra} onChange={(e) => setNombreObra(e.target.value)} placeholder="Ej. Reforma Cocina - Cliente X" />
-          </div>
+        <CardContent className="space-y-4">
+                    {/* Cliente */}
           <div>
-            <label className="text-sm text-gray-600">Tipo de Obra</label>
-            <Select value={tipoObra} onValueChange={setTipoObra}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Remodelación">Remodelación</SelectItem>
-                <SelectItem value="Obra Nueva">Obra Nueva</SelectItem>
-                <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                <SelectItem value="Ampliación">Ampliación</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm text-gray-600">Prioridad</label>
-            <Select value={prioridad} onValueChange={setPrioridad}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Alta">Alta</SelectItem>
-                <SelectItem value="Media">Media</SelectItem>
-                <SelectItem value="Baja">Baja</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Cliente */}
-          <div className="md:col-span-3">
             <label className="text-sm text-gray-600">Cliente *</label>
             <div className="relative w-full mt-1">
               <div
@@ -704,6 +670,36 @@ export default function CrearObraPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-600">Tipo de Obra</label>
+              <Select value={tipoObra} onValueChange={setTipoObra}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Remodelación">Remodelación</SelectItem>
+                  <SelectItem value="Obra Nueva">Obra Nueva</SelectItem>
+                  <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                  <SelectItem value="Ampliación">Ampliación</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Prioridad</label>
+              <Select value={prioridad} onValueChange={setPrioridad}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Alta">Alta</SelectItem>
+                  <SelectItem value="Media">Media</SelectItem>
+                  <SelectItem value="Baja">Baja</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -1298,7 +1294,7 @@ export default function CrearObraPage() {
       {/* Acciones */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.push(`/${lang}/obras`)}>Cancelar</Button>
-        <Button onClick={handleGuardarObra} disabled={guardando || !nombreObra || !clienteId}>
+        <Button onClick={handleGuardarObra} disabled={guardando || !clienteId}>
           {guardando ? "Guardando..." : "Crear Obra"}
         </Button>
       </div>
