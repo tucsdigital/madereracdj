@@ -359,11 +359,11 @@ const PresupuestoDetalle = ({
                           )}
                         </tr>
                         {/* Fila adicional para descripción del producto */}
-                        {editando && (
-                          <tr className="border-b bg-gray-50">
-                            <td colSpan={editando ? 8 : 7} className="p-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
+                        <tr className="border-b bg-gray-50">
+                          <td colSpan={editando ? 8 : 7} className="p-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
+                              {editando ? (
                                 <Textarea
                                   placeholder="Escribe una descripción específica para este producto..."
                                   value={p.descripcion || ""}
@@ -371,10 +371,18 @@ const PresupuestoDetalle = ({
                                   className="flex-1 min-h-[60px] resize-none"
                                   rows={2}
                                 />
-                              </div>
-                            </td>
-                          </tr>
-                        )}
+                              ) : (
+                                <div className="flex-1 min-h-[60px] p-3 bg-white border rounded-md">
+                                  {p.descripcion ? (
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{p.descripcion}</p>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">Sin descripción</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       </React.Fragment>
                     );
                   })}
@@ -389,12 +397,12 @@ const PresupuestoDetalle = ({
             </div>
 
             {/* Campo de descripción general del presupuesto */}
-            {editando && (
-              <div className="mt-6 p-4 border rounded-lg bg-gray-50">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Descripción General del Presupuesto
-                  </label>
+            <div className="mt-6 p-4 border rounded-lg bg-gray-50">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Descripción General del Presupuesto
+                </label>
+                {editando ? (
                   <Textarea
                     placeholder="Escribe una descripción general del presupuesto, especificaciones técnicas, notas importantes, etc..."
                     value={descripcionGeneral || ""}
@@ -402,9 +410,17 @@ const PresupuestoDetalle = ({
                     className="min-h-[100px] resize-none"
                     rows={4}
                   />
-                </div>
+                ) : (
+                  <div className="min-h-[100px] p-3 bg-white border rounded-md">
+                    {descripcionGeneral ? (
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{descripcionGeneral}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Sin descripción general</p>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </>
         )}
       </CardContent>
