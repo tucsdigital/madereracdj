@@ -25,7 +25,10 @@ const PresupuestoPage = () => {
   const params = useParams();
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
-  
+  const [converting, setConverting] = useState(false);
+  const router = useRouter();
+  const { user } = useAuth();
+
   const {
     obra,
     loading,
