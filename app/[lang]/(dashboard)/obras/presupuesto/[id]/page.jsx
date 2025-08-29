@@ -35,7 +35,12 @@ const PresupuestoPage = () => {
     direccion: "",
     localidad: "",
     provincia: "",
-    descripcionGeneral: ""
+    descripcionGeneral: "",
+    ubicacionTipo: "cliente", // "cliente" o "nueva"
+    categoriaMaterial: "",
+    productoSeleccionado: "",
+    cantidadMaterial: "",
+    materialesAdicionales: []
   });
   const router = useRouter();
   const { user } = useAuth();
@@ -52,6 +57,11 @@ const PresupuestoPage = () => {
     categoriaObraId,
     busquedaProductoObra,
     descripcionGeneral,
+    // Agregar catálogo de productos normales
+    productosCatalogo,
+    productosPorCategoria,
+    categorias,
+    cargarCatalogoProductos,
     setEditando,
     setCategoriaObraId,
     setBusquedaProductoObra,
@@ -73,7 +83,10 @@ const PresupuestoPage = () => {
     }
   };
 
-  const handleOpenConvertModal = () => {
+  const handleOpenConvertModal = async () => {
+    // Cargar catálogo de productos normales si no está cargado
+    await cargarCatalogoProductos();
+    
     // Pre-llenar datos del cliente si existen
     if (obra?.cliente) {
       setDatosConversion(prev => ({
@@ -81,7 +94,9 @@ const PresupuestoPage = () => {
         direccion: obra.cliente.direccion || "",
         localidad: obra.cliente.localidad || "",
         provincia: obra.cliente.provincia || "",
-        descripcionGeneral: obra.descripcionGeneral || ""
+        descripcionGeneral: obra.descripcionGeneral || descripcionGeneral || "",
+        ubicacionTipo: "cliente",
+        materialesAdicionales: []
       }));
     }
     setShowConvertModal(true);
@@ -95,6 +110,13 @@ const PresupuestoPage = () => {
       // Validar campos requeridos
       if (!datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable) {
         throw new Error("Por favor complete todos los campos requeridos");
+      }
+
+      // Validar ubicación si se selecciona "nueva ubicación"
+      if (datosConversion.ubicacionTipo === "nueva") {
+        if (!datosConversion.direccion || !datosConversion.localidad || !datosConversion.provincia) {
+          throw new Error("Por favor complete todos los campos de ubicación");
+        }
       }
 
       // Llamar a la función de conversión con los datos del formulario
@@ -318,7 +340,7 @@ const PresupuestoPage = () => {
 
       {/* Modal: Convertir a Obra */}
       <Dialog open={showConvertModal} onOpenChange={setShowConvertModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] w-full">
+        <DialogContent className="max-w-5xl max-h-[90vh] w-full">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building className="w-5 h-5" />
@@ -409,18 +431,6 @@ const PresupuestoPage = () => {
                     </Select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción General
-                  </label>
-                  <textarea
-                    value={datosConversion.descripcionGeneral}
-                    onChange={(e) => handleInputChange("descripcionGeneral", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Describa los detalles de la obra..."
-                  />
-                </div>
               </CardContent>
             </Card>
 
@@ -433,37 +443,75 @@ const PresupuestoPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dirección
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="ubicacionTipo"
+                        value="cliente"
+                        checked={datosConversion.ubicacionTipo === "cliente"}
+                        onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm font-medium">Usar ubicación del cliente</span>
                     </label>
-                    <Input
-                      value={datosConversion.direccion}
-                      onChange={(e) => handleInputChange("direccion", e.target.value)}
-                      placeholder="Dirección de la obra"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Localidad
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="ubicacionTipo"
+                        value="nueva"
+                        checked={datosConversion.ubicacionTipo === "nueva"}
+                        onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm font-medium">Especificar nueva ubicación</span>
                     </label>
-                    <Input
-                      value={datosConversion.localidad}
-                      onChange={(e) => handleInputChange("localidad", e.target.value)}
-                      placeholder="Localidad"
-                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Provincia
-                    </label>
-                    <Input
-                      value={datosConversion.provincia}
-                      onChange={(e) => handleInputChange("provincia", e.target.value)}
-                      placeholder="Provincia"
-                    />
-                  </div>
+                  
+                  {datosConversion.ubicacionTipo === "cliente" ? (
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Ubicación del cliente:</strong><br />
+                        {obra?.cliente?.direccion || "Sin dirección"}<br />
+                        {obra?.cliente?.localidad || "Sin localidad"}<br />
+                        {obra?.cliente?.provincia || "Sin provincia"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Dirección
+                        </label>
+                        <Input
+                          value={datosConversion.direccion}
+                          onChange={(e) => handleInputChange("direccion", e.target.value)}
+                          placeholder="Dirección de la obra"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Localidad
+                        </label>
+                        <Input
+                          value={datosConversion.localidad}
+                          onChange={(e) => handleInputChange("localidad", e.target.value)}
+                          placeholder="Localidad"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Provincia
+                        </label>
+                        <Input
+                          value={datosConversion.provincia}
+                          onChange={(e) => handleInputChange("provincia", e.target.value)}
+                          placeholder="Provincia"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -476,7 +524,7 @@ const PresupuestoPage = () => {
                   Materiales a Utilizar
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="text-sm text-gray-600">
                   <p>Los materiales del presupuesto se transferirán automáticamente a la nueva obra.</p>
                   <div className="mt-3 p-3 bg-blue-50 rounded-lg">
@@ -487,6 +535,155 @@ const PresupuestoPage = () => {
                       Total: {formatearNumeroArgentino(obra?.total || 0)}
                     </p>
                   </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Agregar materiales adicionales del catálogo</h4>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Categoría
+                        </label>
+                        <Select
+                          value={datosConversion.categoriaMaterial}
+                          onValueChange={(value) => handleInputChange("categoriaMaterial", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar categoría" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categorias?.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Producto
+                        </label>
+                        <Select
+                          value={datosConversion.productoSeleccionado}
+                          onValueChange={(value) => handleInputChange("productoSeleccionado", value)}
+                          disabled={!datosConversion.categoriaMaterial}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar producto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {datosConversion.categoriaMaterial && productosPorCategoria[datosConversion.categoriaMaterial]?.map((prod) => (
+                              <SelectItem key={prod.id} value={prod.id}>
+                                {prod.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Cantidad
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={datosConversion.cantidadMaterial || ""}
+                          onChange={(e) => handleInputChange("cantidadMaterial", e.target.value)}
+                          placeholder="1"
+                          disabled={!datosConversion.productoSeleccionado}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (datosConversion.productoSeleccionado && datosConversion.cantidadMaterial) {
+                          const producto = productosCatalogo.find(p => p.id === datosConversion.productoSeleccionado);
+                          if (producto) {
+                            const nuevoMaterial = {
+                              id: producto.id,
+                              nombre: producto.nombre,
+                              categoria: producto.categoria,
+                              precio: producto.precio,
+                              cantidad: parseInt(datosConversion.cantidadMaterial),
+                              unidad: producto.unidad || "unidad"
+                            };
+                            setDatosConversion(prev => ({
+                              ...prev,
+                              materialesAdicionales: [...(prev.materialesAdicionales || []), nuevoMaterial],
+                              categoriaMaterial: "",
+                              productoSeleccionado: "",
+                              cantidadMaterial: ""
+                            }));
+                          }
+                        }
+                      }}
+                      disabled={!datosConversion.productoSeleccionado || !datosConversion.cantidadMaterial}
+                      className="flex items-center gap-2"
+                    >
+                      <Icon icon="heroicons:plus" className="w-4 h-4" />
+                      Agregar Material
+                    </Button>
+                  </div>
+                  
+                  {/* Lista de materiales adicionales */}
+                  {datosConversion.materialesAdicionales && datosConversion.materialesAdicionales.length > 0 && (
+                    <div className="mt-4">
+                      <h5 className="font-medium text-gray-900 mb-2">Materiales adicionales seleccionados:</h5>
+                      <div className="space-y-2">
+                        {datosConversion.materialesAdicionales.map((mat, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                            <span className="text-sm">
+                              {mat.nombre} - {mat.cantidad} {mat.unidad}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setDatosConversion(prev => ({
+                                  ...prev,
+                                  materialesAdicionales: prev.materialesAdicionales.filter((_, i) => i !== index)
+                                }));
+                              }}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Descripción General */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Descripción General de la Obra
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción detallada de la obra
+                  </label>
+                  <textarea
+                    value={datosConversion.descripcionGeneral}
+                    onChange={(e) => handleInputChange("descripcionGeneral", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={4}
+                    placeholder="Describa en detalle los trabajos a realizar, especificaciones técnicas, materiales especiales, cronograma, etc..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Esta descripción será utilizada para el seguimiento y control de la obra.
+                  </p>
                 </div>
               </CardContent>
             </Card>

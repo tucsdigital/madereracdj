@@ -40,6 +40,7 @@ export const useObra = (id) => {
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [itemsCatalogo, setItemsCatalogo] = useState([]);
   const [isPendingCat, setIsPendingCat] = useState(false);
+  const [catalogoCargado, setCatalogoCargado] = useState(false);
 
   // Catálogo para Presupuesto inicial (colección: productos_obras)
   const [productosObraCatalogo, setProductosObraCatalogo] = useState([]);
@@ -205,6 +206,7 @@ export const useObra = (id) => {
         });
         setProductosPorCategoria(agrup);
         setCategorias(Object.keys(agrup));
+        setCatalogoCargado(true);
       }
       
       // productos_obras
@@ -230,6 +232,27 @@ export const useObra = (id) => {
     }
     cargarCatalogos();
   }, [editando]);
+
+  // Función para cargar catálogo de productos normales manualmente
+  const cargarCatalogoProductos = async () => {
+    if (catalogoCargado) return;
+    
+    try {
+      const snap = await getDocs(collection(db, "productos"));
+      const prods = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setProductosCatalogo(prods);
+      const agrup = {};
+      prods.forEach((p) => {
+        const cat = p.categoria || "Sin categoría";
+        (agrup[cat] = agrup[cat] || []).push(p);
+      });
+      setProductosPorCategoria(agrup);
+      setCategorias(Object.keys(agrup));
+      setCatalogoCargado(true);
+    } catch (error) {
+      console.error("Error al cargar catálogo de productos:", error);
+    }
+  };
 
   // Generar número para obra nueva
   const getNextObraNumber = async () => {
@@ -305,16 +328,32 @@ export const useObra = (id) => {
 
     try {
       const numeroPedido = await getNextObraNumber();
+      
+      // Combinar productos del presupuesto con materiales adicionales
+      const productosCombinados = [
+        ...(itemsPresupuesto || []),
+        ...(datosConversion.materialesAdicionales || [])
+      ];
+      
+      // Calcular totales combinados
+      const subtotalCombinado = productosCombinados.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
+      const descuentoTotalCombinado = productosCombinados.reduce((acc, p) => {
+        const base = Number(p.precio) || 0;
+        const desc = Number(p.descuento) || 0;
+        return acc + Math.round(base * desc / 100);
+      }, 0);
+      const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
+      
       const nuevaObra = {
         tipo: "obra",
         numeroPedido,
         fecha: new Date().toISOString().split("T")[0],
         clienteId: obra.clienteId || obra.cliente?.id || null,
         cliente: obra.cliente || null,
-        productos: itemsPresupuesto || [],
-        subtotal: obra.subtotal || 0,
-        descuentoTotal: obra.descuentoTotal || 0,
-        total: obra.total || 0,
+        productos: productosCombinados,
+        subtotal: subtotalCombinado,
+        descuentoTotal: descuentoTotalCombinado,
+        total: totalCombinado,
         descripcionGeneral: datosConversion.descripcionGeneral || descripcionGeneral || obra.descripcionGeneral || "",
         fechaCreacion: serverTimestamp(),
         estado: "pendiente_inicio",
@@ -324,7 +363,11 @@ export const useObra = (id) => {
         responsable: datosConversion.responsable || "",
         
         // Ubicación de la obra
-        ubicacion: {
+        ubicacion: datosConversion.ubicacionTipo === "cliente" ? {
+          direccion: obra.cliente?.direccion || "",
+          localidad: obra.cliente?.localidad || "",
+          provincia: obra.cliente?.provincia || ""
+        } : {
           direccion: datosConversion.direccion || "",
           localidad: datosConversion.localidad || "",
           provincia: datosConversion.provincia || ""
@@ -531,6 +574,7 @@ export const useObra = (id) => {
     presupuestoSeleccionadoId,
     modoCosto,
     descripcionGeneral,
+    catalogoCargado,
     
     // Setters
     setEditando,
@@ -562,5 +606,6 @@ export const useObra = (id) => {
     getNextObraNumber,
     getNextPresupuestoNumber,
     convertirPresupuestoToObra,
+    cargarCatalogoProductos,
   };
 };
