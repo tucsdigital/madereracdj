@@ -192,19 +192,21 @@ export default function CrearPresupuestoObraPage() {
     const ya = itemsSeleccionados.some((x) => x.id === prod.id);
     if (ya) return;
     const unidadMedida = prod.unidadMedida || "UN";
+    const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
       id: prod.id,
       nombre: prod.nombre,
       categoria: prod.categoria || "",
       subCategoria: prod.subCategoria || prod.subcategoria || "",
       unidadMedida,
-      valorVenta: Number(prod.valorVenta) || 0,
+      valorVenta, // Mantener el valor original del catálogo
       alto: 1,
       largo: 1,
       cantidad: 1,
       descuento: 0,
       descripcion: "", // Nuevo campo para descripción individual
     };
+    // Calcular precio inicial basado en la fórmula
     const precio = calcularPrecioProductoObra({
       unidadMedida,
       alto: nuevo.alto,
@@ -223,7 +225,7 @@ export default function CrearPresupuestoObraPage() {
       categoria: "Manual",
       subCategoria: "",
       unidadMedida: "UN",
-      valorVenta: 0,
+      valorVenta: 0, // Valor inicial editable
       alto: 1,
       largo: 1,
       cantidad: 1,
@@ -231,7 +233,14 @@ export default function CrearPresupuestoObraPage() {
       descripcion: "", // Nuevo campo para descripción individual
       _esManual: true,
     };
-    nuevo.precio = calcularPrecioProductoObra({ unidadMedida: nuevo.unidadMedida, alto: nuevo.alto, largo: nuevo.largo, valorVenta: nuevo.valorVenta, cantidad: nuevo.cantidad });
+    // Calcular precio inicial basado en la fórmula
+    nuevo.precio = calcularPrecioProductoObra({ 
+      unidadMedida: nuevo.unidadMedida, 
+      alto: nuevo.alto, 
+      largo: nuevo.largo, 
+      valorVenta: nuevo.valorVenta, 
+      cantidad: nuevo.cantidad 
+    });
     setItemsSeleccionados((prev) => [nuevo, ...prev]);
   }, []);
 
@@ -243,30 +252,42 @@ export default function CrearPresupuestoObraPage() {
   const actualizarCampo = (id, campo, valor) => {
     setItemsSeleccionados((prev) => prev.map((p) => {
       if (p.id !== id) return p;
+      
+      const actualizado = { ...p };
+      
       if (campo === "unidadMedida") {
-        const actualizado = { ...p, unidadMedida: valor };
+        actualizado.unidadMedida = valor;
+      } else if (campo === "descuento") {
+        actualizado[campo] = Number(valor) || 0;
+      } else if (campo === "valorVenta") {
+        // Para valorVenta, mantener el valor manual ingresado
+        actualizado[campo] = valor === "" ? "" : Number(valor);
+      } else if (campo === "descripcion") {
+        // Para descripción, mantener el texto tal como está
+        actualizado[campo] = valor;
+      } else {
+        actualizado[campo] = valor === "" ? "" : Number(valor);
+      }
+      
+      // Solo recalcular precio si no es descripción
+      if (campo !== "descripcion") {
+        // Normalizar vacíos a 0 para cálculos
         const alto = Number(actualizado.alto) || 0;
         const largo = Number(actualizado.largo) || 0;
         const cantidad = Number(actualizado.cantidad) || 1;
         const valorVenta = Number(actualizado.valorVenta) || 0;
-        const precioBase = calcularPrecioProductoObra({ unidadMedida: actualizado.unidadMedida, alto, largo, valorVenta, cantidad });
+        
+        // Recalcular precio basado en la fórmula
+        const precioBase = calcularPrecioProductoObra({
+          unidadMedida: actualizado.unidadMedida,
+          alto,
+          largo,
+          valorVenta,
+          cantidad,
+        });
         actualizado.precio = Math.round(precioBase);
-        return actualizado;
       }
-      const actualizado = { ...p, [campo]: campo === "descuento" ? Number(valor) || 0 : valor === "" ? "" : Number(valor) };
-      // Normalizar vacíos a 0 para cálculos
-      const alto = Number(actualizado.alto) || 0;
-      const largo = Number(actualizado.largo) || 0;
-      const cantidad = Number(actualizado.cantidad) || 1;
-      const valorVenta = Number(actualizado.valorVenta) || 0;
-      const precioBase = calcularPrecioProductoObra({
-        unidadMedida: actualizado.unidadMedida,
-        alto,
-        largo,
-        valorVenta,
-        cantidad,
-      });
-      actualizado.precio = Math.round(precioBase);
+      
       return actualizado;
     }));
   };
@@ -288,7 +309,12 @@ export default function CrearPresupuestoObraPage() {
     setGuardando(true);
     try {
       const numeroPedido = await getNextObraNumber();
-      await addDoc(collection(db, "obras"), {
+      
+      // Verificar que todos los productos tengan descripción
+      console.log("Productos a guardar:", itemsSeleccionados);
+      console.log("Descripción general:", descripcionGeneral);
+      
+      const presupuestoData = {
         tipo: "presupuesto",
         numeroPedido,
         fecha: new Date().toISOString().split("T")[0],
@@ -324,7 +350,11 @@ export default function CrearPresupuestoObraPage() {
         fechaCreacion: new Date().toISOString(),
         estado: "Activo",
         descripcionGeneral: descripcionGeneral || "",
-      });
+      };
+      
+      console.log("Datos del presupuesto a guardar:", presupuestoData);
+      
+      await addDoc(collection(db, "obras"), presupuestoData);
       router.push(`/${lang}/obras`);
     } finally {
       setGuardando(false);
@@ -623,9 +653,14 @@ export default function CrearPresupuestoObraPage() {
                   <th className="p-2 text-left">Producto</th>
                   <th className="p-2 text-center">Cant.</th>
                   <th className="p-2 text-center">Unidad</th>
-                  <th className="p-2 text-center">Alto</th>
+                  <th className="p-2 text-center">Ancho</th>
                   <th className="p-2 text-center">Largo</th>
-                  <th className="p-2 text-right">Valor</th>
+                  <th className="p-2 text-right">
+                    <div className="flex flex-col items-end">
+                      <span>Valor Unit.</span>
+                      <span className="text-xs text-gray-500 font-normal">(Editable)</span>
+                    </div>
+                  </th>
                   <th className="p-2 text-center">Desc. %</th>
                   <th className="p-2 text-right">Subtotal</th>
                   <th className="p-2 text-center">Acción</th>
@@ -684,14 +719,23 @@ export default function CrearPresupuestoObraPage() {
                           )}
                         </td>
                         <td className="p-2 text-right">
-                          {p._esManual ? (
-                            <div className="relative w-28 ml-auto">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
-                              <Input type="number" min={0} step="0.01" value={p.valorVenta} onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)} className="pl-5 pr-2 h-8 text-right" />
-                            </div>
-                          ) : (
-                            `$ ${formatARNumber(p.valorVenta)}`
-                          )}
+                          <div className="relative w-28 ml-auto">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={p.valorVenta} 
+                              onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)} 
+                              className="pl-5 pr-2 h-8 text-right" 
+                              title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 text-center">
+                            {p.unidadMedida === "M2" && `(${p.alto || 0} × ${p.largo || 0} × ${p.cantidad || 1})`}
+                            {p.unidadMedida === "ML" && `(${p.largo || 0} × ${p.cantidad || 1})`}
+                            {p.unidadMedida === "UN" && `(${p.cantidad || 1})`}
+                          </div>
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min={0} max={100} value={p.descuento} onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)} className="w-20 mx-auto" />
