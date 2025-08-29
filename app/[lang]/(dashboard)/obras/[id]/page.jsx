@@ -86,6 +86,7 @@ const ObraDetallePage = () => {
   const [presupuestoSeleccionadoId, setPresupuestoSeleccionadoId] = useState("");
   // Modo de costo para resumen (presupuesto | gasto)
   const [modoCosto, setModoCosto] = useState("gasto");
+  const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
   useEffect(() => {
     const fetchObra = async () => {
@@ -96,6 +97,8 @@ const ObraDetallePage = () => {
         if (obraDoc.exists()) {
           const data = { id: obraDoc.id, ...obraDoc.data() };
           setObra(data);
+          // Cargar descripción general si existe
+          setDescripcionGeneral(data.descripcionGeneral || "");
           // Inicializar estados de edición de datos generales (si es obra)
           if (data.tipo === "obra") {
             setNombreObra(data.nombreObra || "");
@@ -813,7 +816,7 @@ const ObraDetallePage = () => {
       updatedAt: new Date().toISOString(),
     };
 
-    const updates = { documentacion, cobranzas };
+    const updates = { documentacion, cobranzas, descripcionGeneral };
     if (obra?.tipo === "obra") {
       Object.assign(updates, {
         nombreObra: nombreObra || "",
@@ -870,6 +873,7 @@ const ObraDetallePage = () => {
         subtotal: Math.round(subtotalP),
         descuentoTotal: Math.round(descuentoTotalP),
         total: Math.round(totalP),
+        descripcionGeneral,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -962,28 +966,29 @@ const ObraDetallePage = () => {
           /* Estilos para vista previa */
           body { 
             margin: 0; 
-            padding: 8px; 
+            padding: 6px; 
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
             background: #fafafa;
             color: #1f2937;
-            line-height: 1.4;
-            font-size: 12px;
+            line-height: 1.3;
+            font-size: 11px;
           }
           
           .container {
-            max-width: 800px;
+            max-width: 700px;
             margin: 0 auto;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             overflow: hidden;
           }
           
           .header {
-            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-            color: white;
-            padding: 16px;
+            background: white;
+            color: black;
+            padding: 12px;
             position: relative;
+            border-bottom: 2px solid #e5e7eb;
           }
           
           .header-content {
@@ -999,11 +1004,12 @@ const ObraDetallePage = () => {
           }
           
           .logo {
-            width: 48px;
-            height: 48px;
-            background: white;
-            border-radius: 8px;
-            padding: 6px;
+            width: 40px;
+            height: 40px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1016,20 +1022,20 @@ const ObraDetallePage = () => {
           }
           
           .company-details h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            margin: 0 0 4px 0;
+            margin: 0 0 3px 0;
           }
           
           .company-details .subtitle {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             margin: 0 0 2px 0;
             opacity: 0.9;
           }
           
           .company-details .website {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 400;
             margin: 0;
             opacity: 0.7;
@@ -1037,54 +1043,55 @@ const ObraDetallePage = () => {
           
           .document-info {
             text-align: right;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 12px;
-            border-radius: 6px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+            border-radius: 4px;
           }
           
           .document-info .date {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 500;
-            margin: 0 0 6px 0;
+            margin: 0 0 4px 0;
             opacity: 0.9;
           }
           
           .document-info .number {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             margin: 0;
           }
           
           .content {
-            padding: 16px;
+            padding: 12px;
           }
           
           .section {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
           }
           
           .section-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #1f2937;
-            margin: 0 0 8px 0;
-            padding-bottom: 6px;
+            margin: 0 0 6px 0;
+            padding-bottom: 4px;
             border-bottom: 1px solid #e5e7eb;
           }
           
           .info-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 10px;
           }
           
           .info-card {
             background: #fef2f2;
             border: 1px solid #fecaca;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 11px;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 10px;
           }
           
           .info-label {
@@ -1106,9 +1113,9 @@ const ObraDetallePage = () => {
           .table-container {
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
+            border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
           }
           
           .table {
@@ -1118,21 +1125,21 @@ const ObraDetallePage = () => {
           }
           
           .table th {
-            background: #f8fafc;
-            color: #374151;
-            font-size: 10px;
+            background: black;
+            color: white;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            padding: 8px 6px;
+            padding: 6px 4px;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
           }
           
           .table td {
-            padding: 6px;
+            padding: 4px;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 11px;
+            font-size: 10px;
             color: #4b5563;
           }
           
@@ -1143,47 +1150,47 @@ const ObraDetallePage = () => {
           .totals-section {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 12px;
-            margin-top: 12px;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 8px;
           }
           
           .totals-content {
             display: flex;
-            gap: 16px;
+            gap: 12px;
           }
           
           .description-field {
-            flex: 1;
+            flex: 0 0 350px;
           }
           
           .description-field textarea {
             width: 100%;
-            height: 80px;
+            height: 70px;
             border: 1px solid #d1d5db;
             border-radius: 4px;
-            padding: 6px;
-            font-size: 11px;
+            padding: 5px;
+            font-size: 10px;
             font-family: inherit;
             resize: none;
             background: white;
           }
           
           .totals-right {
-            flex: 0 0 200px;
+            flex: 0 0 180px;
           }
           
           .total-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
-            font-size: 11px;
+            margin-bottom: 4px;
+            font-size: 10px;
           }
           
           .total-row:last-child {
             margin-bottom: 0;
-            padding-top: 8px;
+            padding-top: 6px;
             border-top: 1px solid #e2e8f0;
             font-weight: 600;
           }
@@ -1199,7 +1206,7 @@ const ObraDetallePage = () => {
           }
           
           .grand-total {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
             color: #dc2626;
           }
@@ -1615,28 +1622,21 @@ const ObraDetallePage = () => {
         </div>
         ` : ''}
 
-        <div class="section">
-          <div class="section-title">Documentación</div>
-          ${docLinks && docLinks.length > 0 ? `
-          <div class="info-grid">
-            ${docLinks.map((link) => `
-            <div class="info-card">
-              <div class="info-label">Enlace</div>
-              <div class="info-value">
-                <a href="${link}" target="_blank" style="color: #3b82f6; text-decoration: none;">${link}</a>
-              </div>
-            </div>
-            `).join('')}
-          </div>
-          ` : '<div class="info-card"><div class="info-label">Estado</div><div class="info-value">Sin documentación</div></div>'}
-        </div>
-
         <!-- Totales finales con campo de descripción general -->
         <div class="totals-section">
           <div class="totals-content">
             <div class="description-field">
               <div class="info-label" style="margin-bottom: 4px;">Descripción General</div>
-              <textarea placeholder="Observaciones generales, condiciones especiales, notas adicionales..." class="description-placeholder"></textarea>
+              ${descripcionGeneral ? `
+                <div class="description-content" style="width: 100%; height: 80px; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; font-size: 11px; font-family: inherit; background: white; overflow-y: auto; white-space: pre-wrap;">${descripcionGeneral}</div>
+              ` : `
+                <textarea 
+                  placeholder="Observaciones generales, condiciones especiales, notas adicionales..." 
+                  class="description-placeholder"
+                  value="${descripcionGeneral || ""}"
+                  onchange="window.descripcionGeneral = this.value"
+                ></textarea>
+              `}
             </div>
             <div class="totals-right">
               ${obra?.tipo === "obra" ? `
@@ -1913,6 +1913,21 @@ const ObraDetallePage = () => {
                 </div>
               </>
             ) : null}
+
+            {/* Campo de descripción general */}
+            <div>
+              <p className="text-sm text-gray-500">Descripción General</p>
+              {editando ? (
+                <textarea
+                  value={descripcionGeneral}
+                  onChange={(e) => setDescripcionGeneral(e.target.value)}
+                  placeholder="Observaciones generales, condiciones especiales, notas adicionales..."
+                  className="w-full h-24 p-3 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              ) : (
+                <p className="font-medium whitespace-pre-wrap">{obra.descripcionGeneral || "-"}</p>
+              )}
+            </div>
 
             {presupuesto && !editando && (
               <div>
@@ -2694,7 +2709,14 @@ const ObraDetallePage = () => {
               Productos del Presupuesto ({(obra.productos || []).length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Descripción general del presupuesto */}
+            {obra.descripcionGeneral && (
+              <div>
+                <p className="text-sm text-gray-500">Descripción General</p>
+                <p className="font-medium whitespace-pre-wrap">{obra.descripcionGeneral}</p>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -2745,6 +2767,17 @@ const ObraDetallePage = () => {
             <CardTitle className="flex items-center gap-2"><Filter className="w-5 h-5" /> Editar productos del Presupuesto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Campo de descripción general para presupuestos */}
+            <div>
+              <p className="text-sm text-gray-500">Descripción General</p>
+              <textarea
+                value={descripcionGeneral}
+                onChange={(e) => setDescripcionGeneral(e.target.value)}
+                placeholder="Observaciones generales, condiciones especiales, notas adicionales..."
+                className="w-full h-24 p-3 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
             <div className="flex justify-end">
               <Button variant="outline" onClick={agregarProductoObraManual}>Agregar ítem manual</Button>
             </div>
