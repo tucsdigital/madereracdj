@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,7 @@ const PresupuestoPage = () => {
     productosPorCategoria,
     categorias,
     cargarCatalogoProductos,
+    catalogoCargado,
     setEditando,
     setCategoriaObraId,
     setBusquedaProductoObra,
@@ -70,6 +71,13 @@ const PresupuestoPage = () => {
     guardarEdicion,
     convertirPresupuestoToObra,
   } = useObra(id);
+
+  // Cargar catálogo de productos cuando se monta el componente
+  useEffect(() => {
+    if (!catalogoCargado && !loading) {
+      cargarCatalogoProductos();
+    }
+  }, [catalogoCargado, loading, cargarCatalogoProductos]);
 
   const handlePrint = () => {
     setOpenPrint(true);
@@ -140,10 +148,17 @@ const PresupuestoPage = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setDatosConversion(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setDatosConversion(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Si cambia la categoría, limpiar el producto seleccionado
+      if (field === "categoriaMaterial") {
+        newData.productoSeleccionado = "";
+        newData.cantidadMaterial = "";
+      }
+      
+      return newData;
+    });
   };
 
   if (loading) {
@@ -537,9 +552,24 @@ const PresupuestoPage = () => {
                   </div>
                 </div>
                 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Agregar materiales adicionales del catálogo</h4>
-                  <div className="space-y-3">
+                                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Agregar materiales adicionales del catálogo</h4>
+                    
+                    {/* Indicador de estado del catálogo */}
+                    <div className="mb-3 p-2 rounded text-sm">
+                      {!catalogoCargado ? (
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          Cargando catálogo de productos...
+                        </div>
+                      ) : (
+                        <div className="text-green-600">
+                          ✓ Catálogo cargado: {categorias?.length || 0} categorías, {productosCatalogo?.length || 0} productos
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -553,11 +583,17 @@ const PresupuestoPage = () => {
                             <SelectValue placeholder="Seleccionar categoría" />
                           </SelectTrigger>
                           <SelectContent>
-                            {categorias?.map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
+                            {categorias && categorias.length > 0 ? (
+                              categorias.map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {cat}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="" disabled>
+                                {!catalogoCargado ? "Cargando..." : "No hay categorías disponibles"}
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -574,11 +610,20 @@ const PresupuestoPage = () => {
                             <SelectValue placeholder="Seleccionar producto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {datosConversion.categoriaMaterial && productosPorCategoria[datosConversion.categoriaMaterial]?.map((prod) => (
-                              <SelectItem key={prod.id} value={prod.id}>
-                                {prod.nombre}
+                            {datosConversion.categoriaMaterial && productosPorCategoria[datosConversion.categoriaMaterial] ? (
+                              productosPorCategoria[datosConversion.categoriaMaterial].map((prod) => (
+                                <SelectItem key={prod.id} value={prod.id}>
+                                  {prod.nombre} - ${prod.valorVenta || prod.precio || 0}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="" disabled>
+                                {!datosConversion.categoriaMaterial 
+                                  ? "Seleccione una categoría primero" 
+                                  : "No hay productos en esta categoría"
+                                }
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -602,14 +647,15 @@ const PresupuestoPage = () => {
                       onClick={() => {
                         if (datosConversion.productoSeleccionado && datosConversion.cantidadMaterial) {
                           const producto = productosCatalogo.find(p => p.id === datosConversion.productoSeleccionado);
+                          console.log("Producto encontrado:", producto);
                           if (producto) {
                             const nuevoMaterial = {
                               id: producto.id,
                               nombre: producto.nombre,
                               categoria: producto.categoria,
-                              precio: producto.precio,
+                              precio: producto.valorVenta || producto.precio || 0,
                               cantidad: parseInt(datosConversion.cantidadMaterial),
-                              unidad: producto.unidad || "unidad"
+                              unidad: producto.unidad || producto.unidadMedida || "unidad"
                             };
                             setDatosConversion(prev => ({
                               ...prev,

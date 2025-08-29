@@ -238,19 +238,33 @@ export const useObra = (id) => {
     if (catalogoCargado) return;
     
     try {
+      console.log("Cargando catálogo de productos...");
       const snap = await getDocs(collection(db, "productos"));
       const prods = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      console.log("Productos cargados:", prods.length);
+      
       setProductosCatalogo(prods);
+      
+      // Agrupar por categoría
       const agrup = {};
       prods.forEach((p) => {
         const cat = p.categoria || "Sin categoría";
-        (agrup[cat] = agrup[cat] || []).push(p);
+        if (!agrup[cat]) agrup[cat] = [];
+        agrup[cat].push(p);
       });
+      
       setProductosPorCategoria(agrup);
       setCategorias(Object.keys(agrup));
       setCatalogoCargado(true);
+      
+      console.log("Catálogo cargado exitosamente:", {
+        totalProductos: prods.length,
+        categorias: Object.keys(agrup),
+        productosPorCategoria: agrup
+      });
     } catch (error) {
       console.error("Error al cargar catálogo de productos:", error);
+      setCatalogoCargado(false);
     }
   };
 
