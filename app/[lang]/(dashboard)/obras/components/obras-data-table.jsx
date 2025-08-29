@@ -64,11 +64,19 @@ export function ObrasDataTable({ columns, data }) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  // Función específica para obras-proyectos que siempre redirige a /obras/[id]
+  // Función específica para obras-proyectos que redirige según el tipo
   const handleRowClick = (row) => {
     const id = row.original?.id;
+    const tipo = row.original?.tipo;
+    
     if (id) {
-      router.push(`/${lang}/obras/${id}`);
+      if (tipo === "presupuesto") {
+        // Para presupuestos, ir a la ruta de presupuesto
+        router.push(`/${lang}/obras/presupuesto/${id}`);
+      } else {
+        // Para obras, ir a la ruta de obra
+        router.push(`/${lang}/obras/${id}`);
+      }
     }
   };
 
@@ -101,6 +109,7 @@ export function ObrasDataTable({ columns, data }) {
                   data-state={row.getIsSelected() && "selected"}
                   className="border-b border-default-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 bg-card transition-colors"
                   onClick={() => handleRowClick(row)}
+                  title={`Haz clic para ver ${row.original?.tipo === "presupuesto" ? "presupuesto" : "obra"}: ${row.original?.numeroPedido || "Sin número"}`}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell

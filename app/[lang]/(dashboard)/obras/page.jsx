@@ -34,10 +34,26 @@ const ObrasPage = () => {
   const obrasColumns = [
     {
       accessorKey: "numeroPedido",
-      header: "N° Obra",
+      header: "N° Obra/Presupuesto",
       cell: ({ row }) => {
         const numero = row.getValue("numeroPedido");
-        return <div className="font-medium text-primary cursor-pointer hover:underline">{numero || "Sin número"}</div>;
+        const tipo = row.original.tipo;
+        const esPresupuesto = tipo === "presupuesto";
+        
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`font-medium cursor-pointer hover:underline ${
+              esPresupuesto ? "text-purple-600" : "text-blue-600"
+            }`}>
+              {numero || "Sin número"}
+            </div>
+            {esPresupuesto && (
+              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                PO
+              </Badge>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -54,13 +70,51 @@ const ObrasPage = () => {
       },
     },
     {
-      accessorKey: "fechaListado",
-      header: "Fecha",
+      accessorKey: "fechaCreacion",
+      header: ({ column }) => (
+        <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => column.toggleSorting()}>
+          <span>Fecha y Hora</span>
+          <div className="flex flex-col">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 14l5-5 5 5z"/>
+            </svg>
+            <svg className="w-3 h-3 -mt-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+          </div>
+        </div>
+      ),
+      enableSorting: true,
       cell: ({ row }) => {
-        const fecha = row.getValue("fechaListado");
-        if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
-        const fechaObra = new Date(fecha);
-        return <div className="text-gray-600">{fechaObra.toLocaleDateString("es-AR")}</div>;
+        const fechaCreacion = row.getValue("fechaCreacion");
+        if (!fechaCreacion) return <span className="text-gray-400">Sin fecha</span>;
+        
+        try {
+          // Convertir a fecha y formatear en zona horaria argentina (GMT-3)
+          const fecha = new Date(fechaCreacion);
+          const fechaArgentina = new Date(fecha.getTime() - (3 * 60 * 60 * 1000)); // Ajustar a GMT-3
+          
+          return (
+            <div className="text-gray-600">
+              <div className="font-medium">
+                {fechaArgentina.toLocaleDateString("es-AR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric"
+                })}
+              </div>
+              <div className="text-xs text-gray-500">
+                {fechaArgentina.toLocaleTimeString("es-AR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false
+                })} hs
+              </div>
+            </div>
+          );
+        } catch (error) {
+          return <span className="text-gray-400">Fecha inválida</span>;
+        }
       },
     },
     {
@@ -145,15 +199,15 @@ const ObrasPage = () => {
                 } catch (_) {}
               }
             }
-            // Fecha de la columna: siempre fecha de creación
-            const fechaListado = o.fechaCreacion || "";
+            // Fecha de la columna: usar fechaCreacion para ordenamiento y visualización
+            const fechaCreacion = o.fechaCreacion || "";
 
             const cobr = o.cobranzas || {};
             const abonado = (Number(cobr.senia) || 0) + (Number(cobr.monto) || 0) + ((cobr.historialPagos || []).reduce((a, p) => a + (Number(p.monto) || 0), 0));
             const estadoPago = abonado >= presupuestoTotal && presupuestoTotal > 0 ? "pagado" : "pendiente";
             // estadoUI: para presupuestos siempre "activo"; para obras conservar su estado
             const estadoUI = o.tipo === "presupuesto" ? "activo" : (o.estado || "");
-            return { ...o, presupuestoTotal, estadoPago, fechaListado, estadoUI };
+            return { ...o, presupuestoTotal, estadoPago, fechaCreacion, estadoUI };
           })
         );
         setObrasData(enriched);

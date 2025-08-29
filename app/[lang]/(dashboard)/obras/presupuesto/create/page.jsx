@@ -13,18 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogD
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
 
-// Genera un número incremental tipo OBRA-00001 (solo para presupuestos de obra)
+// Genera un número incremental tipo PO-0001 (solo para presupuestos de obra)
 async function getNextObraNumber() {
   const snap = await getDocs(collection(db, "obras"));
   let maxNum = 0;
   snap.docs.forEach((docSnap) => {
     const data = docSnap.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("OBRA-")) {
-      const num = parseInt(String(data.numeroPedido).replace("OBRA-", ""), 10);
+    if (data.numeroPedido && data.numeroPedido.startsWith("PO-")) {
+      const num = parseInt(String(data.numeroPedido).replace("PO-", ""), 10);
       if (!Number.isNaN(num) && num > maxNum) maxNum = num;
     }
   });
-  return `OBRA-${String(maxNum + 1).padStart(5, "0")}`;
+  return `PO-${String(maxNum + 1).padStart(4, "0")}`;
 }
 
 // Formateo regional simple
