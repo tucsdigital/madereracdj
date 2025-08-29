@@ -250,7 +250,7 @@ const PresupuestoDetalle = ({
                         <tr className="border-b">
                           <td className="p-2">
                             <div className="font-medium">
-                              {p._esManual ? (
+                              {editando && p._esManual ? (
                                 <Input
                                   value={p.nombre}
                                   onChange={(e) => actualizarCampoObra(p.id, "nombre", e.target.value)}
@@ -264,7 +264,7 @@ const PresupuestoDetalle = ({
                           </td>
                           
                           <td className="p-2 text-center">
-                            {p._esManual ? (
+                            {editando && p._esManual ? (
                               <Select
                                 value={u}
                                 onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}
@@ -285,14 +285,18 @@ const PresupuestoDetalle = ({
                           
                           <td className="p-2 text-center">
                             {requiereAlto ? (
-                              <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={p.alto}
-                                onChange={(e) => actualizarCampoObra(p.id, "alto", e.target.value)}
-                                className="w-24 mx-auto"
-                              />
+                              editando ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  value={p.alto}
+                                  onChange={(e) => actualizarCampoObra(p.id, "alto", e.target.value)}
+                                  className="w-24 mx-auto"
+                                />
+                              ) : (
+                                <span className="font-medium">{p.alto}</span>
+                              )
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
@@ -300,21 +304,25 @@ const PresupuestoDetalle = ({
                           
                           <td className="p-2 text-center">
                             {requiereLargo ? (
-                              <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={p.largo}
-                                onChange={(e) => actualizarCampoObra(p.id, "largo", e.target.value)}
-                                className="w-24 mx-auto"
-                              />
+                              editando ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  value={p.largo}
+                                  onChange={(e) => actualizarCampoObra(p.id, "largo", e.target.value)}
+                                  className="w-24 mx-auto"
+                                />
+                              ) : (
+                                <span className="font-medium">{p.largo}</span>
+                              )
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
                           
                           <td className="p-2 text-right">
-                            {p._esManual ? (
+                            {editando && p._esManual ? (
                               <div className="relative w-28 ml-auto">
                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
                                 <Input
@@ -332,14 +340,18 @@ const PresupuestoDetalle = ({
                           </td>
                           
                           <td className="p-2 text-center">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={p.descuento}
-                              onChange={(e) => actualizarCampoObra(p.id, "descuento", e.target.value)}
-                              className="w-20 mx-auto"
-                            />
+                            {editando ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={p.descuento}
+                                onChange={(e) => actualizarCampoObra(p.id, "descuento", e.target.value)}
+                                className="w-20 mx-auto"
+                              />
+                            ) : (
+                              <span className="font-medium">{p.descuento}%</span>
+                            )}
                           </td>
                           
                           <td className="p-2 text-right font-semibold">

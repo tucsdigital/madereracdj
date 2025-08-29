@@ -16,8 +16,6 @@ import { formatearNumeroArgentino, formatearFecha, generarContenidoImpresion } f
 import ObraHeader from "@/components/obras/ObraHeader";
 import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
-import ObraCobranza from "@/components/obras/ObraCobranza";
-import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 
@@ -31,8 +29,6 @@ const PresupuestoPage = () => {
     loading,
     error,
     editando,
-    docLinks,
-    movimientos,
     itemsPresupuesto,
     productosObraCatalogo,
     productosObraPorCategoria,
@@ -41,8 +37,6 @@ const PresupuestoPage = () => {
     busquedaProductoObra,
     descripcionGeneral,
     setEditando,
-    setDocLinks,
-    setMovimientos,
     setCategoriaObraId,
     setBusquedaProductoObra,
     setItemsPresupuesto,
@@ -125,19 +119,6 @@ const PresupuestoPage = () => {
             formatearNumeroArgentino={formatearNumeroArgentino}
             descripcionGeneral={descripcionGeneral}
             onDescripcionGeneralChange={setDescripcionGeneral}
-          />
-
-          <ObraCobranza
-            movimientos={movimientos}
-            onMovimientosChange={setMovimientos}
-            editando={editando}
-            formatearNumeroArgentino={formatearNumeroArgentino}
-          />
-
-          <ObraDocumentacion
-            docLinks={docLinks}
-            onDocLinksChange={setDocLinks}
-            editando={editando}
           />
         </div>
 
@@ -237,7 +218,7 @@ const PresupuestoPage = () => {
               obra={obra}
               presupuesto={null}
               modoCosto="presupuesto"
-              movimientos={movimientos}
+              movimientos={[]}
               variant="default"
               size="sm"
             />

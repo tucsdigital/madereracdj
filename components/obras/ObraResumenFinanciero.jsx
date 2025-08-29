@@ -38,34 +38,35 @@ const ObraResumenFinanciero = ({
   const total = calcularTotal();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon icon="heroicons:currency-dollar" className="w-5 h-5" />
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-50 to-white">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-700">
+          <Icon icon="heroicons:currency-dollar" className="w-4 h-4 text-emerald-600" />
           Resumen Financiero
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-1">Total</p>
-            <p className="text-2xl font-bold text-green-600">
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Total Principal */}
+          <div className="text-center p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
+            <p className="text-xs text-emerald-700 mb-1 font-medium">Total</p>
+            <p className="text-xl font-bold text-emerald-800">
               {formatearNumeroArgentino(total)}
             </p>
           </div>
           
           {obra.tipo === "presupuesto" && (
             <>
-              <div className="text-center">
-                <p className="text-sm text-gray-500 mb-1">Subtotal</p>
-                <p className="text-lg font-semibold">
+              <div className="text-center p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-xs text-slate-600 mb-1 font-medium">Subtotal</p>
+                <p className="text-sm font-semibold text-slate-800">
                   {formatearNumeroArgentino(obra.subtotal || 0)}
                 </p>
               </div>
               
-              <div className="text-center">
-                <p className="text-sm text-gray-500 mb-1">Descuento</p>
-                <p className="text-lg font-semibold text-red-600">
+              <div className="text-center p-3 bg-red-50 rounded-xl border border-red-200">
+                <p className="text-xs text-red-700 mb-1 font-medium">Descuento</p>
+                <p className="text-sm font-semibold text-red-800">
                   {formatearNumeroArgentino(obra.descuentoTotal || 0)}
                 </p>
               </div>
@@ -74,16 +75,19 @@ const ObraResumenFinanciero = ({
           
           {obra.tipo === "obra" && (
             <>
-              <div className="text-center">
-                <p className="text-sm text-gray-500 mb-1">Modo de Cálculo</p>
-                <Badge variant={modoCosto === "presupuesto" ? "default" : "secondary"}>
+              <div className="text-center p-3 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-xs text-blue-700 mb-1 font-medium">Modo de Cálculo</p>
+                <Badge 
+                  variant={modoCosto === "presupuesto" ? "default" : "secondary"}
+                  className="text-xs px-2 py-1 h-6"
+                >
                   {modoCosto === "presupuesto" ? "Presupuesto" : "Gasto Real"}
                 </Badge>
               </div>
               
-              <div className="text-center">
-                <p className="text-sm text-gray-500 mb-1">Gasto Manual</p>
-                <p className="text-lg font-semibold">
+              <div className="text-center p-3 bg-amber-50 rounded-xl border border-amber-200">
+                <p className="text-xs text-amber-700 mb-1 font-medium">Gasto Manual</p>
+                <p className="text-sm font-semibold text-amber-800">
                   {formatearNumeroArgentino(obra.gastoObraManual || 0)}
                 </p>
               </div>
@@ -92,9 +96,9 @@ const ObraResumenFinanciero = ({
         </div>
         
         {obra.tipo === "obra" && presupuesto && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Presupuesto Inicial:</strong> {presupuesto.numeroPedido} - 
+          <div className="mt-3 p-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <p className="text-xs text-blue-800 font-medium">
+              <span className="font-semibold">Presupuesto Inicial:</span> {presupuesto.numeroPedido} - 
               {formatearNumeroArgentino(presupuesto.total || 0)}
             </p>
           </div>
