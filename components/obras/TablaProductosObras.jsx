@@ -24,18 +24,53 @@ const TablaProductosObras = ({
     return null;
   }
 
-  // Calcular totales
+  // Funciones de cálculo de precios para maderas (idénticas a /obras/presupuesto/page.jsx)
+  const calcularPrecioCorteMadera = ({
+    alto,
+    ancho,
+    largo,
+    precioPorPie,
+    factor = 0.2734,
+  }) => {
+    if (
+      [alto, ancho, largo, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    const precio = factor * alto * ancho * largo * precioPorPie;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  };
+
+  const calcularPrecioMachimbre = ({ alto, largo, cantidad, precioPorPie }) => {
+    if (
+      [alto, largo, cantidad, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+    const metrosCuadrados = alto * largo;
+    const precio = metrosCuadrados * precioPorPie * cantidad;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  };
+
+  // Calcular totales usando la misma lógica que /obras/presupuesto/page.jsx
   const subtotal = items.reduce((acc, p) => {
-    const precio = Number(p.valorVenta || p.precio || 0);
-    const cantidad = Number(p.cantidad || 1);
-    return acc + (precio * cantidad);
+    const precio = Number(p.precio || 0);
+    return acc + precio;
   }, 0);
+  
   const descuentoTotal = items.reduce((acc, p) => {
-    const precio = Number(p.valorVenta || p.precio || 0);
-    const cantidad = Number(p.cantidad || 1);
+    const precio = Number(p.precio || 0);
     const descuento = Number(p.descuento || 0);
-    return acc + (precio * cantidad * descuento / 100);
+    return acc + (precio * descuento / 100);
   }, 0);
+  
   const total = subtotal - descuentoTotal;
 
   return (
@@ -56,7 +91,6 @@ const TablaProductosObras = ({
                 <th className="p-2 text-right">
                   <div className="flex flex-col items-end">
                     <span>Valor Unit.</span>
-                    <span className="text-xs text-gray-500 font-normal">(Editable)</span>
                   </div>
                 </th>
                 <th className="p-2 text-center">Desc. %</th>
@@ -66,13 +100,56 @@ const TablaProductosObras = ({
             </thead>
             <tbody>
               {items.map((p) => {
-                const precio = Number(p.valorVenta || p.precio || 0);
-                const cantidad = Number(p.cantidad || 1);
+                // Calcular subtotal del producto usando la misma lógica que /obras/presupuesto/page.jsx
+                let precioProducto = Number(p.precio || 0);
+                
+                // Si es madera y tiene dimensiones, recalcular el precio
+                if (p.categoria?.toLowerCase() === "maderas" && p.precioPorPie) {
+                  const alto = Number(p.alto) || 0;
+                  const ancho = Number(p.ancho) || 0;
+                  const largo = Number(p.largo) || 0;
+                  const precioPorPie = Number(p.precioPorPie) || 0;
+                  const cantidad = Number(p.cantidad) || 1;
+
+                  if (p.unidadMedida === "M2" || p.unidad === "M2") {
+                    if (alto > 0 && largo > 0 && precioPorPie > 0) {
+                      precioProducto = calcularPrecioMachimbre({
+                        alto,
+                        largo,
+                        cantidad,
+                        precioPorPie,
+                      });
+                    }
+                  } else if (p.unidadMedida === "ML" || p.unidad === "ML") {
+                    if (largo > 0 && precioPorPie > 0) {
+                      precioProducto = largo * precioPorPie * cantidad;
+                      precioProducto = Math.round(precioProducto / 100) * 100;
+                    }
+                  } else if (p.unidadMedida === "Unidad" || p.unidad === "Unidad") {
+                    if (precioPorPie > 0) {
+                      precioProducto = Math.round(precioPorPie / 100) * 100;
+                    }
+                  } else {
+                    // Para madera cortada (alto × ancho × largo)
+                    if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                      precioProducto = calcularPrecioCorteMadera({
+                        alto,
+                        ancho,
+                        largo,
+                        precioPorPie,
+                      });
+                    }
+                  }
+                }
+
+                // Calcular subtotal con descuento
                 const descuento = Number(p.descuento || 0);
-                const sub = precio * cantidad * (1 - descuento / 100);
-                const u = String(p.unidadMedida || "UN").toUpperCase();
+                const sub = precioProducto * (1 - descuento / 100);
+                
+                const u = String(p.unidadMedida || p.unidad || "UN").toUpperCase();
                 const requiereAlto = u === "M2"; // Para m2 pedimos alto y largo. Para ml solo largo.
                 const requiereLargo = u === "M2" || u === "ML";
+                
                 return (
                   <React.Fragment key={p.id}>
                     <tr className="border-b">
@@ -171,14 +248,9 @@ const TablaProductosObras = ({
                           </div>
                         ) : (
                           <div className="text-right">
-                            <span className="text-sm font-semibold">${formatearNumeroArgentino ? formatearNumeroArgentino(p.valorVenta) : p.valorVenta.toLocaleString("es-AR")}</span>
+                            <span className="text-sm font-semibold">{formatearNumeroArgentino ? formatearNumeroArgentino(p.valorVenta) : p.valorVenta.toLocaleString("es-AR")}</span>
                           </div>
                         )}
-                        <div className="text-xs text-gray-500 mt-1 text-center">
-                          {p.unidadMedida === "M2" && `(${p.alto || 0} × ${p.largo || 0} × ${p.cantidad || 1})`}
-                          {p.unidadMedida === "ML" && `(${p.largo || 0} × ${p.cantidad || 1})`}
-                          {p.unidadMedida === "UN" && `(${p.cantidad || 1})`}
-                        </div>
                       </td>
                       <td className="p-2 text-center">
                         {editando ? (
