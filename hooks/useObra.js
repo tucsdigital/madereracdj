@@ -370,11 +370,12 @@ export const useObra = (id) => {
     try {
       const numeroPedido = await getNextObraNumber();
       
-      // Combinar productos del presupuesto con materiales adicionales
-      const productosCombinados = [
-        ...(itemsPresupuesto || []),
-        ...(datosConversion.materialesAdicionales || [])
-      ];
+      // Separar productos del presupuesto de materiales adicionales
+      const productosPresupuesto = itemsPresupuesto || [];
+      const materialesAdicionales = datosConversion.materialesAdicionales || [];
+      
+      // Combinar para cálculos de totales
+      const productosCombinados = [...productosPresupuesto, ...materialesAdicionales];
       
       // Calcular totales combinados
       const subtotalCombinado = productosCombinados.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
@@ -391,7 +392,10 @@ export const useObra = (id) => {
         fecha: new Date().toISOString().split("T")[0],
         clienteId: obra.clienteId || obra.cliente?.id || null,
         cliente: obra.cliente || null,
-        productos: productosCombinados,
+        // PRODUCTOS: Solo productos del presupuesto original (productos de obra)
+        productos: productosPresupuesto,
+        // MATERIALES: Solo materiales adicionales seleccionados (productos normales)
+        materialesCatalogo: materialesAdicionales,
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
         total: totalCombinado,
@@ -433,7 +437,6 @@ export const useObra = (id) => {
         
         // Campos adicionales obligatorios
         gastoObraManual: 0,
-        materialesCatalogo: productosCombinados, // Incluir todos los materiales (presupuesto + adicionales)
         montoEstimado: null,
         productosDescuento: 0,
         productosDescuentoTotal: 0,
