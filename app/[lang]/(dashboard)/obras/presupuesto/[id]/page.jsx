@@ -4,15 +4,50 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Icon } from "@iconify/react";
-import { Printer, Edit, Save, X, Building, MapPin, User, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Printer,
+  Edit,
+  Save,
+  X,
+  Building,
+  MapPin,
+  User,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { useObra } from "@/hooks/useObra";
-import { formatearNumeroArgentino, formatearFecha, generarContenidoImpresion } from "@/lib/obra-utils";
+import {
+  formatearNumeroArgentino,
+  formatearFecha,
+  generarContenidoImpresion,
+} from "@/lib/obra-utils";
 import ObraHeader from "@/components/obras/ObraHeader";
 import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
@@ -46,13 +81,16 @@ const PresupuestoPage = () => {
     productoSeleccionado: "",
     cantidadMaterial: "",
     busquedaProducto: "",
-    materialesAdicionales: []
+    materialesAdicionales: [],
   });
 
   // Búsqueda debounced para productos (como en create/page.jsx)
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   useEffect(() => {
-    const id = setTimeout(() => setBusquedaDebounced(datosConversion.busquedaProducto), 150);
+    const id = setTimeout(
+      () => setBusquedaDebounced(datosConversion.busquedaProducto),
+      150
+    );
     return () => clearTimeout(id);
   }, [datosConversion.busquedaProducto]);
 
@@ -62,10 +100,10 @@ const PresupuestoPage = () => {
   const [isPending, startTransition] = React.useTransition();
 
   // Resetear página cuando cambien los filtros
-  useEffect(() => { 
-    setPaginaActual(1); 
+  useEffect(() => {
+    setPaginaActual(1);
   }, [datosConversion.categoriaMaterial, busquedaDebounced]);
-  
+
   const router = useRouter();
   const { user } = useAuth();
 
@@ -127,17 +165,18 @@ const PresupuestoPage = () => {
     if (!showConvertForm) {
       // Cargar catálogo de productos normales si no está cargado
       await cargarCatalogoProductos();
-      
+
       // Pre-llenar datos del cliente si existen
       if (obra?.cliente) {
-        setDatosConversion(prev => ({
+        setDatosConversion((prev) => ({
           ...prev,
           direccion: obra.cliente.direccion || "",
           localidad: obra.cliente.localidad || "",
           provincia: obra.cliente.provincia || "",
-          descripcionGeneral: obra.descripcionGeneral || descripcionGeneral || "",
+          descripcionGeneral:
+            obra.descripcionGeneral || descripcionGeneral || "",
           ubicacionTipo: "cliente",
-          materialesAdicionales: []
+          materialesAdicionales: [],
         }));
       }
     }
@@ -148,32 +187,39 @@ const PresupuestoPage = () => {
     try {
       setConverting(true);
       setConvertMessage("");
-      
+
       // Validar campos requeridos
-      if (!datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable) {
+      if (
+        !datosConversion.tipoObra ||
+        !datosConversion.prioridad ||
+        !datosConversion.responsable
+      ) {
         throw new Error("Por favor complete todos los campos requeridos");
       }
 
       // Validar ubicación si se selecciona "nueva ubicación"
       if (datosConversion.ubicacionTipo === "nueva") {
-        if (!datosConversion.direccion || !datosConversion.localidad || !datosConversion.provincia) {
+        if (
+          !datosConversion.direccion ||
+          !datosConversion.localidad ||
+          !datosConversion.provincia
+        ) {
           throw new Error("Por favor complete todos los campos de ubicación");
         }
       }
 
       // Llamar a la función de conversión con los datos del formulario
       await convertirPresupuestoToObra(datosConversion, user);
-      
+
       setConvertMessage("✅ Presupuesto convertido a obra exitosamente");
       setShowConvertForm(false);
-      
+
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setConvertMessage(""), 3000);
-      
     } catch (error) {
       console.error("Error al convertir presupuesto a obra:", error);
       setConvertMessage(`❌ Error: ${error.message}`);
-      
+
       // Limpiar mensaje después de 5 segundos
       setTimeout(() => setConvertMessage(""), 5000);
     } finally {
@@ -182,25 +228,30 @@ const PresupuestoPage = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setDatosConversion(prev => {
+    setDatosConversion((prev) => {
       const newData = { ...prev, [field]: value };
-      
+
       // Si cambia la categoría, limpiar el producto seleccionado
       if (field === "categoriaMaterial") {
         newData.productoSeleccionado = "";
         newData.cantidadMaterial = "";
       }
-      
+
       return newData;
     });
   };
 
   // Funciones para manejar productos seleccionados usando los componentes reutilizables
   const handleAgregarProductoCatalogo = (producto) => {
-    console.log("Producto recibido en handleAgregarProductoCatalogo:", producto);
-    
+    console.log(
+      "Producto recibido en handleAgregarProductoCatalogo:",
+      producto
+    );
+
     // Verificar si ya está agregado
-    const yaAgregado = datosConversion.materialesAdicionales.some(p => p.id === producto.id);
+    const yaAgregado = datosConversion.materialesAdicionales.some(
+      (p) => p.id === producto.id
+    );
     if (yaAgregado) return;
 
     let productoParaAgregar = {
@@ -214,7 +265,7 @@ const PresupuestoPage = () => {
       precio: producto.precio,
       descuento: 0,
       cepilladoAplicado: false,
-      stock: producto.stock
+      stock: producto.stock,
     };
 
     // Si es madera, calcular precio según tipo
@@ -233,7 +284,7 @@ const PresupuestoPage = () => {
         }
       } else if (producto.unidadMedida === "M2") {
         if (alto > 0 && largo > 0 && precioPorPie > 0) {
-          const precioM2 = (alto * largo) * precioPorPie * 1;
+          const precioM2 = alto * largo * precioPorPie * 1;
           productoParaAgregar.precio = Math.round(precioM2 / 100) * 100;
         } else {
           productoParaAgregar.precio = 0;
@@ -253,32 +304,37 @@ const PresupuestoPage = () => {
         alto,
         ancho,
         largo,
-        precioPorPie
+        precioPorPie,
       };
     }
 
     console.log("Producto final a agregar:", productoParaAgregar);
-    
-    setDatosConversion(prev => ({
+
+    setDatosConversion((prev) => ({
       ...prev,
-      materialesAdicionales: [...prev.materialesAdicionales, productoParaAgregar]
+      materialesAdicionales: [
+        ...prev.materialesAdicionales,
+        productoParaAgregar,
+      ],
     }));
   };
 
   const handleQuitarProducto = (id) => {
-    setDatosConversion(prev => ({
+    setDatosConversion((prev) => ({
       ...prev,
-      materialesAdicionales: prev.materialesAdicionales.filter(p => p.id !== id)
+      materialesAdicionales: prev.materialesAdicionales.filter(
+        (p) => p.id !== id
+      ),
     }));
   };
 
   const handleActualizarCampo = (id, campo, valor) => {
-    setDatosConversion(prev => ({
+    setDatosConversion((prev) => ({
       ...prev,
-      materialesAdicionales: prev.materialesAdicionales.map(p => {
+      materialesAdicionales: prev.materialesAdicionales.map((p) => {
         if (p.id !== id) return p;
         return { ...p, [campo]: valor };
-      })
+      }),
     }));
   };
 
@@ -316,7 +372,9 @@ const PresupuestoPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-yellow-600 text-6xl mb-4">📋</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">No es un presupuesto</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            No es un presupuesto
+          </h1>
           <p className="text-gray-600">Esta página solo muestra presupuestos</p>
         </div>
       </div>
@@ -330,7 +388,9 @@ const PresupuestoPage = () => {
         editando={editando}
         onToggleEdit={handleToggleEdit}
         onPrint={handlePrint}
-        onConvertToObra={obra?.tipo === "presupuesto" ? handleToggleConvertForm : undefined}
+        onConvertToObra={
+          obra?.tipo === "presupuesto" ? handleToggleConvertForm : undefined
+        }
         converting={converting}
         showBackButton={true}
         backUrl={`/${lang}/obras`}
@@ -338,12 +398,14 @@ const PresupuestoPage = () => {
 
       {/* Mensaje de conversión */}
       {convertMessage && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
-          convertMessage.startsWith('✅') 
-            ? "bg-green-50 border-green-200 text-green-800" 
-            : "bg-red-50 border-red-200 text-red-800"
-        }`}>
-          {convertMessage.startsWith('✅') ? (
+        <div
+          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+            convertMessage.startsWith("✅")
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {convertMessage.startsWith("✅") ? (
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
               <Building className="w-5 h-5 text-green-600" />
             </div>
@@ -384,7 +446,7 @@ const PresupuestoPage = () => {
                   Convertir Presupuesto a Obra
                 </CardTitle>
               </CardHeader>
-              
+
               <CardContent className="p-6 space-y-6">
                 {/* Datos Generales */}
                 <div className="space-y-4">
@@ -398,7 +460,11 @@ const PresupuestoPage = () => {
                         Cliente
                       </label>
                       <Input
-                        value={obra?.cliente?.nombre || obra?.cliente?.razonSocial || "Cliente no especificado"}
+                        value={
+                          obra?.cliente?.nombre ||
+                          obra?.cliente?.razonSocial ||
+                          "Cliente no especificado"
+                        }
                         disabled
                         className="bg-gray-50"
                       />
@@ -409,18 +475,22 @@ const PresupuestoPage = () => {
                       </label>
                       <Select
                         value={datosConversion.tipoObra}
-                        onValueChange={(value) => handleInputChange("tipoObra", value)}
+                        onValueChange={(value) =>
+                          handleInputChange("tipoObra", value)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar tipo de obra" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mueble">Mueble</SelectItem>
-                          <SelectItem value="carpinteria">Carpintería</SelectItem>
-                          <SelectItem value="decoracion">Decoración</SelectItem>
-                          <SelectItem value="reparacion">Reparación</SelectItem>
-                          <SelectItem value="instalacion">Instalación</SelectItem>
-                          <SelectItem value="otro">Otro</SelectItem>
+                          <SelectItem value="Remodelación">
+                            Remodelación
+                          </SelectItem>
+                          <SelectItem value="Obra Nueva">Obra Nueva</SelectItem>
+                          <SelectItem value="Mantenimiento">
+                            Mantenimiento
+                          </SelectItem>
+                          <SelectItem value="Ampliación">Ampliación</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -430,16 +500,17 @@ const PresupuestoPage = () => {
                       </label>
                       <Select
                         value={datosConversion.prioridad}
-                        onValueChange={(value) => handleInputChange("prioridad", value)}
+                        onValueChange={(value) =>
+                          handleInputChange("prioridad", value)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar prioridad" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="baja">Baja</SelectItem>
-                          <SelectItem value="media">Media</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="urgente">Urgente</SelectItem>
+                          <SelectItem value="Alta">Alta</SelectItem>
+                          <SelectItem value="Media">Media</SelectItem>
+                          <SelectItem value="Baja">Baja</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -449,7 +520,9 @@ const PresupuestoPage = () => {
                       </label>
                       <Select
                         value={datosConversion.responsable}
-                        onValueChange={(value) => handleInputChange("responsable", value)}
+                        onValueChange={(value) =>
+                          handleInputChange("responsable", value)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar responsable" />
@@ -478,9 +551,13 @@ const PresupuestoPage = () => {
                           name="ubicacionTipo"
                           value="cliente"
                           checked={datosConversion.ubicacionTipo === "cliente"}
-                          onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("ubicacionTipo", e.target.value)
+                          }
                         />
-                        <span className="text-sm font-medium">Usar ubicación del cliente</span>
+                        <span className="text-sm font-medium">
+                          Usar ubicación del cliente
+                        </span>
                       </label>
                       <label className="flex items-center space-x-2">
                         <input
@@ -488,18 +565,25 @@ const PresupuestoPage = () => {
                           name="ubicacionTipo"
                           value="nueva"
                           checked={datosConversion.ubicacionTipo === "nueva"}
-                          onChange={(e) => handleInputChange("ubicacionTipo", e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("ubicacionTipo", e.target.value)
+                          }
                         />
-                        <span className="text-sm font-medium">Especificar nueva ubicación</span>
+                        <span className="text-sm font-medium">
+                          Especificar nueva ubicación
+                        </span>
                       </label>
                     </div>
-                    
+
                     {datosConversion.ubicacionTipo === "cliente" ? (
                       <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-800">
-                          <strong>Ubicación del cliente:</strong><br />
-                          {obra?.cliente?.direccion || "Sin dirección"}<br />
-                          {obra?.cliente?.localidad || "Sin localidad"}<br />
+                          <strong>Ubicación del cliente:</strong>
+                          <br />
+                          {obra?.cliente?.direccion || "Sin dirección"}
+                          <br />
+                          {obra?.cliente?.localidad || "Sin localidad"}
+                          <br />
                           {obra?.cliente?.provincia || "Sin provincia"}
                         </p>
                       </div>
@@ -511,7 +595,9 @@ const PresupuestoPage = () => {
                           </label>
                           <Input
                             value={datosConversion.direccion}
-                            onChange={(e) => handleInputChange("direccion", e.target.value)}
+                            onChange={(e) =>
+                              handleInputChange("direccion", e.target.value)
+                            }
                             placeholder="Dirección de la obra"
                           />
                         </div>
@@ -521,7 +607,9 @@ const PresupuestoPage = () => {
                           </label>
                           <Input
                             value={datosConversion.localidad}
-                            onChange={(e) => handleInputChange("localidad", e.target.value)}
+                            onChange={(e) =>
+                              handleInputChange("localidad", e.target.value)
+                            }
                             placeholder="Localidad"
                           />
                         </div>
@@ -531,7 +619,9 @@ const PresupuestoPage = () => {
                           </label>
                           <Input
                             value={datosConversion.provincia}
-                            onChange={(e) => handleInputChange("provincia", e.target.value)}
+                            onChange={(e) =>
+                              handleInputChange("provincia", e.target.value)
+                            }
                             placeholder="Provincia"
                           />
                         </div>
@@ -546,14 +636,16 @@ const PresupuestoPage = () => {
                     <Icon icon="heroicons:cube" className="w-5 h-5" />
                     Materiales a Utilizar
                   </h3>
-                  
+
                   {/* Catálogo de productos usando CatalogoVentas */}
                   <CatalogoVentas
                     titulo="Catálogo de Productos"
                     productos={productosCatalogo || []}
                     productosPorCategoria={productosPorCategoria || {}}
                     categorias={categorias || []}
-                    itemsSeleccionados={datosConversion.materialesAdicionales || []}
+                    itemsSeleccionados={
+                      datosConversion.materialesAdicionales || []
+                    }
                     onAgregarProducto={handleAgregarProductoCatalogo}
                     onAgregarProductoManual={() => {}} // No implementado en conversión
                     editando={true}
@@ -565,19 +657,20 @@ const PresupuestoPage = () => {
                   />
 
                   {/* Tabla de productos seleccionados usando TablaProductosVentas */}
-                  {datosConversion.materialesAdicionales && datosConversion.materialesAdicionales.length > 0 && (
-                    <TablaProductosVentas
-                      titulo="Productos Seleccionados para la Obra"
-                      items={datosConversion.materialesAdicionales}
-                      editando={true}
-                      onQuitarProducto={handleQuitarProducto}
-                      onActualizarCampo={handleActualizarCampo}
-                      onActualizarNombreManual={() => {}} // No implementado en conversión
-                      formatearNumeroArgentino={formatearNumeroArgentino}
-                      showTotals={true}
-                      showDescripcionGeneral={false}
-                    />
-                  )}
+                  {datosConversion.materialesAdicionales &&
+                    datosConversion.materialesAdicionales.length > 0 && (
+                      <TablaProductosVentas
+                        titulo="Productos Seleccionados para la Obra"
+                        items={datosConversion.materialesAdicionales}
+                        editando={true}
+                        onQuitarProducto={handleQuitarProducto}
+                        onActualizarCampo={handleActualizarCampo}
+                        onActualizarNombreManual={() => {}} // No implementado en conversión
+                        formatearNumeroArgentino={formatearNumeroArgentino}
+                        showTotals={true}
+                        showDescripcionGeneral={false}
+                      />
+                    )}
                 </div>
 
                 {/* Descripción General */}
@@ -592,29 +685,37 @@ const PresupuestoPage = () => {
                     </label>
                     <textarea
                       value={datosConversion.descripcionGeneral}
-                      onChange={(e) => handleInputChange("descripcionGeneral", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("descripcionGeneral", e.target.value)
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                       rows={4}
                       placeholder="Describa en detalle los trabajos a realizar, especificaciones técnicas, materiales especiales, cronograma, etc..."
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Esta descripción será utilizada para el seguimiento y control de la obra.
+                      Esta descripción será utilizada para el seguimiento y
+                      control de la obra.
                     </p>
                   </div>
                 </div>
 
                 {/* Botones de acción */}
                 <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleToggleConvertForm}
                     disabled={converting}
                   >
                     Cancelar
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleConvertToObra}
-                    disabled={converting || !datosConversion.tipoObra || !datosConversion.prioridad || !datosConversion.responsable}
+                    disabled={
+                      converting ||
+                      !datosConversion.tipoObra ||
+                      !datosConversion.prioridad ||
+                      !datosConversion.responsable
+                    }
                     className="flex items-center gap-2"
                   >
                     {converting ? (
@@ -637,10 +738,7 @@ const PresupuestoPage = () => {
 
         {/* Barra lateral */}
         <div className="space-y-6">
-          <ObraInfoGeneral
-            obra={obra}
-            formatearFecha={formatearFecha}
-          />
+          <ObraInfoGeneral obra={obra} formatearFecha={formatearFecha} />
 
           <ObraResumenFinanciero
             obra={obra}
@@ -710,7 +808,8 @@ const PresupuestoPage = () => {
               Vista Previa de Impresión - Presupuesto
             </DialogTitle>
             <DialogDescription>
-              Revise el documento antes de imprimir. Use los botones de acción para imprimir, descargar PDF o cerrar.
+              Revise el documento antes de imprimir. Use los botones de acción
+              para imprimir, descargar PDF o cerrar.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0">
@@ -725,7 +824,7 @@ const PresupuestoPage = () => {
             <Button variant="outline" onClick={() => setOpenPrint(false)}>
               Cerrar
             </Button>
-            
+
             {/* Botones de impresión y descarga PDF */}
             <PrintDownloadButtons
               obra={obra}
