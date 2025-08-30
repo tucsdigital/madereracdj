@@ -133,66 +133,81 @@ const TablaProductosVentas = ({
                             <div className="flex flex-wrap items-end gap-2">
                               <div className="flex flex-col gap-0.5">
                                 <label className="text-[11px] font-semibold text-orange-700">Alto</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.alto === "" ? "" : p.alto || ""}
-                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)}
-                                  className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                  disabled={!editando}
-                                />
+                                {editando ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.alto === "" ? "" : p.alto || ""}
+                                    onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)}
+                                    className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-orange-700 px-2 py-1">{p.alto || 0}</span>
+                                )}
                               </div>
                               <div className="flex flex-col gap-0.5">
                                 <label className="text-[11px] font-semibold text-orange-700">Largo</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.largo === "" ? "" : p.largo || ""}
-                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)}
-                                  className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                  disabled={!editando}
-                                />
+                                {editando ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.largo === "" ? "" : p.largo || ""}
+                                    onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)}
+                                    className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-orange-700 px-2 py-1">{p.largo || 0}</span>
+                                )}
                               </div>
                             </div>
                           ) : (
                             <div className="flex flex-wrap items-end gap-2">
                               <div className="flex flex-col gap-0.5">
                                 <label className="text-[11px] font-semibold text-orange-700">Alto</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.alto === "" ? "" : p.alto || ""}
-                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)}
-                                  className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                  disabled={!editando}
-                                />
+                                {editando ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.alto === "" ? "" : p.alto || ""}
+                                    onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)}
+                                    className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-orange-700 px-2 py-1">{p.alto || 0}</span>
+                                )}
                               </div>
                               <div className="flex flex-col gap-0.5">
                                 <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.ancho === "" ? "" : p.ancho || ""}
-                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "ancho", e.target.value)}
-                                  className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                  disabled={!editando}
-                                />
+                                {editando ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.ancho === "" ? "" : p.ancho || ""}
+                                    onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "ancho", e.target.value)}
+                                    className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-orange-700 px-2 py-1">{p.ancho || 0}</span>
+                                )}
                               </div>
                               <div className="flex flex-col gap-0.5">
                                 <label className="text-[11px] font-semibold text-orange-700">Largo</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={p.largo === "" ? "" : p.largo || ""}
-                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)}
-                                  className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
-                                  disabled={!editando}
-                                />
+                                {editando ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={p.largo === "" ? "" : p.largo || ""}
+                                    onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)}
+                                    className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-medium text-orange-700 px-2 py-1">{p.largo || 0}</span>
+                                )}
                               </div>
                             </div>
                           )}
@@ -222,16 +237,19 @@ const TablaProductosVentas = ({
                             <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
                             <div className="relative">
                               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
-                                onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "precioPorPie", e.target.value)}
-                                className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
-                                disabled={!editando}
-                                placeholder="0.00"
-                              />
+                              {editando ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
+                                  onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "precioPorPie", e.target.value)}
+                                  className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
+                                  placeholder="0.00"
+                                />
+                              ) : (
+                                <span className="text-sm font-medium text-green-700 px-2 py-1">${p.precioPorPie || 0}</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -241,83 +259,92 @@ const TablaProductosVentas = ({
                   <td className="p-4 align-middle text-sm text-default-600">
                     <div className="flex items-center justify-center">
                       <div className="flex items-center bg-white dark:bg-gray-800 border border-default-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nuevaCantidad = Math.max(1, Number(p.cantidad || 1) - 1);
-                            onActualizarCampo && onActualizarCampo(p.id, "cantidad", nuevaCantidad);
-                          }}
-                          disabled={!editando || p.cantidad <= 1}
-                          className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        {editando && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nuevaCantidad = Math.max(1, Number(p.cantidad || 1) - 1);
+                              onActualizarCampo && onActualizarCampo(p.id, "cantidad", nuevaCantidad);
+                            }}
+                            disabled={p.cantidad <= 1}
+                            className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M20 12H4"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M20 12H4"
+                              />
+                            </svg>
+                          </button>
+                        )}
 
-                        <input
-                          type="number"
-                          min="1"
-                          value={p.cantidad === "" ? "" : p.cantidad}
-                          onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cantidad", e.target.value)}
-                          className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums"
-                          disabled={!editando}
-                        />
+                        {editando ? (
+                          <input
+                            type="number"
+                            min="1"
+                            value={p.cantidad === "" ? "" : p.cantidad}
+                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cantidad", e.target.value)}
+                            className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums"
+                          />
+                        ) : (
+                          <span className="w-16 text-center text-base md:text-lg font-bold text-gray-900 dark:text-gray-100 tabular-nums">{p.cantidad}</span>
+                        )}
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nuevaCantidad = Number(p.cantidad || 1) + 1;
-                            onActualizarCampo && onActualizarCampo(p.id, "cantidad", nuevaCantidad);
-                          }}
-                          disabled={!editando}
-                          className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        {editando && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nuevaCantidad = Number(p.cantidad || 1) + 1;
+                              onActualizarCampo && onActualizarCampo(p.id, "cantidad", nuevaCantidad);
+                            }}
+                            className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </td>
                   <td className="p-4 align-middle text-sm text-default-600">
                     {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
                       <div className="flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={p.cepilladoAplicado || false}
-                          onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cepilladoAplicado", e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
-                          disabled={!editando}
-                          title="Aplicar cepillado (+6.6%)"
-                        />
+                        {editando ? (
+                          <input
+                            type="checkbox"
+                            checked={p.cepilladoAplicado || false}
+                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cepilladoAplicado", e.target.checked)}
+                            className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
+                            title="Aplicar cepillado (+6.6%)"
+                          />
+                        ) : (
+                          <span className="text-sm font-medium text-blue-600">{p.cepilladoAplicado ? "Sí" : "No"}</span>
+                        )}
                       </div>
                     ) : (
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
                   <td className="p-4 align-middle text-sm text-default-600">
-                    {p._esManual ? (
+                    {editando && p._esManual ? (
                       <input
                         type="number"
                         min="0"
@@ -325,7 +352,6 @@ const TablaProductosVentas = ({
                         value={p.precio === "" ? "" : p.precio}
                         onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "precio", e.target.value)}
                         className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
-                        disabled={!editando}
                         placeholder="0"
                       />
                     ) : (
@@ -333,18 +359,21 @@ const TablaProductosVentas = ({
                     )}
                   </td>
                   <td className="p-4 align-middle text-sm text-default-600">
-                    <div className="relative w-20 md:w-24 mx-auto">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={p.descuento === "" ? "" : p.descuento || ""}
-                        onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descuento", e.target.value)}
-                        className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                        disabled={!editando}
-                      />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
-                    </div>
+                    {editando ? (
+                      <div className="relative w-20 md:w-24 mx-auto">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={p.descuento === "" ? "" : p.descuento || ""}
+                          onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descuento", e.target.value)}
+                          className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                        />
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium">{p.descuento || 0}%</span>
+                    )}
                   </td>
                   <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                     {formatearNumeroArgentino ? formatearNumeroArgentino(

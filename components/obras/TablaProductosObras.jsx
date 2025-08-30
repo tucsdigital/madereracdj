@@ -25,11 +25,16 @@ const TablaProductosObras = ({
   }
 
   // Calcular totales
-  const subtotal = items.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+  const subtotal = items.reduce((acc, p) => {
+    const precio = Number(p.valorVenta || p.precio || 0);
+    const cantidad = Number(p.cantidad || 1);
+    return acc + (precio * cantidad);
+  }, 0);
   const descuentoTotal = items.reduce((acc, p) => {
-    const precio = Number(p.precio || 0);
+    const precio = Number(p.valorVenta || p.precio || 0);
+    const cantidad = Number(p.cantidad || 1);
     const descuento = Number(p.descuento || 0);
-    return acc + (precio * descuento / 100);
+    return acc + (precio * cantidad * descuento / 100);
   }, 0);
   const total = subtotal - descuentoTotal;
 
@@ -61,7 +66,10 @@ const TablaProductosObras = ({
             </thead>
             <tbody>
               {items.map((p) => {
-                const sub = Number(p.precio || 0) * (1 - Number(p.descuento || 0) / 100);
+                const precio = Number(p.valorVenta || p.precio || 0);
+                const cantidad = Number(p.cantidad || 1);
+                const descuento = Number(p.descuento || 0);
+                const sub = precio * cantidad * (1 - descuento / 100);
                 const u = String(p.unidadMedida || "UN").toUpperCase();
                 const requiereAlto = u === "M2"; // Para m2 pedimos alto y largo. Para ml solo largo.
                 const requiereLargo = u === "M2" || u === "ML";
@@ -83,16 +91,20 @@ const TablaProductosObras = ({
                         <div className="text-xs text-gray-500">{p.categoria}</div>
                       </td>
                       <td className="p-2 text-center">
-                        <Input 
-                          type="number" 
-                          min={1} 
-                          value={p.cantidad} 
-                          onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cantidad", e.target.value)} 
-                          className="w-20 mx-auto" 
-                        />
+                        {editando ? (
+                          <Input 
+                            type="number" 
+                            min={1} 
+                            value={p.cantidad} 
+                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cantidad", e.target.value)} 
+                            className="w-20 mx-auto" 
+                          />
+                        ) : (
+                          <span className="text-sm font-medium">{p.cantidad}</span>
+                        )}
                       </td>
                       <td className="p-2 text-center">
-                        {p._esManual ? (
+                        {editando && p._esManual ? (
                           <Select value={u} onValueChange={(v) => onActualizarCampo && onActualizarCampo(p.id, "unidadMedida", v)}>
                             <SelectTrigger className="w-24 mx-auto h-8">
                               <SelectValue />
@@ -109,45 +121,59 @@ const TablaProductosObras = ({
                       </td>
                       <td className="p-2 text-center">
                         {requiereAlto ? (
-                          <Input 
-                            type="number" 
-                            min={0} 
-                            step="0.01" 
-                            value={p.alto} 
-                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)} 
-                            className="w-24 mx-auto" 
-                          />
+                          editando ? (
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={p.alto} 
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)} 
+                              className="w-24 mx-auto" 
+                            />
+                          ) : (
+                            <span className="text-sm font-medium">{p.alto || 0}</span>
+                          )
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="p-2 text-center">
                         {requiereLargo ? (
-                          <Input 
-                            type="number" 
-                            min={0} 
-                            step="0.01" 
-                            value={p.largo} 
-                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)} 
-                            className="w-24 mx-auto" 
-                          />
+                          editando ? (
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={p.largo} 
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "largo", e.target.value)} 
+                              className="w-24 mx-auto" 
+                            />
+                          ) : (
+                            <span className="text-sm font-medium">{p.largo || 0}</span>
+                          )
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="p-2 text-right">
-                        <div className="relative w-28 ml-auto">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
-                          <Input 
-                            type="number" 
-                            min={0} 
-                            step="0.01" 
-                            value={p.valorVenta} 
-                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "valorVenta", e.target.value)} 
-                            className="pl-5 pr-2 h-8 text-right" 
-                            title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
-                          />
-                        </div>
+                        {editando ? (
+                          <div className="relative w-28 ml-auto">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
+                            <Input 
+                              type="number" 
+                              min={0} 
+                              step="0.01" 
+                              value={p.valorVenta} 
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "valorVenta", e.target.value)} 
+                              className="pl-5 pr-2 h-8 text-right" 
+                              title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-right">
+                            <span className="text-sm font-semibold">${formatearNumeroArgentino ? formatearNumeroArgentino(p.valorVenta) : p.valorVenta.toLocaleString("es-AR")}</span>
+                          </div>
+                        )}
                         <div className="text-xs text-gray-500 mt-1 text-center">
                           {p.unidadMedida === "M2" && `(${p.alto || 0} × ${p.largo || 0} × ${p.cantidad || 1})`}
                           {p.unidadMedida === "ML" && `(${p.largo || 0} × ${p.cantidad || 1})`}
@@ -155,26 +181,32 @@ const TablaProductosObras = ({
                         </div>
                       </td>
                       <td className="p-2 text-center">
-                        <Input 
-                          type="number" 
-                          min={0} 
-                          max={100} 
-                          value={p.descuento} 
-                          onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descuento", e.target.value)} 
-                          className="w-20 mx-auto" 
-                        />
+                        {editando ? (
+                          <Input 
+                            type="number" 
+                            min={0} 
+                            max={100} 
+                            value={p.descuento} 
+                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descuento", e.target.value)} 
+                            className="w-20 mx-auto" 
+                          />
+                        ) : (
+                          <span className="text-sm font-medium">{p.descuento || 0}%</span>
+                        )}
                       </td>
                       <td className="p-2 text-right font-semibold">
                         {formatearNumeroArgentino ? formatearNumeroArgentino(sub) : sub.toLocaleString("es-AR")}
                       </td>
                       <td className="p-2 text-center">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => onQuitarProducto && onQuitarProducto(p.id)} 
-                          size="sm"
-                        >
-                          Quitar
-                        </Button>
+                        {editando && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => onQuitarProducto && onQuitarProducto(p.id)} 
+                            size="sm"
+                          >
+                            Quitar
+                          </Button>
+                        )}
                       </td>
                     </tr>
                     {/* Fila adicional para descripción del producto */}
@@ -182,13 +214,19 @@ const TablaProductosObras = ({
                       <td colSpan={9} className="p-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
-                          <Textarea
-                            placeholder="Escribe una descripción específica para este producto..."
-                            value={p.descripcion || ""}
-                            onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descripcion", e.target.value)}
-                            className="flex-1 min-h-[60px] resize-none"
-                            rows={2}
-                          />
+                          {editando ? (
+                            <Textarea
+                              placeholder="Escribe una descripción específica para este producto..."
+                              value={p.descripcion || ""}
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "descripcion", e.target.value)}
+                              className="flex-1 min-h-[60px] resize-none"
+                              rows={2}
+                            />
+                          ) : (
+                            <div className="flex-1 min-h-[60px] text-sm text-gray-700">
+                              {p.descripcion || "Sin descripción"}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
