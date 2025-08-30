@@ -18,8 +18,8 @@ import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
-import ProductosSelector from "@/components/obras/ProductosSelector";
-import ProductosTabla from "@/components/obras/ProductosTabla";
+import CatalogoObras from "@/components/obras/CatalogoObras";
+import TablaProductosObras from "@/components/obras/TablaProductosObras";
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -348,13 +348,14 @@ const ObraDetallePage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Selector de Materiales del Catálogo */}
-          <ProductosSelector
+          <CatalogoObras
             titulo="Materiales del Catálogo"
-            productosCatalogo={productosCatalogo}
+            productos={productosCatalogo}
             productosPorCategoria={productosPorCategoria}
             categorias={categorias}
             itemsSeleccionados={itemsCatalogo}
             onAgregarProducto={agregarProductoCatalogo}
+            onAgregarProductoManual={() => {}}
             editando={editando}
             maxProductos={48}
             showFilters={true}
@@ -364,12 +365,12 @@ const ObraDetallePage = () => {
           />
 
           {/* Tabla de Materiales Seleccionados */}
-          <ProductosTabla
+          <TablaProductosObras
             titulo="Materiales Seleccionados"
             items={itemsCatalogo}
             editando={editando}
             onQuitarProducto={quitarProductoCatalogo}
-            onActualizarProducto={(id, campo, valor) => {
+            onActualizarCampo={(id, campo, valor) => {
               if (campo === "cantidad") handleCantidadChange(id, valor);
               else if (campo === "alto") handleAltoChange(id, valor);
               else if (campo === "ancho") handleAnchoChange(id, valor);
@@ -378,35 +379,10 @@ const ObraDetallePage = () => {
               else if (campo === "cepilladoAplicado") toggleCepillado(id, valor);
               else if (campo === "descuento") actualizarDescuento(id, valor);
             }}
-            onIncrementarCantidad={(id) => {
-              const item = itemsCatalogo.find(p => p.id === id);
-              if (item) {
-                handleCantidadChange(id, String(Number(item.cantidad || 1) + 1));
-              }
-            }}
-            onDecrementarCantidad={(id) => {
-              const item = itemsCatalogo.find(p => p.id === id);
-              if (item) {
-                const nuevaCantidad = Math.max(1, Number(item.cantidad || 1) - 1);
-                handleCantidadChange(id, String(nuevaCantidad));
-              }
-            }}
+            onActualizarNombreManual={() => {}}
             formatearNumeroArgentino={formatearNumeroArgentino}
-            // Props adicionales para filtros
-            categorias={categorias}
-            categoriaId={categoriaId}
-            setCategoriaId={setCategoriaId}
-            busquedaProducto={busquedaProducto}
-            setBusquedaProducto={setBusquedaProducto}
-            productosFiltrados={[]}
-            productosPorCategoria={productosPorCategoria}
-            // Props para filtros específicos
-            tiposMadera={[]}
-            filtroTipoMadera=""
-            setFiltroTipoMadera={() => {}}
-            subCategoriasFerreteria={[]}
-            filtroSubCategoria=""
-            setFiltroSubCategoria={() => {}}
+            showTotals={true}
+            showDescripcionGeneral={false}
           />
 
           {/* Presupuesto Inicial */}
@@ -487,9 +463,9 @@ const ObraDetallePage = () => {
               {presupuesto && (
                 <>
                   {/* Selector de Productos de Obra */}
-                  <ProductosSelector
+                  <CatalogoObras
                     titulo="Productos del Presupuesto"
-                    productosCatalogo={productosObraCatalogo}
+                    productos={productosObraCatalogo}
                     productosPorCategoria={productosObraPorCategoria}
                     categorias={categoriasObra}
                     itemsSeleccionados={itemsPresupuesto}
@@ -519,6 +495,7 @@ const ObraDetallePage = () => {
                       
                       setItemsPresupuesto((prev) => [...prev, nuevo]);
                     }}
+                    onAgregarProductoManual={() => {}}
                     editando={editando}
                     maxProductos={48}
                     showFilters={true}
@@ -528,12 +505,12 @@ const ObraDetallePage = () => {
                   />
 
                   {/* Tabla de Productos del Presupuesto */}
-                  <ProductosTabla
+                  <TablaProductosObras
                     titulo="Productos del Presupuesto"
                     items={itemsPresupuesto}
                     editando={editando}
                     onQuitarProducto={(id) => setItemsPresupuesto((prev) => prev.filter((p) => p.id !== id))}
-                    onActualizarProducto={(id, campo, valor) => {
+                    onActualizarCampo={(id, campo, valor) => {
                       setItemsPresupuesto((prev) => prev.map((p) => {
                         if (p.id !== id) return p;
                         const nuevo = { ...p, [campo]: valor };
@@ -550,7 +527,7 @@ const ObraDetallePage = () => {
                               const precioFinal = nuevo.cepilladoAplicado ? precioBase * 1.066 : precioBase;
                               nuevo.precio = Math.round(precioFinal / 100) * 100;
                             } else {
-                              const alto = Number(nuevo.alto) || 0;
+                              const alto = Number(nuevo.ancho) || 0;
                               const ancho = Number(nuevo.ancho) || 0;
                               const largo = Number(nuevo.largo) || 0;
                               const precioPorPie = Number(nuevo.precioPorPie) || 0;
@@ -565,45 +542,10 @@ const ObraDetallePage = () => {
                         return nuevo;
                       }));
                     }}
-                    onIncrementarCantidad={(id) => {
-                      setItemsPresupuesto((prev) => prev.map((p) => {
-                        if (p.id !== id) return p;
-                        const nuevaCantidad = Number(p.cantidad || 1) + 1;
-                        const nuevo = { ...p, cantidad: nuevaCantidad };
-                        
-                        // Recalcular precio si es madera machimbre/deck
-                        if (p.categoria?.toLowerCase() === "maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
-                          const alto = Number(p.alto) || 0;
-                          const largo = Number(p.largo) || 0;
-                          const precioPorPie = Number(p.precioPorPie) || 0;
-                          const precioBase = alto * largo * precioPorPie * nuevaCantidad;
-                          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
-                          nuevo.precio = Math.round(precioFinal / 100) * 100;
-                        }
-                        
-                        return nuevo;
-                      }));
-                    }}
-                    onDecrementarCantidad={(id) => {
-                      setItemsPresupuesto((prev) => prev.map((p) => {
-                        if (p.id !== id) return p;
-                        const nuevaCantidad = Math.max(1, Number(p.cantidad || 1) - 1);
-                        const nuevo = { ...p, cantidad: nuevaCantidad };
-                        
-                        // Recalcular precio si es madera machimbre/deck
-                        if (p.categoria?.toLowerCase() === "maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
-                          const alto = Number(p.alto) || 0;
-                          const largo = Number(p.largo) || 0;
-                          const precioPorPie = Number(p.precioPorPie) || 0;
-                          const precioBase = alto * largo * precioPorPie * nuevaCantidad;
-                          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
-                          nuevo.precio = Math.round(precioFinal / 100) * 100;
-                        }
-                        
-                        return nuevo;
-                      }));
-                    }}
+                    onActualizarNombreManual={() => {}}
                     formatearNumeroArgentino={formatearNumeroArgentino}
+                    showTotals={true}
+                    showDescripcionGeneral={false}
                   />
                 </>
               )}

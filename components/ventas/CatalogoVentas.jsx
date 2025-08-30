@@ -1,17 +1,17 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Filter, Search, RefreshCw } from "lucide-react";
+import { Filter, Search } from "lucide-react";
 
-const ProductosSelector = ({
-  titulo = "Catálogo de productos (obras)",
-  productosCatalogo = [],
+const CatalogoVentas = ({
+  titulo = "Catálogo de productos",
+  productos = [],
   productosPorCategoria = {},
   categorias = [],
   itemsSeleccionados = [],
   onAgregarProducto,
+  onAgregarProductoManual,
   editando = false,
   maxProductos = 48,
   showFilters = true,
@@ -27,52 +27,59 @@ const ProductosSelector = ({
 
   // Debounce para búsqueda
   useEffect(() => {
-    const timer = setTimeout(() => setBusquedaDefer(busquedaProducto), 150);
-    return () => clearTimeout(timer);
+    const id = setTimeout(() => setBusquedaDefer(busquedaProducto), 100);
+    return () => clearTimeout(id);
   }, [busquedaProducto]);
 
-  // Resetear página cuando cambien los filtros
+  // Reset al cambiar filtros
   useEffect(() => {
     setPaginaActual(1);
   }, [categoriaId, busquedaDefer]);
 
-  // Filtrar productos
-  const productosFiltrados = useMemo(() => {
-    let productos = [];
-    
-    if (categoriaId && productosPorCategoria[categoriaId]) {
-      productos = productosPorCategoria[categoriaId];
-    } else if (busquedaDefer && busquedaDefer.trim() !== "") {
-      productos = productosCatalogo;
-    } else {
-      return [];
-    }
+  // Normalizador de texto
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+  }, []);
 
-    // Aplicar búsqueda si existe
-    if (busquedaDefer && busquedaDefer.trim() !== "") {
-      const busqueda = busquedaDefer.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-      productos = productos.filter((prod) => {
-        const nombre = (prod.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const unidad = (prod.unidad || prod.unidadMedida || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        if (busqueda === "") return true;
-        if (busqueda.endsWith(".")) {
-          const sinPunto = busqueda.slice(0, -1);
+  // Filtro catálogo con deferred value
+  const productosFiltrados = useMemo(() => {
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = productosPorCategoria[categoriaId] || [];
+        fuente = localCat;
+      } else {
+        fuente = productos;
+      }
+    } else if (categoriaId) {
+      fuente = productosPorCategoria[categoriaId];
+    }
+    if (!fuente) fuente = productos;
+
+    const busq = normalizarTexto(busquedaDefer);
+    return fuente
+      .filter((prod) => {
+        const nombre = normalizarTexto(prod.nombre);
+        const unidad = normalizarTexto(prod.unidad || prod.unidadMedida || "");
+        if (busq === "") return true;
+        if (busq.endsWith(".")) {
+          const sinPunto = busq.slice(0, -1);
           return nombre.startsWith(sinPunto) || unidad.startsWith(sinPunto);
         }
-        return nombre.includes(busqueda) || unidad.includes(busqueda);
+        return nombre.includes(busq) || unidad.includes(busq);
       });
-    }
+  }, [productos, productosPorCategoria, categoriaId, busquedaDefer, normalizarTexto]);
 
-    return productos;
-  }, [categoriaId, productosPorCategoria, busquedaDefer, productosCatalogo]);
-
-  // Paginación
+  // Paginación derivada
   const totalProductos = productosFiltrados.length;
   const totalPaginas = Math.ceil(totalProductos / productosPorPagina) || 1;
-  const productosPaginados = productosFiltrados.slice(
-    (paginaActual - 1) * productosPorPagina,
-    paginaActual * productosPorPagina
-  );
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
 
   // Función para formatear números argentinos
   const formatARNumber = (value) => {
@@ -93,6 +100,13 @@ const ProductosSelector = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Agregar ítem manual: botón que agrega fila editable en la tabla */}
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onAgregarProductoManual}>
+            Agregar ítem manual
+          </Button>
+        </div>
+        
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -139,7 +153,7 @@ const ProductosSelector = ({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 relative">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
                 {isPending && (
                   <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
                     <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
@@ -151,7 +165,7 @@ const ProductosSelector = ({
 
                 {productosPaginados.map((prod) => {
                   const yaAgregado = itemsSeleccionados.some((p) => p.id === prod.id);
-                  const precio = Number(prod.valorVenta) || 0;
+                  const precio = Number(prod.valorVenta || prod.precio) || 0;
                   return (
                     <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${yaAgregado ? "border-green-200 bg-green-50" : "border-gray-200 hover:border-blue-300"}`}>
                       <div className="p-4 flex flex-col h-full">
@@ -159,12 +173,12 @@ const ProductosSelector = ({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-2">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700`}>
-                                🏗️
+                                📦
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-sm font-semibold truncate">{prod.nombre}</h4>
-                                {prod.subCategoria && (
-                                  <div className="text-xs text-blue-600 mt-1">{prod.subCategoria}</div>
+                                {prod.subcategoria && (
+                                  <div className="text-xs text-blue-600 mt-1">{prod.subcategoria}</div>
                                 )}
                               </div>
                               {yaAgregado && (
@@ -182,10 +196,18 @@ const ProductosSelector = ({
                             <span className="text-xs text-gray-500">Precio:</span>
                             <span className="text-sm font-semibold">$ {formatARNumber(precio)}</span>
                           </div>
-                          {prod.unidadMedida && (
+                          {prod.unidad && (
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-500">Unidad:</span>
-                              <span className="text-xs text-gray-700">{prod.unidadMedida}</span>
+                              <span className="text-xs text-gray-700">{prod.unidad}</span>
+                            </div>
+                          )}
+                          {prod.stock !== undefined && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500">Stock:</span>
+                              <span className={`text-xs font-medium ${prod.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {prod.stock > 0 ? prod.stock : 'Sin stock'}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -196,10 +218,16 @@ const ProductosSelector = ({
                               if (yaAgregado) return;
                               onAgregarProducto(prod);
                             }}
-                            disabled={yaAgregado}
-                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                            disabled={yaAgregado || (prod.stock !== undefined && prod.stock <= 0)}
+                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                              yaAgregado 
+                                ? "bg-green-100 text-green-700 cursor-not-allowed" 
+                                : (prod.stock !== undefined && prod.stock <= 0)
+                                  ? "bg-red-100 text-red-700 cursor-not-allowed"
+                                  : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
                           >
-                            {yaAgregado ? "Ya agregado" : "Agregar"}
+                            {yaAgregado ? "Ya agregado" : (prod.stock !== undefined && prod.stock <= 0) ? "Sin stock" : "Agregar"}
                           </button>
                         </div>
                       </div>
@@ -253,4 +281,4 @@ const ProductosSelector = ({
   );
 };
 
-export default ProductosSelector;
+export default CatalogoVentas;
