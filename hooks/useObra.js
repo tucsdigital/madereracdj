@@ -400,7 +400,7 @@ export const useObra = (id) => {
         descuentoTotal: descuentoTotalCombinado,
         total: totalCombinado,
         descripcionGeneral: datosConversion.descripcionGeneral || descripcionGeneral || obra.descripcionGeneral || "",
-        fechaCreacion: serverTimestamp(),
+        fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
         presupuestoInicialId: obra.id,
         prioridad: datosConversion.prioridad || "media",
@@ -444,7 +444,7 @@ export const useObra = (id) => {
         productosTotal: 0,
         
         // Auditoría
-        fechaConversion: serverTimestamp(),
+        fechaCreacion: new Date().toISOString(),
         presupuestoOriginal: {
           id: obra.id,
           numeroPedido: obra.numeroPedido,

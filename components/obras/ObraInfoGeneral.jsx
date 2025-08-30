@@ -86,6 +86,11 @@ const ObraInfoGeneral = ({
     }
   };
 
+  // Obtener información del cliente desde la obra o desde el estado local
+  const clienteInfo = cliente || obra.cliente;
+  const mostrarSeccionCliente = obra.tipo === "obra" || obra.tipo === "presupuesto";
+  const mostrarSeccionUbicacion = obra.tipo === "obra" || (obra.tipo === "presupuesto" && obra.cliente?.direccion);
+
   return (
     <Card>
       <CardHeader>
@@ -97,7 +102,7 @@ const ObraInfoGeneral = ({
       <CardContent className="space-y-6">
         {/* Información básica de la obra */}
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Datos de la Obra</h4>
+          <h4 className="font-medium text-gray-900">Datos de la {obra.tipo === "obra" ? "Obra" : "Presupuesto"}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-500">Número de Pedido</p>
@@ -108,8 +113,6 @@ const ObraInfoGeneral = ({
               <p className="text-sm text-gray-500">Fecha</p>
               <p className="font-medium">{formatearFecha(obra.fecha)}</p>
             </div>
-            
-
             
             <div>
               <p className="text-sm text-gray-500">Estado</p>
@@ -123,6 +126,8 @@ const ObraInfoGeneral = ({
                     <SelectItem value="en_progreso">En Progreso</SelectItem>
                     <SelectItem value="completada">Completada</SelectItem>
                     <SelectItem value="cancelada">Cancelada</SelectItem>
+                    <SelectItem value="Activo">Activo</SelectItem>
+                    <SelectItem value="Inactivo">Inactivo</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -189,46 +194,52 @@ const ObraInfoGeneral = ({
           </div>
         </div>
 
-        {/* Información del cliente */}
-        <Separator />
-        <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Información del Cliente</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <p className="text-sm text-gray-500">Cliente</p>
-              {editando && !cliente ? (
-                <Select value={clienteId} onValueChange={handleClienteChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sin cliente</SelectItem>
-                    {clientes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nombre} {c.cuit ? `(${c.cuit})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="space-y-1">
-                  {cliente ? (
-                    <>
-                      <p className="font-medium">{cliente.nombre}</p>
-                      {cliente.cuit && <p className="text-sm text-gray-600">CUIT: {cliente.cuit}</p>}
-                      {cliente.telefono && <p className="text-sm text-gray-600">Tel: {cliente.telefono}</p>}
-                      {cliente.email && <p className="text-sm text-gray-600">Email: {cliente.email}</p>}
-                    </>
+        {/* Información del cliente - Mostrar tanto en obras como en presupuestos */}
+        {mostrarSeccionCliente && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900">Información del Cliente</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <p className="text-sm text-gray-500">Cliente</p>
+                  {editando && !cliente ? (
+                    <Select value={clienteId} onValueChange={handleClienteChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Sin cliente</SelectItem>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nombre} {c.cuit ? `(${c.cuit})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <p className="text-gray-500">No especificado</p>
+                    <div className="space-y-1">
+                      {clienteInfo ? (
+                        <>
+                          <p className="font-medium">{clienteInfo.nombre}</p>
+                          {clienteInfo.cuit && <p className="text-sm text-gray-600">CUIT: {clienteInfo.cuit}</p>}
+                          {clienteInfo.telefono && <p className="text-sm text-gray-600">Tel: {clienteInfo.telefono}</p>}
+                          {clienteInfo.email && <p className="text-sm text-gray-600">Email: {clienteInfo.email}</p>}
+                          {clienteInfo.barrio && <p className="text-sm text-gray-600">Barrio: {clienteInfo.barrio}</p>}
+                          {clienteInfo.area && <p className="text-sm text-gray-600">Área: {clienteInfo.area}</p>}
+                        </>
+                      ) : (
+                        <p className="text-gray-500">No especificado</p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
-        {/* Fechas */}
+        {/* Fechas - Solo para obras */}
         {obra.tipo === "obra" && (
           <>
             <Separator />
@@ -268,8 +279,8 @@ const ObraInfoGeneral = ({
           </>
         )}
         
-        {/* Ubicación */}
-        {obra.tipo === "obra" && (
+        {/* Ubicación - Mostrar tanto en obras como en presupuestos si hay información */}
+        {mostrarSeccionUbicacion && (
           <>
             <Separator />
             <div className="space-y-4">
@@ -309,7 +320,7 @@ const ObraInfoGeneral = ({
                     />
                   ) : (
                     <p className="font-medium">
-                      {obra.ubicacion?.direccion || "No especificada"}
+                      {obra.ubicacion?.direccion || clienteInfo?.direccion || "No especificada"}
                     </p>
                   )}
                 </div>
@@ -324,7 +335,7 @@ const ObraInfoGeneral = ({
                     />
                   ) : (
                     <p className="font-medium">
-                      {obra.ubicacion?.provincia || "No especificada"}
+                      {obra.ubicacion?.localidad || clienteInfo?.localidad || "No especificada"}
                     </p>
                   )}
                 </div>
@@ -339,7 +350,7 @@ const ObraInfoGeneral = ({
                     />
                   ) : (
                     <p className="font-medium">
-                      {obra.ubicacion?.provincia || "No especificada"}
+                      {obra.ubicacion?.provincia || clienteInfo?.provincia || "No especificada"}
                     </p>
                   )}
                 </div>
