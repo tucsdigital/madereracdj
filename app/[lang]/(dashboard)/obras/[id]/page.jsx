@@ -29,6 +29,10 @@ const ObraDetallePage = () => {
   const [openNuevoResponsable, setOpenNuevoResponsable] = useState(false);
   const [nuevoResponsable, setNuevoResponsable] = useState("");
   
+  // Variables de paginación para el catálogo
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12);
+  
   const {
     obra,
     loading,
