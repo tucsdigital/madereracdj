@@ -688,7 +688,7 @@ const ObraDetallePage = () => {
           />
         </div>
 
-        {/* Barra lateral */}
+        {/* Barra lateraaaaal */}
         <div className="space-y-6">
           <ObraInfoGeneral
             obra={obra}
