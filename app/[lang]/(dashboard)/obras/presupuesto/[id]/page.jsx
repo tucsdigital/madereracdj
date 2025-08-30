@@ -119,7 +119,6 @@ const PresupuestoPage = () => {
     categoriaObraId,
     busquedaProductoObra,
     descripcionGeneral,
-    // Agregar catálogo de productos normales
     productosCatalogo,
     productosPorCategoria,
     categorias,
@@ -382,7 +381,7 @@ const PresupuestoPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-6">
       <ObraHeader
         obra={obra}
         editando={editando}
