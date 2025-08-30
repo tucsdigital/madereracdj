@@ -18,6 +18,8 @@ import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
+import ProductosSelector from "@/components/obras/ProductosSelector";
+import ProductosTabla from "@/components/obras/ProductosTabla";
 
 const ObraDetallePage = () => {
   const params = useParams();
@@ -109,7 +111,6 @@ const ObraDetallePage = () => {
 
   const handleAgregarResponsable = () => {
     if (nuevoResponsable.trim()) {
-      // Aquí podrías agregar la lógica para guardar el nuevo responsable
       setResponsables(prev => [...prev, nuevoResponsable.trim()]);
       setNuevoResponsable("");
       setOpenNuevoResponsable(false);
@@ -342,268 +343,52 @@ const ObraDetallePage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon icon="heroicons:cube" className="w-5 h-5" />
-                Materiales del Catálogo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {editando && (
-                <>
-                  <div className="flex gap-2 items-center">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Buscar productos..."
-                        value={busquedaProducto}
-                        onChange={(e) => setBusquedaProducto(e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                    <Select value={categoriaId} onValueChange={setCategoriaId}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Todas las categorías" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Todas las categorías</SelectItem>
-                        {categorias.map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          {/* Selector de Materiales del Catálogo */}
+          <ProductosSelector
+            titulo="Materiales del Catálogo"
+            productosCatalogo={productosCatalogo}
+            productosPorCategoria={productosPorCategoria}
+            categorias={categorias}
+            itemsSeleccionados={itemsCatalogo}
+            onAgregarProducto={agregarProductoCatalogo}
+            editando={editando}
+            maxProductos={48}
+            showFilters={true}
+            showSearch={true}
+            showPagination={true}
+            productosPorPagina={12}
+          />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
-                    {(() => {
-                      const hayBusqueda = !!(busquedaDebounced && busquedaDebounced.trim() !== "");
-                      const fuente = hayBusqueda 
-                        ? (categoriaId ? (productosPorCategoria[categoriaId] || []) : productosCatalogo)
-                        : (categoriaId ? productosPorCategoria[categoriaId] : productosCatalogo);
-                      
-                      if (!fuente || fuente.length === 0) {
-                        return <div className="p-6 text-center text-gray-500">No hay productos</div>;
-                      }
-                      
-                      return fuente.filter((prod) => {
-                        if (!busquedaDebounced) return true;
-                        const q = busquedaDebounced.toLowerCase();
-                        return String(prod.nombre || "").toLowerCase().includes(q) || 
-                               String(prod.categoria || "").toLowerCase().includes(q);
-                      }).slice(0, 48).map((prod) => {
-                        const yaAgregado = itemsCatalogo.some((p) => p.id === prod.id);
-                        const precio = Number(prod.valorVenta) || 0;
-                        
-                        return (
-                          <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                            yaAgregado ? "border-green-200 bg-green-50" : "border-gray-200 hover:border-blue-300"
-                          }`}>
-                            <div className="p-4 flex flex-col h-full">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 text-blue-700">
-                                      🏗️
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="text-sm font-semibold truncate">{prod.nombre}</h4>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-500">Precio:</span>
-                                  <span className="text-sm font-semibold">{formatearNumeroArgentino(precio)}</span>
-                                </div>
-                              </div>
-                              <div className="mt-4">
-                                <button
-                                  onClick={() => { if (!yaAgregado) agregarProductoCatalogo(prod); }}
-                                  disabled={yaAgregado}
-                                  className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                                    yaAgregado 
-                                      ? "bg-green-100 text-green-700 cursor-not-allowed" 
-                                      : "bg-blue-600 text-white hover:bg-blue-700"
-                                  }`}
-                                >
-                                  {yaAgregado ? "Ya agregado" : "Agregar"}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </>
-              )}
-
-              {itemsCatalogo.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="p-2 text-left">Material</th>
-                        <th className="p-2 text-center">Cantidad</th>
-                        <th className="p-2 text-center">Alto</th>
-                        <th className="p-2 text-center">Ancho</th>
-                        <th className="p-2 text-center">Largo</th>
-                        <th className="p-2 text-center">Precio por Pie</th>
-                        <th className="p-2 text-center">Cepillado</th>
-                        <th className="p-2 text-right">Precio</th>
-                        <th className="p-2 text-center">Desc. %</th>
-                        <th className="p-2 text-right">Subtotal</th>
-                        {editando && <th className="p-2 text-center">Acción</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {itemsCatalogo.map((item) => {
-                        const esMadera = String(item.categoria || "").toLowerCase() === "maderas";
-                        const isMachDeck = esMadera && (item.subcategoria === "machimbre" || item.subcategoria === "deck");
-                        const base = isMachDeck ? Number(item.precio) || 0 : (Number(item.precio) || 0) * (Number(item.cantidad) || 0);
-                        const subtotal = Math.round(base * (1 - Number(item.descuento || 0) / 100));
-                        
-                        return (
-                          <tr key={item.id} className="border-b">
-                            <td className="p-2">
-                              <div className="font-medium">{item.nombre}</div>
-                              <div className="text-xs text-gray-500">{item.categoria}</div>
-                            </td>
-                            <td className="p-2 text-center">
-                              {editando ? (
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={item.cantidad}
-                                  onChange={(e) => handleCantidadChange(item.id, e.target.value)}
-                                  className="w-20 mx-auto"
-                                />
-                              ) : (
-                                item.cantidad
-                              )}
-                            </td>
-                            <td className="p-2 text-center">
-                              {esMadera && editando ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.alto}
-                                  onChange={(e) => handleAltoChange(item.id, e.target.value)}
-                                  className="w-20 mx-auto"
-                                />
-                              ) : esMadera ? (
-                                item.alto
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-center">
-                              {esMadera && editando ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.ancho}
-                                  onChange={(e) => handleAnchoChange(item.id, e.target.value)}
-                                  className="w-20 mx-auto"
-                                />
-                              ) : esMadera ? (
-                                item.ancho
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-center">
-                              {esMadera && editando ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.largo}
-                                  onChange={(e) => handleLargoChange(item.id, e.target.value)}
-                                  className="w-20 mx-auto"
-                                />
-                              ) : esMadera ? (
-                                item.largo
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-center">
-                              {esMadera && editando ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={item.precioPorPie}
-                                  onChange={(e) => handlePrecioPorPieChange(item.id, e.target.value)}
-                                  className="w-24 mx-auto"
-                                />
-                              ) : esMadera ? (
-                                formatearNumeroArgentino(item.precioPorPie)
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-center">
-                              {esMadera && editando ? (
-                                <Button
-                                  variant={item.cepilladoAplicado ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => toggleCepillado(item.id, !item.cepilladoAplicado)}
-                                >
-                                  {item.cepilladoAplicado ? "Sí" : "No"}
-                                </Button>
-                              ) : esMadera ? (
-                                <Badge variant={item.cepilladoAplicado ? "default" : "secondary"}>
-                                  {item.cepilladoAplicado ? "Sí" : "No"}
-                                </Badge>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="p-2 text-right font-medium">
-                              {formatearNumeroArgentino(item.precio)}
-                            </td>
-                            <td className="p-2 text-center">
-                              {editando ? (
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={item.descuento}
-                                  onChange={(e) => actualizarDescuento(item.id, e.target.value)}
-                                  className="w-20 mx-auto"
-                                />
-                              ) : (
-                                `${item.descuento || 0}%`
-                              )}
-                            </td>
-                            <td className="p-2 text-right font-semibold">
-                              {formatearNumeroArgentino(subtotal)}
-                            </td>
-                            {editando && (
-                              <td className="p-2 text-center">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => quitarProductoCatalogo(item.id)}
-                                >
-                                  Quitar
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Tabla de Materiales Seleccionados */}
+          <ProductosTabla
+            titulo="Materiales Seleccionados"
+            items={itemsCatalogo}
+            editando={editando}
+            onQuitarProducto={quitarProductoCatalogo}
+            onActualizarProducto={(id, campo, valor) => {
+              if (campo === "cantidad") handleCantidadChange(id, valor);
+              else if (campo === "alto") handleAltoChange(id, valor);
+              else if (campo === "ancho") handleAnchoChange(id, valor);
+              else if (campo === "largo") handleLargoChange(id, valor);
+              else if (campo === "precioPorPie") handlePrecioPorPieChange(id, valor);
+              else if (campo === "cepilladoAplicado") toggleCepillado(id, valor);
+              else if (campo === "descuento") actualizarDescuento(id, valor);
+            }}
+            onIncrementarCantidad={(id) => {
+              const item = itemsCatalogo.find(p => p.id === id);
+              if (item) {
+                handleCantidadChange(id, String(Number(item.cantidad || 1) + 1));
+              }
+            }}
+            onDecrementarCantidad={(id) => {
+              const item = itemsCatalogo.find(p => p.id === id);
+              if (item) {
+                const nuevaCantidad = Math.max(1, Number(item.cantidad || 1) - 1);
+                handleCantidadChange(id, String(nuevaCantidad));
+              }
+            }}
+            formatearNumeroArgentino={formatearNumeroArgentino}
+          />
 
           {/* Presupuesto Inicial */}
           <Card>
@@ -677,6 +462,131 @@ const ObraDetallePage = () => {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Productos del Presupuesto Inicial */}
+              {presupuesto && (
+                <>
+                  {/* Selector de Productos de Obra */}
+                  <ProductosSelector
+                    titulo="Productos del Presupuesto"
+                    productosCatalogo={productosObraCatalogo}
+                    productosPorCategoria={productosObraPorCategoria}
+                    categorias={categoriasObra}
+                    itemsSeleccionados={itemsPresupuesto}
+                    onAgregarProducto={(prod) => {
+                      const ya = itemsPresupuesto.some((x) => x.id === prod.id);
+                      if (ya) return;
+                      
+                      const nuevo = {
+                        id: prod.id,
+                        nombre: prod.nombre,
+                        categoria: prod.categoria || "",
+                        subcategoria: prod.subcategoria || "",
+                        unidad: prod.unidad || prod.unidadMedida || "UN",
+                        cantidad: 1,
+                        descuento: 0,
+                        precio: Number(prod.valorVenta) || 0,
+                        valorVenta: Number(prod.valorVenta) || 0,
+                      };
+                      
+                      if (prod.categoria?.toLowerCase() === "maderas") {
+                        nuevo.alto = Number(prod.alto) || 0;
+                        nuevo.ancho = Number(prod.ancho) || 0;
+                        nuevo.largo = Number(prod.largo) || 0;
+                        nuevo.precioPorPie = Number(prod.precioPorPie) || 0;
+                        nuevo.cepilladoAplicado = false;
+                      }
+                      
+                      setItemsPresupuesto((prev) => [...prev, nuevo]);
+                    }}
+                    editando={editando}
+                    maxProductos={48}
+                    showFilters={true}
+                    showSearch={true}
+                    showPagination={true}
+                    productosPorPagina={12}
+                  />
+
+                  {/* Tabla de Productos del Presupuesto */}
+                  <ProductosTabla
+                    titulo="Productos del Presupuesto"
+                    items={itemsPresupuesto}
+                    editando={editando}
+                    onQuitarProducto={(id) => setItemsPresupuesto((prev) => prev.filter((p) => p.id !== id))}
+                    onActualizarProducto={(id, campo, valor) => {
+                      setItemsPresupuesto((prev) => prev.map((p) => {
+                        if (p.id !== id) return p;
+                        const nuevo = { ...p, [campo]: valor };
+                        
+                        // Recalcular precio si es madera
+                        if (campo === "cantidad" || campo === "alto" || campo === "ancho" || campo === "largo" || campo === "precioPorPie" || campo === "cepilladoAplicado") {
+                          if (p.categoria?.toLowerCase() === "maderas") {
+                            if (p.subcategoria === "machimbre" || p.subcategoria === "deck") {
+                              const alto = Number(nuevo.alto) || 0;
+                              const largo = Number(nuevo.largo) || 0;
+                              const cantidad = Number(nuevo.cantidad) || 1;
+                              const precioPorPie = Number(nuevo.precioPorPie) || 0;
+                              const precioBase = alto * largo * precioPorPie * cantidad;
+                              const precioFinal = nuevo.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                              nuevo.precio = Math.round(precioFinal / 100) * 100;
+                            } else {
+                              const alto = Number(nuevo.alto) || 0;
+                              const ancho = Number(nuevo.ancho) || 0;
+                              const largo = Number(nuevo.largo) || 0;
+                              const precioPorPie = Number(nuevo.precioPorPie) || 0;
+                              const factor = 0.2734;
+                              const precioBase = factor * alto * ancho * largo * precioPorPie;
+                              const precioFinal = nuevo.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                              nuevo.precio = Math.round(precioFinal / 100) * 100;
+                            }
+                          }
+                        }
+                        
+                        return nuevo;
+                      }));
+                    }}
+                    onIncrementarCantidad={(id) => {
+                      setItemsPresupuesto((prev) => prev.map((p) => {
+                        if (p.id !== id) return p;
+                        const nuevaCantidad = Number(p.cantidad || 1) + 1;
+                        const nuevo = { ...p, cantidad: nuevaCantidad };
+                        
+                        // Recalcular precio si es madera machimbre/deck
+                        if (p.categoria?.toLowerCase() === "maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+                          const alto = Number(p.alto) || 0;
+                          const largo = Number(p.largo) || 0;
+                          const precioPorPie = Number(p.precioPorPie) || 0;
+                          const precioBase = alto * largo * precioPorPie * nuevaCantidad;
+                          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                          nuevo.precio = Math.round(precioFinal / 100) * 100;
+                        }
+                        
+                        return nuevo;
+                      }));
+                    }}
+                    onDecrementarCantidad={(id) => {
+                      setItemsPresupuesto((prev) => prev.map((p) => {
+                        if (p.id !== id) return p;
+                        const nuevaCantidad = Math.max(1, Number(p.cantidad || 1) - 1);
+                        const nuevo = { ...p, cantidad: nuevaCantidad };
+                        
+                        // Recalcular precio si es madera machimbre/deck
+                        if (p.categoria?.toLowerCase() === "maderas" && (p.subcategoria === "machimbre" || p.subcategoria === "deck")) {
+                          const alto = Number(p.alto) || 0;
+                          const largo = Number(p.largo) || 0;
+                          const precioPorPie = Number(p.precioPorPie) || 0;
+                          const precioBase = alto * largo * precioPorPie * nuevaCantidad;
+                          const precioFinal = p.cepilladoAplicado ? precioBase * 1.066 : precioBase;
+                          nuevo.precio = Math.round(precioFinal / 100) * 100;
+                        }
+                        
+                        return nuevo;
+                      }));
+                    }}
+                    formatearNumeroArgentino={formatearNumeroArgentino}
+                  />
+                </>
               )}
             </CardContent>
           </Card>
