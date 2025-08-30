@@ -581,6 +581,12 @@ const ObraDetallePage = () => {
             onMovimientosChange={setMovimientos}
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
+            totalObra={modoCosto === "presupuesto" && presupuesto ? presupuesto.total : obra.gastoObraManual}
+            totalAbonado={movimientos.reduce((acc, m) => m.tipo === "pago" ? acc + Number(m.monto || 0) : acc, 0)}
+            onEstadoPagoChange={(estaPagado) => {
+              // Aquí podrías actualizar el estado de la obra si es necesario
+              console.log("Estado de pago:", estaPagado ? "PAGADO" : "PENDIENTE");
+            }}
           />
 
           <ObraDocumentacion
