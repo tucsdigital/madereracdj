@@ -397,12 +397,22 @@ export const useObra = (id) => {
         fechaEntrega: obra.fechaEntrega || null,
         rangoHorario: obra.rangoHorario || null,
         
-        // Datos de cobranza
-        cobranzas: {
-          senia: 0,
-          monto: 0,
-          historialPagos: []
+
+        
+        // Fechas (estructura obligatoria)
+        fechas: {
+          inicio: new Date().toISOString().split("T")[0],
+          fin: new Date().toISOString().split("T")[0]
         },
+        
+        // Campos adicionales obligatorios
+        gastoObraManual: 0,
+        materialesCatalogo: productosCombinados, // Incluir todos los materiales (presupuesto + adicionales)
+        montoEstimado: null,
+        productosDescuento: 0,
+        productosDescuentoTotal: 0,
+        productosSubtotal: 0,
+        productosTotal: 0,
         
         // Auditoría
         fechaConversion: serverTimestamp(),
@@ -413,6 +423,8 @@ export const useObra = (id) => {
           total: obra.total
         }
       };
+
+      console.log("Nueva obra a crear:", nuevaObra);
 
       const created = await addDoc(collection(db, "obras"), nuevaObra);
       
