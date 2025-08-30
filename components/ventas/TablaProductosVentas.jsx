@@ -329,7 +329,7 @@ const TablaProductosVentas = ({
                         placeholder="0"
                       />
                     ) : (
-                      <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino ? formatearNumeroArgentino(p.precio) : p.precio.toLocaleString("es-AR")}`}</span>
+                      <span className="block text-right font-semibold text-default-900 tabular-nums">{`${formatearNumeroArgentino ? formatearNumeroArgentino(p.precio) : p.precio.toLocaleString("es-AR")}`}</span>
                     )}
                   </td>
                   <td className="p-4 align-middle text-sm text-default-600">
@@ -347,7 +347,7 @@ const TablaProductosVentas = ({
                     </div>
                   </td>
                   <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
-                    ${formatearNumeroArgentino ? formatearNumeroArgentino(
+                    {formatearNumeroArgentino ? formatearNumeroArgentino(
                       // Para machimbres y deck, el precio ya incluye la cantidad
                       p.categoria === "Maderas" && p.unidad === "M2"
                         ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
@@ -387,13 +387,13 @@ const TablaProductosVentas = ({
         <div className="flex justify-end">
           <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 text-lg shadow-sm font-semibold flex gap-6">
             <div>
-              Subtotal: <span className="font-bold">$ {formatearNumeroArgentino ? formatearNumeroArgentino(subtotal) : subtotal.toLocaleString("es-AR")}</span>
+              Subtotal: <span className="font-bold">{formatearNumeroArgentino ? formatearNumeroArgentino(subtotal) : subtotal.toLocaleString("es-AR")}</span>
             </div>
             <div>
-              Descuento: <span className="font-bold">$ {formatearNumeroArgentino ? formatearNumeroArgentino(descuentoTotal) : descuentoTotal.toLocaleString("es-AR")}</span>
+              Descuento: <span className="font-bold">{formatearNumeroArgentino ? formatearNumeroArgentino(descuentoTotal) : descuentoTotal.toLocaleString("es-AR")}</span>
             </div>
             <div>
-              Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino ? formatearNumeroArgentino(total) : total.toLocaleString("es-AR")}</span>
+              Total: <span className="font-bold text-primary">{formatearNumeroArgentino ? formatearNumeroArgentino(total) : total.toLocaleString("es-AR")}</span>
             </div>
           </div>
         </div>

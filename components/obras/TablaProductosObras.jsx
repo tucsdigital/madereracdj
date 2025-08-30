@@ -165,7 +165,7 @@ const TablaProductosObras = ({
                         />
                       </td>
                       <td className="p-2 text-right font-semibold">
-                        $ {formatearNumeroArgentino ? formatearNumeroArgentino(sub) : sub.toLocaleString("es-AR")}
+                        {formatearNumeroArgentino ? formatearNumeroArgentino(sub) : sub.toLocaleString("es-AR")}
                       </td>
                       <td className="p-2 text-center">
                         <Button 
@@ -205,13 +205,13 @@ const TablaProductosObras = ({
         <div className="flex justify-end">
           <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 text-lg shadow-sm font-semibold flex gap-6">
             <div>
-              Subtotal: <span className="font-bold">$ {formatearNumeroArgentino ? formatearNumeroArgentino(subtotal) : subtotal.toLocaleString("es-AR")}</span>
+              Subtotal: <span className="font-bold">{formatearNumeroArgentino ? formatearNumeroArgentino(subtotal) : subtotal.toLocaleString("es-AR")}</span>
             </div>
             <div>
-              Descuento: <span className="font-bold">$ {formatearNumeroArgentino ? formatearNumeroArgentino(descuentoTotal) : descuentoTotal.toLocaleString("es-AR")}</span>
+              Descuento: <span className="font-bold">{formatearNumeroArgentino ? formatearNumeroArgentino(descuentoTotal) : descuentoTotal.toLocaleString("es-AR")}</span>
             </div>
             <div>
-              Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino ? formatearNumeroArgentino(total) : total.toLocaleString("es-AR")}</span>
+              Total: <span className="font-bold text-primary">{formatearNumeroArgentino ? formatearNumeroArgentino(total) : total.toLocaleString("es-AR")}</span>
             </div>
           </div>
         </div>

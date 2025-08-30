@@ -262,6 +262,28 @@ const ObraDetallePage = () => {
     const ya = itemsCatalogo.some((x) => x.id === prod.id);
     if (ya) return;
     
+    let precioInicial = Number(prod.valorVenta) || 0;
+    
+    // Si es madera, calcular el precio inicial basado en dimensiones
+    if (prod.categoria?.toLowerCase() === "maderas") {
+      const alto = Number(prod.alto) || 0;
+      const ancho = Number(prod.ancho) || 0;
+      const largo = Number(prod.largo) || 0;
+      const precioPorPie = Number(prod.precioPorPie) || 0;
+      
+      if (alto > 0 && largo > 0 && precioPorPie > 0) {
+        if (prod.subcategoria === "machimbre" || prod.subcategoria === "deck") {
+          // Para machimbre/deck: alto × largo × precioPorPie
+          precioInicial = calcularPrecioMachimbre({ alto, largo, cantidad: 1, precioPorPie });
+        } else if (ancho > 0) {
+          // Para madera cortada: alto × ancho × largo × precioPorPie × factor
+          precioInicial = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+        }
+        // Redondear a centenas
+        precioInicial = Math.round(precioInicial / 100) * 100;
+      }
+    }
+    
     const nuevo = {
       id: prod.id,
       nombre: prod.nombre,
@@ -270,7 +292,7 @@ const ObraDetallePage = () => {
       unidad: prod.unidad || "UN",
       cantidad: 1,
       descuento: 0,
-      precio: Number(prod.valorVenta) || 0,
+      precio: precioInicial,
       valorVenta: Number(prod.valorVenta) || 0,
     };
     
