@@ -267,13 +267,21 @@ const ObrasPage = () => {
       },
     },
     {
-      id: "estadoPago",
-      header: "Pago",
+      id: "abonado",
+      header: "Abonado",
       cell: ({ row }) => {
-        const estadoPago = row.original.estadoPago || "pendiente";
-        const label = estadoPago === "pagado" ? "Pagado" : "Pendiente";
-        const color = estadoPago === "pagado" ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200";
-        return <Badge variant="outline" className={color}>{label}</Badge>;
+        const cobranzas = row.original.cobranzas || {};
+        const senia = Number(cobranzas.senia) || 0;
+        const monto = Number(cobranzas.monto) || 0;
+        const historialPagos = cobranzas.historialPagos || [];
+        const totalHistorial = historialPagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+        const totalAbonado = senia + monto + totalHistorial;
+        
+        return (
+          <div className="font-medium">
+            ${totalAbonado.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+          </div>
+        );
       },
     },
     {
