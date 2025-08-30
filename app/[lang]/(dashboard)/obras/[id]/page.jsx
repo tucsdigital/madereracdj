@@ -392,6 +392,21 @@ const ObraDetallePage = () => {
               }
             }}
             formatearNumeroArgentino={formatearNumeroArgentino}
+            // Props adicionales para filtros
+            categorias={categorias}
+            categoriaId={categoriaId}
+            setCategoriaId={setCategoriaId}
+            busquedaProducto={busquedaProducto}
+            setBusquedaProducto={setBusquedaProducto}
+            productosFiltrados={[]}
+            productosPorCategoria={productosPorCategoria}
+            // Props para filtros específicos
+            tiposMadera={[]}
+            filtroTipoMadera=""
+            setFiltroTipoMadera={() => {}}
+            subCategoriasFerreteria={[]}
+            filtroSubCategoria=""
+            setFiltroSubCategoria={() => {}}
           />
 
           {/* Presupuesto Inicial */}
