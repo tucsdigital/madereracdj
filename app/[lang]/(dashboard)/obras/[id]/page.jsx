@@ -18,6 +18,8 @@ import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
+import CatalogoVentas from "@/components/ventas/CatalogoVentas";
+import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import CatalogoObras from "@/components/obras/CatalogoObras";
 import TablaProductosObras from "@/components/obras/TablaProductosObras";
 
@@ -348,7 +350,7 @@ const ObraDetallePage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Selector de Materiales del Catálogo */}
-          <CatalogoObras
+          <CatalogoVentas
             titulo="Materiales del Catálogo"
             productos={productosCatalogo}
             productosPorCategoria={productosPorCategoria}
@@ -365,7 +367,7 @@ const ObraDetallePage = () => {
           />
 
           {/* Tabla de Materiales Seleccionados */}
-          <TablaProductosObras
+          <TablaProductosVentas
             titulo="Materiales Seleccionados"
             items={itemsCatalogo}
             editando={editando}
