@@ -144,28 +144,6 @@ const ObraCobranza = ({
           </div>
         </div>
 
-        {/* Estado de Pago */}
-        <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-          <div className="flex items-center justify-center gap-2">
-            {estaPagado ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-orange-600" />
-            )}
-            <Badge 
-              variant={estaPagado ? "default" : "secondary"}
-              className="text-sm px-3 py-1.5 h-8 font-medium"
-            >
-              {estaPagado ? "✅ OBRA PAGADA" : "⏳ PENDIENTE DE PAGO"}
-            </Badge>
-          </div>
-          {estaPagado && (
-            <p className="text-xs text-green-700 mt-1">
-              ¡Felicidades! La obra ha sido completamente pagada
-            </p>
-          )}
-        </div>
-
         {/* Formulario de Nuevo Pago */}
         {editando && saldoPendiente > 0 && (
           <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -244,12 +222,20 @@ const ObraCobranza = ({
           </div>
         )}
 
-        {/* Mensaje cuando está pagado */}
-        {estaPagado && (
+        {/* Mensaje de Estado de Pago */}
+        {estaPagado ? (
           <div className="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
             <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
             <p className="text-green-800 font-medium">¡Obra Completamente Pagada!</p>
             <p className="text-sm text-green-700">No se pueden agregar más pagos</p>
+          </div>
+        ) : (
+          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 text-center">
+            <AlertCircle className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <p className="text-orange-800 font-medium">Obra Pendiente de Pago</p>
+            <p className="text-sm text-orange-700">
+              Saldo pendiente: <strong>{formatearNumeroArgentino(saldoPendiente)}</strong>
+            </p>
           </div>
         )}
 
