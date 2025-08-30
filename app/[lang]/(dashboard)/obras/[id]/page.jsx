@@ -35,13 +35,17 @@ const ObraDetallePage = () => {
     editando,
     docLinks,
     movimientos,
-         tipoObra,
-     prioridad,
+    tipoObra,
+    prioridad,
     estadoObra,
     responsable,
     responsables,
     fechasEdit,
     ubicacionEdit,
+    clienteId,
+    cliente,
+    clientes,
+    usarDireccionCliente,
     productosCatalogo,
     productosPorCategoria,
     categorias,
@@ -66,12 +70,15 @@ const ObraDetallePage = () => {
     setEditando,
     setDocLinks,
     setMovimientos,
-         setTipoObra,
-     setPrioridad,
+    setTipoObra,
+    setPrioridad,
     setEstadoObra,
     setResponsable,
     setFechasEdit,
     setUbicacionEdit,
+    setClienteId,
+    setCliente,
+    setUsarDireccionCliente,
     setCategoriaId,
     setBusquedaProducto,
     setItemsCatalogo,
@@ -688,14 +695,14 @@ const ObraDetallePage = () => {
           />
         </div>
 
-        {/* Barra lateraaaaal */}
+        {/* Barra lateral */}
         <div className="space-y-6">
           <ObraInfoGeneral
             obra={obra}
             formatearFecha={formatearFecha}
             editando={editando}
-                         // Estados editables
-             tipoObra={tipoObra}
+            // Estados editables
+            tipoObra={tipoObra}
             prioridad={prioridad}
             estadoObra={estadoObra}
             responsable={responsable}
@@ -706,8 +713,8 @@ const ObraDetallePage = () => {
             cliente={cliente}
             clientes={clientes}
             usarDireccionCliente={usarDireccionCliente}
-                         // Setters
-             setTipoObra={setTipoObra}
+            // Setters
+            setTipoObra={setTipoObra}
             setPrioridad={setPrioridad}
             setEstadoObra={setEstadoObra}
             setResponsable={setResponsable}
