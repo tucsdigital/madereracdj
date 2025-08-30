@@ -30,6 +30,12 @@ export const useObra = (id) => {
     localidad: "",
     provincia: "",
   });
+  
+  // Estados para información del cliente
+  const [clienteId, setClienteId] = useState("");
+  const [cliente, setCliente] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
 
   // Catálogo para Materiales (colección: productos)
   const [productosCatalogo, setProductosCatalogo] = useState([]);
@@ -63,6 +69,22 @@ export const useObra = (id) => {
   const [modoCosto, setModoCosto] = useState("gasto");
   const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
+  // Cargar clientes
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        const snapClientes = await getDocs(collection(db, "clientes"));
+        setClientes(
+          snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        );
+      } catch (error) {
+        console.error("Error al cargar clientes:", error);
+      }
+    };
+    
+    fetchClientes();
+  }, []);
+
   // Cargar obra principal
   useEffect(() => {
     const fetchObra = async () => {
@@ -79,7 +101,6 @@ export const useObra = (id) => {
           
           // Inicializar estados de edición de datos generales (si es obra)
           if (data.tipo === "obra") {
-            setNombreObra(data.nombreObra || "");
             setTipoObra(data.tipoObra || "");
             setPrioridad(data.prioridad || "");
             setEstadoObra(data.estado || "pendiente_inicio");
@@ -98,6 +119,11 @@ export const useObra = (id) => {
               localidad: u.localidad || "",
               provincia: u.provincia || "",
             });
+            
+            // Inicializar información del cliente
+            setClienteId(data.clienteId || "");
+            setCliente(data.cliente || null);
+            setUsarDireccionCliente(data.usarDireccionCliente !== false);
             
             setItemsCatalogo(Array.isArray(data.materialesCatalogo) ? data.materialesCatalogo : []);
             setGastoObraManual(Number(data.gastoObraManual) || 0);
@@ -528,7 +554,6 @@ export const useObra = (id) => {
       updateData.gastoObraManual = Number(gastoObraManual) || 0;
       updateData.descripcionGeneral = descripcionGeneral;
       
-      if (nombreObra) updateData.nombreObra = nombreObra;
       if (tipoObra) updateData.tipoObra = tipoObra;
       if (prioridad) updateData.prioridad = prioridad;
       if (estadoObra) updateData.estado = estadoObra;
@@ -537,6 +562,11 @@ export const useObra = (id) => {
       if (ubicacionEdit.direccion || ubicacionEdit.localidad || ubicacionEdit.provincia) {
         updateData.ubicacion = ubicacionEdit;
       }
+      
+      // Guardar información del cliente
+      if (clienteId) updateData.clienteId = clienteId;
+      if (cliente) updateData.cliente = cliente;
+      updateData.usarDireccionCliente = usarDireccionCliente;
     } else if (obra.tipo === "presupuesto") {
       updateData.productos = itemsPresupuesto;
       updateData.subtotal = itemsPresupuesto.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
@@ -572,7 +602,6 @@ export const useObra = (id) => {
     editando,
     docLinks,
     movimientos,
-    nombreObra,
     tipoObra,
     prioridad,
     estadoObra,
@@ -580,6 +609,10 @@ export const useObra = (id) => {
     responsables,
     fechasEdit,
     ubicacionEdit,
+    clienteId,
+    cliente,
+    clientes,
+    usarDireccionCliente,
     productosCatalogo,
     productosPorCategoria,
     categorias,
@@ -607,13 +640,15 @@ export const useObra = (id) => {
     setEditando,
     setDocLinks,
     setMovimientos,
-    setNombreObra,
     setTipoObra,
     setPrioridad,
     setEstadoObra,
     setResponsable,
     setFechasEdit,
     setUbicacionEdit,
+    setClienteId,
+    setCliente,
+    setUsarDireccionCliente,
     setCategoriaId,
     setBusquedaProducto,
     setItemsCatalogo,

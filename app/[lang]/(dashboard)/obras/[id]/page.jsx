@@ -35,9 +35,8 @@ const ObraDetallePage = () => {
     editando,
     docLinks,
     movimientos,
-    nombreObra,
-    tipoObra,
-    prioridad,
+         tipoObra,
+     prioridad,
     estadoObra,
     responsable,
     responsables,
@@ -67,9 +66,8 @@ const ObraDetallePage = () => {
     setEditando,
     setDocLinks,
     setMovimientos,
-    setNombreObra,
-    setTipoObra,
-    setPrioridad,
+         setTipoObra,
+     setPrioridad,
     setEstadoObra,
     setResponsable,
     setFechasEdit,
@@ -336,202 +334,7 @@ const ObraDetallePage = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna principal */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Datos Generales - Solo para obras */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon icon="heroicons:clipboard-document-list" className="w-5 h-5" />
-                Datos Generales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {editando ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Nombre de la Obra</label>
-                    <Input
-                      value={nombreObra}
-                      onChange={(e) => setNombreObra(e.target.value)}
-                      placeholder="Nombre de la obra"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Tipo de Obra</label>
-                    <Input
-                      value={tipoObra}
-                      onChange={(e) => setTipoObra(e.target.value)}
-                      placeholder="Tipo de obra"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Prioridad</label>
-                    <Select value={prioridad} onValueChange={setPrioridad}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar prioridad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="baja">Baja</SelectItem>
-                        <SelectItem value="media">Media</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Estado</label>
-                    <Select value={estadoObra} onValueChange={setEstadoObra}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendiente_inicio">Pendiente de Inicio</SelectItem>
-                        <SelectItem value="en_progreso">En Progreso</SelectItem>
-                        <SelectItem value="completada">Completada</SelectItem>
-                        <SelectItem value="cancelada">Cancelada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Responsable</label>
-                    <div className="flex gap-2">
-                      <Select value={responsable} onValueChange={setResponsable}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Seleccionar responsable" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {responsables.map((r) => (
-                            <SelectItem key={r} value={r}>{r}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setOpenNuevoResponsable(true)}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Gasto Manual</label>
-                    <Input
-                      type="number"
-                      value={gastoObraManual}
-                      onChange={(e) => setGastoObraManual(Number(e.target.value) || 0)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Nombre</p>
-                    <p className="font-medium">{nombreObra || "No especificado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Tipo</p>
-                    <p className="font-medium">{tipoObra || "No especificado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Prioridad</p>
-                    <Badge variant={prioridad === "alta" ? "destructive" : prioridad === "media" ? "default" : "secondary"}>
-                      {prioridad || "No especificada"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Estado</p>
-                    <Badge variant={estadoObra === "completada" ? "default" : estadoObra === "cancelada" ? "destructive" : "secondary"}>
-                      {estadoObra || "No especificado"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Responsable</p>
-                    <p className="font-medium">{responsable || "No asignado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Gasto Manual</p>
-                    <p className="font-medium">{formatearNumeroArgentino(gastoObraManual)}</p>
-                  </div>
-                </div>
-              )}
-
-              {editando && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Fecha de Inicio</label>
-                      <Input
-                        type="date"
-                        value={fechasEdit.inicio}
-                        onChange={(e) => setFechasEdit(prev => ({ ...prev, inicio: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Fecha de Finalización</label>
-                      <Input
-                        type="date"
-                        value={fechasEdit.fin}
-                        onChange={(e) => setFechasEdit(prev => ({ ...prev, fin: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Dirección</label>
-                      <Input
-                        value={ubicacionEdit.direccion}
-                        onChange={(e) => setUbicacionEdit(prev => ({ ...prev, direccion: e.target.value }))}
-                        placeholder="Dirección"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Localidad</label>
-                      <Input
-                        value={ubicacionEdit.localidad}
-                        onChange={(e) => setUbicacionEdit(prev => ({ ...prev, localidad: e.target.value }))}
-                        placeholder="Localidad"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Provincia</label>
-                      <Input
-                        value={ubicacionEdit.provincia}
-                        onChange={(e) => setUbicacionEdit(prev => ({ ...prev, provincia: e.target.value }))}
-                        placeholder="Provincia"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {!editando && (obra.fechas || obra.ubicacion) && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Fecha de Inicio</p>
-                      <p className="font-medium">{formatearFecha(obra.fechas?.inicio)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Fecha de Finalización</p>
-                      <p className="font-medium">{formatearFecha(obra.fechas?.fin)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Ubicación</p>
-                    <p className="font-medium">
-                      {obra.ubicacion?.direccion && `${obra.ubicacion.direccion}, `}
-                      {obra.ubicacion?.localidad && `${obra.ubicacion.localidad}, `}
-                      {obra.ubicacion?.provincia}
-                    </p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Materiales del Catálogo */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -890,6 +693,29 @@ const ObraDetallePage = () => {
           <ObraInfoGeneral
             obra={obra}
             formatearFecha={formatearFecha}
+            editando={editando}
+                         // Estados editables
+             tipoObra={tipoObra}
+            prioridad={prioridad}
+            estadoObra={estadoObra}
+            responsable={responsable}
+            responsables={responsables}
+            fechasEdit={fechasEdit}
+            ubicacionEdit={ubicacionEdit}
+            clienteId={clienteId}
+            cliente={cliente}
+            clientes={clientes}
+            usarDireccionCliente={usarDireccionCliente}
+                         // Setters
+             setTipoObra={setTipoObra}
+            setPrioridad={setPrioridad}
+            setEstadoObra={setEstadoObra}
+            setResponsable={setResponsable}
+            setFechasEdit={setFechasEdit}
+            setUbicacionEdit={setUbicacionEdit}
+            setClienteId={setClienteId}
+            setCliente={setCliente}
+            setUsarDireccionCliente={setUsarDireccionCliente}
           />
 
           <ObraResumenFinanciero
