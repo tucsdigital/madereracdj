@@ -97,6 +97,14 @@ const PresupuestoPage = () => {
     }
   }, [catalogoCargado, loading, cargarCatalogoProductos]);
 
+  // Log para debuggear productos del catálogo
+  useEffect(() => {
+    if (productosCatalogo && productosCatalogo.length > 0) {
+      console.log("Productos del catálogo cargados:", productosCatalogo.length);
+      console.log("Primer producto de ejemplo:", productosCatalogo[0]);
+    }
+  }, [productosCatalogo]);
+
   const handlePrint = () => {
     setOpenPrint(true);
   };
@@ -429,6 +437,8 @@ const PresupuestoPage = () => {
 
   // Función para agregar productos al catálogo (como en ventas/page.jsx)
   const handleAgregarProducto = (producto) => {
+    console.log("Producto recibido en handleAgregarProducto:", producto);
+    
     // Verificar si ya está agregado
     const yaAgregado = datosConversion.materialesAdicionales.some(p => p.id === producto.id);
     if (yaAgregado) return;
@@ -496,6 +506,8 @@ const PresupuestoPage = () => {
       };
     }
 
+    console.log("Producto final a agregar:", productoParaAgregar);
+    
     setDatosConversion(prev => ({
       ...prev,
       materialesAdicionales: [...prev.materialesAdicionales, productoParaAgregar]
@@ -935,28 +947,57 @@ const PresupuestoPage = () => {
                                               <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
                                             </div>
                                           )}
+                                          
+                                          {/* Información adicional para maderas */}
+                                          {prod.categoria === "Maderas" && (
+                                            <>
+                                              {prod.precioPorPie && (
+                                                <div className="flex items-center justify-between">
+                                                  <span className="text-xs text-gray-500 dark:text-gray-400">Precio por pie:</span>
+                                                  <span className="text-xs text-gray-700 dark:text-gray-300">${formatearNumeroArgentino(prod.precioPorPie)}</span>
+                                                </div>
+                                              )}
+                                              {prod.alto && prod.largo && prod.unidadMedida === "M2" && (
+                                                <div className="flex items-center justify-between">
+                                                  <span className="text-xs text-gray-500 dark:text-gray-400">Dimensiones:</span>
+                                                  <span className="text-xs text-gray-700 dark:text-gray-300">
+                                                    {prod.alto}×{prod.largo} m
+                                                  </span>
+                                                </div>
+                                              )}
+                                              {prod.alto && prod.ancho && prod.largo && prod.unidadMedida !== "M2" && prod.unidadMedida !== "Unidad" && (
+                                                <div className="flex items-center justify-between">
+                                                  <span className="text-xs text-gray-500 dark:text-gray-400">Dimensiones:</span>
+                                                  <span className="text-xs text-gray-700 dark:text-gray-300">
+                                                    {prod.alto}×{prod.ancho}×{prod.largo} m
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
                                         </div>
 
                                         {/* Botón de agregar */}
                                         <div className="mt-4">
                                           <button
                                             onClick={() => {
-                                              if (yaAgregado) return;
-                                              const nuevoMaterial = {
+                                              console.log("Botón agregar clickeado para producto:", prod);
+                                              console.log("Campos del producto:", {
                                                 id: prod.id,
                                                 nombre: prod.nombre,
-                                                categoria: prod.categoria || "",
-                                                subcategoria: prod.subcategoria || prod.subCategoria || "",
-                                                unidad: prod.unidad || prod.unidadMedida || "UN",
-                                                valorVenta: Number(prod.valorVenta) || 0,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                precio: precio
-                                              };
-                                              setDatosConversion(prev => ({
-                                                ...prev,
-                                                materialesAdicionales: [...(prev.materialesAdicionales || []), nuevoMaterial]
-                                              }));
+                                                categoria: prod.categoria,
+                                                subcategoria: prod.subcategoria,
+                                                tipoMadera: prod.tipoMadera,
+                                                unidadMedida: prod.unidadMedida,
+                                                alto: prod.alto,
+                                                ancho: prod.ancho,
+                                                largo: prod.largo,
+                                                precioPorPie: prod.precioPorPie,
+                                                precio: prod.precio
+                                              });
+                                              console.log("Todos los campos disponibles:", Object.keys(prod));
+                                              if (yaAgregado) return;
+                                              handleAgregarProducto(prod);
                                             }}
                                             disabled={yaAgregado}
                                             className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-gray-600 text-white hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"}`}
