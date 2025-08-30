@@ -156,7 +156,7 @@ const PresupuestoPage = () => {
       }
 
       // Llamar a la función de conversión con los datos del formulario
-      await convertirPresupuestoToObra(datosConversion);
+      await convertirPresupuestoToObra(datosConversion, user);
       
       setConvertMessage("✅ Presupuesto convertido a obra exitosamente");
       setShowConvertForm(false);

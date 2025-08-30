@@ -337,7 +337,8 @@ export const useObra = (id) => {
     setPresupuestosDisponibles((prev) => [{ id: created.id, ...nuevo }, ...prev]);
   };
 
-  const convertirPresupuestoToObra = async (datosConversion = {}) => {
+  const convertirPresupuestoToObra = async (datosConversion = {}, user = null) => {
+    console.log("convertirPresupuestoToObra llamada con:", { datosConversion, user });
     if (!obra || obra.tipo !== "presupuesto") return;
 
     try {
