@@ -609,7 +609,7 @@ const ObrasPage = () => {
             <span className="hidden sm:inline">Nueva Obra</span>
             <span className="sm:hidden">Obra</span>
           </Button>
-          <Button variant="outline" onClick={() => window.location.reload()} disabled={deleting}>
+          {/* <Button variant="outline" onClick={() => window.location.reload()} disabled={deleting}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
@@ -622,7 +622,7 @@ const ObrasPage = () => {
             <Info className="w-4 h-4 mr-2" />
             Probar Auditoría
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
