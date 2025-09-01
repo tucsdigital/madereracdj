@@ -242,14 +242,21 @@ const ObrasPage = () => {
       header: "Estado",
       cell: ({ row }) => {
         const estado = row.getValue("estado");
-        const estadoInfo = estadosObra[estado] || { label: estado, color: "bg-gray-100 text-gray-800 border-gray-200" };
+        const estadoInfo = estadosObra[estado] || { label: estado, color: "bg-gray-100 text-gray-800 border-gray-200", icon: Clock };
         const IconCmp = estadoInfo.icon || Clock;
+        
+        // Colores para los iconos según el estado
+        const iconColors = {
+          pendiente_inicio: "text-yellow-600",
+          en_ejecucion: "text-blue-600", 
+          pausada: "text-orange-600",
+          completada: "text-green-600",
+          cancelada: "text-red-600"
+        };
+        
         return (
-          <div className="flex items-center gap-2">
-            <IconCmp className="w-4 h-4" />
-            <Badge variant="outline" className={estadoInfo.color}>
-              {estadoInfo.label}
-            </Badge>
+          <div className="flex items-center justify-center" title={estadoInfo.label}>
+            <IconCmp className={`w-5 h-5 ${iconColors[estado] || "text-gray-600"}`} />
           </div>
         );
       },
@@ -267,8 +274,8 @@ const ObrasPage = () => {
       },
     },
     {
-      id: "abonado",
-      header: "Abonado",
+      id: "pago",
+      header: "Pago",
       cell: ({ row }) => {
         const cobranzas = row.original.cobranzas || {};
         const senia = Number(cobranzas.senia) || 0;
@@ -276,10 +283,50 @@ const ObrasPage = () => {
         const historialPagos = cobranzas.historialPagos || [];
         const totalHistorial = historialPagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
         const totalAbonado = senia + monto + totalHistorial;
+        const presupuestoTotal = row.original.presupuestoTotal || 0;
+        
+        // Determinar estado del pago
+        let estadoPago = "pendiente";
+        let icono = Clock;
+        let color = "text-yellow-600";
+        let titulo = "Pendiente de pago";
+        
+        if (totalAbonado >= presupuestoTotal && presupuestoTotal > 0) {
+          estadoPago = "pagado";
+          icono = CheckCircle;
+          color = "text-green-600";
+          titulo = "Pagado completamente";
+        } else if (totalAbonado > 0) {
+          estadoPago = "parcial";
+          icono = AlertCircle;
+          color = "text-orange-600";
+          titulo = "Pago parcial";
+        }
+        
+        const IconComponent = icono;
+        return (
+          <div className="flex items-center justify-center" title={titulo}>
+            <IconComponent className={`w-5 h-5 ${color}`} />
+          </div>
+        );
+      },
+    },
+    {
+      id: "debe",
+      header: "DEBE",
+      cell: ({ row }) => {
+        const cobranzas = row.original.cobranzas || {};
+        const senia = Number(cobranzas.senia) || 0;
+        const monto = Number(cobranzas.monto) || 0;
+        const historialPagos = cobranzas.historialPagos || [];
+        const totalHistorial = historialPagos.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+        const totalAbonado = senia + monto + totalHistorial;
+        const presupuestoTotal = row.original.presupuestoTotal || 0;
+        const debe = presupuestoTotal - totalAbonado;
         
         return (
           <div className="font-medium">
-            ${totalAbonado.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+            ${debe > 0 ? debe.toLocaleString("es-AR", { minimumFractionDigits: 2 }) : "0.00"}
           </div>
         );
       },
