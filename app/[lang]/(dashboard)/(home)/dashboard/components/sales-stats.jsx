@@ -649,8 +649,16 @@ const SalesStats = () => {
                     </span>
                   </div>
                   <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}</div>
-                  <div className="text-xs text-default-500">
-                    Nuevos: {nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesNuevos))} (2.5% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesNuevos))}) · Viejos: {nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesViejos))} (0.8% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesViejos))}) · Total: ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}
+                  <div className="text-xs text-default-500 space-y-1">
+                    <div>
+                      <span className="font-semibold text-fuchsia-700">Nuevos:</span> {clientesCounts.nuevo} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesNuevos))} vendido (2.5% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesNuevos))})
+                    </div>
+                    <div>
+                      <span className="font-semibold text-fuchsia-700">Viejos:</span> {clientesCounts.viejo} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesViejos))} vendido (0.8% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesViejos))})
+                    </div>
+                    <div className="pt-1 border-t border-fuchsia-200">
+                      <span className="font-semibold text-fuchsia-700">Total:</span> {clientesTotal} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))} comisión
+                    </div>
                   </div>
                 </div>
               )}
