@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,63 +7,207 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
-import { Plus, Trash2, Search, Filter } from "lucide-react";
+import { 
+  Plus, 
+  Trash2, 
+  Search, 
+  Filter, 
+  Edit3, 
+  Check, 
+  X,
+  Save
+} from "lucide-react";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
 
 const PresupuestoDetalle = ({
-  itemsPresupuesto,
-  onItemsPresupuestoChange,
-  productosObraCatalogo,
-  productosObraPorCategoria,
-  categoriasObra,
-  categoriaObraId,
-  setCategoriaObraId,
-  busquedaProductoObra,
-  setBusquedaProductoObra,
+  obra,
   editando,
   formatearNumeroArgentino,
-  descripcionGeneral,
-  onDescripcionGeneralChange
+  onObraUpdate,
+  onGuardarRef,
+  shouldSave,
+  onResetShouldSave
 }) => {
-  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  // Estados para bloques
+  const [bloques, setBloques] = useState([]);
+  const [bloqueActivo, setBloqueActivo] = useState(0);
+  const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
+  const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
+  const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
+  // Debug: Log de props recibidas
+  console.log("🔍 PresupuestoDetalle props - editando:", editando, "shouldSave:", shouldSave);
+
+  // Estados para catálogo de productos
+  const [productosObra, setProductosObra] = useState([]);
+  const [productosObraPorCategoria, setProductosObraPorCategoria] = useState({});
+  const [categoriasObra, setCategoriasObra] = useState([]);
+  const [categoriaObraId, setCategoriaObraId] = useState("");
+  const [busquedaProductoObra, setBusquedaProductoObra] = useState("");
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12);
+
+  // Inicializar datos cuando se carga la obra
+  useEffect(() => {
+    if (obra) {
+      if (obra.bloques && obra.bloques.length > 0) {
+        setBloques(obra.bloques);
+      } else {
+        // Crear un bloque inicial si no hay bloques
+        const bloqueInicial = {
+          id: `bloque-${Date.now()}`,
+          nombre: "Bloque 1",
+          productos: [],
+          estaCerrado: false,
+          descripcion: ""
+        };
+        setBloques([bloqueInicial]);
+      }
+      setDescripcionGeneral(obra.descripcionGeneral || "");
+    }
+  }, [obra]);
+
+
+
+  // Cargar catálogo de productos de obra
+  useEffect(() => {
+    if (editando) {
+      const cargarProductosObra = async () => {
+        try {
+          const snapProd = await getDocs(collection(db, "productos_obras"));
+          const prods = snapProd.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setProductosObra(prods);
+          
+          const agrupados = {};
+          prods.forEach((p) => {
+            const cat = p.categoria || "Sin categoría";
+            (agrupados[cat] = agrupados[cat] || []).push(p);
+          });
+          setProductosObraPorCategoria(agrupados);
+          setCategoriasObra(Object.keys(agrupados));
+        } catch (error) {
+          console.error("Error cargando productos de obra:", error);
+        }
+      };
+      cargarProductosObra();
+    }
+  }, [editando]);
+
+  // Búsqueda debounced
   useEffect(() => {
     const timer = setTimeout(() => setBusquedaDebounced(busquedaProductoObra), 150);
     return () => clearTimeout(timer);
   }, [busquedaProductoObra]);
 
-  const agregarProductoObra = (prod) => {
-    const ya = itemsPresupuesto.some((x) => x.id === prod.id);
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaObraId, busquedaDebounced]);
+
+  // Función para calcular precio de productos de obra
+  const calcularPrecioProductoObra = ({ unidadMedida, alto, largo, valorVenta, cantidad }) => {
+    const u = String(unidadMedida || "").toUpperCase();
+    const altoNum = Number(alto) || 0;
+    const largoNum = Number(largo) || 0;
+    const valorNum = Number(valorVenta) || 0;
+    const cantNum = Number(cantidad) || 1;
+
+    if (u === "M2") {
+      return Math.round(altoNum * largoNum * valorNum * cantNum);
+    }
+    if (u === "ML") {
+      return Math.round(largoNum * valorNum * cantNum);
+    }
+    return Math.round(valorNum * cantNum);
+  };
+
+  // Funciones para manejar bloques
+  const agregarBloque = () => {
+    const nuevoBloque = {
+      id: `bloque-${Date.now()}`,
+      nombre: `Bloque ${bloques.length + 1}`,
+      productos: [],
+      estaCerrado: false,
+      descripcion: ""
+    };
+    setBloques(prev => [...prev, nuevoBloque]);
+    setBloqueActivo(bloques.length);
+  };
+
+  const eliminarBloque = (bloqueIndex) => {
+    if (bloques.length <= 1) return;
+    
+    setBloques(prev => prev.filter((_, index) => index !== bloqueIndex));
+    
+    if (bloqueActivo >= bloqueIndex) {
+      setBloqueActivo(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const actualizarNombreBloque = (bloqueIndex, nuevoNombre) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, nombre: nuevoNombre } : bloque
+    ));
+  };
+
+  const cerrarBloque = (bloqueIndex) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, estaCerrado: true } : bloque
+    ));
+  };
+
+  const abrirBloque = (bloqueIndex) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
+    ));
+  };
+
+  // Funciones para manejar productos en bloques
+  const agregarProducto = (prod) => {
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    
+    const ya = bloqueActual.productos.some((x) => x.id === prod.id);
     if (ya) return;
     
     const unidadMedida = prod.unidadMedida || "UN";
+    const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
       id: prod.id,
       nombre: prod.nombre,
       categoria: prod.categoria || "",
       subCategoria: prod.subCategoria || prod.subcategoria || "",
       unidadMedida,
-      valorVenta: Number(prod.valorVenta) || 0,
+      valorVenta,
       alto: 1,
       largo: 1,
       cantidad: 1,
       descuento: 0,
-      descripcion: "", // Nuevo campo para descripción individual
+      descripcion: "",
     };
     
-    // Calcular precio inicial
     const precio = calcularPrecioProductoObra({
-      unidadMedida: nuevo.unidadMedida,
+      unidadMedida,
       alto: nuevo.alto,
       largo: nuevo.largo,
       valorVenta: nuevo.valorVenta,
-      cantidad: nuevo.cantidad
+      cantidad: nuevo.cantidad,
     });
     nuevo.precio = precio;
     
-    onItemsPresupuestoChange([...itemsPresupuesto, nuevo]);
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, productos: [...bloque.productos, nuevo] }
+        : bloque
+    ));
   };
 
-  const agregarProductoObraManual = () => {
+  const agregarProductoManual = () => {
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    
     const nuevo = {
       id: `manual-${Date.now()}`,
       nombre: "Nuevo ítem",
@@ -75,59 +219,176 @@ const PresupuestoDetalle = ({
       largo: 1,
       cantidad: 1,
       descuento: 0,
-      descripcion: "", // Nuevo campo para descripción individual
+      descripcion: "",
       _esManual: true,
-      precio: 0
     };
     
-    onItemsPresupuestoChange([nuevo, ...itemsPresupuesto]);
+    nuevo.precio = calcularPrecioProductoObra({ 
+      unidadMedida: nuevo.unidadMedida, 
+      alto: nuevo.alto, 
+      largo: nuevo.largo, 
+      valorVenta: nuevo.valorVenta, 
+      cantidad: nuevo.cantidad 
+    });
+    
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, productos: [nuevo, ...bloque.productos] }
+        : bloque
+    ));
   };
 
-  const quitarProductoObra = (id) => {
-    onItemsPresupuestoChange(itemsPresupuesto.filter((p) => p.id !== id));
+  const quitarProducto = (id) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, productos: bloque.productos.filter((p) => p.id !== id) }
+        : bloque
+    ));
   };
 
-  const actualizarCampoObra = (id, campo, valor) => {
-    onItemsPresupuestoChange(itemsPresupuesto.map((p) => {
+  const actualizarCampo = (id, campo, valor) => {
+    setBloques(prev => prev.map((bloque, bloqueIndex) => 
+      bloqueIndex === bloqueActivo 
+        ? {
+            ...bloque,
+            productos: bloque.productos.map((p) => {
       if (p.id !== id) return p;
       
-      const actualizado = { ...p, [campo]: valor };
-      
-      if (campo === "unidadMedida" || campo === "alto" || campo === "largo" || campo === "cantidad" || campo === "valorVenta") {
+              const actualizado = { ...p };
+              
+              if (campo === "unidadMedida") {
+                actualizado.unidadMedida = valor;
+              } else if (campo === "descuento") {
+                actualizado[campo] = Number(valor) || 0;
+              } else if (campo === "valorVenta") {
+                actualizado[campo] = valor === "" ? "" : Number(valor);
+              } else if (campo === "descripcion") {
+                actualizado[campo] = valor;
+              } else {
+                actualizado[campo] = valor === "" ? "" : Number(valor);
+              }
+              
+              if (campo !== "descripcion") {
+                const alto = Number(actualizado.alto) || 0;
+                const largo = Number(actualizado.largo) || 0;
+                const cantidad = Number(actualizado.cantidad) || 1;
+                const valorVenta = Number(actualizado.valorVenta) || 0;
+                
         const precioBase = calcularPrecioProductoObra({
           unidadMedida: actualizado.unidadMedida,
-          alto: Number(actualizado.alto) || 0,
-          largo: Number(actualizado.largo) || 0,
-          valorVenta: Number(actualizado.valorVenta) || 0,
-          cantidad: Number(actualizado.cantidad) || 1
+                  alto,
+                  largo,
+                  valorVenta,
+                  cantidad,
         });
         actualizado.precio = Math.round(precioBase);
       }
       
       return actualizado;
-    }));
+            })
+          }
+        : bloque
+    ));
   };
 
-  const calcularPrecioProductoObra = ({ unidadMedida, alto, largo, valorVenta, cantidad }) => {
-    const u = String(unidadMedida || "").toUpperCase();
-    const altoNum = Number(alto) || 0;
-    const largoNum = Number(largo) || 0;
-    const valorNum = Number(valorVenta) || 0;
-    const cantNum = Number(cantidad) || 1;
-    
-    if (u === "M2") return Math.round(altoNum * largoNum * valorNum * cantNum);
-    if (u === "ML") return Math.round(largoNum * valorNum * cantNum);
-    return Math.round(valorNum * cantNum);
+  const actualizarNombreManual = (id, nombre) => {
+    setBloques(prev => prev.map((bloque, bloqueIndex) => 
+      bloqueIndex === bloqueActivo 
+        ? {
+            ...bloque,
+            productos: bloque.productos.map((p) => (p.id === id ? { ...p, nombre } : p))
+          }
+        : bloque
+    ));
   };
 
-  const totalPresupuesto = itemsPresupuesto.reduce((acc, item) => {
-    const subtotal = Number(item.precio || 0) * (1 - Number(item.descuento || 0) / 100);
-    return acc + subtotal;
-  }, 0);
+  // Cálculos de totales por bloque
+  const totalesPorBloque = useMemo(() => {
+    return bloques.map(bloque => {
+      const subtotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+      const descuentoTotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0);
+      const total = subtotal - descuentoTotal;
+      return { subtotal, descuentoTotal, total };
+    });
+  }, [bloques]);
 
+  // Totales generales
+  const totalGeneral = useMemo(() => {
+    return totalesPorBloque.reduce((acc, bloque) => ({
+      subtotal: acc.subtotal + bloque.subtotal,
+      descuentoTotal: acc.descuentoTotal + bloque.descuentoTotal,
+      total: acc.total + bloque.total
+    }), { subtotal: 0, descuentoTotal: 0, total: 0 });
+  }, [totalesPorBloque]);
+
+  // Bloque actual
+  const bloqueActual = bloques[bloqueActivo];
+  const itemsSeleccionados = bloqueActual?.productos || [];
+
+  // Función para guardar cambios
+  const guardarCambios = useCallback(async () => {
+    console.log("🔄 Iniciando guardado de cambios...");
+    try {
+      const obraRef = doc(db, "obras", obra.id);
+      
+      // Actualizar bloques con totales calculados
+      const bloquesActualizados = bloques.map((bloque, index) => {
+        const totales = totalesPorBloque[index];
+        return {
+          ...bloque,
+          subtotal: totales.subtotal,
+          descuentoTotal: totales.descuentoTotal,
+          total: totales.total,
+        };
+      });
+
+      const updateData = {
+        bloques: bloquesActualizados,
+        subtotal: totalGeneral.subtotal,
+        descuentoTotal: totalGeneral.descuentoTotal,
+        total: totalGeneral.total,
+        descripcionGeneral: descripcionGeneral,
+        fechaModificacion: new Date().toISOString(),
+      };
+
+      await updateDoc(obraRef, updateData);
+      console.log("✅ Datos guardados en Firestore:", updateData);
+
+      // Actualizar el estado local de la obra directamente
+      const obraActualizada = {
+        ...obra,
+        ...updateData
+      };
+      
+      // Notificar al componente padre para actualizar el estado
+      if (onObraUpdate) {
+        onObraUpdate(obraActualizada);
+        console.log("✅ Estado local actualizado");
+      }
+
+    } catch (error) {
+      console.error("Error guardando cambios:", error);
+      alert("Error al guardar los cambios");
+    }
+  }, [obra, bloques, totalesPorBloque, totalGeneral, descripcionGeneral, onObraUpdate]);
+
+  // Ejecutar guardado solo cuando shouldSave sea true
+  useEffect(() => {
+    console.log("🔍 useEffect shouldSave ejecutado - shouldSave:", shouldSave);
+    if (shouldSave) {
+      console.log("🔄 Guardando desde shouldSave...");
+      guardarCambios();
+      // Resetear el flag después de guardar
+      if (onResetShouldSave) {
+        setTimeout(() => onResetShouldSave(), 100);
+      }
+    }
+  }, [shouldSave, onResetShouldSave, guardarCambios]);
+
+  // Filtros para productos
   const fuenteProductos = busquedaDebounced
-    ? (categoriaObraId ? (productosObraPorCategoria[categoriaObraId] || []) : productosObraCatalogo)
-    : (categoriaObraId ? productosObraPorCategoria[categoriaObraId] : productosObraCatalogo);
+    ? (categoriaObraId ? (productosObraPorCategoria[categoriaObraId] || []) : productosObra)
+    : (categoriaObraId ? productosObraPorCategoria[categoriaObraId] : productosObra);
 
   const productosFiltrados = fuenteProductos?.filter((prod) => {
     if (!busquedaDebounced) return true;
@@ -136,18 +397,293 @@ const PresupuestoDetalle = ({
            String(prod.unidadMedida || "").toLowerCase().includes(q);
   }).slice(0, 48) || [];
 
+  // Si no está en modo edición, mostrar solo la visualización
+  if (!editando) {
+    return (
+      <div className="space-y-6">
+        {bloques.map((bloque, index) => (
+          <Card key={bloque.id}>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-semibold">{bloque.nombre}</span>
+                  <span className="text-sm text-gray-500">
+                    {bloque.productos?.length || 0} producto{(bloque.productos?.length || 0) !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">Total del Bloque</div>
+                  <div className="text-lg font-bold text-green-600">
+                    ${formatearNumeroArgentino(bloque.total || 0)}
+                  </div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Totales del bloque */}
+              <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Subtotal</div>
+                  <div className="font-semibold">${formatearNumeroArgentino(bloque.subtotal || 0)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Descuento</div>
+                  <div className="font-semibold text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Total</div>
+                  <div className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</div>
+                </div>
+              </div>
+
+              {/* Productos del bloque */}
+              {bloque.productos && bloque.productos.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="p-2 text-left">Producto</th>
+                        <th className="p-2 text-center">Cant.</th>
+                        <th className="p-2 text-center">Unidad</th>
+                        <th className="p-2 text-center">Alto</th>
+                        <th className="p-2 text-center">Largo</th>
+                        <th className="p-2 text-right">Valor Unit.</th>
+                        <th className="p-2 text-center">Desc. %</th>
+                        <th className="p-2 text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bloque.productos.map((producto) => {
+                        const subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
+                        return (
+                          <React.Fragment key={producto.id}>
+                            <tr className="border-b">
+                              <td className="p-2">
+                                <div className="font-medium">{producto.nombre}</div>
+                                <div className="text-xs text-gray-500">{producto.categoria}</div>
+                              </td>
+                              <td className="p-2 text-center">{producto.cantidad}</td>
+                              <td className="p-2 text-center">
+                                <Badge variant="outline">{producto.unidadMedida}</Badge>
+                              </td>
+                              <td className="p-2 text-center">
+                                {producto.unidadMedida === "M2" ? producto.alto : "-"}
+                              </td>
+                              <td className="p-2 text-center">
+                                {(producto.unidadMedida === "M2" || producto.unidadMedida === "ML") ? producto.largo : "-"}
+                              </td>
+                              <td className="p-2 text-right">${formatearNumeroArgentino(producto.valorVenta)}</td>
+                              <td className="p-2 text-center">{producto.descuento}%</td>
+                              <td className="p-2 text-right font-semibold">${formatearNumeroArgentino(subtotal)}</td>
+                            </tr>
+                            {producto.descripcion && (
+                              <tr className="border-b bg-gray-50">
+                                <td colSpan={8} className="p-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
+                                    <span className="text-xs text-gray-700">{producto.descripcion}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Icon icon="heroicons:cube" className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No hay productos en este bloque</p>
+                </div>
+              )}
+
+              {/* Descripción del bloque si existe */}
+              {bloque.descripcion && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon="heroicons:document-text" className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Descripción del Bloque</span>
+                  </div>
+                  <p className="text-sm text-blue-700">{bloque.descripcion}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Modo edición
   return (
+    <div className="space-y-6">
+      {/* Gestión de Bloques */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon icon="heroicons:squares-2x2" className="w-5 h-5" />
+              Gestión de Bloques
+            </div>
+            <Button onClick={agregarBloque} variant="outline" size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Bloque
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {bloques.map((bloque, index) => (
+              <div
+                key={bloque.id}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all ${
+                  index === bloqueActivo
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                onClick={() => setBloqueActivo(index)}
+              >
+                {editandoNombreBloque === index ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={nuevoNombreBloque}
+                      onChange={(e) => setNuevoNombreBloque(e.target.value)}
+                      className="h-8 w-32"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          actualizarNombreBloque(index, nuevoNombreBloque);
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
+                        }
+                        if (e.key === "Escape") {
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        actualizarNombreBloque(index, nuevoNombreBloque);
+                        setEditandoNombreBloque(null);
+                        setNuevoNombreBloque("");
+                      }}
+                    >
+                      <Check className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditandoNombreBloque(null);
+                        setNuevoNombreBloque("");
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-medium">{bloque.nombre}</span>
+                    <span className="text-xs text-gray-500">
+                      ({bloque.productos.length} productos)
+                    </span>
+                    {bloque.estaCerrado && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Check className="w-3 h-3 mr-1" />
+                        Cerrado
+                      </Badge>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditandoNombreBloque(index);
+                        setNuevoNombreBloque(bloque.nombre);
+                      }}
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
+                    {bloques.length > 1 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          eliminarBloque(index);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Información del bloque activo */}
+          {bloqueActual && (
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-lg">{bloqueActual.nombre}</h3>
+                <div className="flex gap-2">
+                  {bloqueActual.estaCerrado ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => abrirBloque(bloqueActivo)}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Abrir Bloque
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => cerrarBloque(bloqueActivo)}
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Cerrar Bloque
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-gray-500">Subtotal</div>
+                  <div className="font-semibold">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.subtotal || 0)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-500">Descuento</div>
+                  <div className="font-semibold text-orange-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.descuentoTotal || 0)}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-500">Total</div>
+                  <div className="font-bold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.total || 0)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Catálogo de Productos */}
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Icon icon="heroicons:clipboard-document-list" className="w-5 h-5" />
-          Presupuesto
+            <Icon icon="heroicons:cube" className="w-5 h-5" />
+            Catálogo de Productos
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {editando && (
-          <>
-            <div className="flex gap-2 items-center">
+        <CardContent>
+          <div className="flex gap-2 items-center mb-4">
               <div className="flex-1">
                 <Input
                   placeholder="Buscar productos..."
@@ -167,7 +703,7 @@ const PresupuestoDetalle = ({
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={agregarProductoObraManual} variant="outline">
+            <Button onClick={agregarProductoManual} variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 Ítem Manual
               </Button>
@@ -175,7 +711,7 @@ const PresupuestoDetalle = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
               {productosFiltrados.map((prod) => {
-                const yaAgregado = itemsPresupuesto.some((p) => p.id === prod.id);
+              const yaAgregado = itemsSeleccionados.some((p) => p.id === prod.id);
                 const precio = Number(prod.valorVenta) || 0;
                 
                 return (
@@ -203,7 +739,7 @@ const PresupuestoDetalle = ({
                       </div>
                       <div className="mt-4">
                         <button
-                          onClick={() => { if (!yaAgregado) agregarProductoObra(prod); }}
+                        onClick={() => { if (!yaAgregado) agregarProducto(prod); }}
                           disabled={yaAgregado}
                           className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                             yaAgregado 
@@ -219,27 +755,36 @@ const PresupuestoDetalle = ({
                 );
               })}
             </div>
-          </>
-        )}
+        </CardContent>
+      </Card>
 
-        {itemsPresupuesto.length > 0 && (
-          <>
+      {/* Productos Seleccionados */}
+      {itemsSeleccionados.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon icon="heroicons:clipboard-document-list" className="w-5 h-5" />
+              Productos del Bloque: {bloqueActual?.nombre}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="p-2 text-left">Producto</th>
+                    <th className="p-2 text-center">Cant.</th>
                     <th className="p-2 text-center">Unidad</th>
-                    <th className="p-2 text-center">Ancho</th>
+                    <th className="p-2 text-center">Alto</th>
                     <th className="p-2 text-center">Largo</th>
-                    <th className="p-2 text-right">Valor</th>
+                    <th className="p-2 text-right">Valor Unit.</th>
                     <th className="p-2 text-center">Desc. %</th>
                     <th className="p-2 text-right">Subtotal</th>
-                    {editando && <th className="p-2 text-center">Acción</th>}
+                    <th className="p-2 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {itemsPresupuesto.map((p) => {
+                  {itemsSeleccionados.map((p) => {
                     const u = String(p.unidadMedida || "UN").toUpperCase();
                     const sub = Number(p.precio || 0) * (1 - Number(p.descuento || 0) / 100);
                     const requiereAlto = u === "M2";
@@ -250,10 +795,10 @@ const PresupuestoDetalle = ({
                         <tr className="border-b">
                           <td className="p-2">
                             <div className="font-medium">
-                              {editando && p._esManual ? (
+                              {p._esManual ? (
                                 <Input
                                   value={p.nombre}
-                                  onChange={(e) => actualizarCampoObra(p.id, "nombre", e.target.value)}
+                                  onChange={(e) => actualizarNombreManual(p.id, e.target.value)}
                                   className="h-8"
                                 />
                               ) : (
@@ -264,10 +809,20 @@ const PresupuestoDetalle = ({
                           </td>
                           
                           <td className="p-2 text-center">
-                            {editando && p._esManual ? (
+                            <Input
+                              type="number"
+                              min={1}
+                              value={p.cantidad}
+                              onChange={(e) => actualizarCampo(p.id, "cantidad", e.target.value)}
+                              className="w-20 mx-auto"
+                            />
+                          </td>
+                          
+                          <td className="p-2 text-center">
+                            {p._esManual ? (
                               <Select
                                 value={u}
-                                onValueChange={(v) => actualizarCampoObra(p.id, "unidadMedida", v)}
+                                onValueChange={(v) => actualizarCampo(p.id, "unidadMedida", v)}
                               >
                                 <SelectTrigger className="w-24 mx-auto h-8">
                                   <SelectValue />
@@ -285,18 +840,14 @@ const PresupuestoDetalle = ({
                           
                           <td className="p-2 text-center">
                             {requiereAlto ? (
-                              editando ? (
                                 <Input
                                   type="number"
                                   min={0}
                                   step="0.01"
                                   value={p.alto}
-                                  onChange={(e) => actualizarCampoObra(p.id, "alto", e.target.value)}
+                                onChange={(e) => actualizarCampo(p.id, "alto", e.target.value)}
                                   className="w-24 mx-auto"
                                 />
-                              ) : (
-                                <span className="font-medium">{p.alto}</span>
-                              )
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
@@ -304,25 +855,21 @@ const PresupuestoDetalle = ({
                           
                           <td className="p-2 text-center">
                             {requiereLargo ? (
-                              editando ? (
                                 <Input
                                   type="number"
                                   min={0}
                                   step="0.01"
                                   value={p.largo}
-                                  onChange={(e) => actualizarCampoObra(p.id, "largo", e.target.value)}
+                                onChange={(e) => actualizarCampo(p.id, "largo", e.target.value)}
                                   className="w-24 mx-auto"
                                 />
-                              ) : (
-                                <span className="font-medium">{p.largo}</span>
-                              )
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
                           
                           <td className="p-2 text-right">
-                            {editando && p._esManual ? (
+                            {p._esManual ? (
                               <div className="relative w-28 ml-auto">
                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-default-500">$</span>
                                 <Input
@@ -330,7 +877,7 @@ const PresupuestoDetalle = ({
                                   min={0}
                                   step="0.01"
                                   value={p.valorVenta || 0}
-                                  onChange={(e) => actualizarCampoObra(p.id, "valorVenta", e.target.value)}
+                                  onChange={(e) => actualizarCampo(p.id, "valorVenta", e.target.value)}
                                   className="pl-5 pr-2 h-8 text-right"
                                 />
                               </div>
@@ -340,58 +887,42 @@ const PresupuestoDetalle = ({
                           </td>
                           
                           <td className="p-2 text-center">
-                            {editando ? (
                               <Input
                                 type="number"
                                 min={0}
                                 max={100}
                                 value={p.descuento}
-                                onChange={(e) => actualizarCampoObra(p.id, "descuento", e.target.value)}
+                              onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)}
                                 className="w-20 mx-auto"
                               />
-                            ) : (
-                              <span className="font-medium">{p.descuento}%</span>
-                            )}
                           </td>
                           
                           <td className="p-2 text-right font-semibold">
                             {formatearNumeroArgentino(Math.round(sub))}
                           </td>
                           
-                          {editando && (
                             <td className="p-2 text-center">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => quitarProductoObra(p.id)}
+                              onClick={() => quitarProducto(p.id)}
                               >
                                 Quitar
                               </Button>
                             </td>
-                          )}
                         </tr>
                         {/* Fila adicional para descripción del producto */}
                         <tr className="border-b bg-gray-50">
-                          <td colSpan={editando ? 8 : 7} className="p-2">
+                          <td colSpan={9} className="p-2">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
-                              {editando ? (
                                 <Textarea
                                   placeholder="Escribe una descripción específica para este producto..."
                                   value={p.descripcion || ""}
-                                  onChange={(e) => actualizarCampoObra(p.id, "descripcion", e.target.value)}
+                                onChange={(e) => actualizarCampo(p.id, "descripcion", e.target.value)}
                                   className="flex-1 min-h-[60px] resize-none"
                                   rows={2}
                                 />
-                              ) : (
-                                <div className="flex-1 min-h-[60px] p-3 bg-white border border-border rounded-md">
-                                  {p.descripcion ? (
-                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{p.descripcion}</p>
-                                  ) : (
-                                    <p className="text-sm text-gray-400 italic">Sin descripción</p>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -401,42 +932,43 @@ const PresupuestoDetalle = ({
                 </tbody>
               </table>
             </div>
-            
-            <div className="text-right">
-              <div className="text-lg font-semibold">
-                Total: {formatearNumeroArgentino(totalPresupuesto)}
-              </div>
-            </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Campo de descripción general del presupuesto */}
-            <div className="mt-6 p-4 bg-gray-50">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+      {/* Descripción General */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Icon icon="heroicons:document-text" className="w-5 h-5" />
                   Descripción General del Presupuesto
-                </label>
-                {editando ? (
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
                   <Textarea
                     placeholder="Escribe una descripción general del presupuesto, especificaciones técnicas, notas importantes, etc..."
                     value={descripcionGeneral || ""}
-                    onChange={(e) => onDescripcionGeneralChange(e.target.value)}
+            onChange={(e) => setDescripcionGeneral(e.target.value)}
                     className="min-h-[100px] resize-none"
                     rows={4}
                   />
-                ) : (
-                  <div className="mt-3 min-h-[100px] p-3 bg-white border border-border rounded-md">
-                    {descripcionGeneral ? (
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{descripcionGeneral}</p>
-                    ) : (
-                      <p className="text-sm text-gray-400 italic">Sin descripción general</p>
-                    )}
-                  </div>
-                )}
-              </div>
+        </CardContent>
+      </Card>
+
+            {/* Botón de Guardar */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={() => {
+            console.log("🔘 Botón Guardar Cambios clickeado");
+            guardarCambios();
+          }} 
+          className="flex items-center gap-2"
+        >
+          <Save className="w-4 h-4" />
+          Guardar Cambios
+        </Button>
+      </div>
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
   );
 };
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Search, RefreshCw } from "lucide-react";
+import { Filter, Search, RefreshCw, Plus, X, Check, Edit3, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
@@ -107,10 +107,19 @@ export default function CrearPresupuestoObraPage() {
   const [productosPorPagina] = useState(12);
   const [isPending, startTransition] = React.useTransition();
 
-  // Selección
-  const [itemsSeleccionados, setItemsSeleccionados] = useState([]);
-  const [manualNombre, setManualNombre] = useState("");
-  const [manualPrecio, setManualPrecio] = useState("");
+  // Bloques de presupuesto
+  const [bloques, setBloques] = useState([
+    {
+      id: `bloque-${Date.now()}`,
+      nombre: "Bloque 1",
+      items: [],
+      estaCerrado: false,
+      descripcion: ""
+    }
+  ]);
+  const [bloqueActivo, setBloqueActivo] = useState(0);
+  const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
+  const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
   const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
   // Carga inicial
@@ -187,10 +196,56 @@ export default function CrearPresupuestoObraPage() {
     setPaginaActual(1);
   }, [categoriaId, busquedaDefer]);
 
-  // Acciones selección
+  // Acciones de bloques
+  const agregarBloque = useCallback(() => {
+    const nuevoBloque = {
+      id: `bloque-${Date.now()}`,
+      nombre: `Bloque ${bloques.length + 1}`,
+      items: [],
+      estaCerrado: false,
+      descripcion: ""
+    };
+    setBloques(prev => [...prev, nuevoBloque]);
+    setBloqueActivo(bloques.length);
+  }, [bloques.length]);
+
+  const eliminarBloque = useCallback((bloqueIndex) => {
+    if (bloques.length <= 1) return; // No permitir eliminar el último bloque
+    
+    setBloques(prev => prev.filter((_, index) => index !== bloqueIndex));
+    
+    // Ajustar bloque activo si es necesario
+    if (bloqueActivo >= bloqueIndex) {
+      setBloqueActivo(prev => Math.max(0, prev - 1));
+    }
+  }, [bloques.length, bloqueActivo]);
+
+  const actualizarNombreBloque = useCallback((bloqueIndex, nuevoNombre) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, nombre: nuevoNombre } : bloque
+    ));
+  }, []);
+
+  const cerrarBloque = useCallback((bloqueIndex) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, estaCerrado: true } : bloque
+    ));
+  }, []);
+
+  const abrirBloque = useCallback((bloqueIndex) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
+    ));
+  }, []);
+
+  // Acciones selección de productos
   const agregarProducto = useCallback((prod) => {
-    const ya = itemsSeleccionados.some((x) => x.id === prod.id);
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    
+    const ya = bloqueActual.items.some((x) => x.id === prod.id);
     if (ya) return;
+    
     const unidadMedida = prod.unidadMedida || "UN";
     const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
@@ -199,14 +254,14 @@ export default function CrearPresupuestoObraPage() {
       categoria: prod.categoria || "",
       subCategoria: prod.subCategoria || prod.subcategoria || "",
       unidadMedida,
-      valorVenta, // Mantener el valor original del catálogo
+      valorVenta,
       alto: 1,
       largo: 1,
       cantidad: 1,
       descuento: 0,
-      descripcion: "", // Nuevo campo para descripción individual
+      descripcion: "",
     };
-    // Calcular precio inicial basado en la fórmula
+    
     const precio = calcularPrecioProductoObra({
       unidadMedida,
       alto: nuevo.alto,
@@ -215,25 +270,33 @@ export default function CrearPresupuestoObraPage() {
       cantidad: nuevo.cantidad,
     });
     nuevo.precio = precio;
-    setItemsSeleccionados((prev) => [...prev, nuevo]);
-  }, [itemsSeleccionados]);
+    
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, items: [...bloque.items, nuevo] }
+        : bloque
+    ));
+  }, [bloques, bloqueActivo]);
 
   const agregarProductoManual = useCallback(() => {
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    
     const nuevo = {
       id: `manual-${Date.now()}`,
       nombre: "Nuevo ítem",
       categoria: "Manual",
       subCategoria: "",
       unidadMedida: "UN",
-      valorVenta: 0, // Valor inicial editable
+      valorVenta: 0,
       alto: 1,
       largo: 1,
       cantidad: 1,
       descuento: 0,
-      descripcion: "", // Nuevo campo para descripción individual
+      descripcion: "",
       _esManual: true,
     };
-    // Calcular precio inicial basado en la fórmula
+    
     nuevo.precio = calcularPrecioProductoObra({ 
       unidadMedida: nuevo.unidadMedida, 
       alto: nuevo.alto, 
@@ -241,16 +304,29 @@ export default function CrearPresupuestoObraPage() {
       valorVenta: nuevo.valorVenta, 
       cantidad: nuevo.cantidad 
     });
-    setItemsSeleccionados((prev) => [nuevo, ...prev]);
-  }, []);
+    
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, items: [nuevo, ...bloque.items] }
+        : bloque
+    ));
+  }, [bloques, bloqueActivo]);
 
   const quitarProducto = useCallback((id) => {
-    setItemsSeleccionados((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, items: bloque.items.filter((p) => p.id !== id) }
+        : bloque
+    ));
+  }, [bloqueActivo]);
 
   // Handlers de edición por fila
   const actualizarCampo = (id, campo, valor) => {
-    setItemsSeleccionados((prev) => prev.map((p) => {
+    setBloques(prev => prev.map((bloque, bloqueIndex) => 
+      bloqueIndex === bloqueActivo 
+        ? {
+            ...bloque,
+            items: bloque.items.map((p) => {
       if (p.id !== id) return p;
       
       const actualizado = { ...p };
@@ -260,24 +336,19 @@ export default function CrearPresupuestoObraPage() {
       } else if (campo === "descuento") {
         actualizado[campo] = Number(valor) || 0;
       } else if (campo === "valorVenta") {
-        // Para valorVenta, mantener el valor manual ingresado
         actualizado[campo] = valor === "" ? "" : Number(valor);
       } else if (campo === "descripcion") {
-        // Para descripción, mantener el texto tal como está
         actualizado[campo] = valor;
       } else {
         actualizado[campo] = valor === "" ? "" : Number(valor);
       }
       
-      // Solo recalcular precio si no es descripción
       if (campo !== "descripcion") {
-        // Normalizar vacíos a 0 para cálculos
         const alto = Number(actualizado.alto) || 0;
         const largo = Number(actualizado.largo) || 0;
         const cantidad = Number(actualizado.cantidad) || 1;
         const valorVenta = Number(actualizado.valorVenta) || 0;
         
-        // Recalcular precio basado en la fórmula
         const precioBase = calcularPrecioProductoObra({
           unidadMedida: actualizado.unidadMedida,
           alto,
@@ -289,30 +360,55 @@ export default function CrearPresupuestoObraPage() {
       }
       
       return actualizado;
-    }));
+            })
+          }
+        : bloque
+    ));
   };
 
   const actualizarNombreManual = (id, nombre) => {
-    setItemsSeleccionados((prev) => prev.map((p) => (p.id === id ? { ...p, nombre } : p)));
+    setBloques(prev => prev.map((bloque, bloqueIndex) => 
+      bloqueIndex === bloqueActivo 
+        ? {
+            ...bloque,
+            items: bloque.items.map((p) => (p.id === id ? { ...p, nombre } : p))
+          }
+        : bloque
+    ));
   };
 
-  // Totales
-  const subtotal = useMemo(() => itemsSeleccionados.reduce((acc, p) => acc + Number(p.precio || 0), 0), [itemsSeleccionados]);
-  const descuentoTotal = useMemo(() => itemsSeleccionados.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0), [itemsSeleccionados]);
-  const total = useMemo(() => subtotal - descuentoTotal, [subtotal, descuentoTotal]);
+  // Cálculos de totales por bloque
+  const totalesPorBloque = useMemo(() => {
+    return bloques.map(bloque => {
+      const subtotal = bloque.items.reduce((acc, p) => acc + Number(p.precio || 0), 0);
+      const descuentoTotal = bloque.items.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0);
+      const total = subtotal - descuentoTotal;
+      return { subtotal, descuentoTotal, total };
+    });
+  }, [bloques]);
+
+  // Totales generales
+  const totalGeneral = useMemo(() => {
+    return totalesPorBloque.reduce((acc, bloque) => ({
+      subtotal: acc.subtotal + bloque.subtotal,
+      descuentoTotal: acc.descuentoTotal + bloque.descuentoTotal,
+      total: acc.total + bloque.total
+    }), { subtotal: 0, descuentoTotal: 0, total: 0 });
+  }, [totalesPorBloque]);
+
+  // Bloque actual
+  const bloqueActual = bloques[bloqueActivo];
+  const itemsSeleccionados = bloqueActual?.items || [];
 
   // Guardar
   const [guardando, setGuardando] = useState(false);
   const guardarPresupuesto = async () => {
     if (!clienteId) return;
-    if (itemsSeleccionados.length === 0) return;
+    if (bloques.every(bloque => bloque.items.length === 0)) return;
+    
     setGuardando(true);
     try {
       const numeroPedido = await getNextObraNumber();
-      
-      // Verificar que todos los productos tengan descripción
-      console.log("Productos a guardar:", itemsSeleccionados);
-      console.log("Descripción general:", descripcionGeneral);
       
       const presupuestoData = {
         tipo: "presupuesto",
@@ -320,7 +416,14 @@ export default function CrearPresupuestoObraPage() {
         fecha: new Date().toISOString().split("T")[0],
         clienteId,
         cliente: clienteSeleccionado || null,
-        productos: itemsSeleccionados.map((p) => {
+        bloques: bloques.map((bloque, index) => {
+          const totales = totalesPorBloque[index];
+          return {
+            id: bloque.id,
+            nombre: bloque.nombre,
+            descripcion: bloque.descripcion,
+            estaCerrado: bloque.estaCerrado,
+            productos: bloque.items.map((p) => {
           const u = String(p.unidadMedida || "UN").toUpperCase();
           const altoNum = Number(p.alto) || 0;
           const largoNum = Number(p.largo) || 0;
@@ -339,20 +442,23 @@ export default function CrearPresupuestoObraPage() {
             cantidad: cantNum,
             descuento: Number(p.descuento) || 0,
             precio: Number(p.precio) || 0,
-            descripcion: p.descripcion || "", // Incluir descripción individual
+                descripcion: p.descripcion || "",
             m2,
             ml,
           };
         }),
-        subtotal,
-        descuentoTotal,
-        total,
+            subtotal: totales.subtotal,
+            descuentoTotal: totales.descuentoTotal,
+            total: totales.total,
+          };
+        }),
+        subtotal: totalGeneral.subtotal,
+        descuentoTotal: totalGeneral.descuentoTotal,
+        total: totalGeneral.total,
         fechaCreacion: new Date().toISOString(),
         estado: "Activo",
         descripcionGeneral: descripcionGeneral || "",
       };
-      
-      console.log("Datos del presupuesto a guardar:", presupuestoData);
       
       await addDoc(collection(db, "obras"), presupuestoData);
       router.push(`/${lang}/obras`);
@@ -395,6 +501,7 @@ export default function CrearPresupuestoObraPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Nuevo Presupuesto (Obras)</h1>
+          <p className="text-gray-600 mt-1">Crea presupuestos organizados por bloques para diferentes secciones de tu obra</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -474,15 +581,34 @@ export default function CrearPresupuestoObraPage() {
       {/* Catálogo */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" /> Catálogo de productos (obras)
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Filter className="w-5 h-5" /> 
+              Catálogo de productos (obras)
+              {bloqueActual && (
+                <Badge variant="outline" className="ml-2">
+                  {bloqueActual.nombre}
+                </Badge>
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              {bloqueActual?.estaCerrado && (
+                <Badge variant="secondary" className="text-xs">
+                  <Check className="w-3 h-3 mr-1" />
+                  Bloque cerrado
+                </Badge>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={agregarProductoManual}
+                disabled={bloqueActual?.estaCerrado}
+              >
+                Agregar ítem manual
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Agregar ítem manual: botón que agrega fila editable en la tabla */}
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={agregarProductoManual}>Agregar ítem manual</Button>
-          </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -582,13 +708,19 @@ export default function CrearPresupuestoObraPage() {
                           <div className="mt-4">
                             <button
                               onClick={() => {
-                                if (yaAgregado) return;
+                                if (yaAgregado || bloqueActual?.estaCerrado) return;
                                 agregarProducto(prod);
                               }}
-                              disabled={yaAgregado}
-                              className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                              disabled={yaAgregado || bloqueActual?.estaCerrado}
+                              className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                                yaAgregado 
+                                  ? "bg-green-100 text-green-700 cursor-not-allowed" 
+                                  : bloqueActual?.estaCerrado
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                    : "bg-blue-600 text-white hover:bg-blue-700"
+                              }`}
                             >
-                              {yaAgregado ? "Ya agregado" : "Agregar"}
+                              {yaAgregado ? "Ya agregado" : bloqueActual?.estaCerrado ? "Bloque cerrado" : "Agregar"}
                             </button>
                           </div>
                         </div>
@@ -640,11 +772,165 @@ export default function CrearPresupuestoObraPage() {
         </CardContent>
       </Card>
 
+      {/* Gestión de Bloques */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Bloques de Presupuesto
+            </span>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={agregarBloque}
+                className="flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar Bloque
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Tabs de bloques */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {bloques.map((bloque, index) => (
+              <div
+                key={bloque.id}
+                className={`relative group flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
+                  bloqueActivo === index
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300 bg-white"
+                } ${bloque.estaCerrado ? "opacity-75" : ""}`}
+                onClick={() => setBloqueActivo(index)}
+              >
+                {bloque.estaCerrado && (
+                  <Check className="w-4 h-4 text-green-600" />
+                )}
+                <span className="font-medium">
+                  {editandoNombreBloque === index ? (
+                    <Input
+                      value={nuevoNombreBloque}
+                      onChange={(e) => setNuevoNombreBloque(e.target.value)}
+                      onBlur={() => {
+                        if (nuevoNombreBloque.trim()) {
+                          actualizarNombreBloque(index, nuevoNombreBloque.trim());
+                        }
+                        setEditandoNombreBloque(null);
+                        setNuevoNombreBloque("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          if (nuevoNombreBloque.trim()) {
+                            actualizarNombreBloque(index, nuevoNombreBloque.trim());
+                          }
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
+                        }
+                        if (e.key === "Escape") {
+                          setEditandoNombreBloque(null);
+                          setNuevoNombreBloque("");
+                        }
+                      }}
+                      className="h-6 text-sm font-medium"
+                      autoFocus
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={() => {
+                        setEditandoNombreBloque(index);
+                        setNuevoNombreBloque(bloque.nombre);
+                      }}
+                    >
+                      {bloque.nombre}
+                    </span>
+                  )}
+                </span>
+                
+                {/* Totales del bloque */}
+                <div className="text-xs text-gray-500">
+                  ${formatARNumber(totalesPorBloque[index]?.total || 0)}
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!bloque.estaCerrado ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cerrarBloque(index);
+                      }}
+                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Cerrar bloque"
+                    >
+                      <Check className="w-3 h-3" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        abrirBloque(index);
+                      }}
+                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      title="Reabrir bloque"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </Button>
+                  )}
+                  
+                  {bloques.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        eliminarBloque(index);
+                      }}
+                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      title="Eliminar bloque"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Seleccionados */}
-      {itemsSeleccionados.length > 0 && (
+      {itemsSeleccionados.length > 0 && !bloqueActual?.estaCerrado && (
         <Card>
           <CardHeader>
-            <CardTitle>Productos seleccionados</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span>Productos seleccionados</span>
+                <Badge variant="outline" className="text-blue-600">
+                  {bloqueActual?.nombre}
+                </Badge>
+                <span className="text-sm text-gray-500">
+                  ({itemsSeleccionados.length} producto{itemsSeleccionados.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => cerrarBloque(bloqueActivo)}
+                  className="flex items-center gap-2 text-green-600 hover:text-green-700"
+                >
+                  <Check className="w-4 h-4" />
+                  Cerrar Bloque
+                </Button>
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -769,25 +1055,92 @@ export default function CrearPresupuestoObraPage() {
         </Card>
       )}
 
-      {/* Totales */}
-      {itemsSeleccionados.length > 0 && (
+      {/* Resumen Visual de Bloques */}
+      {bloques.some(bloque => bloque.items.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Resumen del Presupuesto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {bloques.map((bloque, index) => {
+                if (bloque.items.length === 0) return null;
+                const totales = totalesPorBloque[index];
+                return (
+                  <div key={bloque.id} className={`p-4 rounded-lg border-2 transition-all ${
+                    bloque.estaCerrado 
+                      ? "border-green-200 bg-green-50" 
+                      : bloqueActivo === index
+                        ? "border-blue-200 bg-blue-50"
+                        : "border-gray-200 bg-white"
+                  }`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-lg">{bloque.nombre}</h3>
+                      {bloque.estaCerrado ? (
+                        <Badge variant="secondary" className="text-xs">
+                          <Check className="w-3 h-3 mr-1" />
+                          Cerrado
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          Activo
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Productos:</span>
+                        <span className="font-medium">{bloque.items.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Subtotal:</span>
+                        <span className="font-medium">${formatARNumber(totales.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Descuento:</span>
+                        <span className="font-medium text-orange-600">${formatARNumber(totales.descuentoTotal)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600 font-semibold">Total:</span>
+                        <span className="font-bold text-green-600">${formatARNumber(totales.total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Totales Generales */}
+      {totalGeneral.total > 0 && (
         <div className="flex justify-end">
-          <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 text-lg shadow-sm font-semibold flex gap-6">
-            <div>
-              Subtotal: <span className="font-bold">$ {formatARNumber(subtotal)}</span>
+          <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-4 text-lg shadow-sm font-semibold">
+            <div className="text-center mb-2">
+              <span className="text-sm text-gray-600">TOTAL GENERAL DEL PRESUPUESTO</span>
             </div>
-            <div>
-              Descuento: <span className="font-bold">$ {formatARNumber(descuentoTotal)}</span>
+            <div className="flex gap-8">
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Subtotal</div>
+                <div className="font-bold text-lg">$ {formatARNumber(totalGeneral.subtotal)}</div>
             </div>
-            <div>
-              Total: <span className="font-bold text-primary">$ {formatARNumber(total)}</span>
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Descuento</div>
+                <div className="font-bold text-lg text-orange-600">$ {formatARNumber(totalGeneral.descuentoTotal)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Total</div>
+                <div className="font-bold text-2xl text-primary">$ {formatARNumber(totalGeneral.total)}</div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* Campo de descripción general del presupuesto */}
-      {itemsSeleccionados.length > 0 && (
+      {bloques.some(bloque => bloque.items.length > 0) && (
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-lg">Descripción General del Presupuesto</CardTitle>
@@ -809,7 +1162,7 @@ export default function CrearPresupuestoObraPage() {
         <Button variant="outline" onClick={() => router.push(`/${lang}/obras`)}>
           Cancelar
         </Button>
-        <Button onClick={guardarPresupuesto} disabled={guardando || !clienteId || itemsSeleccionados.length === 0}>
+        <Button onClick={guardarPresupuesto} disabled={guardando || !clienteId || bloques.every(bloque => bloque.items.length === 0)}>
           {guardando ? "Guardando..." : "Guardar Presupuesto"}
         </Button>
       </div>

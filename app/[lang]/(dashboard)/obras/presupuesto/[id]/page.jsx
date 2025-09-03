@@ -82,7 +82,13 @@ const PresupuestoPage = () => {
     cantidadMaterial: "",
     busquedaProducto: "",
     materialesAdicionales: [],
+    bloqueSeleccionado: null, // ID del bloque seleccionado para conversión
   });
+
+  // Estado para controlar cuándo guardar desde el componente PresupuestoDetalle
+  const [shouldSave, setShouldSave] = useState(false);
+
+
 
   // Búsqueda debounced para productos (como en create/page.jsx)
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
@@ -124,6 +130,7 @@ const PresupuestoPage = () => {
     categorias,
     cargarCatalogoProductos,
     catalogoCargado,
+    setObra,
     setEditando,
     setCategoriaObraId,
     setBusquedaProductoObra,
@@ -148,16 +155,40 @@ const PresupuestoPage = () => {
     }
   }, [productosCatalogo]);
 
+
+
   const handlePrint = () => {
     setOpenPrint(true);
   };
 
-  const handleToggleEdit = () => {
+  const handleToggleEdit = async () => {
+    console.log("🔘 handleToggleEdit llamado, editando:", editando);
+    console.log("🔘 obra?.bloques:", obra?.bloques);
+    console.log("🔘 shouldSave actual:", shouldSave);
+    
     if (editando) {
-      guardarEdicion();
+      // FORZAR ACTUALIZACIÓN - SIEMPRE USAR PRESUPUESTODETALLE
+      console.log("🔥🔥🔥 NUEVA VERSIÓN - ACTIVANDO GUARDADO 🔥🔥🔥");
+      setShouldSave(true);
+      console.log("🔥🔥🔥 shouldSave = true 🔥🔥🔥");
+      setEditando(false);
     } else {
+      console.log("🔄 Activando modo edición...");
       setEditando(true);
     }
+  };
+
+  // Función para actualizar el estado local de la obra
+  const handleObraUpdate = (obraActualizada) => {
+    console.log("🔄 Actualizando estado local de la obra:", obraActualizada);
+    // Actualizar el estado local sin refrescar la página
+    setObra(obraActualizada);
+    console.log("✅ Estado local actualizado exitosamente");
+  };
+
+  // Función para resetear el flag shouldSave
+  const handleResetShouldSave = () => {
+    setShouldSave(false);
   };
 
   const handleToggleConvertForm = async () => {
@@ -196,6 +227,11 @@ const PresupuestoPage = () => {
         throw new Error("Por favor complete todos los campos requeridos");
       }
 
+      // Validar selección de bloque si hay bloques
+      if (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado) {
+        throw new Error("Por favor seleccione un bloque para convertir a obra");
+      }
+
       // Validar ubicación si se selecciona "nueva ubicación"
       if (datosConversion.ubicacionTipo === "nueva") {
         if (
@@ -207,10 +243,16 @@ const PresupuestoPage = () => {
         }
       }
 
-      // Llamar a la función de conversión con los datos del formulario
-      await convertirPresupuestoToObra(datosConversion, user);
+      // Preparar datos de conversión con el bloque seleccionado
+      const datosConversionConBloque = {
+        ...datosConversion,
+        bloqueSeleccionado: datosConversion.bloqueSeleccionado
+      };
 
-      setConvertMessage("✅ Presupuesto convertido a obra exitosamente");
+      // Llamar a la función de conversión con los datos del formulario
+      await convertirPresupuestoToObra(datosConversionConBloque, user);
+
+      setConvertMessage("✅ Bloque convertido a obra exitosamente");
       setShowConvertForm(false);
 
       // Limpiar mensaje después de 3 segundos
@@ -343,6 +385,8 @@ const PresupuestoPage = () => {
     return new Intl.NumberFormat("es-AR").format(Number(numero));
   };
 
+
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -420,20 +464,14 @@ const PresupuestoPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Componente PresupuestoDetalle - maneja tanto bloques como presupuestos sin bloques */}
           <PresupuestoDetalle
-            itemsPresupuesto={itemsPresupuesto}
-            onItemsPresupuestoChange={setItemsPresupuesto}
-            productosObraCatalogo={productosObraCatalogo}
-            productosObraPorCategoria={productosObraPorCategoria}
-            categoriasObra={categoriasObra}
-            categoriaObraId={categoriaObraId}
-            setCategoriaObraId={setCategoriaObraId}
-            busquedaProductoObra={busquedaProductoObra}
-            setBusquedaProductoObra={setBusquedaProductoObra}
+            obra={obra}
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
-            descripcionGeneral={descripcionGeneral}
-            onDescripcionGeneralChange={setDescripcionGeneral}
+            onObraUpdate={handleObraUpdate}
+            shouldSave={shouldSave}
+            onResetShouldSave={handleResetShouldSave}
           />
 
           {/* Formulario de conversión a obra */}
@@ -447,6 +485,76 @@ const PresupuestoPage = () => {
               </CardHeader>
 
               <CardContent className="p-6 space-y-6">
+                {/* Selección de Bloque */}
+                {obra?.bloques && obra.bloques.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <Icon icon="heroicons:squares-2x2" className="w-5 h-5" />
+                      Seleccionar Bloque para Convertir
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {obra.bloques.map((bloque) => (
+                        <div
+                          key={bloque.id}
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            datosConversion.bloqueSeleccionado === bloque.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300 bg-white"
+                          }`}
+                          onClick={() => setDatosConversion(prev => ({
+                            ...prev,
+                            bloqueSeleccionado: prev.bloqueSeleccionado === bloque.id ? null : bloque.id
+                          }))}
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <input
+                              type="radio"
+                              checked={datosConversion.bloqueSeleccionado === bloque.id}
+                              onChange={() => setDatosConversion(prev => ({
+                                ...prev,
+                                bloqueSeleccionado: prev.bloqueSeleccionado === bloque.id ? null : bloque.id
+                              }))}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-lg">{bloque.nombre}</h4>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Productos:</span>
+                              <span className="font-medium">{bloque.productos?.length || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Subtotal:</span>
+                              <span className="font-medium">${formatearNumeroArgentino(bloque.subtotal || 0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Descuento:</span>
+                              <span className="font-medium text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</span>
+                            </div>
+                            <div className="flex justify-between border-t pt-2">
+                              <span className="text-gray-600 font-semibold">Total:</span>
+                              <span className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {datosConversion.bloqueSeleccionado && (
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          <strong>Bloque seleccionado:</strong> {obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado)?.nombre}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Solo los productos de este bloque se convertirán a obra. Los demás bloques permanecerán como presupuesto.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Datos Generales */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -713,7 +821,8 @@ const PresupuestoPage = () => {
                       converting ||
                       !datosConversion.tipoObra ||
                       !datosConversion.prioridad ||
-                      !datosConversion.responsable
+                      !datosConversion.responsable ||
+                      (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado)
                     }
                     className="flex items-center gap-2"
                   >
@@ -739,12 +848,50 @@ const PresupuestoPage = () => {
         <div className="space-y-6">
           <ObraInfoGeneral obra={obra} formatearFecha={formatearFecha} />
 
-          <ObraResumenFinanciero
-            obra={obra}
-            presupuesto={null}
-            modoCosto="presupuesto"
-            formatearNumeroArgentino={formatearNumeroArgentino}
-          />
+          {/* Resumen Financiero por Bloques */}
+          {obra?.bloques && obra.bloques.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon icon="heroicons:calculator" className="w-5 h-5" />
+                  Resumen Financiero por Bloques
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {obra.bloques.map((bloque, index) => (
+                    <div key={bloque.id} className="p-4 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-lg">{bloque.nombre}</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="text-center">
+                          <div className="text-gray-500">Subtotal</div>
+                          <div className="font-semibold">${formatearNumeroArgentino(bloque.subtotal || 0)}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">Descuento</div>
+                          <div className="font-semibold text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">Total</div>
+                          <div className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <ObraResumenFinanciero
+              obra={obra}
+              presupuesto={null}
+              modoCosto="presupuesto"
+              formatearNumeroArgentino={formatearNumeroArgentino}
+            />
+          )}
 
           {/* Información de envío si existe */}
           {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (

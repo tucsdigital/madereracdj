@@ -370,21 +370,39 @@ export const useObra = (id) => {
     try {
       const numeroPedido = await getNextObraNumber();
       
-      // Separar productos del presupuesto de materiales adicionales
-      const productosPresupuesto = itemsPresupuesto || [];
+      let productosPresupuesto = [];
+      let subtotalCombinado = 0;
+      let descuentoTotalCombinado = 0;
+      let totalCombinado = 0;
+
+      // Si hay bloques y se seleccionó uno específico
+      if (obra.bloques && obra.bloques.length > 0 && datosConversion.bloqueSeleccionado) {
+        const bloqueSeleccionado = obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado);
+        if (bloqueSeleccionado) {
+          productosPresupuesto = bloqueSeleccionado.productos || [];
+          subtotalCombinado = bloqueSeleccionado.subtotal || 0;
+          descuentoTotalCombinado = bloqueSeleccionado.descuentoTotal || 0;
+          totalCombinado = bloqueSeleccionado.total || 0;
+        }
+      } else {
+        // Fallback para presupuestos sin bloques (estructura antigua)
+        productosPresupuesto = itemsPresupuesto || [];
       const materialesAdicionales = datosConversion.materialesAdicionales || [];
       
       // Combinar para cálculos de totales
       const productosCombinados = [...productosPresupuesto, ...materialesAdicionales];
       
       // Calcular totales combinados
-      const subtotalCombinado = productosCombinados.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
-      const descuentoTotalCombinado = productosCombinados.reduce((acc, p) => {
+        subtotalCombinado = productosCombinados.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
+        descuentoTotalCombinado = productosCombinados.reduce((acc, p) => {
         const base = Number(p.precio) || 0;
         const desc = Number(p.descuento) || 0;
         return acc + Math.round(base * desc / 100);
       }, 0);
-      const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
+        totalCombinado = subtotalCombinado - descuentoTotalCombinado;
+      }
+
+      const materialesAdicionales = datosConversion.materialesAdicionales || [];
       
       const nuevaObra = {
         tipo: "obra",
@@ -640,6 +658,7 @@ export const useObra = (id) => {
     catalogoCargado,
     
     // Setters
+    setObra,
     setEditando,
     setDocLinks,
     setMovimientos,

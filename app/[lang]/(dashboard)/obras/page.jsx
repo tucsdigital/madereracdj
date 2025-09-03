@@ -621,8 +621,8 @@ const ObrasPage = () => {
           >
             <Info className="w-4 h-4 mr-2" />
             Probar Auditoría
-          </Button>
-        </div> */}
+          </Button> */}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
