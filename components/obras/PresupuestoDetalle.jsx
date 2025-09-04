@@ -365,7 +365,7 @@ const PresupuestoDetalle = ({
       console.error("Error guardando cambios:", error);
       alert("Error al guardar los cambios");
     }
-  }, [obra, bloques, totalesPorBloque, totalGeneral, descripcionGeneral, onObraUpdate]);
+  }, [obra, bloques, totalesPorBloque, onObraUpdate]);
 
   // Ejecutar guardado solo cuando shouldSave sea true
   useEffect(() => {
@@ -494,12 +494,12 @@ const PresupuestoDetalle = ({
                 </div>
               )}
 
-              {/* Descripción del bloque si existe */}
+              {/* Descripción si existe */}
               {bloque.descripcion && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon="heroicons:document-text" className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Descripción del Bloque</span>
+                    <span className="text-sm font-medium text-blue-800">Descripción</span>
                   </div>
                   <p className="text-sm text-blue-700">{bloque.descripcion}</p>
                 </div>

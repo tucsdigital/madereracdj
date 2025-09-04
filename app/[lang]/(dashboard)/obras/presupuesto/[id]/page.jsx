@@ -692,6 +692,14 @@ const PresupuestoPage = () => {
                           {obra?.cliente?.localidad || "Sin localidad"}
                           <br />
                           {obra?.cliente?.provincia || "Sin provincia"}
+                          {(obra?.cliente?.barrio || obra?.cliente?.area || obra?.cliente?.lote) && (
+                            <>
+                              <br />
+                              {obra?.cliente?.barrio && <span>Barrio: {obra.cliente.barrio}</span>}
+                              {obra?.cliente?.area && <><br />Área: {obra.cliente.area}</>}
+                              {obra?.cliente?.lote && <><br />Lote: {obra.cliente.lote}</>}
+                            </>
+                          )}
                         </p>
                       </div>
                     ) : (
@@ -730,6 +738,36 @@ const PresupuestoPage = () => {
                               handleInputChange("provincia", e.target.value)
                             }
                             placeholder="Provincia"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Barrio
+                          </label>
+                          <Input
+                            value={datosConversion.barrio || ""}
+                            onChange={(e) => handleInputChange("barrio", e.target.value)}
+                            placeholder="Barrio"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Área
+                          </label>
+                          <Input
+                            value={datosConversion.area || ""}
+                            onChange={(e) => handleInputChange("area", e.target.value)}
+                            placeholder="Área"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Lote
+                          </label>
+                          <Input
+                            value={datosConversion.lote || ""}
+                            onChange={(e) => handleInputChange("lote", e.target.value)}
+                            placeholder="Lote"
                           />
                         </div>
                       </div>

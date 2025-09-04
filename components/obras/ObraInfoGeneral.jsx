@@ -67,7 +67,10 @@ const ObraInfoGeneral = ({
         setUbicacionEdit({
           direccion: clienteSeleccionado.direccion || "",
           localidad: clienteSeleccionado.localidad || "",
-          provincia: clienteSeleccionado.provincia || ""
+          provincia: clienteSeleccionado.provincia || "",
+          barrio: clienteSeleccionado.barrio || "",
+          area: clienteSeleccionado.area || "",
+          lote: clienteSeleccionado.lote || "",
         });
       }
     } else {
@@ -81,7 +84,10 @@ const ObraInfoGeneral = ({
       setUbicacionEdit({
         direccion: cliente.direccion || "",
         localidad: cliente.localidad || "",
-        provincia: cliente.provincia || ""
+        provincia: cliente.provincia || "",
+        barrio: cliente.barrio || "",
+        area: cliente.area || "",
+        lote: cliente.lote || "",
       });
     }
   };
@@ -225,8 +231,6 @@ const ObraInfoGeneral = ({
                           {clienteInfo.cuit && <p className="text-sm text-gray-600">CUIT: {clienteInfo.cuit}</p>}
                           {clienteInfo.telefono && <p className="text-sm text-gray-600">Tel: {clienteInfo.telefono}</p>}
                           {clienteInfo.email && <p className="text-sm text-gray-600">Email: {clienteInfo.email}</p>}
-                          {clienteInfo.barrio && <p className="text-sm text-gray-600">Barrio: {clienteInfo.barrio}</p>}
-                          {clienteInfo.area && <p className="text-sm text-gray-600">Área: {clienteInfo.area}</p>}
                         </>
                       ) : (
                         <p className="text-gray-500">No especificado</p>
@@ -305,6 +309,13 @@ const ObraInfoGeneral = ({
                   <p className="text-sm text-blue-800 font-medium">Usando dirección del cliente</p>
                   <p className="text-sm text-blue-700">{cliente.direccion || "Sin dirección"}</p>
                   <p className="text-sm text-blue-700">{cliente.localidad || ""} {cliente.provincia || ""}</p>
+                  {(cliente.barrio || cliente.area || cliente.lote) && (
+                    <div className="text-sm text-blue-700">
+                      {cliente.barrio && <p>Barrio: {cliente.barrio}</p>}
+                      {cliente.area && <p>Área: {cliente.area}</p>}
+                      {cliente.lote && <p>Lote: {cliente.lote}</p>}
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -313,7 +324,7 @@ const ObraInfoGeneral = ({
                   <p className="text-sm text-gray-500">Dirección</p>
                   {editando ? (
                     <Input
-                      value={ubicacionEdit.direccion}
+                      value={ubicacionEdit.direccion || ""}
                       onChange={(e) => setUbicacionEdit(prev => ({ ...prev, direccion: e.target.value }))}
                       placeholder="Dirección de la obra"
                       disabled={usarDireccionCliente && cliente}
@@ -328,7 +339,7 @@ const ObraInfoGeneral = ({
                   <p className="text-sm text-gray-500">Localidad</p>
                   {editando ? (
                     <Input
-                      value={ubicacionEdit.localidad}
+                      value={ubicacionEdit.localidad || ""}
                       onChange={(e) => setUbicacionEdit(prev => ({ ...prev, localidad: e.target.value }))}
                       placeholder="Localidad"
                       disabled={usarDireccionCliente && cliente}
@@ -343,7 +354,7 @@ const ObraInfoGeneral = ({
                   <p className="text-sm text-gray-500">Provincia</p>
                   {editando ? (
                     <Input
-                      value={ubicacionEdit.provincia}
+                      value={ubicacionEdit.provincia || ""}
                       onChange={(e) => setUbicacionEdit(prev => ({ ...prev, provincia: e.target.value }))}
                       placeholder="Provincia"
                       disabled={usarDireccionCliente && cliente}
@@ -351,6 +362,51 @@ const ObraInfoGeneral = ({
                   ) : (
                     <p className="font-medium">
                       {obra.ubicacion?.provincia || clienteInfo?.provincia || "No especificada"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Barrio</p>
+                  {editando ? (
+                    <Input
+                      value={ubicacionEdit.barrio || ""}
+                      onChange={(e) => setUbicacionEdit(prev => ({ ...prev, barrio: e.target.value }))}
+                      placeholder="Barrio"
+                      disabled={usarDireccionCliente && cliente}
+                    />
+                  ) : (
+                    <p className="font-medium">
+                      {obra.ubicacion?.barrio || clienteInfo?.barrio || "No especificado"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Área</p>
+                  {editando ? (
+                    <Input
+                      value={ubicacionEdit.area || ""}
+                      onChange={(e) => setUbicacionEdit(prev => ({ ...prev, area: e.target.value }))}
+                      placeholder="Área"
+                      disabled={usarDireccionCliente && cliente}
+                    />
+                  ) : (
+                    <p className="font-medium">
+                      {obra.ubicacion?.area || clienteInfo?.area || "No especificada"}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Lote</p>
+                  {editando ? (
+                    <Input
+                      value={ubicacionEdit.lote || ""}
+                      onChange={(e) => setUbicacionEdit(prev => ({ ...prev, lote: e.target.value }))}
+                      placeholder="Lote"
+                      disabled={usarDireccionCliente && cliente}
+                    />
+                  ) : (
+                    <p className="font-medium">
+                      {obra.ubicacion?.lote || clienteInfo?.lote || "No especificado"}
                     </p>
                   )}
                 </div>

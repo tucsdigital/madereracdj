@@ -29,6 +29,9 @@ export const useObra = (id) => {
     direccion: "",
     localidad: "",
     provincia: "",
+    barrio: "",
+    area: "",
+    lote: "",
   });
   
   // Estados para información del cliente
@@ -118,6 +121,9 @@ export const useObra = (id) => {
               direccion: u.direccion || "",
               localidad: u.localidad || "",
               provincia: u.provincia || "",
+              barrio: u.barrio || "",
+              area: u.area || "",
+              lote: u.lote || "",
             });
             
             // Inicializar información del cliente
@@ -497,11 +503,17 @@ export const useObra = (id) => {
         ubicacion: datosConversion.ubicacionTipo === "cliente" ? {
           direccion: obra.cliente?.direccion || "",
           localidad: obra.cliente?.localidad || "",
-          provincia: obra.cliente?.provincia || ""
+          provincia: obra.cliente?.provincia || "",
+          barrio: obra.cliente?.barrio || "",
+          area: obra.cliente?.area || "",
+          lote: obra.cliente?.lote || "",
         } : {
           direccion: datosConversion.direccion || "",
           localidad: datosConversion.localidad || "",
-          provincia: datosConversion.provincia || ""
+          provincia: datosConversion.provincia || "",
+          barrio: datosConversion.barrio || "",
+          area: datosConversion.area || "",
+          lote: datosConversion.lote || "",
         },
         
         // Información de envío si existe
@@ -696,7 +708,14 @@ export const useObra = (id) => {
       if (estadoObra) updateData.estado = estadoObra;
       if (responsable) updateData.responsable = responsable;
       if (fechasEdit.inicio || fechasEdit.fin) updateData.fechas = fechasEdit;
-      if (ubicacionEdit.direccion || ubicacionEdit.localidad || ubicacionEdit.provincia) {
+      if (
+        ubicacionEdit.direccion ||
+        ubicacionEdit.localidad ||
+        ubicacionEdit.provincia ||
+        ubicacionEdit.barrio ||
+        ubicacionEdit.area ||
+        ubicacionEdit.lote
+      ) {
         updateData.ubicacion = ubicacionEdit;
       }
       
