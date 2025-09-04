@@ -14,9 +14,13 @@ const SalesStats = () => {
   const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
-  const [fechaDesde, setFechaDesde] = useState(hace30);
+  const now = new Date();
+  const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const [fechaDesde, setFechaDesde] = useState(inicioMesISO);
   const [fechaHasta, setFechaHasta] = useState(hoyISO);
-  const [rangoRapido, setRangoRapido] = useState("30d");
+  const [rangoRapido, setRangoRapido] = useState("month");
 
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
@@ -98,6 +102,10 @@ const SalesStats = () => {
     } else if (rangoRapido === "ytd") {
       const y = new Date().getFullYear();
       from = new Date(y, 0, 1).toISOString().split("T")[0];
+    } else if (rangoRapido === "month") {
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      from = new Date(y, m, 1).toISOString().split("T")[0];
     } else if (rangoRapido === "custom") {
       // no cambia fechas
       return;
@@ -572,6 +580,7 @@ const SalesStats = () => {
             Estadísticas de Ventas
           </CardTitle>
           <div className="flex items-center gap-2">
+            <QuickRangeButton value="month" label="Mes" icon="heroicons:calendar-days" />
             <QuickRangeButton value="7d" label="7d" icon="heroicons:bolt" />
             <QuickRangeButton value="30d" label="30d" icon="heroicons:calendar-days" />
             <QuickRangeButton value="90d" label="90d" icon="heroicons:clock" />
@@ -640,7 +649,7 @@ const SalesStats = () => {
                 <div className="text-3xl font-extrabold tracking-tight">{kpis.presupuestosCount}</div>
               </div>
               {/* Comisión clientes nuevos (proporcional) */}
-                             {user?.email === "admin@admin.com" && (
+                             {/* {user?.email === "admin@admin.com" && ( */}
                  <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión por ventas</div>
@@ -661,7 +670,7 @@ const SalesStats = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              {/* )} */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
