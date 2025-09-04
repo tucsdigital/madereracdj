@@ -57,7 +57,7 @@ const PresupuestoDetalle = ({
       } else {
         // Crear un bloque inicial si no hay bloques
         const bloqueInicial = {
-          id: `bloque-${Date.now()}`,
+          id: `presupuesto-${Date.now()}`,
           nombre: "Bloque 1",
           productos: [],
           estaCerrado: false,
@@ -126,7 +126,7 @@ const PresupuestoDetalle = ({
   // Funciones para manejar bloques
   const agregarBloque = () => {
     const nuevoBloque = {
-      id: `bloque-${Date.now()}`,
+      id: `presupuesto-${Date.now()}`,
       nombre: `Bloque ${bloques.length + 1}`,
       productos: [],
       estaCerrado: false,
