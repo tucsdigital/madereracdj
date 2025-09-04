@@ -34,7 +34,7 @@ const PresupuestoDetalle = ({
   const [bloqueActivo, setBloqueActivo] = useState(0);
   const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
   const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
-  const [descripcionGeneral, setDescripcionGeneral] = useState("");
+  // const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
   // Debug: Log de props recibidas
   console.log("🔍 PresupuestoDetalle props - editando:", editando, "shouldSave:", shouldSave);
@@ -65,7 +65,7 @@ const PresupuestoDetalle = ({
         };
         setBloques([bloqueInicial]);
       }
-      setDescripcionGeneral(obra.descripcionGeneral || "");
+      // setDescripcionGeneral(obra.descripcionGeneral || "");
     }
   }, [obra]);
 
@@ -161,6 +161,12 @@ const PresupuestoDetalle = ({
   const abrirBloque = (bloqueIndex) => {
     setBloques(prev => prev.map((bloque, index) => 
       index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
+    ));
+  };
+
+  const actualizarDescripcionBloque = (bloqueIndex, descripcion) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, descripcion } : bloque
     ));
   };
 
@@ -312,14 +318,7 @@ const PresupuestoDetalle = ({
     });
   }, [bloques]);
 
-  // Totales generales
-  const totalGeneral = useMemo(() => {
-    return totalesPorBloque.reduce((acc, bloque) => ({
-      subtotal: acc.subtotal + bloque.subtotal,
-      descuentoTotal: acc.descuentoTotal + bloque.descuentoTotal,
-      total: acc.total + bloque.total
-    }), { subtotal: 0, descuentoTotal: 0, total: 0 });
-  }, [totalesPorBloque]);
+  // Totales generales removidos: solo por bloque
 
   // Bloque actual
   const bloqueActual = bloques[bloqueActivo];
@@ -344,10 +343,6 @@ const PresupuestoDetalle = ({
 
       const updateData = {
         bloques: bloquesActualizados,
-        subtotal: totalGeneral.subtotal,
-        descuentoTotal: totalGeneral.descuentoTotal,
-        total: totalGeneral.total,
-        descripcionGeneral: descripcionGeneral,
         fechaModificacion: new Date().toISOString(),
       };
 
@@ -936,24 +931,29 @@ const PresupuestoDetalle = ({
         </Card>
       )}
 
-      {/* Descripción General */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Icon icon="heroicons:document-text" className="w-5 h-5" />
-                  Descripción General del Presupuesto
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-                  <Textarea
-                    placeholder="Escribe una descripción general del presupuesto, especificaciones técnicas, notas importantes, etc..."
-                    value={descripcionGeneral || ""}
-            onChange={(e) => setDescripcionGeneral(e.target.value)}
-                    className="min-h-[100px] resize-none"
-                    rows={4}
-                  />
-        </CardContent>
-      </Card>
+      {/* Descripción del Presupuesto (Bloque) - siempre visible en edición */}
+      {bloqueActual && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon icon="heroicons:document-text" className="w-5 h-5" />
+              Descripción del Presupuesto (Bloque actual)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Escribe una descripción para este presupuesto (bloque) que aparecerá en la impresión"
+              value={bloqueActual?.descripcion || ""}
+              onChange={(e) => actualizarDescripcionBloque(bloqueActivo, e.target.value)}
+              className="min-h-[80px] resize-none"
+              rows={3}
+              disabled={bloqueActual?.estaCerrado}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Descripción general removida: se usa descripción por bloque */}
 
             {/* Botón de Guardar */}
       <div className="flex justify-end">

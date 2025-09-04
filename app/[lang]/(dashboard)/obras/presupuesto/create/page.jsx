@@ -120,7 +120,7 @@ export default function CrearPresupuestoObraPage() {
   const [bloqueActivo, setBloqueActivo] = useState(0);
   const [editandoNombreBloque, setEditandoNombreBloque] = useState(null);
   const [nuevoNombreBloque, setNuevoNombreBloque] = useState("");
-  const [descripcionGeneral, setDescripcionGeneral] = useState("");
+  // const [descripcionGeneral, setDescripcionGeneral] = useState("");
 
   // Carga inicial
   useEffect(() => {
@@ -235,6 +235,12 @@ export default function CrearPresupuestoObraPage() {
   const abrirBloque = useCallback((bloqueIndex) => {
     setBloques(prev => prev.map((bloque, index) => 
       index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
+    ));
+  }, []);
+
+  const actualizarDescripcionBloque = useCallback((bloqueIndex, descripcion) => {
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueIndex ? { ...bloque, descripcion } : bloque
     ));
   }, []);
 
@@ -387,14 +393,7 @@ export default function CrearPresupuestoObraPage() {
     });
   }, [bloques]);
 
-  // Totales generales
-  const totalGeneral = useMemo(() => {
-    return totalesPorBloque.reduce((acc, bloque) => ({
-      subtotal: acc.subtotal + bloque.subtotal,
-      descuentoTotal: acc.descuentoTotal + bloque.descuentoTotal,
-      total: acc.total + bloque.total
-    }), { subtotal: 0, descuentoTotal: 0, total: 0 });
-  }, [totalesPorBloque]);
+  // Totales generales removidos: se trabaja solo por bloque
 
   // Bloque actual
   const bloqueActual = bloques[bloqueActivo];
@@ -452,12 +451,8 @@ export default function CrearPresupuestoObraPage() {
             total: totales.total,
           };
         }),
-        subtotal: totalGeneral.subtotal,
-        descuentoTotal: totalGeneral.descuentoTotal,
-        total: totalGeneral.total,
         fechaCreacion: new Date().toISOString(),
         estado: "Activo",
-        descripcionGeneral: descripcionGeneral || "",
       };
       
       await addDoc(collection(db, "obras"), presupuestoData);
@@ -1051,6 +1046,29 @@ export default function CrearPresupuestoObraPage() {
                 })}
               </tbody>
             </table>
+
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Descripción del Presupuesto (Bloque) - siempre visible */}
+      {bloqueActual && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon icon="heroicons:document-text" className="w-5 h-5" />
+              Descripción del Presupuesto (Bloque actual)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Escribe una descripción para este presupuesto (bloque) que aparecerá en la impresión"
+              value={bloqueActual?.descripcion || ""}
+              onChange={(e) => actualizarDescripcionBloque(bloqueActivo, e.target.value)}
+              className="min-h-[80px] resize-none"
+              rows={3}
+              disabled={bloqueActual?.estaCerrado}
+            />
           </CardContent>
         </Card>
       )}
@@ -1114,48 +1132,7 @@ export default function CrearPresupuestoObraPage() {
         </Card>
       )}
 
-      {/* Totales Generales */}
-      {totalGeneral.total > 0 && (
-        <div className="flex justify-end">
-          <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-4 text-lg shadow-sm font-semibold">
-            <div className="text-center mb-2">
-              <span className="text-sm text-gray-600">TOTAL GENERAL DEL PRESUPUESTO</span>
-            </div>
-            <div className="flex gap-8">
-              <div className="text-center">
-                <div className="text-sm text-gray-500">Subtotal</div>
-                <div className="font-bold text-lg">$ {formatARNumber(totalGeneral.subtotal)}</div>
-            </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-500">Descuento</div>
-                <div className="font-bold text-lg text-orange-600">$ {formatARNumber(totalGeneral.descuentoTotal)}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-gray-500">Total</div>
-                <div className="font-bold text-2xl text-primary">$ {formatARNumber(totalGeneral.total)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Campo de descripción general del presupuesto */}
-      {bloques.some(bloque => bloque.items.length > 0) && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Descripción General del Presupuesto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Escribe una descripción general del presupuesto, especificaciones técnicas, notas importantes, etc..."
-              value={descripcionGeneral}
-              onChange={(e) => setDescripcionGeneral(e.target.value)}
-              className="min-h-[100px] resize-none"
-              rows={4}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Totales generales y descripción general removidos: solo totales/descripcion por bloque */}
 
       {/* Acciones */}
       <div className="flex justify-end gap-2">
