@@ -110,8 +110,8 @@ export default function CrearPresupuestoObraPage() {
   // Bloques de presupuesto
   const [bloques, setBloques] = useState([
     {
-      id: `bloque-${Date.now()}`,
-      nombre: "Bloque 1",
+      id: `presupuesto-${Date.now()}`,
+      nombre: "Presupuesto 1",
       items: [],
       estaCerrado: false,
       descripcion: ""
@@ -199,8 +199,8 @@ export default function CrearPresupuestoObraPage() {
   // Acciones de bloques
   const agregarBloque = useCallback(() => {
     const nuevoBloque = {
-      id: `bloque-${Date.now()}`,
-      nombre: `Bloque ${bloques.length + 1}`,
+      id: `presupuesto-${Date.now()}`,
+      nombre: `Presupuesto ${bloques.length + 1}`,
       items: [],
       estaCerrado: false,
       descripcion: ""
@@ -365,7 +365,7 @@ export default function CrearPresupuestoObraPage() {
         : bloque
     ));
   };
-
+  
   const actualizarNombreManual = (id, nombre) => {
     setBloques(prev => prev.map((bloque, bloqueIndex) => 
       bloqueIndex === bloqueActivo 
@@ -595,7 +595,7 @@ export default function CrearPresupuestoObraPage() {
               {bloqueActual?.estaCerrado && (
                 <Badge variant="secondary" className="text-xs">
                   <Check className="w-3 h-3 mr-1" />
-                  Bloque cerrado
+                  Presupuesto cerrado
                 </Badge>
               )}
               <Button 
@@ -720,7 +720,7 @@ export default function CrearPresupuestoObraPage() {
                                     : "bg-blue-600 text-white hover:bg-blue-700"
                               }`}
                             >
-                              {yaAgregado ? "Ya agregado" : bloqueActual?.estaCerrado ? "Bloque cerrado" : "Agregar"}
+                              {yaAgregado ? "Ya agregado" : bloqueActual?.estaCerrado ? "Presupuesto cerrado" : "Agregar"}
                             </button>
                           </div>
                         </div>
@@ -778,7 +778,7 @@ export default function CrearPresupuestoObraPage() {
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Filter className="w-5 h-5" />
-              Bloques de Presupuesto
+              Presupuestos
             </span>
             <div className="flex items-center gap-2">
               <Button 
@@ -788,7 +788,7 @@ export default function CrearPresupuestoObraPage() {
                 className="flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Agregar Bloque
+                Agregar Presupuesto
               </Button>
             </div>
           </CardTitle>
@@ -927,7 +927,7 @@ export default function CrearPresupuestoObraPage() {
                   className="flex items-center gap-2 text-green-600 hover:text-green-700"
                 >
                   <Check className="w-4 h-4" />
-                  Cerrar Bloque
+                  Cerrar Presupuesto
                 </Button>
               </div>
             </CardTitle>

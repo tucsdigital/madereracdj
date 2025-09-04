@@ -95,7 +95,9 @@ const TablaProductosObras = ({
                 </th>
                 <th className="p-2 text-center">Desc. %</th>
                 <th className="p-2 text-right">Subtotal</th>
-                <th className="p-2 text-center">Acción</th>
+                {editando && (
+                  <th className="p-2 text-center">Acción</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -143,12 +145,13 @@ const TablaProductosObras = ({
                 }
 
                 // Calcular subtotal con descuento
-                const descuento = Number(p.descuento || 0);
+                const descuento = Number(p.descuento ?? 0);
                 const sub = precioProducto * (1 - descuento / 100);
                 
                 const u = String(p.unidadMedida || p.unidad || "UN").toUpperCase();
-                const requiereAlto = u === "M2"; // Para m2 pedimos alto y largo. Para ml solo largo.
+                const requiereAncho = u === "M2"; // Para m2 pedimos ancho/alto y largo. Para ml solo largo.
                 const requiereLargo = u === "M2" || u === "ML";
+                const anchoValue = (p.ancho ?? p.alto ?? 0);
                 
                 return (
                   <React.Fragment key={p.id}>
@@ -197,18 +200,18 @@ const TablaProductosObras = ({
                         )}
                       </td>
                       <td className="p-2 text-center">
-                        {requiereAlto ? (
+                        {requiereAncho ? (
                           editando ? (
                             <Input 
                               type="number" 
                               min={0} 
                               step="0.01" 
-                              value={p.alto} 
-                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "alto", e.target.value)} 
+                              value={anchoValue} 
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, (p.ancho !== undefined ? "ancho" : "alto"), e.target.value)} 
                               className="w-24 mx-auto" 
                             />
                           ) : (
-                            <span className="text-sm font-medium">{p.alto || 0}</span>
+                            <span className="text-sm font-medium">{anchoValue}</span>
                           )
                         ) : (
                           <span className="text-gray-400">-</span>
@@ -240,15 +243,15 @@ const TablaProductosObras = ({
                               type="number" 
                               min={0} 
                               step="0.01" 
-                              value={p.valorVenta} 
-                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "valorVenta", e.target.value)} 
+                              value={p.precio ?? 0} 
+                              onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "precio", e.target.value)} 
                               className="pl-5 pr-2 h-8 text-right" 
                               title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
                             />
                           </div>
                         ) : (
                           <div className="text-right">
-                            <span className="text-sm font-semibold">{formatearNumeroArgentino ? formatearNumeroArgentino(p.valorVenta) : p.valorVenta.toLocaleString("es-AR")}</span>
+                            <span className="text-sm font-semibold">{formatearNumeroArgentino ? formatearNumeroArgentino(precioProducto) : precioProducto.toLocaleString("es-AR")}</span>
                           </div>
                         )}
                       </td>
@@ -269,8 +272,8 @@ const TablaProductosObras = ({
                       <td className="p-2 text-right font-semibold">
                         {formatearNumeroArgentino ? formatearNumeroArgentino(sub) : sub.toLocaleString("es-AR")}
                       </td>
-                      <td className="p-2 text-center">
-                        {editando && (
+                      {editando && (
+                        <td className="p-2 text-center">
                           <Button 
                             variant="outline" 
                             onClick={() => onQuitarProducto && onQuitarProducto(p.id)} 
@@ -278,12 +281,12 @@ const TablaProductosObras = ({
                           >
                             Quitar
                           </Button>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                     {/* Fila adicional para descripción del producto */}
                     <tr className="border-b bg-gray-50">
-                      <td colSpan={9} className="p-2">
+                      <td colSpan={editando ? 9 : 8} className="p-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-gray-600 w-20">Descripción:</span>
                           {editando ? (

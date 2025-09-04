@@ -121,6 +121,7 @@ const ObraDetallePage = () => {
     handleDesvincularPresupuesto,
     handleVincularPresupuesto,
     handleCrearPresupuestoDesdeAqui,
+    cambiarBloquePresupuesto,
   } = useObra(id);
 
   const handlePrint = () => {
@@ -478,9 +479,11 @@ const ObraDetallePage = () => {
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
             totalObra={
-              modoCosto === "presupuesto" && presupuesto
+              typeof obra?.total === "number" && !Number.isNaN(obra.total)
+                ? obra.total
+                : (modoCosto === "presupuesto" && presupuesto
                 ? presupuesto.total
-                : obra.gastoObraManual
+                  : obra.gastoObraManual)
             }
             totalAbonado={movimientos.reduce(
               (acc, m) =>
@@ -554,6 +557,31 @@ const ObraDetallePage = () => {
                       <p className="font-medium text-blue-900">
                         Presupuesto Vinculado: {presupuesto.numeroPedido}
                       </p>
+                      {obra?.presupuestoInicialBloqueId && (
+                        <p className="text-sm text-blue-700 mt-1">
+                          Bloque seleccionado: {obra?.presupuestoInicialBloqueNombre || obra?.presupuestoInicialBloqueId}
+                        </p>
+                      )}
+                      {presupuesto?.bloques?.length > 0 && (
+                        <div className="mt-3">
+                          <label className="block text-sm text-blue-800 mb-1">Cambiar bloque</label>
+                          <Select
+                            value={obra?.presupuestoInicialBloqueId || ""}
+                            onValueChange={(val) => cambiarBloquePresupuesto(val)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleccionar bloque" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {presupuesto.bloques.map((b) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                  {b.nombre || b.id} - {formatearNumeroArgentino(b.total || 0)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                     {editando && (
                       <Button

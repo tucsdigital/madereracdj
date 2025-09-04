@@ -128,6 +128,8 @@ export const useObra = (id) => {
             setItemsCatalogo(Array.isArray(data.materialesCatalogo) ? data.materialesCatalogo : []);
             setGastoObraManual(Number(data.gastoObraManual) || 0);
             setModoCosto(data.presupuestoInicialId ? "presupuesto" : "gasto");
+            // Cargar productos del bloque seleccionado (copiados a la obra)
+            setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
           } else if (data.tipo === "presupuesto") {
             setEstadoObra(data.estado || "Activo");
             setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
@@ -196,13 +198,32 @@ export const useObra = (id) => {
   }, [id]);
 
   // Inicializar edición de presupuesto cuando se carga
+  // Importante: no sobrescribir itemsPresupuesto en páginas de OBRA
   useEffect(() => {
-    if (presupuesto) {
+    if (!presupuesto) return;
+    if (obra?.tipo === "presupuesto") {
       const prods = Array.isArray(presupuesto.productos) ? presupuesto.productos : [];
       setItemsPresupuesto(prods);
       setDescripcionGeneral(presupuesto.descripcionGeneral || "");
     }
-  }, [presupuesto]);
+  }, [presupuesto, obra?.tipo]);
+
+  // Auto-hidratar productos desde el bloque seleccionado si la obra aún no los tiene
+  useEffect(() => {
+    try {
+      if (!obra || obra.tipo !== "obra") return;
+      if (!obra.presupuestoInicialId || !obra.presupuestoInicialBloqueId) return;
+      const tieneProductos = Array.isArray(obra.productos) && obra.productos.length > 0;
+      if (tieneProductos) return;
+      if (!presupuesto || !Array.isArray(presupuesto.bloques)) return;
+      const existeBloque = presupuesto.bloques.some(b => b.id === obra.presupuestoInicialBloqueId);
+      if (!existeBloque) return;
+      // Ejecutar rutina de cambio de bloque para hidratar y persistir
+      cambiarBloquePresupuesto(obra.presupuestoInicialBloqueId);
+    } catch (e) {
+      console.error("Auto-hidratación de productos del bloque falló:", e);
+    }
+  }, [obra?.id, obra?.tipo, obra?.presupuestoInicialBloqueId, obra?.productos?.length, presupuesto]);
 
   // Debounce búsquedas
   useEffect(() => {
@@ -370,39 +391,84 @@ export const useObra = (id) => {
     try {
       const numeroPedido = await getNextObraNumber();
       
-      let productosPresupuesto = [];
-      let subtotalCombinado = 0;
-      let descuentoTotalCombinado = 0;
-      let totalCombinado = 0;
+      // Utilidades de sanitización y cálculo
+      const sanitizarProductos = (lista) =>
+        (Array.isArray(lista) ? lista : []).map((p) => {
+          const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+          const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+          const precio = Number(p.precio) || 0;
+          const cantidad = Number(p.cantidad) || 1;
+          const descuento = Number(p.descuento) || 0;
+          const base = isMachDeck ? precio : precio * cantidad;
+          const subtotal = Math.round(base * (1 - descuento / 100));
+          const item = {
+            id: p.id,
+            nombre: p.nombre || "",
+            categoria: p.categoria || "",
+            subcategoria: p.subcategoria || "",
+            unidad: p.unidad || p.unidadMedida || "",
+            unidadMedida: p.unidadMedida || p.unidad || "",
+            cantidad,
+            descuento,
+            precio,
+            subtotal,
+          };
+          // Conservar dimensiones y precioPorPie si existen (para cualquier categoría)
+          if (p.alto !== undefined) item.alto = Number(p.alto) || 0;
+          if (p.ancho !== undefined) item.ancho = Number(p.ancho) || 0;
+          if (p.largo !== undefined) item.largo = Number(p.largo) || 0;
+          if (p.precioPorPie !== undefined) item.precioPorPie = Number(p.precioPorPie) || 0;
+          if (p.cepilladoAplicado !== undefined) item.cepilladoAplicado = !!p.cepilladoAplicado;
+          return item;
+        });
+
+      const calcularSubtotal = (lista) =>
+        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
+          const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+          const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+          const precio = Number(p.precio) || 0;
+          const cantidad = Number(p.cantidad) || 1;
+          const base = isMachDeck ? precio : precio * cantidad;
+          return acc + base;
+        }, 0);
+
+      const calcularDescuento = (lista) =>
+        (Array.isArray(lista) ? lista : []).reduce((acc, p) => {
+          const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+          const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+          const precio = Number(p.precio) || 0;
+          const cantidad = Number(p.cantidad) || 1;
+          const base = isMachDeck ? precio : precio * cantidad;
+          const desc = Number(p.descuento) || 0;
+          return acc + Math.round(base * desc / 100);
+        }, 0);
+
+      let productosObraSanitizados = [];
+      let bloqueSeleccionadoNombre = null;
 
       // Si hay bloques y se seleccionó uno específico
       if (obra.bloques && obra.bloques.length > 0 && datosConversion.bloqueSeleccionado) {
         const bloqueSeleccionado = obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado);
         if (bloqueSeleccionado) {
-          productosPresupuesto = bloqueSeleccionado.productos || [];
-          subtotalCombinado = bloqueSeleccionado.subtotal || 0;
-          descuentoTotalCombinado = bloqueSeleccionado.descuentoTotal || 0;
-          totalCombinado = bloqueSeleccionado.total || 0;
+          productosObraSanitizados = sanitizarProductos(bloqueSeleccionado.productos || []);
+          bloqueSeleccionadoNombre = bloqueSeleccionado.nombre || null;
         }
       } else {
         // Fallback para presupuestos sin bloques (estructura antigua)
-        productosPresupuesto = itemsPresupuesto || [];
-      const materialesAdicionales = datosConversion.materialesAdicionales || [];
-      
-      // Combinar para cálculos de totales
-      const productosCombinados = [...productosPresupuesto, ...materialesAdicionales];
-      
-      // Calcular totales combinados
-        subtotalCombinado = productosCombinados.reduce((acc, p) => acc + (Number(p.precio) || 0), 0);
-        descuentoTotalCombinado = productosCombinados.reduce((acc, p) => {
-        const base = Number(p.precio) || 0;
-        const desc = Number(p.descuento) || 0;
-        return acc + Math.round(base * desc / 100);
-      }, 0);
-        totalCombinado = subtotalCombinado - descuentoTotalCombinado;
+        productosObraSanitizados = sanitizarProductos(itemsPresupuesto || []);
       }
 
-      const materialesAdicionales = datosConversion.materialesAdicionales || [];
+      const materialesAdicionalesRaw = datosConversion.materialesAdicionales || [];
+      const materialesSanitizados = sanitizarProductos(materialesAdicionalesRaw);
+
+      // Calcular totales combinados desde listas sanitizadas
+      const productosObraSubtotal = calcularSubtotal(productosObraSanitizados);
+      const productosObraDescuento = calcularDescuento(productosObraSanitizados);
+      const materialesSubtotal = calcularSubtotal(materialesSanitizados);
+      const materialesDescuento = calcularDescuento(materialesSanitizados);
+      const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
+      const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
+      const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
       
       const nuevaObra = {
         tipo: "obra",
@@ -410,10 +476,10 @@ export const useObra = (id) => {
         fecha: new Date().toISOString().split("T")[0],
         clienteId: obra.clienteId || obra.cliente?.id || null,
         cliente: obra.cliente || null,
-        // PRODUCTOS: Solo productos del presupuesto original (productos de obra)
-        productos: productosPresupuesto,
-        // MATERIALES: Solo materiales adicionales seleccionados (productos normales)
-        materialesCatalogo: materialesAdicionales,
+        // PRODUCTOS del bloque seleccionado o lista de presupuesto (sanitizados)
+        productos: productosObraSanitizados,
+        // MATERIALES adicionales seleccionados (sanitizados)
+        materialesCatalogo: materialesSanitizados,
         subtotal: subtotalCombinado,
         descuentoTotal: descuentoTotalCombinado,
         total: totalCombinado,
@@ -421,6 +487,8 @@ export const useObra = (id) => {
         fechaCreacion: new Date().toISOString(),
         estado: "pendiente_inicio",
         presupuestoInicialId: obra.id,
+        presupuestoInicialBloqueId: datosConversion.bloqueSeleccionado || null,
+        presupuestoInicialBloqueNombre: bloqueSeleccionadoNombre,
         prioridad: datosConversion.prioridad || "media",
         tipoObra: datosConversion.tipoObra || "",
         responsable: datosConversion.responsable || "",
@@ -455,20 +523,14 @@ export const useObra = (id) => {
         
         // Campos adicionales obligatorios
         gastoObraManual: 0,
-        montoEstimado: null,
-        productosDescuento: 0,
-        productosDescuentoTotal: 0,
-        productosSubtotal: 0,
-        productosTotal: 0,
-        
-        // Auditoría
-        fechaCreacion: new Date().toISOString(),
-        presupuestoOriginal: {
-          id: obra.id,
-          numeroPedido: obra.numeroPedido,
-          fechaCreacion: obra.fechaCreacion,
-          total: obra.total
-        }
+        // Totales de materiales (nuevo esquema)
+        materialesSubtotal: materialesSubtotal,
+        materialesDescuento: materialesDescuento,
+        materialesTotal: materialesSubtotal - materialesDescuento,
+        // Mantener compatibilidad temporal escribiendo los campos antiguos
+        productosSubtotal: materialesSubtotal,
+        productosDescuento: materialesDescuento,
+        productosTotal: materialesSubtotal - materialesDescuento,
       };
 
       console.log("Nueva obra a crear:", nuevaObra);
@@ -559,21 +621,75 @@ export const useObra = (id) => {
       return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
     }, 0);
 
+    // Sanitizar productos del bloque (productos de la obra)
+    const productosObraSanitizados = Array.isArray(itemsPresupuesto) ? itemsPresupuesto.map((p) => {
+      const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+      const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+      const precio = Number(p.precio) || 0;
+      const cantidad = Number(p.cantidad) || 1;
+      const descuento = Number(p.descuento) || 0;
+      const base = isMachDeck ? precio : precio * cantidad;
+      const subtotal = Math.round(base * (1 - descuento / 100));
+      const item = {
+        id: p.id,
+        nombre: p.nombre || "",
+        categoria: p.categoria || "",
+        subcategoria: p.subcategoria || "",
+        unidad: p.unidad || "",
+        cantidad,
+        descuento,
+        precio,
+        subtotal,
+      };
+      if (esMadera) {
+        item.alto = Number(p.alto) || 0;
+        item.ancho = Number(p.ancho) || 0;
+        item.largo = Number(p.largo) || 0;
+        item.precioPorPie = Number(p.precioPorPie) || 0;
+        item.cepilladoAplicado = !!p.cepilladoAplicado;
+      }
+      return item;
+    }) : [];
+
+    const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
+      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+      return acc + base;
+    }, 0);
+
+    const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
+      const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+      const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+      const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+      return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+    }, 0);
+
     const updateData = {
       documentacion,
       cobranzas: {
         historialPagos: movimientosSan,
-        formaPago: movimientosSan.length > 0 ? movimientosSan[0].metodo : "efectivo",
       },
     };
 
     if (obra.tipo === "obra") {
       updateData.materialesCatalogo = materialesSanitizados;
+      // Totales de materiales (nuevo y compat)
+      updateData.materialesSubtotal = productosSubtotalEdit;
+      updateData.materialesDescuento = productosDescuentoEdit;
+      updateData.materialesTotal = productosSubtotalEdit - productosDescuentoEdit;
       updateData.productosSubtotal = productosSubtotalEdit;
       updateData.productosDescuento = productosDescuentoEdit;
       updateData.productosTotal = productosSubtotalEdit - productosDescuentoEdit;
       updateData.gastoObraManual = Number(gastoObraManual) || 0;
       updateData.descripcionGeneral = descripcionGeneral;
+      // Actualizar productos (bloque elegido) y totales combinados
+      updateData.productos = productosObraSanitizados;
+      const subtotalCombinado = productosObraSubtotal + productosSubtotalEdit;
+      const descuentoCombinado = productosObraDescuento + productosDescuentoEdit;
+      updateData.subtotal = subtotalCombinado;
+      updateData.descuentoTotal = descuentoCombinado;
+      updateData.total = subtotalCombinado - descuentoCombinado;
       
       if (tipoObra) updateData.tipoObra = tipoObra;
       if (prioridad) updateData.prioridad = prioridad;
@@ -611,6 +727,147 @@ export const useObra = (id) => {
     } catch (error) {
       console.error("Error al guardar:", error);
       alert("Error al guardar los cambios");
+    }
+  };
+
+  // Cambiar el bloque seleccionado del presupuesto inicial y actualizar productos/totales de la obra
+  const cambiarBloquePresupuesto = async (bloqueId) => {
+    if (!obra || !obra.presupuestoInicialId) return;
+    try {
+      // Asegurar que tenemos el presupuesto cargado
+      let presupuestoFuente = presupuesto;
+      if (!presupuestoFuente) {
+        const presSnap = await getDoc(doc(db, "obras", obra.presupuestoInicialId));
+        if (presSnap.exists()) presupuestoFuente = { id: presSnap.id, ...presSnap.data() };
+      }
+      if (!presupuestoFuente || !Array.isArray(presupuestoFuente.bloques)) return;
+
+      const bloque = presupuestoFuente.bloques.find((b) => b.id === bloqueId);
+      if (!bloque) return;
+
+      // Sanitizar productos del bloque
+      const productosObraSanitizados = Array.isArray(bloque.productos) ? bloque.productos.map((p) => {
+        const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+        const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+        const precio = Number(p.precio) || 0;
+        const cantidad = Number(p.cantidad) || 1;
+        const descuento = Number(p.descuento) || 0;
+        const base = isMachDeck ? precio : precio * cantidad;
+        const subtotal = Math.round(base * (1 - descuento / 100));
+        const item = {
+          id: p.id,
+          nombre: p.nombre || "",
+          categoria: p.categoria || "",
+          subcategoria: p.subcategoria || "",
+          unidad: p.unidad || p.unidadMedida || "",
+          cantidad,
+          descuento,
+          precio,
+          subtotal,
+        };
+        if (esMadera) {
+          item.alto = Number(p.alto) || 0;
+          item.ancho = Number(p.ancho) || 0;
+          item.largo = Number(p.largo) || 0;
+          item.precioPorPie = Number(p.precioPorPie) || 0;
+          item.cepilladoAplicado = !!p.cepilladoAplicado;
+        }
+        return item;
+      }) : [];
+
+      // Recalcular totales combinados con materiales existentes
+      const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
+        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+        return acc + base;
+      }, 0);
+      const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
+        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+        return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+      }, 0);
+
+      const materialesSanitizados = Array.isArray(itemsCatalogo) ? itemsCatalogo.map((p) => {
+        const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+        const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+        const precio = Number(p.precio) || 0;
+        const cantidad = Number(p.cantidad) || 1;
+        const descuento = Number(p.descuento) || 0;
+        const base = isMachDeck ? precio : precio * cantidad;
+        const subtotal = Math.round(base * (1 - descuento / 100));
+        const item = {
+          id: p.id,
+          nombre: p.nombre || "",
+          categoria: p.categoria || "",
+          subcategoria: p.subcategoria || "",
+          unidad: p.unidad || "",
+          unidadMedida: p.unidadMedida || p.unidad || "",
+          cantidad,
+          descuento,
+          precio,
+          subtotal,
+        };
+        if (esMadera) {
+          item.alto = Number(p.alto) || 0;
+          item.ancho = Number(p.ancho) || 0;
+          item.largo = Number(p.largo) || 0;
+          item.precioPorPie = Number(p.precioPorPie) || 0;
+          item.cepilladoAplicado = !!p.cepilladoAplicado;
+        }
+        return item;
+      }) : [];
+
+      const materialesSubtotal = materialesSanitizados.reduce((acc, p) => {
+        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+        return acc + base;
+      }, 0);
+      const materialesDescuento = materialesSanitizados.reduce((acc, p) => {
+        const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+        const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+        const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+        return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+      }, 0);
+
+      const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
+      const descuentoCombinado = productosObraDescuento + materialesDescuento;
+      const totalCombinado = subtotalCombinado - descuentoCombinado;
+
+      // Persistir cambios (incluyendo nuevos totales de materiales)
+      await updateDoc(doc(db, "obras", obra.id), {
+        productos: productosObraSanitizados,
+        presupuestoInicialBloqueId: bloque.id,
+        presupuestoInicialBloqueNombre: bloque.nombre || null,
+        subtotal: subtotalCombinado,
+        descuentoTotal: descuentoCombinado,
+        total: totalCombinado,
+        materialesSubtotal: materialesSubtotal,
+        materialesDescuento: materialesDescuento,
+        materialesTotal: materialesSubtotal - materialesDescuento,
+        // Compatibilidad
+        productosSubtotal: materialesSubtotal,
+        productosDescuento: materialesDescuento,
+        productosTotal: materialesSubtotal - materialesDescuento,
+      });
+
+      // Actualizar estados locales
+      setItemsPresupuesto(productosObraSanitizados);
+      setObra((prev) => prev ? {
+        ...prev,
+        productos: productosObraSanitizados,
+        presupuestoInicialBloqueId: bloque.id,
+        presupuestoInicialBloqueNombre: bloque.nombre || null,
+        subtotal: subtotalCombinado,
+        descuentoTotal: descuentoCombinado,
+        total: totalCombinado,
+      } : prev);
+
+    } catch (error) {
+      console.error("Error al cambiar el bloque del presupuesto inicial:", error);
+      throw error;
     }
   };
 
@@ -691,5 +948,6 @@ export const useObra = (id) => {
     getNextPresupuestoNumber,
     convertirPresupuestoToObra,
     cargarCatalogoProductos,
+    cambiarBloquePresupuesto,
   };
 };

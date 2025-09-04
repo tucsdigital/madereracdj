@@ -490,7 +490,7 @@ const PresupuestoPage = () => {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                       <Icon icon="heroicons:squares-2x2" className="w-5 h-5" />
-                      Seleccionar Bloque para Convertir
+                      Seleccionar Presupuesto para Convertir
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {obra.bloques.map((bloque) => (
@@ -545,10 +545,10 @@ const PresupuestoPage = () => {
                     {datosConversion.bloqueSeleccionado && (
                       <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <p className="text-sm text-blue-800">
-                          <strong>Bloque seleccionado:</strong> {obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado)?.nombre}
+                          <strong>Presupuesto seleccionado:</strong> {obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado)?.nombre}
                         </p>
                         <p className="text-xs text-blue-600 mt-1">
-                          Solo los productos de este bloque se convertirán a obra. Los demás bloques permanecerán como presupuesto.
+                          Solo los productos de este presupuesto se convertirán a obra. Los demás presupuestos permanecerán como presupuesto.
                         </p>
                       </div>
                     )}
