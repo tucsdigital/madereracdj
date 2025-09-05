@@ -486,13 +486,32 @@ const ObrasPage = () => {
             // Totales según tipo
             if (o.tipo === "presupuesto") {
               presupuestoTotal = Number(o.total) || Number(o.productosTotal) || 0;
-            } else {
-              if (o.presupuestoInicialId) {
+            } else if (o.tipo === "obra") {
+              // Preferir el total de la obra si está presente
+              const totalLocalObra =
+                Number(o.total) ||
+                Number(o.subtotal) ||
+                (
+                  (Number(o.productosTotal) || 0) +
+                  (Number(o.materialesTotal) || 0) +
+                  (Number(o.gastoObraManual) || 0) +
+                  (Number(o.costoEnvio) || 0) -
+                  (Number(o.descuentoTotal) || 0)
+                );
+
+              presupuestoTotal = Number(totalLocalObra) || 0;
+
+              // Si no hay total local, intentar obtenerlo del presupuesto inicial (fallback)
+              if ((!presupuestoTotal || Number.isNaN(presupuestoTotal)) && o.presupuestoInicialId) {
                 try {
                   const pres = await getDoc(doc(db, "obras", o.presupuestoInicialId));
                   if (pres.exists()) {
                     const pd = pres.data();
-                    presupuestoTotal = Number(pd.total) || Number(pd.productosTotal) || 0;
+                    const totalPresupuesto =
+                      Number(pd.total) ||
+                      Number(pd.subtotal) ||
+                      (Number(pd.productosTotal) || 0) + (Number(pd.materialesTotal) || 0);
+                    presupuestoTotal = Number(totalPresupuesto) || 0;
                   }
                 } catch (_) {}
               }
