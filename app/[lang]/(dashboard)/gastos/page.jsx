@@ -385,8 +385,8 @@ const GastosPage = () => {
       
       switch (ordenamiento.columna) {
         case "fecha":
-          valorA = new Date(a.fecha).getTime();
-          valorB = new Date(b.fecha).getTime();
+          valorA = a.fechaCreacion ? new Date(a.fechaCreacion.toDate ? a.fechaCreacion.toDate() : a.fechaCreacion).getTime() : 0;
+          valorB = b.fechaCreacion ? new Date(b.fechaCreacion.toDate ? b.fechaCreacion.toDate() : b.fechaCreacion).getTime() : 0;
           break;
         case "concepto":
           valorA = (a.concepto || "").toLowerCase();
@@ -509,7 +509,7 @@ const GastosPage = () => {
   }
 
   return (
-    <div className="py-8 px-2 max-w-7xl mx-auto">
+    <div className="py-8 px-2 max-w-8xl mx-auto">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -809,14 +809,18 @@ const GastosPage = () => {
                 {gastosFiltrados.map(g => (
                 <TableRow key={g.id}>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{g.fecha}</div>
-                      {g.fechaCreacion && (
-                        <div className="text-xs text-gray-500">
-                          {new Date(g.fechaCreacion.toDate ? g.fechaCreacion.toDate() : g.fechaCreacion).toLocaleString("es-AR")}
-                        </div>
-                      )}
-                    </div>
+                    {g.fechaCreacion && (
+                      <div className="font-medium">
+                        {new Date(g.fechaCreacion.toDate ? g.fechaCreacion.toDate() : g.fechaCreacion).toLocaleString("es-AR", {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        })}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">{g.concepto}</TableCell>
                   <TableCell>
