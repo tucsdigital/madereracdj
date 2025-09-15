@@ -26,7 +26,7 @@ const SalesStats = () => {
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [clientesData, setClientesData] = useState({});
-  const COMMISSION_RATE = 0.8; // % comisión fija para clientes nuevos
+  const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
 
   const toDateSafe = useCallback((value) => {
     if (!value) return null;
@@ -264,24 +264,19 @@ const SalesStats = () => {
     ];
   }, [clientesCounts]);
 
-  // Comisión sobre ventas de clientes nuevos y viejos (solo los que aparecen en ventas del rango)
+  // Comisión sobre ventas (2.5% para todos los clientes)
   const comisionesPorTipoCliente = useMemo(() => {
-    let totalVendidoClientesNuevos = 0;
-    let totalVendidoClientesViejos = 0;
+    let totalVentasConCliente = 0;
     let ventasSinCliente = 0;
     let totalVentasProcesadas = 0;
-    let ventasSinClienteIds = [];
     let ventasClienteNoEncontradoIds = [];
-    let ventasSinClasificarIds = [];
     
     ventasFiltradas.forEach((venta) => {
       let clienteEncontrado = null;
-      let metodoBusqueda = '';
       
       // Buscar cliente por clienteId primero
       if (venta.clienteId) {
         clienteEncontrado = clientesData[venta.clienteId];
-        metodoBusqueda = 'clienteId';
       }
       
       // Si no se encontró por clienteId, buscar por teléfono del objeto cliente
@@ -291,7 +286,6 @@ const SalesStats = () => {
         for (const [clienteId, cliente] of Object.entries(clientesData)) {
           if (cliente.telefono === telefono) {
             clienteEncontrado = cliente;
-            metodoBusqueda = 'telefono';
             break;
           }
         }
@@ -304,7 +298,6 @@ const SalesStats = () => {
         for (const [clienteId, cliente] of Object.entries(clientesData)) {
           if (cliente.cuit === cuit) {
             clienteEncontrado = cliente;
-            metodoBusqueda = 'cuit';
             break;
           }
         }
@@ -323,59 +316,30 @@ const SalesStats = () => {
       
       const montoVenta = Number(venta.total) || 0;
       totalVentasProcesadas += montoVenta;
-      
-      // Clasificar según esClienteViejo
-      if (clienteEncontrado.esClienteViejo === true) {
-        totalVendidoClientesViejos += montoVenta;
-      } else if (clienteEncontrado.esClienteViejo === false) {
-        totalVendidoClientesNuevos += montoVenta;
-      } else {
-        // Cliente encontrado pero no tiene el campo esClienteViejo definido
-        ventasSinClasificarIds.push({
-          id: venta.id,
-          numeroPedido: venta.numeroPedido,
-          clienteId: clienteEncontrado.id,
-          clienteNombre: clienteEncontrado.nombre || 'Sin nombre',
-          telefono: clienteEncontrado.telefono,
-          cuit: clienteEncontrado.cuit,
-          monto: montoVenta,
-          esClienteViejo: clienteEncontrado.esClienteViejo
-        });
-      }
+      totalVentasConCliente += montoVenta;
     });
     
-    // Calcular comisiones: 0.8% para viejos, 2.5% para nuevos
-    const comisionClientesViejos = totalVendidoClientesViejos * 0.008; // 0.8%
-    const comisionClientesNuevos = totalVendidoClientesNuevos * 0.025; // 2.5%
-    const comisionTotal = comisionClientesViejos + comisionClientesNuevos;
+    // Calcular comisión: 2.5% para todas las ventas con cliente
+    const comisionTotal = totalVentasConCliente * (COMMISSION_RATE / 100);
     
     // Debug logs
     console.log('=== DEBUG COMISIONES ===');
     console.log('Total ventas filtradas:', ventasFiltradas.length);
     console.log('Total monto ventas filtradas:', kpis.ventasMonto);
     console.log('Total ventas procesadas:', totalVentasProcesadas);
-    console.log('Ventas con cliente pero sin clasificar (esClienteViejo undefined):', ventasSinClasificarIds);
+    console.log('Total ventas con cliente:', totalVentasConCliente);
     console.log('Ventas con cliente no encontrado:', ventasClienteNoEncontradoIds);
-    console.log('Total vendido clientes nuevos:', totalVendidoClientesNuevos);
-    console.log('Total vendido clientes viejos:', totalVendidoClientesViejos);
-    console.log('Comisión clientes nuevos (2.5%):', comisionClientesNuevos);
-    console.log('Comisión clientes viejos (0.8%):', comisionClientesViejos);
-    console.log('Comisión total:', comisionTotal);
+    console.log('Comisión total (2.5%):', comisionTotal);
     console.log('========================');
     
     return {
-      totalVendidoClientesNuevos,
-      totalVendidoClientesViejos,
-      comisionClientesViejos,
-      comisionClientesNuevos,
+      totalVentasConCliente,
       comisionTotal,
       ventasSinCliente,
       totalVentasProcesadas,
-      ventasSinClienteIds,
-      ventasClienteNoEncontradoIds,
-      ventasSinClasificarIds
+      ventasClienteNoEncontradoIds
     };
-  }, [ventasFiltradas, clientesData, kpis.ventasMonto]);
+  }, [ventasFiltradas, clientesData, kpis.ventasMonto, COMMISSION_RATE]);
 
   // Eliminar cálculos anteriores que ya no se usan
   // const totalVendidoClientesNuevos = useMemo(() => {
@@ -648,29 +612,27 @@ const SalesStats = () => {
                 </div>
                 <div className="text-3xl font-extrabold tracking-tight">{kpis.presupuestosCount}</div>
               </div>
-              {/* Comisión clientes nuevos (proporcional) */}
-                             {/* {user?.email === "admin@admin.com" && ( */}
-                 <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión por ventas</div>
-                    <span className="inline-flex w-8 h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
-                      <Icon icon="heroicons:currency-dollar" className="w-4 h-4" />
-                    </span>
+              {/* Comisión por ventas (2.5% para todos) */}
+              <div className="p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm text-fuchsia-700 dark:text-fuchsia-300">Comisión por ventas</div>
+                  <span className="inline-flex w-8 h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
+                    <Icon icon="heroicons:currency-dollar" className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}</div>
+                <div className="text-xs text-default-500 space-y-1">
+                  <div>
+                    <span className="font-semibold text-fuchsia-700">Tasa fija:</span> 2.5%
                   </div>
-                  <div className="text-3xl font-extrabold tracking-tight">$ {nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}</div>
-                  <div className="text-xs text-default-500 space-y-1">
-                    <div>
-                      <span className="font-semibold text-fuchsia-700">Nuevos:</span> {clientesCounts.nuevo} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesNuevos))} vendido (2.5% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesNuevos))})
-                    </div>
-                    <div>
-                      <span className="font-semibold text-fuchsia-700">Viejos:</span> {clientesCounts.viejo} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.totalVendidoClientesViejos))} vendido (0.8% = ${nf.format(Math.round(comisionesPorTipoCliente.comisionClientesViejos))})
-                    </div>
-                    <div className="pt-1 border-t border-fuchsia-200">
-                      <span className="font-semibold text-fuchsia-700">Total:</span> {clientesTotal} clientes · ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))} comisión
-                    </div>
+                  <div>
+                    <span className="font-semibold text-fuchsia-700">Ventas con cliente:</span> ${nf.format(Math.round(comisionesPorTipoCliente.totalVentasConCliente))}
+                  </div>
+                  <div className="pt-1 border-t border-fuchsia-200">
+                    <span className="font-semibold text-fuchsia-700">Total comisión:</span> ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}
                   </div>
                 </div>
-              {/* )} */}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
