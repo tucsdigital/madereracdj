@@ -82,8 +82,10 @@ const GastosPage = () => {
     año: new Date().getFullYear().toString()
   });
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
-  const [vistaActual, setVistaActual] = useState("mes"); // tabla, mes, grafico
-  const [gastosPorMes, setGastosPorMes] = useState({});
+  const [ordenamiento, setOrdenamiento] = useState({
+    columna: "fecha",
+    direccion: "desc"
+  });
 
   const {
     register,
@@ -307,9 +309,9 @@ const GastosPage = () => {
     return responsables.map(resp => ({ value: resp, label: resp }));
   };
 
-  // Filtrar gastos con filtros avanzados
+  // Filtrar y ordenar gastos
   const gastosFiltrados = useMemo(() => {
-    return gastos.filter(g => {
+    let gastosFiltrados = gastos.filter(g => {
       // Filtro de búsqueda general
       if (filtros.busqueda) {
         const busqueda = filtros.busqueda.toLowerCase();
@@ -376,40 +378,72 @@ const GastosPage = () => {
 
       return true;
     });
-  }, [gastos, filtros]);
 
-  // Agrupar gastos por mes
-  const gastosAgrupadosPorMes = useMemo(() => {
-    const agrupados = {};
-    gastosFiltrados.forEach(gasto => {
-      const fecha = new Date(gasto.fecha);
-      const mesAño = `${fecha.getFullYear()}-${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
-      const mesNombre = obtenerMeses()[fecha.getMonth()].label;
+    // Ordenar gastos
+    gastosFiltrados.sort((a, b) => {
+      let valorA, valorB;
       
-      if (!agrupados[mesAño]) {
-        agrupados[mesAño] = {
-          mes: mesNombre,
-          año: fecha.getFullYear(),
-          gastos: [],
-          total: 0,
-          totalPorEstado: {
-            varios: 0,
-            empleados: 0,
-            viaticos: 0
-          }
-        };
+      switch (ordenamiento.columna) {
+        case "fecha":
+          valorA = new Date(a.fecha).getTime();
+          valorB = new Date(b.fecha).getTime();
+          break;
+        case "concepto":
+          valorA = (a.concepto || "").toLowerCase();
+          valorB = (b.concepto || "").toLowerCase();
+          break;
+        case "monto":
+          valorA = Number(a.monto) || 0;
+          valorB = Number(b.monto) || 0;
+          break;
+        case "estado":
+          valorA = (a.estado || "").toLowerCase();
+          valorB = (b.estado || "").toLowerCase();
+          break;
+        case "responsable":
+          valorA = (a.responsable || "").toLowerCase();
+          valorB = (b.responsable || "").toLowerCase();
+          break;
+        case "cliente":
+          valorA = (a.cliente?.nombre || "").toLowerCase();
+          valorB = (b.cliente?.nombre || "").toLowerCase();
+          break;
+        default:
+          return 0;
       }
-      
-      agrupados[mesAño].gastos.push(gasto);
-      agrupados[mesAño].total += Number(gasto.monto);
-      agrupados[mesAño].totalPorEstado[gasto.estado] += Number(gasto.monto);
+
+      if (ordenamiento.direccion === "asc") {
+        return valorA > valorB ? 1 : valorA < valorB ? -1 : 0;
+      } else {
+        return valorA < valorB ? 1 : valorA > valorB ? -1 : 0;
+      }
     });
-    
-    return Object.values(agrupados).sort((a, b) => {
-      if (a.año !== b.año) return b.año - a.año;
-      return b.mes.localeCompare(a.mes);
-    });
-  }, [gastosFiltrados]);
+
+    return gastosFiltrados;
+  }, [gastos, filtros, ordenamiento]);
+
+  // Función para manejar el ordenamiento
+  const manejarOrdenamiento = (columna) => {
+    if (ordenamiento.columna === columna) {
+      setOrdenamiento(prev => ({
+        columna,
+        direccion: prev.direccion === "asc" ? "desc" : "asc"
+      }));
+    } else {
+      setOrdenamiento({
+        columna,
+        direccion: "asc"
+      });
+    }
+  };
+
+  // Función para obtener el ícono de ordenamiento
+  const obtenerIconoOrdenamiento = (columna) => {
+    if (ordenamiento.columna !== columna) {
+      return <span className="text-gray-400">↕</span>;
+    }
+    return ordenamiento.direccion === "asc" ? "↑" : "↓";
+  };
 
   // Función para limpiar filtros
   const limpiarFiltros = () => {
@@ -451,30 +485,14 @@ const GastosPage = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // Calcular totales del mes seleccionado
-  const gastosDelMesSeleccionado = useMemo(() => {
-    return gastos.filter(g => {
-      const fecha = new Date(g.fecha);
-      const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-      const año = fecha.getFullYear().toString();
-      return mes === filtros.mes && año === filtros.año;
-    });
-  }, [gastos, filtros.mes, filtros.año]);
+  // Calcular totales generales
+  const totalGastos = gastosFiltrados.reduce((acc, g) => acc + Number(g.monto), 0);
 
-  // Calcular total de gastos del mes seleccionado
-  const totalGastosMes = gastosDelMesSeleccionado.reduce((acc, g) => acc + Number(g.monto), 0);
-
-  // Calcular totales por estado del mes seleccionado
-  const totalesPorEstadoMes = {
-    varios: gastosDelMesSeleccionado.filter(g => g.estado === 'varios').reduce((acc, g) => acc + Number(g.monto), 0),
-    empleados: gastosDelMesSeleccionado.filter(g => g.estado === 'empleados').reduce((acc, g) => acc + Number(g.monto), 0),
-    viaticos: gastosDelMesSeleccionado.filter(g => g.estado === 'viaticos').reduce((acc, g) => acc + Number(g.monto), 0),
-  };
-
-  // Obtener nombre del mes actual
-  const obtenerNombreMesActual = () => {
-    const mesIndex = parseInt(filtros.mes) - 1;
-    return obtenerMeses()[mesIndex]?.label || "Mes";
+  // Calcular totales por estado
+  const totalesPorEstado = {
+    varios: gastosFiltrados.filter(g => g.estado === 'varios').reduce((acc, g) => acc + Number(g.monto), 0),
+    empleados: gastosFiltrados.filter(g => g.estado === 'empleados').reduce((acc, g) => acc + Number(g.monto), 0),
+    viaticos: gastosFiltrados.filter(g => g.estado === 'viaticos').reduce((acc, g) => acc + Number(g.monto), 0),
   };
 
   if (loading) {
@@ -498,9 +516,7 @@ const GastosPage = () => {
           <Receipt className="w-10 h-10 text-primary" />
           <div>
             <h1 className="text-3xl font-bold mb-1">Gestión de Gastos</h1>
-            <p className="text-lg text-gray-500">
-              Control avanzado y análisis de gastos de la maderera - {obtenerNombreMesActual()} {filtros.año}
-            </p>
+            <p className="text-lg text-gray-500">Control y análisis de gastos de la maderera</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -640,11 +656,6 @@ const GastosPage = () => {
             <div className="flex justify-between items-center mt-4 pt-4 border-t">
               <div className="text-sm text-gray-600">
                 Mostrando {gastosFiltrados.length} de {gastos.length} gastos
-                {filtros.mes && filtros.año && (
-                  <span className="ml-2 font-semibold text-blue-600">
-                    • Mes actual: {obtenerNombreMesActual()} {filtros.año}
-                  </span>
-                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={limpiarFiltros}>
@@ -657,354 +668,192 @@ const GastosPage = () => {
         </Card>
       )}
 
-      {/* Resumen de gastos del mes seleccionado */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">
-            Gastos de {obtenerNombreMesActual()} {filtros.año}
-          </h2>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                const mesActual = parseInt(filtros.mes);
-                const añoActual = parseInt(filtros.año);
-                if (mesActual > 1) {
-                  setFiltros(prev => ({ ...prev, mes: (mesActual - 1).toString().padStart(2, '0') }));
-                } else {
-                  setFiltros(prev => ({ ...prev, mes: "12", año: (añoActual - 1).toString() }));
-                }
-              }}
-            >
-              ← Mes Anterior
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                const mesActual = parseInt(filtros.mes);
-                const añoActual = parseInt(filtros.año);
-                if (mesActual < 12) {
-                  setFiltros(prev => ({ ...prev, mes: (mesActual + 1).toString().padStart(2, '0') }));
-                } else {
-                  setFiltros(prev => ({ ...prev, mes: "01", año: (añoActual + 1).toString() }));
-                }
-              }}
-            >
-              Mes Siguiente →
-            </Button>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Total del Mes</div>
-                  <div className="text-3xl font-bold text-red-600">
-                    ${totalGastosMes.toLocaleString("es-AR")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {gastosDelMesSeleccionado.length} gastos
-                  </div>
-                </div>
-                <TrendingDown className="w-8 h-8 text-red-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Varios</div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    ${totalesPorEstadoMes.varios.toLocaleString("es-AR")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {gastosDelMesSeleccionado.filter(g => g.estado === 'varios').length} gastos
-                  </div>
-                </div>
-                <BarChart3 className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Empleados</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    ${totalesPorEstadoMes.empleados.toLocaleString("es-AR")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {gastosDelMesSeleccionado.filter(g => g.estado === 'empleados').length} gastos
-                  </div>
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Viáticos</div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    ${totalesPorEstadoMes.viaticos.toLocaleString("es-AR")}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {gastosDelMesSeleccionado.filter(g => g.estado === 'viaticos').length} gastos
-                  </div>
-                </div>
-                <Calendar className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Selector de vista */}
-      <div className="mb-6">
-        <div className="flex gap-2">
-          <Button
-            variant={vistaActual === "tabla" ? "default" : "outline"}
-            onClick={() => setVistaActual("tabla")}
-          >
-            <Table className="w-4 h-4 mr-2" />
-            Vista Tabla
-          </Button>
-          <Button
-            variant={vistaActual === "mes" ? "default" : "outline"}
-            onClick={() => setVistaActual("mes")}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            Vista por Mes
-          </Button>
-          <Button
-            variant={vistaActual === "grafico" ? "default" : "outline"}
-            onClick={() => setVistaActual("grafico")}
-          >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Gráficos
-          </Button>
-        </div>
-      </div>
-
-      {/* Vista por Mes - Mostrar solo el mes seleccionado */}
-      {vistaActual === "mes" && (
+      {/* Resumen de gastos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">
-              Detalle de Gastos - {obtenerNombreMesActual()} {filtros.año}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gastosDelMesSeleccionado.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No hay gastos registrados para {obtenerNombreMesActual()} {filtros.año}
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">Total Gastos</div>
+                <div className="text-3xl font-bold text-red-600">
+                  ${totalGastos.toLocaleString("es-AR")}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {gastosFiltrados.length} registros
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {gastosDelMesSeleccionado.map(gasto => (
-                  <div key={gasto.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex-1">
-                      <div className="font-medium text-lg">{gasto.concepto}</div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        {gasto.fecha} • {gasto.responsable}
-                        {gasto.cliente?.nombre && ` • ${gasto.cliente.nombre}`}
-                      </div>
-                      {gasto.observaciones && (
-                        <div className="text-sm text-gray-600 mt-1 italic">
-                          "{gasto.observaciones}"
+              <TrendingDown className="w-8 h-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">Varios</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${totalesPorEstado.varios.toLocaleString("es-AR")}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {gastosFiltrados.filter(g => g.estado === 'varios').length} gastos
+                </div>
+              </div>
+              <BarChart3 className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">Empleados</div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${totalesPorEstado.empleados.toLocaleString("es-AR")}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {gastosFiltrados.filter(g => g.estado === 'empleados').length} gastos
+                </div>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">Viáticos</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  ${totalesPorEstado.viaticos.toLocaleString("es-AR")}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {gastosFiltrados.filter(g => g.estado === 'viaticos').length} gastos
+                </div>
+              </div>
+              <Calendar className="w-8 h-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabla de Gastos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado de Gastos</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {gastosFiltrados.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {filtros.busqueda || filtros.estado || filtros.cliente || filtros.responsable || filtros.mes || filtros.año || filtros.fechaInicio || filtros.fechaFin ? "No se encontraron gastos con los filtros aplicados" : "No hay gastos registrados"}
+            </div>
+          ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("fecha")}
+                >
+                  <div className="flex items-center gap-2">
+                    Fecha {obtenerIconoOrdenamiento("fecha")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("concepto")}
+                >
+                  <div className="flex items-center gap-2">
+                    Concepto {obtenerIconoOrdenamiento("concepto")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("estado")}
+                >
+                  <div className="flex items-center gap-2">
+                    Estado {obtenerIconoOrdenamiento("estado")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("monto")}
+                >
+                  <div className="flex items-center gap-2">
+                    Monto {obtenerIconoOrdenamiento("monto")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("responsable")}
+                >
+                  <div className="flex items-center gap-2">
+                    Responsable {obtenerIconoOrdenamiento("responsable")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  onClick={() => manejarOrdenamiento("cliente")}
+                >
+                  <div className="flex items-center gap-2">
+                    Cliente/Proveedor {obtenerIconoOrdenamiento("cliente")}
+                  </div>
+                </TableHead>
+                <TableHead>Observaciones</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+                {gastosFiltrados.map(g => (
+                <TableRow key={g.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{g.fecha}</div>
+                      {g.fechaCreacion && (
+                        <div className="text-xs text-gray-500">
+                          {new Date(g.fechaCreacion.toDate ? g.fechaCreacion.toDate() : g.fechaCreacion).toLocaleString("es-AR")}
                         </div>
                       )}
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-red-600 text-xl">
-                        ${Number(gasto.monto).toLocaleString("es-AR")}
+                  </TableCell>
+                  <TableCell className="font-medium">{g.concepto}</TableCell>
+                  <TableCell>
+                    <Badge className={estadosGasto[g.estado]?.color || 'bg-gray-100 text-gray-800'}>
+                      {estadosGasto[g.estado]?.label || g.estado}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-bold text-red-600">
+                    ${Number(g.monto).toLocaleString("es-AR")}
+                  </TableCell>
+                  <TableCell className="text-sm">{g.responsable}</TableCell>
+                  <TableCell className="text-sm">
+                    {g.cliente?.nombre || "-"}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate" title={g.observaciones}>
+                    {g.observaciones || "-"}
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => handleVer(g)}>
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleEditar(g)}>
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleEliminar(g)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
-                      <Badge className={estadosGasto[gasto.estado]?.color}>
-                        {estadosGasto[gasto.estado]?.label || gasto.estado}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Vista Tabla */}
-      {vistaActual === "tabla" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Listado de Gastos</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            {gastosFiltrados.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {filtros.busqueda || filtros.estado || filtros.cliente || filtros.responsable || filtros.mes || filtros.año || filtros.fechaInicio || filtros.fechaFin ? "No se encontraron gastos con los filtros aplicados" : "No hay gastos registrados"}
-              </div>
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Concepto</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Cliente/Proveedor</TableHead>
-                  <TableHead>Observaciones</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                  {gastosFiltrados.map(g => (
-                  <TableRow key={g.id}>
-                    <TableCell>{g.fecha}</TableCell>
-                    <TableCell className="font-medium">{g.concepto}</TableCell>
-                    <TableCell>
-                      <Badge className={estadosGasto[g.estado]?.color || 'bg-gray-100 text-gray-800'}>
-                        {estadosGasto[g.estado]?.label || g.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-bold text-red-600">
-                      ${Number(g.monto).toLocaleString("es-AR")}
-                    </TableCell>
-                    <TableCell className="text-sm">{g.responsable}</TableCell>
-                    <TableCell className="text-sm">
-                      {g.cliente?.nombre || "-"}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate" title={g.observaciones}>
-                      {g.observaciones || "-"}
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" onClick={() => handleVer(g)}>
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleEditar(g)}>
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleEliminar(g)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Vista Gráficos */}
-      {vistaActual === "grafico" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gráfico por Estado */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Estado</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(totalesPorEstado).map(([estado, total]) => {
-                  const porcentaje = totalGastos > 0 ? (total / totalGastos) * 100 : 0;
-                  return (
-                    <div key={estado} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">
-                          {estadosGasto[estado]?.label || estado}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          ${total.toLocaleString("es-AR")} ({porcentaje.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            estado === 'varios' ? 'bg-blue-500' :
-                            estado === 'empleados' ? 'bg-green-500' : 'bg-purple-500'
-                          }`}
-                          style={{ width: `${porcentaje}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Gráfico por Mes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Gastos por Mes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {gastosAgrupadosPorMes.slice(0, 6).map((mesData, index) => {
-                  const maxTotal = Math.max(...gastosAgrupadosPorMes.map(m => m.total));
-                  const porcentaje = maxTotal > 0 ? (mesData.total / maxTotal) * 100 : 0;
-                  return (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">
-                          {mesData.mes} {mesData.año}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          ${mesData.total.toLocaleString("es-AR")}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="h-2 rounded-full bg-red-500"
-                          style={{ width: `${porcentaje}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Resumen de Responsables */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Gastos por Responsable</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {obtenerResponsables().map(resp => {
-                  const gastosResponsable = gastosFiltrados.filter(g => g.responsable === resp.value);
-                  const total = gastosResponsable.reduce((acc, g) => acc + Number(g.monto), 0);
-                  return (
-                    <div key={resp.value} className="p-4 border rounded-lg">
-                      <div className="text-sm text-gray-500">{resp.label}</div>
-                      <div className="text-2xl font-bold text-red-600">
-                        ${total.toLocaleString("es-AR")}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {gastosResponsable.length} gastos
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              ))}
+            </TableBody>
+          </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[95vw] max-w-[500px]">
