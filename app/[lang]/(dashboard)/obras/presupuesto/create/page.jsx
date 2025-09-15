@@ -522,7 +522,7 @@ export default function CrearPresupuestoObraPage() {
               aria-expanded={dropdownClientesOpen}
             >
               <span className="flex-1 truncate">
-                {clienteSeleccionado ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.cuit || ""}` : "Seleccionar cliente..."}
+                {clienteSeleccionado ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.telefono || ""}` : "Seleccionar cliente..."}
               </span>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="ghost" size="sm" className="text-primary font-semibold" onClick={(e) => { e.stopPropagation(); setOpenNuevoCliente(true); }} disabled={clientesLoading}>Nuevo</Button>
@@ -534,7 +534,7 @@ export default function CrearPresupuestoObraPage() {
                 <div className="p-2">
                   <Input
                     type="text"
-                    placeholder="Buscar cliente..."
+                    placeholder="Buscar por nombre o teléfono..."
                     value={busquedaCliente}
                     onChange={(e) => setBusquedaCliente(e.target.value)}
                     className="w-full mb-2"
@@ -548,7 +548,7 @@ export default function CrearPresupuestoObraPage() {
                         if (!q) return true;
                         return (
                           String(c.nombre || "").toLowerCase().includes(q) ||
-                          String(c.cuit || "").toLowerCase().includes(q)
+                          String(c.telefono || "").toLowerCase().includes(q)
                         );
                       })
                       .map((c) => (
@@ -562,7 +562,7 @@ export default function CrearPresupuestoObraPage() {
                           role="option"
                           tabIndex={0}
                         >
-                          {c.nombre} - {c.cuit || ""}
+                          {c.nombre} - {c.telefono || ""}
                         </div>
                       ))}
                   </div>

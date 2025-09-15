@@ -1291,8 +1291,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
-      c.cuit.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
-      (c.localidad || "").toLowerCase().includes(busquedaClienteDebounced.toLowerCase())
+      (c.telefono || "").toLowerCase().includes(busquedaClienteDebounced.toLowerCase())
   );
 
   const generarId = (tipo) => {
@@ -1434,7 +1433,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     <div className="p-2">
                       <Input
                         type="text"
-                        placeholder="Buscar cliente..."
+                        placeholder="Buscar por nombre o teléfono..."
                         value={busquedaCliente}
                         onChange={(e) => setBusquedaCliente(e.target.value)}
                         className="w-full mb-2"
@@ -1458,8 +1457,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             role="option"
                             tabIndex={0}
                           >
-                            {c.nombre.toUpperCase()} - {c.cuit.toUpperCase()} -{" "}
-                            {(c.localidad || "").toUpperCase()}
+                            {c.nombre.toUpperCase()} - {c.telefono || ""}
                           </div>
                         ))}
                       </div>
