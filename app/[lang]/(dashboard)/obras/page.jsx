@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -791,9 +791,10 @@ const ObrasPage = () => {
     total: presupuestosFiltrados.length + obrasFiltradas.length,
     obras: obrasFiltradas.length,
     presupuestos: presupuestosFiltrados.length,
-    pendientes: obrasFiltradas.filter((o) => o.estado === "pendiente_inicio").length,
-    enProgreso: obrasFiltradas.filter((o) => o.estado === "en_ejecucion").length,
-    completadas: obrasFiltradas.filter((o) => o.estado === "completada").length,
+    totalObras: obrasFiltradas.reduce((total, obra) => {
+      const presupuestoTotal = obra.presupuestoTotal || 0;
+      return total + presupuestoTotal;
+    }, 0),
     comisionObras: obrasFiltradas.reduce((total, obra) => {
       const presupuestoTotal = obra.presupuestoTotal || 0;
       return total + (presupuestoTotal * 0.025); // 2.5% de comisión
@@ -881,7 +882,7 @@ const ObrasPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">
@@ -908,32 +909,16 @@ const ObrasPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">
-              {estadisticas.pendientes}
-            </div>
-            <div className="text-sm text-gray-600">Pendientes</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {estadisticas.enProgreso}
-            </div>
-            <div className="text-sm text-gray-600">En Progreso</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">
-              {estadisticas.completadas}
+              ${estadisticas.totalObras.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
             </div>
-            <div className="text-sm text-gray-600">Completadas</div>
+            <div className="text-sm text-gray-600">Total Obras</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-fuchsia-600">
-              ${estadisticas.comisionObras.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
+              ${estadisticas.comisionObras.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
             </div>
             <div className="text-sm text-gray-600">Comisión por Obra</div>
             <div className="text-xs text-gray-500 mt-1">2.5% sobre total</div>
