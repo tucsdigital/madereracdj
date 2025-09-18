@@ -70,6 +70,11 @@ const GastosPage = () => {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   
+  // Estados para el selector de cliente con búsqueda
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [mostrarDropdownCliente, setMostrarDropdownCliente] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  
   // Filtros avanzados
   const [filtros, setFiltros] = useState({
     busqueda: "",
@@ -105,6 +110,20 @@ const GastosPage = () => {
       clienteId: "",
     },
   });
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.cliente-selector')) {
+        setMostrarDropdownCliente(false);
+      }
+    };
+
+    if (mostrarDropdownCliente) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [mostrarDropdownCliente]);
 
   // Cargar clientes y gastos desde Firebase
   useEffect(() => {
@@ -240,6 +259,16 @@ const GastosPage = () => {
     setValue("fecha", gasto.fecha);
     setValue("observaciones", gasto.observaciones || "");
     setValue("clienteId", gasto.clienteId || "");
+    
+    // Configurar cliente seleccionado para el buscador
+    if (gasto.cliente) {
+      setClienteSeleccionado(gasto.cliente);
+      setBusquedaCliente(`${gasto.cliente.nombre} - ${gasto.cliente.telefono || ""}`);
+    } else {
+      setClienteSeleccionado(null);
+      setBusquedaCliente("");
+    }
+    
     setOpen(true);
   };
 
@@ -273,7 +302,28 @@ const GastosPage = () => {
   const handleCerrarModal = () => {
     setOpen(false);
     setEditando(null);
+    setBusquedaCliente("");
+    setMostrarDropdownCliente(false);
+    setClienteSeleccionado(null);
     reset();
+  };
+
+  // Filtrar clientes por búsqueda
+  const clientesFiltrados = useMemo(() => {
+    if (!busquedaCliente.trim()) return clientes;
+    const busqueda = busquedaCliente.toLowerCase();
+    return clientes.filter(c => 
+      (c.nombre || "").toLowerCase().includes(busqueda) ||
+      (c.telefono || "").toLowerCase().includes(busqueda)
+    );
+  }, [clientes, busquedaCliente]);
+
+  // Función para seleccionar cliente
+  const seleccionarCliente = (cliente) => {
+    setClienteSeleccionado(cliente);
+    setBusquedaCliente(cliente ? `${cliente.nombre} - ${cliente.telefono || ""}` : "");
+    setValue("clienteId", cliente ? cliente.id : "");
+    setMostrarDropdownCliente(false);
   };
 
   // Función para obtener meses del año
@@ -911,19 +961,66 @@ const GastosPage = () => {
             
             <div>
               <label className="text-sm font-medium mb-2 block">Cliente/Proveedor</label>
-              <Select value={watch("clienteId")} onValueChange={(value) => setValue("clienteId", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar cliente/proveedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sin cliente/proveedor</SelectItem>
-                  {clientes.map(cliente => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nombre} {cliente.telefono ? `(${cliente.telefono})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative cliente-selector">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+                  <Input
+                    placeholder="Buscar por nombre o teléfono..."
+                    value={busquedaCliente}
+                    onChange={(e) => {
+                      setBusquedaCliente(e.target.value);
+                      setMostrarDropdownCliente(true);
+                      if (!e.target.value.trim()) {
+                        seleccionarCliente(null);
+                      }
+                    }}
+                    onFocus={() => setMostrarDropdownCliente(true)}
+                    className="pl-10 pr-10"
+                  />
+                  {busquedaCliente && (
+                    <button
+                      type="button"
+                      onClick={() => seleccionarCliente(null)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                
+                {mostrarDropdownCliente && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {clientesFiltrados.length === 0 ? (
+                      <div className="p-3 text-sm text-gray-500 text-center">
+                        {busquedaCliente.trim() ? "No se encontraron clientes" : "Sin clientes disponibles"}
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => seleccionarCliente(null)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm border-b"
+                        >
+                          Sin cliente/proveedor
+                        </button>
+                        {clientesFiltrados.map(cliente => (
+                          <button
+                            key={cliente.id}
+                            type="button"
+                            onClick={() => seleccionarCliente(cliente)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm border-b last:border-b-0"
+                          >
+                            <div className="font-medium">{cliente.nombre}</div>
+                            {cliente.telefono && (
+                              <div className="text-xs text-gray-500">{cliente.telefono}</div>
+                            )}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div>

@@ -2845,6 +2845,7 @@ const PresupuestoDetalle = () => {
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
+                    pagoPendiente: ventaCampos.pagoPendiente || false,
                     montoAbonado: (() => {
                       const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
                       const { total } = computeTotals(items);
@@ -2853,7 +2854,18 @@ const PresupuestoDetalle = () => {
                         : safeNumber(presupuesto.costoEnvio || 0);
                       const totalVenta = total + envio;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      return esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
+                      const esPagoPendiente = ventaCampos.pagoPendiente || false;
+
+                      if (esPagoPendiente) {
+                        // Forzar pendiente: no tomar montoAbonado y marcar 0
+                        return 0;
+                      } else if (!esPagoParcial) {
+                        // Si NO es pago parcial → montoAbonado = total
+                        return totalVenta;
+                      } else {
+                        // Si ES pago parcial → usar el valor del formulario
+                        return ventaCampos.montoAbonado || 0;
+                      }
                     })(),
 
                     // Determinar estado de pago
@@ -2865,12 +2877,21 @@ const PresupuestoDetalle = () => {
                         : safeNumber(presupuesto.costoEnvio || 0);
                       const totalVenta = total + envio;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
-                      const montoAbonado = esPagoParcial ? (ventaCampos.montoAbonado || 0) : totalVenta;
-                      let estado;
-                      if (montoAbonado >= totalVenta) estado = "pagado";
-                      else if (montoAbonado > 0) estado = "parcial";
-                      else estado = "pendiente";
-                      return estado;
+                      const esPagoPendiente = ventaCampos.pagoPendiente || false;
+
+                      if (esPagoPendiente) {
+                        // Forzar pendiente: no tomar montoAbonado y marcar 0
+                        return "pendiente";
+                      } else if (!esPagoParcial) {
+                        // Si NO es pago parcial → estado = "pagado"
+                        return "pagado";
+                      } else {
+                        // Si ES pago parcial → calcular estado basado en el monto
+                        const montoAbonado = ventaCampos.montoAbonado || 0;
+                        if (montoAbonado >= totalVenta) return "pagado";
+                        else if (montoAbonado > 0) return "parcial";
+                        else return "pendiente";
+                      }
                     })(),
 
                     // Campos de envío
@@ -3160,13 +3181,14 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const schema = yup.object().shape({
     formaPago: yup.string().required("Selecciona la forma de pago"),
     pagoParcial: yup.boolean(),
+    pagoPendiente: yup.boolean(),
     montoAbonado: yup
       .number()
       .transform((value, originalValue) =>
         originalValue === "" ? undefined : value
       )
-      .when("pagoParcial", {
-        is: true,
+      .when(["pagoParcial", "pagoPendiente"], {
+        is: (pagoParcial, pagoPendiente) => Boolean(pagoParcial) && !Boolean(pagoPendiente),
         then: (s) =>
           s
             .typeError("Debe ingresar un monto")
@@ -3253,6 +3275,7 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     const defaults = {
       formaPago: "",
       pagoParcial: false,
+      pagoPendiente: false,
       montoAbonado: "",
       tipoEnvio: "",
       transportista: "",
@@ -3291,12 +3314,12 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
 
-  // Limpiar montoAbonado si se desmarca pagoParcial
+  // Limpiar montoAbonado si se desmarca pagoParcial o se marca pagoPendiente
   React.useEffect(() => {
-    if (!watch("pagoParcial")) {
+    if (!watch("pagoParcial") || watch("pagoPendiente")) {
       setValue("montoAbonado", "");
     }
-  }, [watch("pagoParcial"), setValue]);
+  }, [watch("pagoParcial"), watch("pagoPendiente"), setValue]);
 
   // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
   React.useEffect(() => {
@@ -3536,18 +3559,23 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="pagoParcial"
-              {...register("pagoParcial")}
-            />
-            <label htmlFor="pagoParcial" className="text-sm">
-              ¿Pago parcial?
+          <div className="flex items-center gap-4 mt-2">
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" id="pagoPendiente" {...register("pagoPendiente")} />
+              <span className="text-sm">¿Pago pendiente?</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="pagoParcial"
+                {...register("pagoParcial")}
+                disabled={watch("pagoPendiente")}
+              />
+              <span className="text-sm">¿Pago parcial?</span>
             </label>
           </div>
 
-          {watch("pagoParcial") && (
+          {watch("pagoParcial") && !watch("pagoPendiente") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Monto abonado *
