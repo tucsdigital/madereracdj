@@ -83,7 +83,7 @@ export async function GET(request) {
             fechaEntrega: envioData.fechaEntrega || null,
             fechaCreacion: envioData.fechaCreacion || null,
             fechaActualizacion: envioData.fechaActualizacion || null,
-            direccionEnvio: envioData.direccionEnvio || "",
+            direccionEnvio: envioData.direccionEnvio || venta.cliente?.direccion || "",
             localidadEnvio: envioData.localidadEnvio || "",
             tipoEnvio: envioData.tipoEnvio || "",
             transportista: envioData.transportista || "",
@@ -151,7 +151,7 @@ export async function GET(request) {
         // Información de envío esencial
         envio: {
           estado: envio?.estado || "pendiente",
-          direccion: envio?.direccionEnvio || venta.direccionEnvio || "",
+          direccion: envio?.direccionEnvio || venta.direccionEnvio || venta.cliente?.direccion || "",
           transportista: envio?.transportista || venta.transportista || "",
           fechaEntrega: envio?.fechaEntrega || venta.fechaEntrega || null,
         },

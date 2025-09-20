@@ -90,7 +90,7 @@ export async function GET(request) {
         // Información básica de envío
         envio: {
           estado: venta.estadoEnvio || "pendiente",
-          direccion: venta.direccionEnvio || "",
+          direccion: venta.direccionEnvio || venta.cliente?.direccion || "",
           transportista: venta.transportista || "",
           fechaEntrega: venta.fechaEntrega || null,
         },
