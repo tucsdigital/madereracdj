@@ -20,6 +20,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
+    console.log("API /api/orders llamada con userId:", userId);
+
     if (!userId) {
       return withCors(
         NextResponse.json(
@@ -31,17 +33,37 @@ export async function GET(request) {
       );
     }
 
+    // Validar formato de email básico
+    if (!userId.includes("@")) {
+      return withCors(
+        NextResponse.json(
+          {
+            error: "userId debe ser un email válido",
+            userId: userId
+          },
+          { status: 400 }
+        )
+      );
+    }
+
     // Buscar ventas directamente en la colección ventas por cliente.email
+    // Primero sin orderBy para evitar problemas de índice compuesto
     const ventasQuery = query(
       collection(db, "ventas"),
-      where("cliente.email", "==", userId),
-      orderBy("fecha", "desc")
+      where("cliente.email", "==", userId)
     );
 
     const ventasSnap = await getDocs(ventasQuery);
 
+    // Ordenar manualmente por fecha (más recientes primero)
+    const ventasDocs = ventasSnap.docs.sort((a, b) => {
+      const fechaA = a.data().fecha || a.data().creadoEn || "";
+      const fechaB = b.data().fecha || b.data().creadoEn || "";
+      return fechaB.localeCompare(fechaA);
+    });
+
     const ventas = [];
-    for (const doc of ventasSnap.docs) {
+    for (const doc of ventasDocs) {
       const venta = doc.data();
 
       // Buscar información de envío en la colección envios
@@ -168,7 +190,12 @@ export async function GET(request) {
       })
     );
   } catch (err) {
-    console.error("Error en /api/orders:", err);
+    console.error("Error en /api/orders:", {
+      message: err.message,
+      code: err.code,
+      stack: err.stack,
+      userId: userId
+    });
 
     // Manejar errores específicos de Firestore
     if (err.code === "permission-denied") {
@@ -177,6 +204,7 @@ export async function GET(request) {
           {
             error: "Error de permisos en la base de datos",
             message: "No se puede acceder a la colección de ventas",
+            userId: userId
           },
           { status: 403 }
         )
@@ -189,8 +217,22 @@ export async function GET(request) {
           {
             error: "Base de datos no disponible",
             message: "Error de conectividad con Firestore",
+            userId: userId
           },
           { status: 503 }
+        )
+      );
+    }
+
+    if (err.code === "failed-precondition") {
+      return withCors(
+        NextResponse.json(
+          {
+            error: "Error de índice en la base de datos",
+            message: "La consulta requiere un índice que no existe",
+            userId: userId
+          },
+          { status: 400 }
         )
       );
     }
@@ -201,6 +243,8 @@ export async function GET(request) {
         {
           error: "Error interno del servidor",
           message: "Error al consultar las ventas del usuario",
+          details: err.message,
+          userId: userId
         },
         { status: 500 }
       )

@@ -774,7 +774,7 @@ const SalesStats = () => {
             </div>
 
             {/* Top productos (monto) */}
-            <div className="p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+            {/* <div className="p-4 rounded-xl border border-default-200 bg-card shadow-sm">
               <div className="text-sm font-semibold mb-2">Top productos (monto)</div>
               {kpis.topProductos.length === 0 ? (
                 <div className="text-default-500 text-sm">Sin datos en el rango</div>
@@ -799,7 +799,7 @@ const SalesStats = () => {
                   ))}
                 </div>
               )}
-            </div>
+            </div> */}
           </>
         )}
       </CardContent>
