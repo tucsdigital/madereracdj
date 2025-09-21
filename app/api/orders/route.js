@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc } from "firebase/firestore";
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
   headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "GET,OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   return new NextResponse(resp.body, { status: resp.status, headers });
 }
@@ -245,6 +245,221 @@ export async function GET(request) {
           message: "Error al consultar las ventas del usuario",
           details: err.message,
           userId: userId
+        },
+        { status: 500 }
+      )
+    );
+  }
+}
+
+// POST /api/orders - Crear nueva orden en colección orders
+export async function POST(request) {
+  try {
+    console.log("API POST /api/orders llamada");
+
+    // Validar Content-Type
+    const contentType = request.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Content-Type debe ser application/json",
+            code: "INVALID_CONTENT_TYPE"
+          },
+          { status: 400 }
+        )
+      );
+    }
+
+    // Parsear el body
+    const orderData = await request.json();
+    console.log("Datos de orden recibidos:", JSON.stringify(orderData, null, 2));
+
+    // Validar campos requeridos
+    const camposRequeridos = ['orderId', 'userId', 'customerInfo', 'deliveryInfo', 'items', 'total', 'status'];
+    const camposFaltantes = camposRequeridos.filter(campo => !orderData[campo]);
+    
+    if (camposFaltantes.length > 0) {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: `Campos requeridos faltantes: ${camposFaltantes.join(', ')}`,
+            code: "MISSING_REQUIRED_FIELDS"
+          },
+          { status: 400 }
+        )
+      );
+    }
+
+    // Validar estructura de customerInfo
+    if (!orderData.customerInfo.nombre || !orderData.customerInfo.email) {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "customerInfo debe incluir nombre y email",
+            code: "INVALID_CUSTOMER_INFO"
+          },
+          { status: 400 }
+        )
+      );
+    }
+
+    // Validar items
+    if (!Array.isArray(orderData.items) || orderData.items.length === 0) {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "La orden debe tener al menos un item",
+            code: "NO_ITEMS"
+          },
+          { status: 400 }
+        )
+      );
+    }
+
+    // Validar cada item
+    for (let i = 0; i < orderData.items.length; i++) {
+      const item = orderData.items[i];
+      const itemRequired = ['id', 'name', 'price', 'quantity'];
+      const itemMissing = itemRequired.filter(field => item[field] === undefined || item[field] === null);
+      
+      if (itemMissing.length > 0) {
+        return withCors(
+          NextResponse.json(
+            {
+              success: false,
+              error: `Item ${i + 1} faltan campos: ${itemMissing.join(', ')}`,
+              code: "INVALID_ITEM"
+            },
+            { status: 400 }
+          )
+        );
+      }
+    }
+
+    // Verificar si la orden ya existe
+    const orderRef = doc(db, "orders", orderData.orderId);
+    const orderSnap = await getDoc(orderRef);
+    
+    if (orderSnap.exists()) {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "La orden con este ID ya existe",
+            code: "ORDER_EXISTS",
+            orderId: orderData.orderId
+          },
+          { status: 409 }
+        )
+      );
+    }
+
+    // Preparar datos para Firestore
+    const orderForFirestore = {
+      // Información básica
+      orderId: orderData.orderId,
+      userId: orderData.userId,
+      total: orderData.total,
+      status: orderData.status,
+      createdAt: orderData.createdAt || new Date().toISOString(),
+      
+      // Información del cliente
+      customerInfo: {
+        nombre: orderData.customerInfo.nombre,
+        email: orderData.customerInfo.email,
+        telefono: orderData.customerInfo.telefono || "",
+        dni: orderData.customerInfo.dni || ""
+      },
+      
+      // Información de entrega
+      deliveryInfo: {
+        direccion: orderData.deliveryInfo.direccion,
+        ciudad: orderData.deliveryInfo.ciudad || "",
+        codigoPostal: orderData.deliveryInfo.codigoPostal || "",
+        metodoEntrega: orderData.deliveryInfo.metodoEntrega || ""
+      },
+      
+      // Items de la orden
+      items: orderData.items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        category: item.category || "",
+        subcategory: item.subcategory || ""
+      })),
+      
+      // Metadatos
+      createdBy: "internal_api",
+      updatedAt: new Date().toISOString()
+    };
+
+    // Guardar en Firestore
+    await addDoc(collection(db, "orders"), orderForFirestore);
+    
+    console.log(`Orden ${orderData.orderId} creada exitosamente`);
+
+    return withCors(
+      NextResponse.json({
+        success: true,
+        message: "Orden creada correctamente",
+        orderId: orderData.orderId,
+        data: {
+          orderId: orderData.orderId,
+          userId: orderData.userId,
+          status: orderData.status,
+          total: orderData.total,
+          itemsCount: orderData.items.length
+        }
+      })
+    );
+
+  } catch (err) {
+    console.error("Error en POST /api/orders:", {
+      message: err.message,
+      stack: err.stack
+    });
+
+    // Manejar errores específicos
+    if (err.code === "permission-denied") {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Error de permisos en la base de datos",
+            code: "PERMISSION_DENIED"
+          },
+          { status: 403 }
+        )
+      );
+    }
+
+    if (err.code === "unavailable") {
+      return withCors(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Base de datos no disponible",
+            code: "DATABASE_UNAVAILABLE"
+          },
+          { status: 503 }
+        )
+      );
+    }
+
+    // Error genérico
+    return withCors(
+      NextResponse.json(
+        {
+          success: false,
+          error: "Error interno del servidor",
+          code: "INTERNAL_SERVER_ERROR",
+          details: err.message
         },
         { status: 500 }
       )
