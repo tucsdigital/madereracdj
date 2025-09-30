@@ -110,21 +110,12 @@ const PreciosPage = () => {
     ...new Set(productos.filter((p) => p.proveedor).map((p) => p.proveedor)),
   ].filter(Boolean);
 
-  // Función para redondear decimales correctamente
+  // Función para redondear a centenas (múltiplos de 100) - igual que en ventas
   const redondearDecimal = (numero) => {
     if (typeof numero !== 'number' || isNaN(numero)) return 0;
     
-    // Si el número es muy cercano a un entero, redondear al entero
-    const entero = Math.round(numero);
-    const diferencia = Math.abs(numero - entero);
-    
-    // Si la diferencia es menor a 0.005, considerar como entero
-    if (diferencia < 0.005) {
-      return entero;
-    }
-    
-    // Para otros casos, redondear a 2 decimales
-    return Math.round(numero * 100) / 100;
+    // Redondear a centenas (múltiplos de 100) para consistencia con el sistema de ventas
+    return Math.round(numero / 100) * 100;
   };
 
   // Función para validar y formatear números de entrada
@@ -227,7 +218,7 @@ const PreciosPage = () => {
               const factorAumento = porcentaje / 100;
               nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
             } else {
-              nuevoPrecio = valorObjetivo;
+              nuevoPrecio = redondearDecimal(valorObjetivo);
             }
             if (nuevoPrecio > 0) {
               updates.precioPorPie = nuevoPrecio;
@@ -238,7 +229,7 @@ const PreciosPage = () => {
               const factorAumento = porcentaje / 100;
               nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
             } else {
-              nuevoPrecio = valorObjetivo;
+              nuevoPrecio = redondearDecimal(valorObjetivo);
             }
             if (nuevoPrecio > 0) {
               updates.valorVenta = nuevoPrecio;
@@ -335,7 +326,7 @@ const PreciosPage = () => {
       if (editForm.costo !== "") {
         const costo = validarNumero(editForm.costo);
         if (costo !== null) {
-          updates.costo = costo;
+          updates.costo = redondearDecimal(costo);
         } else {
           setMsg("Por favor ingresa un costo válido (número mayor o igual a 0).");
           setSaving(false);
@@ -346,7 +337,7 @@ const PreciosPage = () => {
       if (editForm.valorVenta !== "") {
         const valorVenta = validarNumero(editForm.valorVenta);
         if (valorVenta !== null) {
-          updates.valorVenta = valorVenta;
+          updates.valorVenta = redondearDecimal(valorVenta);
         } else {
           setMsg("Por favor ingresa un precio de venta válido (número mayor o igual a 0).");
           setSaving(false);
