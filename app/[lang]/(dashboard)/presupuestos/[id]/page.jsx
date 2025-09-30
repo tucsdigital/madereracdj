@@ -81,6 +81,9 @@ const PresupuestoDetalle = () => {
   // Estado para conversión a venta
   const [convirtiendoVenta, setConvirtiendoVenta] = useState(false);
 
+  // Estado para pago en efectivo
+  const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
+
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
@@ -264,7 +267,20 @@ const PresupuestoDetalle = () => {
     }
   }, [editando, presupuesto, clientes, productos]);
 
-  // 5. Función para actualizar precios
+  // 5. Función para manejar pago en efectivo
+  const handlePagoEnEfectivoChange = (checked) => {
+    setPagoEnEfectivo(checked);
+    
+    // Si se activa el pago en efectivo, setear forma de pago a "efectivo"
+    if (checked && presupuestoEdit) {
+      setPresupuestoEdit({
+        ...presupuestoEdit,
+        formaPago: "efectivo"
+      });
+    }
+  };
+
+  // 6. Función para actualizar precios
   const handleActualizarPrecios = async () => {
     setLoadingPrecios(true);
     try {
@@ -880,7 +896,8 @@ const PresupuestoDetalle = () => {
         !isNaN(Number(presupuestoEdit.costoEnvio))
           ? Number(presupuestoEdit.costoEnvio)
           : 0;
-      const total = totalCalc + costoEnvioCalculado; 
+      const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
+      const total = totalCalc + costoEnvioCalculado - descuentoEfectivo; 
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
@@ -890,6 +907,8 @@ const PresupuestoDetalle = () => {
         ...presupuestoEdit,
         subtotal,
         descuentoTotal,
+        descuentoEfectivo,
+        pagoEnEfectivo,
         total,
         costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
         productos: productosArr,
@@ -901,6 +920,8 @@ const PresupuestoDetalle = () => {
         ...presupuestoEdit,
         subtotal,
         descuentoTotal,
+        descuentoEfectivo,
+        pagoEnEfectivo,
         total,
         costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
         productos: productosArr,
@@ -2079,12 +2100,27 @@ const PresupuestoDetalle = () => {
                       <h3 className="text-base md:text-lg font-semibold text-default-900">
                         Productos Seleccionados
                       </h3>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="pagoEnEfectivoPresupuesto"
+                            checked={pagoEnEfectivo}
+                            onChange={(e) => handlePagoEnEfectivoChange(e.target.checked)}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                            disabled={loadingPrecios}
+                          />
+                          <label htmlFor="pagoEnEfectivoPresupuesto" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Pago en efectivo (-10%)
+                          </label>
+                        </div>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
                         {(presupuestoEdit.productos || []).length} producto
                         {(presupuestoEdit.productos || []).length !== 1
                           ? "s"
                           : ""}
                       </span>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-[15px]">
@@ -2107,6 +2143,9 @@ const PresupuestoDetalle = () => {
                             </th>
                             <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Desc.
+                            </th>
+                            <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
+                              Precio en efectivo
                             </th>
                             <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Subtotal
@@ -2504,7 +2543,11 @@ const PresupuestoDetalle = () => {
                                 )}
                               </td>
                               <td className="p-4 align-middle text-right text-sm text-default-900 font-semibold tabular-nums">
-                                ${formatearNumeroArgentino(p.precio)}
+                                ${formatearNumeroArgentino(
+                                  presupuesto?.pagoEnEfectivo 
+                                    ? Number(p.precio) * 0.9
+                                    : p.precio
+                                )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600">
                                 <div className="relative w-20 md:w-24 mx-auto">
@@ -2547,14 +2590,42 @@ const PresupuestoDetalle = () => {
                                 {formatearNumeroArgentino(
                                   (() => {
                                     // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
+                                    let precioBase;
                                     if (p.categoria === "Eventual") {
-                                      const subtotal = Number(p.precio) * Number(p.cantidad);
-                                      return Math.round(subtotal * (1 - Number(p.descuento || 0) / 100));
+                                      precioBase = Number(p.precio) * Number(p.cantidad);
+                                    } else {
+                                      // Para otros productos, usar la función computeLineBase
+                                      precioBase = computeLineBase(p);
                                     }
+                                    
+                                    // Aplicar descuento individual del producto
+                                    const precioConDescuento = precioBase * (1 - Number(p.descuento || 0) / 100);
+                                    
+                                    // Siempre aplicar descuento por pago en efectivo (10%)
+                                    return precioConDescuento * 0.9;
+                                  })()
+                                )}
+                              </td>
+                              <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                                $
+                                {formatearNumeroArgentino(
+                                  (() => {
+                                    let subtotalBase;
+                                    // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
+                                    if (p.categoria === "Eventual") {
+                                      subtotalBase = Number(p.precio) * Number(p.cantidad);
+                                    } else {
                                     // Para otros productos, usar la función computeLineBase
-                                    return Math.round(
-                                      computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
-                                    );
+                                      subtotalBase = computeLineBase(p);
+                                    }
+                                    
+                                    // Aplicar descuento individual
+                                    const subtotalConDescuento = subtotalBase * (1 - Number(p.descuento || 0) / 100);
+                                    
+                                    // Si es pago en efectivo, aplicar descuento adicional del 10%
+                                    return presupuesto?.pagoEnEfectivo 
+                                      ? Math.round(subtotalConDescuento * 0.9)
+                                      : Math.round(subtotalConDescuento);
                                   })()
                                 )}
                               </td>
@@ -2594,6 +2665,8 @@ const PresupuestoDetalle = () => {
                 {(presupuestoEdit.productos || []).length > 0 && (() => {
                   const { subtotal, descuentoTotal, total } = computeTotals(presupuestoEdit.productos);
                   const envio = Number(presupuestoEdit.costoEnvio) || 0;
+                  const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
+                  const totalFinal = total + envio - descuentoEfectivo;
                   return (
                     <div className="flex flex-col items-end gap-2 mt-4">
                       <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
@@ -2603,13 +2676,18 @@ const PresupuestoDetalle = () => {
                         <div>
                           Descuento: <span className="font-bold">$ {formatearNumeroArgentino(descuentoTotal)}</span>
                         </div>
+                        {descuentoEfectivo > 0 && (
+                          <div>
+                            Descuento (Efectivo 10%): <span className="font-bold text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                          </div>
+                        )}
                         {envio > 0 && (
                           <div>
                             Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
                           </div>
                         )}
                         <div>
-                          Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(total + envio)}</span>
+                          Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
                         </div>
                       </div>
                     </div>
@@ -2680,6 +2758,7 @@ const PresupuestoDetalle = () => {
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
                       <th className="text-center p-3 font-medium">Cepillado</th>
+                      <th className="text-right p-3 font-medium">Precio Unit.</th>
                       <th className="text-right p-3 font-medium">Descuento</th>
                       <th className="text-right p-3 font-medium">Subtotal</th>
                     </tr>
@@ -2717,6 +2796,9 @@ const PresupuestoDetalle = () => {
                           )}
                         </td>
                         <td className="p-3 text-right">
+                          ${formatearNumeroArgentino(Number(producto.precio))}
+                        </td>
+                        <td className="p-3 text-right">
                           {safeNumber(producto.descuento).toFixed(2)}%
                         </td>
                         <td className="p-3 text-right font-medium">
@@ -2751,6 +2833,8 @@ const PresupuestoDetalle = () => {
               const envio = (presupuesto.costoEnvio !== undefined && presupuesto.costoEnvio !== "" && !isNaN(Number(presupuesto.costoEnvio)) && Number(presupuesto.costoEnvio) > 0)
                 ? Number(presupuesto.costoEnvio)
                 : 0;
+              const descuentoEfectivo = presupuesto?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+              const totalFinal = total + envio - descuentoEfectivo;
               return (
                 <div className="mt-6 flex justify-end">
                   <div className="bg-card rounded-lg p-4 min-w-[300px]">
@@ -2763,6 +2847,12 @@ const PresupuestoDetalle = () => {
                         <span>Descuento total:</span>
                         <span>$ {formatearNumeroArgentino(descuentoTotal)}</span>
                       </div>
+                      {descuentoEfectivo > 0 && (
+                        <div className="flex justify-between">
+                          <span>Descuento (Efectivo 10%):</span>
+                          <span className="text-green-600">$ {formatearNumeroArgentino(descuentoEfectivo)}</span>
+                        </div>
+                      )}
                       {envio > 0 && (
                         <div className="flex justify-between">
                           <span>Cotización de envío:</span>
@@ -2771,7 +2861,7 @@ const PresupuestoDetalle = () => {
                       )}
                       <div className="border-t pt-2 flex justify-between font-bold text-lg">
                         <span>Total:</span>
-                        <span className="text-primary">$ {formatearNumeroArgentino(total + envio)}</span>
+                        <span className="text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
                       </div>
                     </div>
                   </div>

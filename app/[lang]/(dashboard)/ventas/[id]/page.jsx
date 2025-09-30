@@ -1998,6 +1998,8 @@ const VentaDetalle = () => {
               const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
               const { subtotal, descuentoTotal, total } = computeTotals(items);
               const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;
+              const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+              const totalFinal = total + envio - descuentoEfectivo;
               return (
                 <div className="mt-6 flex justify-end">
                   <div className="bg-card rounded-lg p-4 min-w-[300px]">
@@ -2010,6 +2012,12 @@ const VentaDetalle = () => {
                         <span>Descuento total:</span>
                         <span>$ {descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                       </div>
+                      {descuentoEfectivo > 0 && (
+                        <div className="flex justify-between descuento-empleado">
+                          <span>Descuento (Efectivo 10%):</span>
+                          <span className="text-green-600">$ {descuentoEfectivo.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
                       {envio > 0 && (
                         <div className="flex justify-between costo-envio-empleado">
                           <span>Cotización de envío:</span>
@@ -2018,7 +2026,7 @@ const VentaDetalle = () => {
                       )}
                       <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
                         <span>Total:</span>
-                        <span className="text-primary">$ {(total + envio).toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-primary">$ {totalFinal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
                       </div>
                     </div>
                   </div>
@@ -2845,7 +2853,12 @@ const VentaDetalle = () => {
                               {p.esEditable ? (
                                 <input type="number" min="0" step="100" value={p.precio === "" ? "" : p.precio} onChange={(e) => handlePrecioChange(p.id, e.target.value)} className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums" disabled={loadingPrecios} placeholder="0" />
                               ) : (
-                                <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(p.precio)}`}</span>
+                                <span className="block text-right font-semibold text-default-900 tabular-nums">
+                                  {venta?.pagoEnEfectivo 
+                                    ? `$${formatearNumeroArgentino(Number(p.precio) * 0.9)}`
+                                    : `$${formatearNumeroArgentino(p.precio)}`
+                                  }
+                                </span>
                               )}
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">
@@ -2857,14 +2870,22 @@ const VentaDetalle = () => {
                             <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                               ${formatearNumeroArgentino(
                                 (() => {
+                                  let subtotalBase;
+                                  // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
                                   if (p.categoria === "Eventual") {
-                                    const subtotal = Number(p.precio) * Number(p.cantidad);
-                                    return Math.round(subtotal * (1 - Number(p.descuento || 0) / 100));
+                                    subtotalBase = Number(p.precio) * Number(p.cantidad);
+                                  } else {
+                                    // Para otros productos, usar la función computeLineBase
+                                    subtotalBase = computeLineBase(p);
                                   }
-                                  // Para otros productos, usar la función computeLineBase
-                                  return Math.round(
-                                    computeLineBase(p) * (1 - Number(p.descuento || 0) / 100)
-                                  );
+                                  
+                                  // Aplicar descuento individual
+                                  const subtotalConDescuento = subtotalBase * (1 - Number(p.descuento || 0) / 100);
+                                  
+                                  // Si es pago en efectivo, aplicar descuento adicional del 10%
+                                  return venta?.pagoEnEfectivo 
+                                    ? Math.round(subtotalConDescuento * 0.9)
+                                    : Math.round(subtotalConDescuento);
                                 })()
                               )}
                             </td>
@@ -2890,6 +2911,8 @@ const VentaDetalle = () => {
                   {(() => {
                     const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
                     const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
+                    const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                    const totalFinal = total + envio - descuentoEfectivo;
                     return (
                       <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
@@ -2898,13 +2921,18 @@ const VentaDetalle = () => {
                         <div>
                           Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
                         </div>
+                        {descuentoEfectivo > 0 && (
+                          <div>
+                            Descuento (Efectivo 10%): <span className="font-bold text-green-600">${formatearNumeroArgentino(descuentoEfectivo)}</span>
+                          </div>
+                        )}
                         {envio > 0 && (
                           <div>
                             Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
                           </div>
                         )}
                         <div>
-                          Total: <span className="font-bold text-primary">${formatearNumeroArgentino(total + envio)}</span>
+                          Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
                         </div>
                       </div>
                     );
@@ -2924,7 +2952,8 @@ const VentaDetalle = () => {
                     ? Number(ventaEdit.costoEnvio) || 0
                     : 0;
 
-                const total = subtotal - descuento + envio;
+                const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                const total = subtotal - descuento - descuentoEfectivo + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
                   ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
                   : Number(ventaEdit.montoAbonado || 0);

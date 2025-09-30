@@ -313,10 +313,11 @@ const PresupuestoDetalle = ({
     return bloques.map(bloque => {
       const subtotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0), 0);
       const descuentoTotal = bloque.productos.reduce((acc, p) => acc + Number(p.precio || 0) * (Number(p.descuento || 0) / 100), 0);
-      const total = subtotal - descuentoTotal;
-      return { subtotal, descuentoTotal, total };
+      const descuentoEfectivo = obra?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+      const total = subtotal - descuentoTotal - descuentoEfectivo;
+      return { subtotal, descuentoTotal, descuentoEfectivo, total };
     });
-  }, [bloques]);
+  }, [bloques, obra?.pagoEnEfectivo]);
 
   // Totales generales removidos: solo por bloque
 
@@ -337,6 +338,7 @@ const PresupuestoDetalle = ({
           ...bloque,
           subtotal: totales.subtotal,
           descuentoTotal: totales.descuentoTotal,
+          descuentoEfectivo: totales.descuentoEfectivo,
           total: totales.total,
         };
       });
@@ -416,7 +418,7 @@ const PresupuestoDetalle = ({
             </CardHeader>
             <CardContent>
               {/* Totales del bloque */}
-              <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className={`grid gap-4 mb-4 p-4 bg-gray-50 rounded-lg ${obra?.pagoEnEfectivo ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <div className="text-center">
                   <div className="text-sm text-gray-500">Subtotal</div>
                   <div className="font-semibold">${formatearNumeroArgentino(bloque.subtotal || 0)}</div>
@@ -425,6 +427,12 @@ const PresupuestoDetalle = ({
                   <div className="text-sm text-gray-500">Descuento</div>
                   <div className="font-semibold text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</div>
                 </div>
+                {obra?.pagoEnEfectivo && (
+                  <div className="text-center">
+                    <div className="text-sm text-gray-500">Descuento (Efectivo 10%)</div>
+                    <div className="font-semibold text-green-600">${formatearNumeroArgentino(bloque.descuentoEfectivo || 0)}</div>
+                  </div>
+                )}
                 <div className="text-center">
                   <div className="text-sm text-gray-500">Total</div>
                   <div className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</div>
@@ -449,7 +457,11 @@ const PresupuestoDetalle = ({
                     </thead>
                     <tbody>
                       {bloque.productos.map((producto) => {
-                        const subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
+                        let subtotal = Number(producto.precio || 0) * (1 - Number(producto.descuento || 0) / 100);
+                        // Si es pago en efectivo, aplicar descuento adicional del 10%
+                        if (obra?.pagoEnEfectivo) {
+                          subtotal = subtotal * 0.9;
+                        }
                         return (
                           <React.Fragment key={producto.id}>
                             <tr className="border-b">
@@ -467,7 +479,13 @@ const PresupuestoDetalle = ({
                               <td className="p-2 text-center">
                                 {(producto.unidadMedida === "M2" || producto.unidadMedida === "ML") ? producto.largo : "-"}
                               </td>
-                              <td className="p-2 text-right">${formatearNumeroArgentino(producto.valorVenta)}</td>
+                              <td className="p-2 text-right">
+                                ${formatearNumeroArgentino(
+                                  obra?.pagoEnEfectivo 
+                                    ? Number(producto.valorVenta) * 0.9
+                                    : producto.valorVenta
+                                )}
+                              </td>
                               <td className="p-2 text-center">{producto.descuento}%</td>
                               <td className="p-2 text-right font-semibold">${formatearNumeroArgentino(subtotal)}</td>
                             </tr>
@@ -650,7 +668,7 @@ const PresupuestoDetalle = ({
                 </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className={`grid gap-4 text-sm ${obra?.pagoEnEfectivo ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <div className="text-center">
                   <div className="text-gray-500">Subtotal</div>
                   <div className="font-semibold">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.subtotal || 0)}</div>
@@ -659,6 +677,12 @@ const PresupuestoDetalle = ({
                   <div className="text-gray-500">Descuento</div>
                   <div className="font-semibold text-orange-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.descuentoTotal || 0)}</div>
                 </div>
+                {obra?.pagoEnEfectivo && (
+                  <div className="text-center">
+                    <div className="text-gray-500">Descuento (Efectivo 10%)</div>
+                    <div className="font-semibold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.descuentoEfectivo || 0)}</div>
+                  </div>
+                )}
                 <div className="text-center">
                   <div className="text-gray-500">Total</div>
                   <div className="font-bold text-green-600">${formatearNumeroArgentino(totalesPorBloque[bloqueActivo]?.total || 0)}</div>

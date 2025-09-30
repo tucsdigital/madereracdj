@@ -217,6 +217,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [productosState, setProductosState] = useState([]);
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
+  const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
   const [productosLoading, setProductosLoading] = useState(true);
   // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 
@@ -527,6 +528,15 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         p.id === id ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio } : p
       )
     );
+  };
+
+  const handlePagoEnEfectivoChange = (checked) => {
+    setPagoEnEfectivo(checked);
+    
+    // Si se activa el pago en efectivo, bloquear forma de pago y setear a "efectivo"
+    if (checked) {
+      setValue("formaPago", "efectivo");
+    }
   };
 
   const recalcularPreciosMadera = (id, aplicarCepillado) => {
@@ -891,6 +901,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     0
   );
 
+  // Calcular descuento por pago en efectivo (10% sobre el subtotal)
+  const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
+
   const costoEnvioCalculado =
     tipoEnvio &&
     tipoEnvio !== "retiro_local" &&
@@ -899,7 +912,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     !isNaN(Number(costoEnvio))
       ? Number(costoEnvio)
       : 0;
-  const total = subtotal - descuentoTotal + costoEnvioCalculado;
+  const total = subtotal - descuentoTotal - descuentoEfectivo + costoEnvioCalculado;
 
   const handleClienteChange = (val) => {
     if (val === "nuevo") {
@@ -1062,6 +1075,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               productos: productosLimpios,
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
+              descuentoEfectivo: descuentoEfectivo,
+              pagoEnEfectivo: pagoEnEfectivo,
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
@@ -1082,6 +1097,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               productos: productosLimpios,
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
+              descuentoEfectivo: descuentoEfectivo,
+              pagoEnEfectivo: pagoEnEfectivo,
               total: total,
               montoAbonado: montoAbonadoFinal,
               estadoPago: estadoPagoFinal,
@@ -2287,9 +2304,24 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
                 <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
                   <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
-                    {productosSeleccionados.length} producto{productosSeleccionados.length !== 1 ? "s" : ""}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="pagoEnEfectivo"
+                        checked={pagoEnEfectivo}
+                        onChange={(e) => handlePagoEnEfectivoChange(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        disabled={isSubmitting}
+                      />
+                      <label htmlFor="pagoEnEfectivo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Pago en efectivo (-10%)
+                      </label>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                      {productosSeleccionados.length} producto{productosSeleccionados.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -2302,6 +2334,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
                         <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
                         <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio en efectivo</th>
                         <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
                         <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
                       </tr>
@@ -2609,6 +2642,22 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           </td>
                           <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                             ${formatearNumeroArgentino(
+                              (() => {
+                                // Para machimbres y deck, el precio ya incluye la cantidad
+                                const precioBase = p.categoria === "Maderas" && p.unidad === "M2"
+                                  ? Number(p.precio)
+                                  : Number(p.precio) * Number(p.cantidad);
+                                
+                                // Aplicar descuento individual del producto
+                                const precioConDescuento = precioBase * (1 - Number(p.descuento || 0) / 100);
+                                
+                                // Siempre aplicar descuento por pago en efectivo (10%)
+                                return precioConDescuento * 0.9;
+                              })()
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                            ${formatearNumeroArgentino(
                               // Para machimbres y deck, el precio ya incluye la cantidad
                               p.categoria === "Maderas" && p.unidad === "M2"
                                 ? Number(p.precio) * (1 - Number(p.descuento || 0) / 100)
@@ -2889,7 +2938,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   <select
                     {...register("formaPago")}
                     className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || pagoEnEfectivo}
                   >
                     <option value="">Forma de pago...</option>
                     <option value="efectivo">Efectivo</option>
@@ -2961,6 +3010,14 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   ${formatearNumeroArgentino(descuentoTotal)}
                 </span>
               </div>
+              {descuentoEfectivo > 0 && (
+                <div>
+                  Descuento (Efectivo 10%):{" "}
+                  <span className="font-bold text-green-600">
+                    ${formatearNumeroArgentino(descuentoEfectivo)}
+                  </span>
+                </div>
+              )}
               {costoEnvioCalculado > 0 && (
                 <div>
                   Costo de envío:{" "}
