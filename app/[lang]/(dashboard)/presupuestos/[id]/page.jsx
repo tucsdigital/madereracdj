@@ -858,6 +858,17 @@ const PresupuestoDetalle = () => {
     setPaginaActual(1);
   }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
 
+  // Función auxiliar para limpiar valores undefined de un objeto
+  const removeUndefined = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(removeUndefined);
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, removeUndefined(v)])
+    );
+  };
+
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
@@ -902,20 +913,28 @@ const PresupuestoDetalle = () => {
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
       }
-      const docRef = doc(db, "presupuestos", presupuestoEdit.id);
-      await updateDoc(docRef, {
+      
+      // Preparar datos para guardar
+      const dataToSave = {
         ...presupuestoEdit,
         subtotal,
         descuentoTotal,
         descuentoEfectivo,
         pagoEnEfectivo,
         total,
-        costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
+        costoEnvio: costoEnvioCalculado,
         productos: productosArr,
         items: productosArr,
         numeroPedido,
         fechaActualizacion: new Date().toISOString(),
-      });
+      };
+      
+      // Limpiar valores undefined antes de guardar
+      const cleanData = removeUndefined(dataToSave);
+      
+      const docRef = doc(db, "presupuestos", presupuestoEdit.id);
+      await updateDoc(docRef, cleanData);
+      
       setPresupuesto({
         ...presupuestoEdit,
         subtotal,
@@ -923,7 +942,7 @@ const PresupuestoDetalle = () => {
         descuentoEfectivo,
         pagoEnEfectivo,
         total,
-        costoEnvio: costoEnvioCalculado, // Agregar el costo de envío actualizado
+        costoEnvio: costoEnvioCalculado,
         productos: productosArr,
         items: productosArr,
         numeroPedido,
