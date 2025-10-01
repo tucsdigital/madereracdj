@@ -2933,15 +2933,24 @@ const PresupuestoDetalle = () => {
                       const { descuentoTotal } = computeTotals(items);
                       return descuentoTotal;
                     })(),
-                    // Calcular el total correcto incluyendo envío
+                    descuentoEfectivo: (() => {
+                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
+                      const { subtotal } = computeTotals(items);
+                      return presupuesto.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                    })(),
+                    // Calcular el total correcto incluyendo envío y descuento por pago en efectivo
                     total: (() => {
                       const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
                       const { total } = computeTotals(items);
                       const envio = ventaCampos.costoEnvio
                         ? Number(ventaCampos.costoEnvio)
                         : safeNumber(presupuesto.costoEnvio || 0);
-                      const totalCorrecto = total + envio;
-                      console.log("[DEBUG] Total convertido desde computeTotals + envío:", totalCorrecto);
+                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
+                        const { subtotal } = computeTotals(items);
+                        return subtotal * 0.1;
+                      })() : 0;
+                      const totalCorrecto = total + envio - descuentoEfectivo;
+                      console.log("[DEBUG] Total convertido desde computeTotals + envío - descuento efectivo:", totalCorrecto);
                       return totalCorrecto;
                     })(),
                     observaciones: presupuesto.observaciones,
@@ -2955,13 +2964,18 @@ const PresupuestoDetalle = () => {
                     formaPago: ventaCampos.formaPago,
                     pagoParcial: ventaCampos.pagoParcial || false,
                     pagoPendiente: ventaCampos.pagoPendiente || false,
+                    pagoEnEfectivo: presupuesto.pagoEnEfectivo || false,
                     montoAbonado: (() => {
                       const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
                       const { total } = computeTotals(items);
                       const envio = ventaCampos.costoEnvio
                         ? Number(ventaCampos.costoEnvio)
                         : safeNumber(presupuesto.costoEnvio || 0);
-                      const totalVenta = total + envio;
+                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
+                        const { subtotal } = computeTotals(items);
+                        return subtotal * 0.1;
+                      })() : 0;
+                      const totalVenta = total + envio - descuentoEfectivo;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
                       const esPagoPendiente = ventaCampos.pagoPendiente || false;
 
@@ -2984,7 +2998,11 @@ const PresupuestoDetalle = () => {
                       const envio = ventaCampos.costoEnvio
                         ? Number(ventaCampos.costoEnvio)
                         : safeNumber(presupuesto.costoEnvio || 0);
-                      const totalVenta = total + envio;
+                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
+                        const { subtotal } = computeTotals(items);
+                        return subtotal * 0.1;
+                      })() : 0;
+                      const totalVenta = total + envio - descuentoEfectivo;
                       const esPagoParcial = ventaCampos.pagoParcial || false;
                       const esPagoPendiente = ventaCampos.pagoPendiente || false;
 
@@ -3397,6 +3415,11 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       usarDireccionCliente: true,
     };
 
+    // Si el presupuesto tiene pago en efectivo, establecer automáticamente forma de pago en efectivo
+    if (presupuesto.pagoEnEfectivo) {
+      defaults.formaPago = "efectivo";
+    }
+
     // Si el presupuesto tiene costo de envío, establecer automáticamente como envío a domicilio
     if (presupuesto.costoEnvio && presupuesto.costoEnvio > 0) {
       defaults.tipoEnvio = "envio_domicilio";
@@ -3647,20 +3670,31 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Forma de pago *
+              {presupuesto.pagoEnEfectivo && (
+                <span className="ml-2 text-xs text-green-600 font-normal">
+                  (Presupuesto con descuento por pago en efectivo)
+                </span>
+              )}
             </label>
             <select
               {...register("formaPago")}
+              disabled={presupuesto.pagoEnEfectivo}
               className={`w-full border rounded-md px-3 py-2 ${
                 errors.formaPago ? "border-red-500" : "border-gray-300"
-              }`}
+              } ${presupuesto.pagoEnEfectivo ? "bg-gray-100 cursor-not-allowed" : ""}`}
             >
               <option value="">Seleccionar forma de pago...</option>
-              <option value="efectivo">Efectivo</option>
+              <option value="efectivo" selected={presupuesto.pagoEnEfectivo}>Efectivo</option>
               <option value="transferencia">Transferencia</option>
               <option value="tarjeta">Tarjeta</option>
               <option value="cheque">Cheque</option>
               <option value="otro">Otro</option>
             </select>
+            {presupuesto.pagoEnEfectivo && (
+              <p className="text-xs text-green-600 mt-1">
+                ✓ Forma de pago establecida automáticamente en Efectivo debido al descuento aplicado en el presupuesto
+              </p>
+            )}
             {errors.formaPago && (
               <span className="text-red-500 text-xs">
                 {errors.formaPago.message}
