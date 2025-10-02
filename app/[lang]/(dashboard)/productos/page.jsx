@@ -46,7 +46,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-const categorias = ["Maderas", "Ferretería"];
+const categorias = ["Maderas", "Ferretería", "Obras"];
 
 // Función para formatear números en formato argentino
 const formatearNumeroArgentino = (numero) => {
@@ -219,6 +219,11 @@ function FormularioProducto({ onClose, onSuccess }) {
         setUnidadesMedidaUnicas(unidadesMedida);
         setSubCategoriasUnicas(subCategorias);
         setProveedoresUnicos(proveedores);
+      } else if (categoria === "Obras") {
+        const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
+        setUnidadesMedidaUnicas(unidadesMedida);
+        setSubCategoriasUnicas(subCategorias);
       }
     } catch (error) {
       console.error("Error al cargar datos precargados:", error);
@@ -275,6 +280,11 @@ function FormularioProducto({ onClose, onSuccess }) {
       } else if (payload.categoria === "Maderas") {
         // Asegurar que no quede subCategoria en maderas
         if (payload.subCategoria) delete payload.subCategoria;
+      } else if (payload.categoria === "Obras") {
+        if (payload.subcategoria) {
+          payload.subCategoria = payload.subcategoria;
+          delete payload.subcategoria;
+        }
       }
 
       // Convertir tipos numéricos para consistencia en Firestore
@@ -291,6 +301,10 @@ function FormularioProducto({ onClose, onSuccess }) {
         if (payload.stockMinimo !== undefined) payload.stockMinimo = toNumber(payload.stockMinimo);
         if (payload.valorCompra !== undefined) payload.valorCompra = toNumber(payload.valorCompra);
         if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
+      } else if (payload.categoria === "Obras") {
+        if (payload.stockMinimo !== undefined) payload.stockMinimo = toNumber(payload.stockMinimo);
+        if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
+        if (payload.unidad !== undefined) payload.unidad = toNumber(payload.unidad);
       }
 
       // Eliminar claves con undefined para evitar errores de Firestore
@@ -365,7 +379,7 @@ function FormularioProducto({ onClose, onSuccess }) {
         console.groupEnd();
       }
 
-      await addDoc(collection(db, "productos"), {
+      await addDoc(collection(db, payload.categoria === "Obras" ? "productos_obras" : "productos"), {
         ...payload,
         fechaCreacion: new Date().toISOString(),
         fechaActualizacion: new Date().toISOString(),
@@ -1134,6 +1148,156 @@ function FormularioProducto({ onClose, onSuccess }) {
             </div>
           )}
 
+          {categoria === "Obras" && (
+            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Obras</h3>
+                  <p className="text-sm text-gray-600">Información específica para productos de obras</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Stock Mínimo
+                  </label>
+                  <input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.stockMinimo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.stockMinimo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Venta
+                  </label>
+                  <input
+                    {...register("valorVenta")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.valorVenta && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorVenta.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad
+                  </label>
+                  <input
+                    {...register("unidad")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  />
+                  {errors.unidad && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidad.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Footer con botones modernos */}
           <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
             <Button
@@ -1302,6 +1466,14 @@ const ProductosPage = () => {
           .map(p => p.subcategoria)
       )].sort();
       setSubcategorias(subcategoriasMaderas);
+    } else if (categoria === "Obras") {
+      // Para obras, usar subCategoria (con C mayúscula)
+      const subcategoriasObras = [...new Set(
+        productos
+          .filter(p => p.categoria === "Obras" && p.subCategoria)
+          .map(p => p.subCategoria)
+      )].sort();
+      setSubcategorias(subcategoriasObras);
     }
   };
 
@@ -1347,23 +1519,47 @@ const ProductosPage = () => {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const q = query(collection(db, "productos"), orderBy("nombre"));
-    const unsub = onSnapshot(
-      q,
+    
+    // Cargar productos de ambas colecciones
+    const productosQuery = query(collection(db, "productos"), orderBy("nombre"));
+    const productosObrasQuery = query(collection(db, "productos_obras"), orderBy("nombre"));
+    
+    const unsubProductos = onSnapshot(
+      productosQuery,
       (snapshot) => {
-        setProductos(
-          snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        const productosNormales = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        
+        // Cargar productos de obras
+        const unsubObras = onSnapshot(
+          productosObrasQuery,
+          (obrasSnapshot) => {
+            const productosObras = obrasSnapshot.docs.map((doc) => ({ 
+              id: doc.id, 
+              ...doc.data(),
+              categoria: "Obras" // Asegurar que tengan la categoría correcta
+            }));
+            
+            // Combinar ambos arrays
+            setProductos([...productosNormales, ...productosObras]);
+            setLoading(false);
+            // Cargar datos precargados después de obtener los productos
+            cargarDatosPrecargados();
+          },
+          (err) => {
+            setError("Error al cargar productos de obras: " + err.message);
+            setLoading(false);
+          }
         );
-        setLoading(false);
-        // Cargar datos precargados después de obtener los productos
-        cargarDatosPrecargados();
+        
+        return () => unsubObras();
       },
       (err) => {
         setError("Error al cargar productos: " + err.message);
         setLoading(false);
       }
     );
-    return () => unsub();
+    
+    return () => unsubProductos();
   }, [reload]);
 
 
@@ -1416,6 +1612,12 @@ const ProductosPage = () => {
         filtroSubCategoria === "" ||
         p.subCategoria === filtroSubCategoria;
 
+      // Filtro específico por subcategoría de obras
+      const cumpleSubCategoriaObras =
+        cat !== "Obras" ||
+        filtroSubCategoria === "" ||
+        p.subCategoria === filtroSubCategoria;
+
       // Filtro por estado de tienda
       // Si no tiene estadoTienda, se considera "Inactivo" por defecto
       const estadoTiendaProducto = p.estadoTienda || "Inactivo";
@@ -1423,7 +1625,7 @@ const ProductosPage = () => {
         filtroTienda === "" ||
         estadoTiendaProducto === filtroTienda;
 
-      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleTienda;
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda;
     }).sort((a, b) => {
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
@@ -1480,6 +1682,15 @@ const ProductosPage = () => {
     ...new Set(
       productos
         .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de obras únicas
+  const subCategoriasObras = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Obras" && p.subCategoria)
         .map((p) => p.subCategoria)
     ),
   ].filter(Boolean);
@@ -3155,6 +3366,39 @@ const ProductosPage = () => {
               </div>
             )}
 
+            {/* Filtro de subcategoría de obras */}
+            {cat === "Obras" && subCategoriasObras.length > 0 && (
+              <div className="flex-1">
+                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                  <button
+                    type="button"
+                    className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      filtroSubCategoria === ""
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    onClick={() => setFiltroSubCategoria("")}
+                  >
+                    Todas las subcategorías
+                  </button>
+                  {subCategoriasObras.map((subCategoria) => (
+                    <button
+                      key={subCategoria}
+                      type="button"
+                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                        filtroSubCategoria === subCategoria
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      onClick={() => setFiltroSubCategoria(subCategoria)}
+                    >
+                      {subCategoria}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Filtro de estado de tienda - siempre visible */}
             <div className="flex-1">
               <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -3419,6 +3663,10 @@ const ProductosPage = () => {
                               });
                             })())}
                           </div>
+                        ) : p.categoria === "Obras" ? (
+                          <div className="flex items-center justify-center font-semibold text-default-900">
+                            ${formatearNumeroArgentino(Number(p.valorVenta) || 0)}
+                          </div>
                         ) : (
                           <div className="flex items-center justify-center font-semibold text-default-900">
                             ${formatearNumeroArgentino(Number(p.valorVenta) || 0)}
@@ -3488,6 +3736,8 @@ const ProductosPage = () => {
                                         });
                                         return Math.round((base * cantidad) / 100) * 100;
                                       })()
+                                    : p.categoria === "Obras"
+                                    ? (Number(p.valorVenta) || 0) * (Number(p.cantidad) || 1)
                                     : (Number(p.valorVenta) || 0) * (Number(p.cantidad) || 1);
                                 return precioUnitario;
                               })()
