@@ -2778,6 +2778,64 @@ const ProductosPage = () => {
     document.body.removeChild(link);
   };
 
+  // Función para exportar obras a CSV
+  const exportarObrasCSV = () => {
+    const obras = productos.filter(p => p.categoria === "Obras");
+    
+    if (obras.length === 0) {
+      alert("No hay productos de obras para exportar");
+      return;
+    }
+
+    const headers = [
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "estado",
+      "unidad",
+      "stockMinimo",
+      "unidadMedida",
+      "valorVenta",
+      "fechaCreacion",
+      "fechaActualizacion"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    obras.forEach(producto => {
+      const row = [
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Obras",
+        producto.subCategoria || "",
+        producto.estado || "Activo",
+        producto.unidad || "",
+        producto.stockMinimo || "",
+        producto.unidadMedida || "",
+        producto.valorVenta || "",
+        producto.fechaCreacion || "",
+        producto.fechaActualizacion || ""
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_obras_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Función para manejar cambios en productos
   const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
     try {
@@ -3260,6 +3318,21 @@ const ProductosPage = () => {
                         <div>
                           <div className="font-medium text-gray-900">Exportar Ferretería</div>
                           <div className="text-xs text-gray-500">Descargar catálogo de ferretería</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportarObrasCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-purple-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                          🏗️
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">Exportar Obras</div>
+                          <div className="text-xs text-gray-500">Descargar catálogo de obras</div>
                         </div>
                       </button>
                     </div>
