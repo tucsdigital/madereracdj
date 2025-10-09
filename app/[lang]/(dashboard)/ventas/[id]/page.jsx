@@ -180,6 +180,17 @@ const VentaDetalle = () => {
     fetchVenta();
   }, [id, lang, params]);
 
+  // Cambiar el título de la página dinámicamente para el nombre del PDF
+  useEffect(() => {
+    if (venta?.numeroPedido) {
+      document.title = venta.numeroPedido;
+    }
+    // Restaurar el título original al desmontar el componente
+    return () => {
+      document.title = "Maderas Caballero - Panel Administrativo";
+    };
+  }, [venta?.numeroPedido]);
+
   // Cargar clientes y productos para selects y edición
   useEffect(() => {
     const fetchClientesYProductos = async () => {
