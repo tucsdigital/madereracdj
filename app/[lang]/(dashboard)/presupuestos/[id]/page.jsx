@@ -179,6 +179,17 @@ const PresupuestoDetalle = () => {
     fetchPresupuesto();
   }, [id, lang, params]);
 
+  // Cambiar el título de la página dinámicamente para el nombre del PDF
+  useEffect(() => {
+    if (presupuesto?.numeroPedido) {
+      document.title = presupuesto.numeroPedido;
+    }
+    // Restaurar el título original al desmontar el componente
+    return () => {
+      document.title = "Maderas Caballero - Panel Administrativo";
+    };
+  }, [presupuesto?.numeroPedido]);
+
   // 3. Cargar clientes y productos para selects y actualización de precios
   useEffect(() => {
     const fetchClientesYProductos = async () => {
