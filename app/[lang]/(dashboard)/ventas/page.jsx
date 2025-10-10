@@ -1605,17 +1605,17 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const productoEjemplo = {
-                          id: "ejemplo-" + Date.now(),
-                          nombre: "Producto de Ejemplo",
-                          precio: 15000,
-                          unidad: "unidad",
-                          stock: 100,
-                          cantidad: 2,
-                          descuento: 0,
-                          categoria: "Eventual",
-                          esEditable: true, // Marca que es un producto editable
-                        };
+                      const productoEjemplo = {
+                        id: "ejemplo-" + Date.now(),
+                        nombre: "Producto de Ejemplo",
+                        precio: 15000,
+                        unidad: "unidad",
+                        stock: 100,
+                        cantidad: 1,
+                        descuento: 0,
+                        categoria: "Eventual",
+                        esEditable: true, // Marca que es un producto editable
+                      };
                         setProductosSeleccionados([
                           ...productosSeleccionados,
                           productoEjemplo,

@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download, Trash2 } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { SelectorProductosPresupuesto } from "../page";
 import FormularioVentaPresupuesto from "../page";
 import { useAuth } from "@/provider/auth.provider";
@@ -2334,7 +2335,7 @@ const VentaDetalle = () => {
                             precio: 15000,
                             unidad: "unidad",
                             stock: 100,
-                            cantidad: 2,
+                            cantidad: 1,
                             descuento: 0,
                             categoria: "Eventual",
                             esEditable: true, // Marca que es un producto editable

@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import { Icon } from "@iconify/react";
 import FormularioVentaPresupuesto, {
   SelectorProductosPresupuesto,
 } from "../../ventas/page";
@@ -1515,7 +1516,7 @@ const PresupuestoDetalle = () => {
                               precio: 15000,
                               unidad: "unidad",
                               stock: 100,
-                              cantidad: 2,
+                              cantidad: 1,
                               descuento: 0,
                               categoria: "Eventual",
                               esEditable: true, // Marca que es un producto editable
