@@ -1503,12 +1503,46 @@ const PresupuestoDetalle = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {(presupuestoEdit.productos || []).length}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          productos agregados
+                      <div className="flex items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const productoEjemplo = {
+                              id: "ejemplo-" + Date.now(),
+                              nombre: "Producto de Ejemplo",
+                              precio: 15000,
+                              unidad: "unidad",
+                              stock: 100,
+                              cantidad: 2,
+                              descuento: 0,
+                              categoria: "Eventual",
+                              esEditable: true, // Marca que es un producto editable
+                            };
+                            setPresupuestoEdit({
+                              ...presupuestoEdit,
+                              productos: [
+                                ...(presupuestoEdit.productos || []),
+                                productoEjemplo,
+                              ],
+                            });
+                          }}
+                          className="text-xs px-3 py-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                        >
+                          <Icon
+                            icon="heroicons:plus-circle"
+                            className="w-3 h-3 mr-1"
+                          />
+                          Agregar Ejemplo
+                        </Button>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {(presupuestoEdit.productos || []).length}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            productos agregados
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -2200,7 +2234,33 @@ const PresupuestoDetalle = () => {
                               </td>
                               <td className="p-4 align-top text-sm text-default-600">
                                 <div className="font-semibold text-default-900">
-                                  {p.nombre}
+                                  {p.esEditable ? (
+                                    <input
+                                      type="text"
+                                      value={p.nombre}
+                                      onChange={(e) =>
+                                        setPresupuestoEdit((prev) => ({
+                                          ...prev,
+                                          productos: prev.productos.map((prod) =>
+                                            prod.id === p.id ? { ...prod, nombre: e.target.value } : prod
+                                          ),
+                                        }))
+                                      }
+                                      className="w-full px-2 py-1 border border-gray-300 uppercase rounded text-base font-bold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                      disabled={loadingPrecios}
+                                      placeholder="Nombre del producto"
+                                    />
+                                  ) : (
+                                    <div>
+                                      {p.nombre}
+                                      {p.categoria === "Maderas" && p.tipoMadera && (
+                                        <span className="font-semibold text-default-900">
+                                          {" "}
+                                          - {p.tipoMadera.toUpperCase()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 {/* Se eliminó la visualización de tipo de madera y subcategoría debajo del nombre */}
                                 {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
@@ -2572,11 +2632,34 @@ const PresupuestoDetalle = () => {
                                   <span className="text-gray-400">-</span>
                                 )}
                               </td>
-                              <td className="p-4 align-middle text-right text-sm text-default-900 font-semibold tabular-nums">
-                                ${formatearNumeroArgentino(
-                                  presupuesto?.pagoEnEfectivo 
-                                    ? Number(p.precio) * 0.9
-                                    : p.precio
+                              <td className="p-4 align-middle text-sm text-default-600">
+                                {p.esEditable ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="100"
+                                    value={p.precio === "" ? "" : p.precio}
+                                    onChange={(e) => {
+                                      const parsed = e.target.value === "" ? "" : Number(e.target.value);
+                                      setPresupuestoEdit((prev) => ({
+                                        ...prev,
+                                        productos: prev.productos.map((prod) =>
+                                          prod.id === p.id ? { ...prod, precio: parsed } : prod
+                                        ),
+                                      }));
+                                    }}
+                                    className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
+                                    disabled={loadingPrecios}
+                                    placeholder="0"
+                                  />
+                                ) : (
+                                  <span className="block text-right font-semibold text-default-900 tabular-nums">
+                                    ${formatearNumeroArgentino(
+                                      presupuesto?.pagoEnEfectivo 
+                                        ? Number(p.precio) * 0.9
+                                        : p.precio
+                                    )}
+                                  </span>
                                 )}
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600">
