@@ -45,6 +45,8 @@ import {
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
+import DragDropImageModal from "@/components/productos/DragDropImageModal";
+import ToastNotification from "@/components/ui/toast-notification";
 
 const categorias = ["Maderas", "Ferretería", "Obras"];
 
@@ -1412,6 +1414,16 @@ const ProductosPage = () => {
   const [paginaActual, setPaginaActual] = useState(1);
   const [productosPorPagina, setProductosPorPagina] = useState(20);
   const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+
+  // Estados para Drag & Drop de imágenes
+  const [dragOverProductId, setDragOverProductId] = useState(null);
+  const [dragDropModalOpen, setDragDropModalOpen] = useState(false);
+  const [draggedImage, setDraggedImage] = useState(null);
+  const [targetProduct, setTargetProduct] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("info");
 
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
@@ -2970,6 +2982,117 @@ const ProductosPage = () => {
     }
   };
 
+  // Funciones para Drag & Drop de imágenes
+  const showToast = (message, type = "info") => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  const handleDragOver = (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProductId(productId);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProductId(null);
+  };
+
+  const handleDrop = async (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProductId(null);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        showToast("Por favor, arrastra solo archivos de imagen", "error");
+        return;
+      }
+
+      // Validar tamaño (5MB máximo)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        showToast("La imagen es demasiado grande. Tamaño máximo: 5MB", "error");
+        return;
+      }
+
+      // Crear preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setDraggedImage({
+          file: file,
+          preview: event.target.result,
+          name: file.name
+        });
+        setTargetProduct(product);
+        setDragDropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleConfirmImageUpload = async () => {
+    if (!draggedImage || !targetProduct) return;
+
+    try {
+      setUploadingImage(true);
+      showToast("Subiendo imagen...", "loading");
+
+      // Subir la imagen al servidor
+      const formData = new FormData();
+      formData.append('file', draggedImage.file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al subir imagen');
+      }
+
+      const result = await response.json();
+      const imageUrl = result.url;
+
+      // Actualizar el producto en Firebase con la nueva imagen
+      const productoRef = doc(db, "productos", targetProduct.id);
+      const currentImages = targetProduct.imagenes || [];
+      
+      await updateDoc(productoRef, {
+        imagenes: [...currentImages, imageUrl],
+        fechaActualizacion: new Date().toISOString(),
+      });
+
+      // Cerrar modal y mostrar éxito
+      setDragDropModalOpen(false);
+      setDraggedImage(null);
+      setTargetProduct(null);
+      showToast("¡Imagen subida correctamente al producto!", "success");
+
+    } catch (error) {
+      console.error("Error al subir imagen:", error);
+      showToast("Error al subir la imagen: " + error.message, "error");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleCloseImageModal = () => {
+    if (!uploadingImage) {
+      setDragDropModalOpen(false);
+      setDraggedImage(null);
+      setTargetProduct(null);
+    }
+  };
+
   const handleValorVentaChange = async (id, nuevoValorVenta) => {
     try {
       const productoRef = doc(db, "productos", id);
@@ -3638,7 +3761,14 @@ const ProductosPage = () => {
                   {productosPaginados.map((p) => (
                     <tr
                       key={p.id}
-                      className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
+                      className={`border-b border-default-300 transition-all duration-200 data-[state=selected]:bg-muted ${
+                        dragOverProductId === p.id 
+                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 scale-[1.01] shadow-lg border-blue-300 ring-2 ring-blue-400 ring-opacity-50' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onDragOver={(e) => handleDragOver(e, p.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, p)}
                     >
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="flex items-center justify-center">
@@ -4744,6 +4874,25 @@ const ProductosPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de confirmación para Drag & Drop de imágenes */}
+      <DragDropImageModal
+        isOpen={dragDropModalOpen}
+        onClose={handleCloseImageModal}
+        onConfirm={handleConfirmImageUpload}
+        imagePreview={draggedImage?.preview}
+        fileName={draggedImage?.name}
+        producto={targetProduct}
+        uploading={uploadingImage}
+      />
+
+      {/* Notificación Toast */}
+      <ToastNotification
+        type={toastType}
+        message={toastMessage}
+        isVisible={toastVisible}
+        onClose={() => setToastVisible(false)}
+      />
     </div>
   );
 };
