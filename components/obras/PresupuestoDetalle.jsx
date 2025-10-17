@@ -60,7 +60,6 @@ const PresupuestoDetalle = ({
           id: `presupuesto-${Date.now()}`,
           nombre: "Bloque 1",
           productos: [],
-          estaCerrado: false,
           descripcion: ""
         };
         setBloques([bloqueInicial]);
@@ -129,7 +128,6 @@ const PresupuestoDetalle = ({
       id: `presupuesto-${Date.now()}`,
       nombre: `Bloque ${bloques.length + 1}`,
       productos: [],
-      estaCerrado: false,
       descripcion: ""
     };
     setBloques(prev => [...prev, nuevoBloque]);
@@ -152,18 +150,6 @@ const PresupuestoDetalle = ({
     ));
   };
 
-  const cerrarBloque = (bloqueIndex) => {
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueIndex ? { ...bloque, estaCerrado: true } : bloque
-    ));
-  };
-
-  const abrirBloque = (bloqueIndex) => {
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
-    ));
-  };
-
   const actualizarDescripcionBloque = (bloqueIndex, descripcion) => {
     setBloques(prev => prev.map((bloque, index) => 
       index === bloqueIndex ? { ...bloque, descripcion } : bloque
@@ -173,7 +159,7 @@ const PresupuestoDetalle = ({
   // Funciones para manejar productos en bloques
   const agregarProducto = (prod) => {
     const bloqueActual = bloques[bloqueActivo];
-    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    if (!bloqueActual) return;
     
     const ya = bloqueActual.productos.some((x) => x.id === prod.id);
     if (ya) return;
@@ -212,7 +198,7 @@ const PresupuestoDetalle = ({
 
   const agregarProductoManual = () => {
     const bloqueActual = bloques[bloqueActivo];
-    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    if (!bloqueActual) return;
     
     const nuevo = {
       id: `manual-${Date.now()}`,
@@ -605,12 +591,6 @@ const PresupuestoDetalle = ({
                     <span className="text-xs text-gray-500">
                       ({bloque.productos.length} productos)
                     </span>
-                    {bloque.estaCerrado && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Check className="w-3 h-3 mr-1" />
-                        Cerrado
-                      </Badge>
-                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -645,27 +625,6 @@ const PresupuestoDetalle = ({
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-lg">{bloqueActual.nombre}</h3>
-                <div className="flex gap-2">
-                  {bloqueActual.estaCerrado ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => abrirBloque(bloqueActivo)}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Abrir Bloque
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => cerrarBloque(bloqueActivo)}
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Cerrar Bloque
-                    </Button>
-                  )}
-                </div>
               </div>
               
               <div className={`grid gap-4 text-sm ${obra?.pagoEnEfectivo ? 'grid-cols-4' : 'grid-cols-3'}`}>
@@ -971,7 +930,6 @@ const PresupuestoDetalle = ({
               onChange={(e) => actualizarDescripcionBloque(bloqueActivo, e.target.value)}
               className="min-h-[80px] resize-none"
               rows={3}
-              disabled={bloqueActual?.estaCerrado}
             />
           </CardContent>
         </Card>

@@ -113,7 +113,6 @@ export default function CrearPresupuestoObraPage() {
       id: `presupuesto-${Date.now()}`,
       nombre: "Presupuesto 1",
       items: [],
-      estaCerrado: false,
       descripcion: ""
     }
   ]);
@@ -202,7 +201,6 @@ export default function CrearPresupuestoObraPage() {
       id: `presupuesto-${Date.now()}`,
       nombre: `Presupuesto ${bloques.length + 1}`,
       items: [],
-      estaCerrado: false,
       descripcion: ""
     };
     setBloques(prev => [...prev, nuevoBloque]);
@@ -226,18 +224,6 @@ export default function CrearPresupuestoObraPage() {
     ));
   }, []);
 
-  const cerrarBloque = useCallback((bloqueIndex) => {
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueIndex ? { ...bloque, estaCerrado: true } : bloque
-    ));
-  }, []);
-
-  const abrirBloque = useCallback((bloqueIndex) => {
-    setBloques(prev => prev.map((bloque, index) => 
-      index === bloqueIndex ? { ...bloque, estaCerrado: false } : bloque
-    ));
-  }, []);
-
   const actualizarDescripcionBloque = useCallback((bloqueIndex, descripcion) => {
     setBloques(prev => prev.map((bloque, index) => 
       index === bloqueIndex ? { ...bloque, descripcion } : bloque
@@ -247,7 +233,7 @@ export default function CrearPresupuestoObraPage() {
   // Acciones selección de productos
   const agregarProducto = useCallback((prod) => {
     const bloqueActual = bloques[bloqueActivo];
-    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    if (!bloqueActual) return;
     
     const ya = bloqueActual.items.some((x) => x.id === prod.id);
     if (ya) return;
@@ -286,7 +272,7 @@ export default function CrearPresupuestoObraPage() {
 
   const agregarProductoManual = useCallback(() => {
     const bloqueActual = bloques[bloqueActivo];
-    if (!bloqueActual || bloqueActual.estaCerrado) return;
+    if (!bloqueActual) return;
     
     const nuevo = {
       id: `manual-${Date.now()}`,
@@ -421,7 +407,6 @@ export default function CrearPresupuestoObraPage() {
             id: bloque.id,
             nombre: bloque.nombre,
             descripcion: bloque.descripcion,
-            estaCerrado: bloque.estaCerrado,
             productos: bloque.items.map((p) => {
           const u = String(p.unidadMedida || "UN").toUpperCase();
           const altoNum = Number(p.alto) || 0;
@@ -587,16 +572,9 @@ export default function CrearPresupuestoObraPage() {
               )}
             </span>
             <div className="flex items-center gap-2">
-              {bloqueActual?.estaCerrado && (
-                <Badge variant="secondary" className="text-xs">
-                  <Check className="w-3 h-3 mr-1" />
-                  Presupuesto cerrado
-                </Badge>
-              )}
               <Button 
                 variant="outline" 
                 onClick={agregarProductoManual}
-                disabled={bloqueActual?.estaCerrado}
               >
                 Agregar ítem manual
               </Button>
@@ -703,19 +681,17 @@ export default function CrearPresupuestoObraPage() {
                           <div className="mt-4">
                             <button
                               onClick={() => {
-                                if (yaAgregado || bloqueActual?.estaCerrado) return;
+                                if (yaAgregado) return;
                                 agregarProducto(prod);
                               }}
-                              disabled={yaAgregado || bloqueActual?.estaCerrado}
+                              disabled={yaAgregado}
                               className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                                 yaAgregado 
                                   ? "bg-green-100 text-green-700 cursor-not-allowed" 
-                                  : bloqueActual?.estaCerrado
-                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                    : "bg-blue-600 text-white hover:bg-blue-700"
+                                  : "bg-blue-600 text-white hover:bg-blue-700"
                               }`}
                             >
-                              {yaAgregado ? "Ya agregado" : bloqueActual?.estaCerrado ? "Presupuesto cerrado" : "Agregar"}
+                              {yaAgregado ? "Ya agregado" : "Agregar"}
                             </button>
                           </div>
                         </div>
@@ -798,12 +774,9 @@ export default function CrearPresupuestoObraPage() {
                   bloqueActivo === index
                     ? "border-blue-500 bg-blue-50 text-blue-700"
                     : "border-gray-200 hover:border-gray-300 bg-white"
-                } ${bloque.estaCerrado ? "opacity-75" : ""}`}
+                }`}
                 onClick={() => setBloqueActivo(index)}
               >
-                {bloque.estaCerrado && (
-                  <Check className="w-4 h-4 text-green-600" />
-                )}
                 <span className="font-medium">
                   {editandoNombreBloque === index ? (
                     <Input
@@ -851,34 +824,6 @@ export default function CrearPresupuestoObraPage() {
 
                 {/* Botones de acción */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {!bloque.estaCerrado ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cerrarBloque(index);
-                      }}
-                      className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                      title="Cerrar bloque"
-                    >
-                      <Check className="w-3 h-3" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        abrirBloque(index);
-                      }}
-                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      title="Reabrir bloque"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </Button>
-                  )}
-                  
                   {bloques.length > 1 && (
                     <Button
                       variant="ghost"
@@ -901,7 +846,7 @@ export default function CrearPresupuestoObraPage() {
       </Card>
 
       {/* Seleccionados */}
-      {itemsSeleccionados.length > 0 && !bloqueActual?.estaCerrado && (
+      {itemsSeleccionados.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -1067,7 +1012,6 @@ export default function CrearPresupuestoObraPage() {
               onChange={(e) => actualizarDescripcionBloque(bloqueActivo, e.target.value)}
               className="min-h-[80px] resize-none"
               rows={3}
-              disabled={bloqueActual?.estaCerrado}
             />
           </CardContent>
         </Card>
@@ -1086,24 +1030,15 @@ export default function CrearPresupuestoObraPage() {
                 const totales = totalesPorBloque[index];
                 return (
                   <div key={bloque.id} className={`p-4 rounded-lg border-2 transition-all ${
-                    bloque.estaCerrado 
-                      ? "border-green-200 bg-green-50" 
-                      : bloqueActivo === index
-                        ? "border-blue-200 bg-blue-50"
-                        : "border-gray-200 bg-white"
+                    bloqueActivo === index
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-gray-200 bg-white"
                   }`}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-lg">{bloque.nombre}</h3>
-                      {bloque.estaCerrado ? (
-                        <Badge variant="secondary" className="text-xs">
-                          <Check className="w-3 h-3 mr-1" />
-                          Cerrado
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          Activo
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="text-xs">
+                        {bloque.items.length} productos
+                      </Badge>
                     </div>
                     
                     <div className="space-y-2 text-sm">

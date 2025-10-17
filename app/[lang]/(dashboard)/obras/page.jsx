@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,9 +15,6 @@ import {
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import {
-  Filter,
-  Search,
-  RefreshCw,
   Building,
   CheckCircle,
   Clock,
@@ -77,91 +67,202 @@ const estadosObra = {
 const ObrasPage = () => {
   const [obrasData, setObrasData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("");
-  const [busqueda, setBusqueda] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   
-  // Filtros de tiempo
-  const hoyISO = new Date().toISOString().split("T")[0];
-  const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const now = new Date();
-  const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const [fechaDesde, setFechaDesde] = useState(inicioMesISO);
-  const [fechaHasta, setFechaHasta] = useState(hoyISO);
-  const [rangoRapido, setRangoRapido] = useState("month");
+  // Estados para el calendario semanal
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Lunes como primer día
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  });
+  const [notas, setNotas] = useState([]);
+  const [showNotaDialog, setShowNotaDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [editingNotaId, setEditingNotaId] = useState(null);
+  const [notaForm, setNotaForm] = useState({
+    nombreObra: "",
+    productos: "",
+    fecha: "",
+  });
   
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
   const { user } = useAuth();
 
-  // Función para manejar fechas de manera segura
-  const toDateSafe = useCallback((value) => {
-    if (!value) return null;
-    try {
-      if (typeof value === "string" && value.includes("T")) {
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
-      }
-      if (typeof value === "string") {
-        const [y, m, d] = value.split("-").map(Number);
-        if (!y || !m || !d) return null;
-        const dt = new Date(y, m - 1, d);
-        return isNaN(dt.getTime()) ? null : dt;
-      }
-      if (value instanceof Date) return value;
-      return null;
-    } catch {
-      return null;
+  // Funciones para el calendario semanal
+  const getWeekDays = useCallback(() => {
+    const days = [];
+    const weekStart = new Date(currentWeekStart);
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + i);
+      days.push(day);
     }
-  }, []);
+    return days;
+  }, [currentWeekStart]);
 
-  // Función para verificar si una fecha está en el rango
-  const isInRange = useCallback(
-    (dateValue) => {
-      const d = toDateSafe(dateValue);
-      if (!d) return false;
-      const from = toDateSafe(fechaDesde);
-      const to = toDateSafe(fechaHasta);
-      if (!from || !to) return true;
-      const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const f0 = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-      const t0 = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
-      return d0 >= f0 && d0 <= t0;
-    },
-    [fechaDesde, fechaHasta, toDateSafe]
-  );
+  const goToPreviousWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(newWeekStart);
+  };
 
-  // Rango rápido
-  useEffect(() => {
+  const goToNextWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  const goToToday = () => {
     const today = new Date();
-    const to = today.toISOString().split("T")[0];
-    let from = hace30;
-    if (rangoRapido === "7d") {
-      from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    } else if (rangoRapido === "30d") {
-      from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    } else if (rangoRapido === "90d") {
-      from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    } else if (rangoRapido === "ytd") {
-      const y = new Date().getFullYear();
-      from = new Date(y, 0, 1).toISOString().split("T")[0];
-    } else if (rangoRapido === "month") {
-      const y = today.getFullYear();
-      const m = today.getMonth();
-      from = new Date(y, m, 1).toISOString().split("T")[0];
-    } else if (rangoRapido === "custom") {
-      // no cambia fechas
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(monday);
+  };
+
+  const formatDateKey = (date) => {
+    return date.toISOString().split("T")[0];
+  };
+
+  const getNotasForDate = (date) => {
+    const dateKey = formatDateKey(date);
+    return notas.filter((nota) => nota.fecha === dateKey);
+  };
+
+  // Cargar notas desde Firestore
+  const loadNotas = useCallback(async () => {
+    if (!user) return;
+    try {
+      const notasSnap = await getDocs(collection(db, "notasObras"));
+      const notasData = notasSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setNotas(notasData);
+    } catch (error) {
+      console.error("Error al cargar notas:", error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadNotas();
+  }, [loadNotas]);
+
+  // Guardar o actualizar nota
+  const saveNota = async () => {
+    if (!notaForm.nombreObra || !notaForm.fecha || !user) {
+      alert("Por favor completa todos los campos obligatorios");
       return;
     }
-    setFechaDesde(from);
-    setFechaHasta(to);
-  }, [rangoRapido]);
+
+    try {
+      if (editingNotaId) {
+        // Editar nota existente
+        const response = await fetch("/api/notas-obras", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            notaId: editingNotaId,
+            ...notaForm,
+            userId: user.uid,
+          }),
+        });
+
+        if (!response.ok) throw new Error("Error al actualizar nota");
+
+        const result = await response.json();
+        
+        // Actualizar el estado local
+        setNotas(
+          notas.map((nota) =>
+            nota.id === editingNotaId
+              ? { ...nota, ...notaForm, updatedAt: result.nota.updatedAt }
+              : nota
+          )
+        );
+        
+        setDeleteMessage("✅ Nota actualizada exitosamente");
+      } else {
+        // Crear nueva nota
+        const response = await fetch("/api/notas-obras", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...notaForm,
+            userId: user.uid,
+            userEmail: user.email,
+          }),
+        });
+
+        if (!response.ok) throw new Error("Error al crear nota");
+
+        const result = await response.json();
+        
+        // Agregar al estado local
+        setNotas([...notas, { id: result.id, ...notaForm }]);
+        
+        setDeleteMessage("✅ Nota creada exitosamente");
+      }
+
+      setShowNotaDialog(false);
+      setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+      setEditingNotaId(null);
+      setTimeout(() => setDeleteMessage(""), 3000);
+    } catch (error) {
+      console.error("Error al guardar nota:", error);
+      setDeleteMessage(`❌ Error: ${error.message}`);
+      setTimeout(() => setDeleteMessage(""), 5000);
+    }
+  };
+
+  // Abrir diálogo para editar nota
+  const openEditDialog = (nota) => {
+    setEditingNotaId(nota.id);
+    setNotaForm({
+      nombreObra: nota.nombreObra,
+      productos: nota.productos || "",
+      fecha: nota.fecha,
+    });
+    setShowNotaDialog(true);
+  };
+
+  // Eliminar nota
+  const deleteNota = async (notaId) => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch("/api/notas-obras", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notaId,
+          userId: user.uid,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Error al eliminar nota");
+
+      setNotas(notas.filter((n) => n.id !== notaId));
+      setDeleteMessage("✅ Nota eliminada");
+      setTimeout(() => setDeleteMessage(""), 3000);
+    } catch (error) {
+      console.error("Error al eliminar nota:", error);
+      setDeleteMessage("❌ Error al eliminar la nota");
+      setTimeout(() => setDeleteMessage(""), 5000);
+    }
+  };
 
   // Columnas para presupuestos
   const presupuestosColumns = [
@@ -617,21 +718,6 @@ const ObrasPage = () => {
     }
   };
 
-  // Función para probar la conexión a la API de eliminación
-  const testAuditConnection = async () => {
-    try {
-      console.log("Probando conexión a la API de eliminación...");
-
-      setDeleteMessage(
-        "✅ La API de eliminación está configurada correctamente. Prueba eliminando un elemento."
-      );
-      setTimeout(() => setDeleteMessage(""), 5000);
-    } catch (error) {
-      console.error("Error en prueba de API:", error);
-      setDeleteMessage(`❌ Error en API: ${error.message}`);
-      setTimeout(() => setDeleteMessage(""), 5000);
-    }
-  };
 
   // Event listeners para los botones de borrado
   useEffect(() => {
@@ -762,45 +848,6 @@ const ObrasPage = () => {
   const presupuestos = obrasData.filter((o) => o.tipo === "presupuesto");
   const obras = obrasData.filter((o) => o.tipo === "obra");
 
-  // Aplicar filtros de tiempo y otros filtros
-  const presupuestosFiltrados = presupuestos.filter((presupuesto) => {
-    const cumpleFecha = isInRange(presupuesto.fechaCreacion);
-    const cumpleEstado = !filtroEstado || presupuesto.estadoUI === filtroEstado;
-    const cumpleBusqueda =
-      !busqueda ||
-      presupuesto.numeroPedido
-        ?.toLowerCase()
-        .includes(busqueda.toLowerCase()) ||
-      presupuesto.cliente?.nombre
-        ?.toLowerCase()
-        .includes(busqueda.toLowerCase());
-    return cumpleFecha && cumpleEstado && cumpleBusqueda;
-  });
-
-  const obrasFiltradas = obras.filter((obra) => {
-    const cumpleFecha = isInRange(obra.fechaCreacion);
-    const cumpleEstado = !filtroEstado || obra.estadoUI === filtroEstado;
-    const cumpleBusqueda =
-      !busqueda ||
-      obra.numeroPedido?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      obra.cliente?.nombre?.toLowerCase().includes(busqueda.toLowerCase());
-    return cumpleFecha && cumpleEstado && cumpleBusqueda;
-  });
-
-  const estadisticas = {
-    total: presupuestosFiltrados.length + obrasFiltradas.length,
-    obras: obrasFiltradas.length,
-    presupuestos: presupuestosFiltrados.length,
-    totalObras: obrasFiltradas.reduce((total, obra) => {
-      const presupuestoTotal = obra.presupuestoTotal || 0;
-      return total + presupuestoTotal;
-    }, 0),
-    comisionObras: obrasFiltradas.reduce((total, obra) => {
-      const presupuestoTotal = obra.presupuestoTotal || 0;
-      return total + (presupuestoTotal * 0.025); // 2.5% de comisión
-    }, 0),
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -866,219 +913,160 @@ const ObrasPage = () => {
             <span className="hidden sm:inline">Nueva Obra</span>
             <span className="sm:hidden">Obra</span>
           </Button>
-          {/* <Button variant="outline" onClick={() => window.location.reload()} disabled={deleting}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Actualizar
-          </Button>
-          <Button
-            variant="outline"
-            onClick={testAuditConnection}
-            disabled={deleting}
-            className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300"
-          >
-            <Info className="w-4 h-4 mr-2" />
-            Probar Auditoría
-          </Button> */}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {estadisticas.total}
-            </div>
-            <div className="text-sm text-gray-600">Total</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-600">
-              {estadisticas.obras}
-            </div>
-            <div className="text-sm text-gray-600">Obras</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-600">
-              {estadisticas.presupuestos}
-            </div>
-            <div className="text-sm text-gray-600">Presupuestos</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              ${estadisticas.totalObras.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
-            </div>
-            <div className="text-sm text-gray-600">Total Obras</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-fuchsia-600">
-              ${estadisticas.comisionObras.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
-            </div>
-            <div className="text-sm text-gray-600">Comisión por Obra</div>
-            <div className="text-xs text-gray-500 mt-1">2.5% sobre total</div>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Calendario Semanal de Notas */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" /> Filtros y Búsqueda
+            <Icon icon="heroicons:calendar" className="w-5 h-5" />
+            Calendario Semanal - Notas de Obras
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Filtros de tiempo */}
-          <div className="mb-6">
-            <label className="text-sm font-medium mb-3 block">Filtro de Tiempo</label>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => setRangoRapido("month")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "month"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
+          {/* Navegación del calendario */}
+          <div className="flex items-center justify-between mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousWeek}
+              className="flex items-center gap-2"
+            >
+              <Icon icon="heroicons:chevron-left" className="w-4 h-4" />
+              Anterior
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToToday}
               >
-                <Icon icon="heroicons:calendar-days" className="w-3.5 h-3.5" />
-                Mes
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoRapido("7d")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "7d"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon icon="heroicons:bolt" className="w-3.5 h-3.5" />
-                7d
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoRapido("30d")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "30d"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon icon="heroicons:calendar" className="w-3.5 h-3.5" />
-                30d
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoRapido("90d")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "90d"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon icon="heroicons:clock" className="w-3.5 h-3.5" />
-                90d
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoRapido("ytd")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "ytd"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon icon="heroicons:calendar" className="w-3.5 h-3.5" />
-                Año
-              </button>
-              <button
-                type="button"
-                onClick={() => setRangoRapido("custom")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
-                  rangoRapido === "custom"
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <Icon icon="heroicons:adjustments-horizontal" className="w-3.5 h-3.5" />
-                Personalizado
-              </button>
+                Hoy
+              </Button>
+              <span className="text-sm font-medium">
+                {currentWeekStart.toLocaleDateString("es-AR", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextWeek}
+              className="flex items-center gap-2"
+            >
+              Siguiente
+              <Icon icon="heroicons:chevron-right" className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Grid de días */}
+          <div className="grid grid-cols-7 gap-2">
+            {getWeekDays().map((day, index) => {
+              const isToday =
+                day.toDateString() === new Date().toDateString();
+              const dayNotas = getNotasForDate(day);
+              const diasSemana = [
+                "Lun",
+                "Mar",
+                "Mié",
+                "Jue",
+                "Vie",
+                "Sáb",
+                "Dom",
+              ];
+
+              return (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-2 min-h-[180px] transition-all ${
+                    isToday
+                      ? "bg-blue-50 border-blue-300 shadow-md"
+                      : "bg-white border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="text-center mb-2">
+                    <div className="text-[10px] font-semibold text-gray-600 uppercase">
+                      {diasSemana[index]}
+                    </div>
+                    <div
+                      className={`text-base font-bold ${
+                        isToday ? "text-blue-600" : "text-gray-800"
+                      }`}
+                    >
+                      {day.getDate()}
+                    </div>
             </div>
             
-            {/* Inputs de fecha personalizada */}
-            {rangoRapido === "custom" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Desde</label>
-                  <Input
-                    type="date"
-                    value={fechaDesde}
-                    onChange={(e) => setFechaDesde(e.target.value)}
-                    className="mt-1"
-                  />
+                  {/* Botón para agregar nota */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full mb-1.5 text-[10px] h-6 px-1"
+                    onClick={() => {
+                      setSelectedDate(formatDateKey(day));
+                      setEditingNotaId(null);
+                      setNotaForm({
+                        nombreObra: "",
+                        productos: "",
+                        fecha: formatDateKey(day),
+                      });
+                      setShowNotaDialog(true);
+                    }}
+                  >
+                    <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
+                    Agregar
+                  </Button>
+
+                  {/* Notas del día */}
+                  <div className="space-y-1.5">
+                    {dayNotas.map((nota) => (
+                      <div
+                        key={nota.id}
+                        className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1.5 text-xs relative group hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800 truncate text-[11px]">
+                              {nota.nombreObra}
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Hasta</label>
-                  <Input
-                    type="date"
-                    value={fechaHasta}
-                    onChange={(e) => setFechaHasta(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
+                            {nota.productos && (
+                              <div className="text-gray-600 mt-0.5 text-[9px] line-clamp-1">
+                                {nota.productos}
               </div>
             )}
           </div>
-
-          {/* Otros filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium">Buscar</label>
-              <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Número, cliente..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="pl-10"
-                />
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(nota);
+                              }}
+                              className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-colors cursor-pointer"
+                              title="Editar nota"
+                            >
+                              <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNota(nota.id);
+                              }}
+                              className="w-5 h-5 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-colors cursor-pointer"
+                              title="Eliminar nota"
+                            >
+                              <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
+                            </button>
               </div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Estado</label>
-              <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todos los estados</SelectItem>
-                  {Object.entries(estadosObra).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>
-                      {value.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      </div>
+                    ))}
             </div>
-            <div className="flex items-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setFiltroEstado("");
-                  setBusqueda("");
-                  setRangoRapido("month");
-                }}
-                className="w-full"
-              >
-                Limpiar Filtros
-              </Button>
             </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -1118,7 +1106,7 @@ const ObrasPage = () => {
           <CardContent className="pt-6 p-0">
             <div className="overflow-hidden rounded-b-2xl">
               <DataTableEnhanced
-                data={presupuestosFiltrados}
+                data={presupuestos}
                 columns={presupuestosColumns}
                 searchPlaceholder="Buscar presupuestos..."
                 className="border-0"
@@ -1163,7 +1151,7 @@ const ObrasPage = () => {
           <CardContent className="pt-6 p-0">
             <div className="overflow-hidden rounded-b-2xl">
               <DataTableEnhanced
-                data={obrasFiltradas}
+                data={obras}
                 columns={obrasColumns}
                 searchPlaceholder="Buscar obras..."
                 className="border-0"
@@ -1239,6 +1227,101 @@ const ObrasPage = () => {
                   Eliminar
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para agregar/editar nota */}
+      <Dialog open={showNotaDialog} onOpenChange={(open) => {
+        setShowNotaDialog(open);
+        if (!open) {
+          setEditingNotaId(null);
+          setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+        }
+      }}>
+        <DialogContent className="w-[95vw] max-w-lg rounded-2xl border-0 shadow-2xl bg-white">
+          <DialogHeader className="pb-4">
+            <div className={`w-16 h-16 bg-gradient-to-br ${editingNotaId ? 'from-amber-100 to-orange-100' : 'from-blue-100 to-indigo-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+              <Icon icon={editingNotaId ? "heroicons:pencil" : "heroicons:pencil-square"} className={`w-8 h-8 ${editingNotaId ? 'text-amber-600' : 'text-blue-600'}`} />
+            </div>
+            <DialogTitle className="text-xl font-bold text-gray-900 text-center">
+              {editingNotaId ? "Editar Nota de Obra" : "Nueva Nota de Obra"}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2 text-center">
+              {editingNotaId 
+                ? "Modifica los detalles de tu nota"
+                : "Agrega una nota rápida para recordar entregas o trabajos pendientes"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Nombre de Obra <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="Ej: Casa Rodriguez"
+                value={notaForm.nombreObra}
+                onChange={(e) =>
+                  setNotaForm({ ...notaForm, nombreObra: e.target.value })
+                }
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Productos / Detalles
+              </label>
+              <textarea
+                placeholder="Ej: 10 tablas de pino, 5kg de clavos..."
+                value={notaForm.productos}
+                onChange={(e) =>
+                  setNotaForm({ ...notaForm, productos: e.target.value })
+                }
+                className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Fecha <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={notaForm.fecha}
+                onChange={(e) =>
+                  setNotaForm({ ...notaForm, fecha: e.target.value })
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowNotaDialog(false);
+                setEditingNotaId(null);
+                setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+              }}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveNota}
+              className={`w-full sm:w-auto px-6 py-3 rounded-xl ${
+                editingNotaId
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+              } shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105`}
+            >
+              <Icon icon="heroicons:check" className="w-4 h-4 mr-2" />
+              {editingNotaId ? "Actualizar Nota" : "Guardar Nota"}
             </Button>
           </DialogFooter>
         </DialogContent>
