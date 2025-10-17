@@ -804,33 +804,25 @@ const SalesStats = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-              {/* Comisión por ventas - Tarjeta expandida debajo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+              {/* Comisión por ventas */}
               <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex w-8 h-8 md:w-10 md:h-10 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
-                      <Icon
-                        icon="heroicons:currency-dollar"
-                        className="w-4 h-4 md:w-5 md:h-5"
-                      />
-                    </span>
-                    <div>
-                      <div className="text-xs md:text-sm text-fuchsia-700 dark:text-fuchsia-300 font-semibold">
-                        Comisión Ventas
-                      </div>
-                      <div className="text-[10px] md:text-xs text-default-500">
-                        2.5%
-                      </div>
-                    </div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs md:text-sm text-fuchsia-700 dark:text-fuchsia-300">
+                    Comisión Ventas
                   </div>
-                  <div className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight text-fuchsia-700">
-                    $
-                    {nf.format(
-                      Math.round(comisionesPorTipoCliente.comisionTotal / 1000)
-                    )}
-                    k
-                  </div>
+                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400">
+                    <Icon
+                      icon="heroicons:currency-dollar"
+                      className="w-3 h-3 md:w-4 md:h-4"
+                    />
+                  </span>
+                </div>
+                <div className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
+                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal / 1000))}k
+                </div>
+                <div className="text-[10px] md:text-xs text-default-500 mt-1">
+                  2.5% sobre ventas
                 </div>
               </div>
 
@@ -876,7 +868,7 @@ const SalesStats = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
               {/* Estado de pago (donut) */}
               <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
                 <div className="text-xs md:text-sm font-semibold mb-3">
@@ -1017,7 +1009,7 @@ const SalesStats = () => {
                 )}
               </div>
               {/* Clientes nuevos vs viejos */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm md:col-span-2">
+              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
                 <div className="text-xs md:text-sm font-semibold mb-3">
                   Clientes (nuevos vs viejos)
                 </div>
