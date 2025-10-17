@@ -765,7 +765,7 @@ const SalesStats = () => {
                   </span>
                 </div>
                 <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.ventasMonto / 1000))}k
+                  ${nf.format(Math.round(kpis.ventasMonto))}
                 </div>
               </div>
               {/* Ticket */}
@@ -782,7 +782,7 @@ const SalesStats = () => {
                   </span>
                 </div>
                 <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.ticketPromedio / 1000))}k
+                  ${nf.format(Math.round(kpis.ticketPromedio))}
                 </div>
               </div>
               {/* Presupuestos */}
@@ -818,8 +818,8 @@ const SalesStats = () => {
                     />
                   </span>
                 </div>
-                <div className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal / 1000))}k
+                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
+                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}
                 </div>
                 <div className="text-[10px] md:text-xs text-default-500 mt-1">
                   2.5% sobre ventas
@@ -839,8 +839,8 @@ const SalesStats = () => {
                     />
                   </span>
                 </div>
-                <div className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.obrasMonto / 1000))}k
+                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
+                  ${nf.format(Math.round(kpis.obrasMonto))}
                 </div>
                 <div className="text-[10px] md:text-xs text-default-500 mt-1">
                   {kpis.obrasCount} {kpis.obrasCount === 1 ? "obra" : "obras"}
@@ -859,8 +859,8 @@ const SalesStats = () => {
                     />
                   </span>
                 </div>
-                <div className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.obrasComision / 1000))}k
+                <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
+                  ${nf.format(Math.round(kpis.obrasComision))}
                 </div>
                 <div className="text-[10px] md:text-xs text-default-500 mt-1">
                   2.5% sobre total
