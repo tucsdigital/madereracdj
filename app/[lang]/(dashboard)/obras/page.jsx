@@ -92,6 +92,11 @@ const ObrasPage = () => {
     productos: "",
     fecha: "",
   });
+  const [savingNota, setSavingNota] = useState(false);
+  const [deletingNota, setDeletingNota] = useState(null);
+  const [showDeleteNotaDialog, setShowDeleteNotaDialog] = useState(false);
+  const [notaToDelete, setNotaToDelete] = useState(null);
+  const [loadingNotas, setLoadingNotas] = useState(true);
   
   const router = useRouter();
   const params = useParams();
@@ -145,6 +150,7 @@ const ObrasPage = () => {
   const loadNotas = useCallback(async () => {
     if (!user) return;
     try {
+      setLoadingNotas(true);
       const notasSnap = await getDocs(collection(db, "notasObras"));
       const notasData = notasSnap.docs.map((doc) => ({
         id: doc.id,
@@ -153,6 +159,10 @@ const ObrasPage = () => {
       setNotas(notasData);
     } catch (error) {
       console.error("Error al cargar notas:", error);
+      setDeleteMessage("❌ Error al cargar las notas");
+      setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setLoadingNotas(false);
     }
   }, [user]);
 
@@ -163,11 +173,14 @@ const ObrasPage = () => {
   // Guardar o actualizar nota
   const saveNota = async () => {
     if (!notaForm.nombreObra || !notaForm.fecha || !user) {
-      alert("Por favor completa todos los campos obligatorios");
+      setDeleteMessage("⚠️ Por favor completa todos los campos obligatorios");
+      setTimeout(() => setDeleteMessage(""), 3000);
       return;
     }
 
     try {
+      setSavingNota(true);
+      
       if (editingNotaId) {
         // Editar nota existente
         const response = await fetch("/api/notas-obras", {
@@ -184,7 +197,7 @@ const ObrasPage = () => {
 
         const result = await response.json();
         
-        // Actualizar el estado local
+        // Actualizar el estado local con animación
         setNotas(
           notas.map((nota) =>
             nota.id === editingNotaId
@@ -210,7 +223,7 @@ const ObrasPage = () => {
 
         const result = await response.json();
         
-        // Agregar al estado local
+        // Agregar al estado local con animación
         setNotas([...notas, { id: result.id, ...notaForm }]);
         
         setDeleteMessage("✅ Nota creada exitosamente");
@@ -224,6 +237,8 @@ const ObrasPage = () => {
       console.error("Error al guardar nota:", error);
       setDeleteMessage(`❌ Error: ${error.message}`);
       setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setSavingNota(false);
     }
   };
 
@@ -238,29 +253,44 @@ const ObrasPage = () => {
     setShowNotaDialog(true);
   };
 
+  // Mostrar confirmación de eliminación
+  const confirmDeleteNota = (nota) => {
+    setNotaToDelete(nota);
+    setShowDeleteNotaDialog(true);
+  };
+
   // Eliminar nota
-  const deleteNota = async (notaId) => {
-    if (!user) return;
+  const deleteNota = async () => {
+    if (!user || !notaToDelete) return;
     
     try {
+      setDeletingNota(notaToDelete.id);
+      
       const response = await fetch("/api/notas-obras", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          notaId,
+          notaId: notaToDelete.id,
           userId: user.uid,
         }),
       });
 
       if (!response.ok) throw new Error("Error al eliminar nota");
 
-      setNotas(notas.filter((n) => n.id !== notaId));
-      setDeleteMessage("✅ Nota eliminada");
+      // Actualizar estado local con animación
+      setNotas(notas.filter((n) => n.id !== notaToDelete.id));
+      
+      setDeleteMessage("✅ Nota eliminada exitosamente");
       setTimeout(() => setDeleteMessage(""), 3000);
+      
+      setShowDeleteNotaDialog(false);
+      setNotaToDelete(null);
     } catch (error) {
       console.error("Error al eliminar nota:", error);
       setDeleteMessage("❌ Error al eliminar la nota");
       setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setDeletingNota(null);
     }
   };
 
@@ -861,25 +891,37 @@ const ObrasPage = () => {
 
   return (
     <div className="flex flex-col gap-8 py-8 mx-auto font-sans">
-      {/* Mensaje de estado del borrado */}
+      {/* Mensaje de estado - Mejorado con animación */}
       {deleteMessage && (
         <div
-          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
+          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm md:text-base font-medium shadow-lg border transition-all duration-500 animate-in slide-in-from-top-2 fade-in ${
             deleteMessage.startsWith("✅")
               ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100"
+              : deleteMessage.startsWith("⚠️")
+              ? "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200 text-yellow-800 shadow-yellow-100"
               : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
           }`}
         >
           {deleteMessage.startsWith("✅") ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
+          ) : deleteMessage.startsWith("⚠️") ? (
+            <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
+              <AlertTriangle className="w-6 h-6 text-yellow-600" />
+            </div>
           ) : (
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
           )}
-          <span className="font-semibold">{deleteMessage}</span>
+          <span className="font-semibold flex-1">{deleteMessage}</span>
+          <button
+            onClick={() => setDeleteMessage("")}
+            className="w-6 h-6 rounded-full hover:bg-white/50 flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -1022,48 +1064,67 @@ const ObrasPage = () => {
 
                   {/* Notas del día */}
                   <div className="space-y-1.5">
-                    {dayNotas.map((nota) => (
-                      <div
-                        key={nota.id}
-                        className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1.5 text-xs relative group hover:shadow-sm transition-all"
-                      >
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800 truncate text-[11px]">
-                              {nota.nombreObra}
-                </div>
-                            {nota.productos && (
-                              <div className="text-gray-600 mt-0.5 text-[9px] line-clamp-1">
-                                {nota.productos}
-              </div>
-            )}
-          </div>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditDialog(nota);
-                              }}
-                              className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-colors cursor-pointer"
-                              title="Editar nota"
-                            >
-                              <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteNota(nota.id);
-                              }}
-                              className="w-5 h-5 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-colors cursor-pointer"
-                              title="Eliminar nota"
-                            >
-                              <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
-                            </button>
-              </div>
-            </div>
+                    {loadingNotas ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                       </div>
-                    ))}
-            </div>
+                    ) : dayNotas.length === 0 ? (
+                      <div className="text-center py-2 text-[10px] text-gray-400">
+                        Sin notas
+                      </div>
+                    ) : (
+                      dayNotas.map((nota) => (
+                        <div
+                          key={nota.id}
+                          className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1.5 text-xs relative group hover:shadow-sm transition-all ${
+                            deletingNota === nota.id ? 'opacity-50 pointer-events-none' : ''
+                          }`}
+                        >
+                          {deletingNota === nota.id && (
+                            <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded">
+                              <Loader2 className="w-4 h-4 animate-spin text-red-600" />
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-gray-800 truncate text-[11px]">
+                                {nota.nombreObra}
+                              </div>
+                              {nota.productos && (
+                                <div className="text-gray-600 mt-0.5 text-[9px] line-clamp-1">
+                                  {nota.productos}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDialog(nota);
+                                }}
+                                className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all duration-200 hover:scale-110 cursor-pointer"
+                                title="Editar nota"
+                                disabled={deletingNota === nota.id}
+                              >
+                                <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  confirmDeleteNota(nota);
+                                }}
+                                className="w-5 h-5 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all duration-200 hover:scale-110 cursor-pointer"
+                                title="Eliminar nota"
+                                disabled={deletingNota === nota.id}
+                              >
+                                <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
             </div>
               );
             })}
@@ -1308,20 +1369,101 @@ const ObrasPage = () => {
                 setNotaForm({ nombreObra: "", productos: "", fecha: "" });
               }}
               className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              disabled={savingNota}
             >
               <X className="w-4 h-4 mr-2" />
               Cancelar
             </Button>
             <Button
               onClick={saveNota}
+              disabled={savingNota}
               className={`w-full sm:w-auto px-6 py-3 rounded-xl ${
                 editingNotaId
                   ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-              } shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105`}
+              } shadow-lg hover:shadow-xl transition-all duration-200 font-medium transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
             >
-              <Icon icon="heroicons:check" className="w-4 h-4 mr-2" />
-              {editingNotaId ? "Actualizar Nota" : "Guardar Nota"}
+              {savingNota ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {editingNotaId ? "Actualizando..." : "Guardando..."}
+                </>
+              ) : (
+                <>
+                  <Icon icon="heroicons:check" className="w-4 h-4 mr-2" />
+                  {editingNotaId ? "Actualizar Nota" : "Guardar Nota"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación para eliminar nota */}
+      <Dialog open={showDeleteNotaDialog} onOpenChange={setShowDeleteNotaDialog}>
+        <DialogContent className="w-[95vw] max-w-sm rounded-2xl border-0 shadow-2xl bg-white">
+          <DialogHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-gray-900">
+              ¿Eliminar esta nota?
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              Esta acción no se puede deshacer
+            </DialogDescription>
+          </DialogHeader>
+
+          {notaToDelete && (
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-3 mb-4 border border-yellow-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <Icon icon="heroicons:document-text" className="w-4 h-4 text-yellow-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800 text-sm truncate">
+                    {notaToDelete.nombreObra}
+                  </div>
+                  {notaToDelete.productos && (
+                    <div className="text-xs text-gray-600 truncate">
+                      {notaToDelete.productos}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteNotaDialog(false);
+                setNotaToDelete(null);
+              }}
+              className="w-full sm:w-auto px-4 py-2 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+              disabled={deletingNota}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteNota}
+              disabled={deletingNota}
+              className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-lg hover:shadow-xl transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deletingNota ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
