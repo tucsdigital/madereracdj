@@ -76,9 +76,6 @@ function DetalleEnvio({ envio, onClose }) {
                 <Badge variant="outline" className={estadosEnvio[envio.estado]?.color}>
                   {estadosEnvio[envio.estado]?.label}
                 </Badge>
-                <Badge variant="outline" className={envio.prioridad === 'alta' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}>
-                  Prioridad {envio.prioridad}
-                </Badge>
               </div>
               
               <div className="text-sm text-gray-600">
@@ -221,7 +218,6 @@ const EnviosPage = () => {
   const [enviosData, setEnviosData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState("");
-  const [filtroPrioridad, setFiltroPrioridad] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
@@ -321,27 +317,6 @@ const EnviosPage = () => {
       },
     },
     {
-      accessorKey: "prioridad",
-      header: "Prioridad",
-      cell: ({ row }) => {
-        const prioridad = row.getValue("prioridad");
-        const prioridades = {
-          alta: { label: "Alta", color: "bg-red-100 text-red-800 border-red-200" },
-          media: { label: "Media", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-          baja: { label: "Baja", color: "bg-green-100 text-green-800 border-green-200" },
-        };
-        const prioridadInfo = prioridades[prioridad] || { 
-          label: prioridad, 
-          color: "bg-gray-100 text-gray-800 border-gray-200" 
-        };
-        return (
-          <Badge variant="outline" className={prioridadInfo.color}>
-            {prioridadInfo.label}
-          </Badge>
-        );
-      },
-    },
-    {
       accessorKey: "tipoEnvio",
       header: "Tipo Envío",
       cell: ({ row }) => {
@@ -435,14 +410,13 @@ const EnviosPage = () => {
   // Filtrar envíos
   const enviosFiltrados = enviosData.filter(envio => {
     const cumpleEstado = !filtroEstado || envio.estado === filtroEstado;
-    const cumplePrioridad = !filtroPrioridad || envio.prioridad === filtroPrioridad;
     const cumpleBusqueda = !busqueda || 
       envio.numeroPedido?.toLowerCase().includes(busqueda.toLowerCase()) ||
       envio.cliente?.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
       envio.vendedor?.toLowerCase().includes(busqueda.toLowerCase()) ||
       envio.transportista?.toLowerCase().includes(busqueda.toLowerCase());
     
-    return cumpleEstado && cumplePrioridad && cumpleBusqueda;
+    return cumpleEstado && cumpleBusqueda;
   });
 
   const handleActualizarEnvio = () => {
@@ -549,27 +523,11 @@ const EnviosPage = () => {
               </Select>
             </div>
             
-            <div>
-              <label className="text-sm font-medium">Prioridad</label>
-              <Select value={filtroPrioridad} onValueChange={setFiltroPrioridad}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todas las prioridades" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Todas las prioridades</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="media">Media</SelectItem>
-                  <SelectItem value="baja">Baja</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div className="flex items-end">
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setFiltroEstado("");
-                  setFiltroPrioridad("");
                   setBusqueda("");
                 }}
                 className="w-full"

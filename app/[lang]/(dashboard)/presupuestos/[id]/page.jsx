@@ -3131,7 +3131,6 @@ const PresupuestoDetalle = () => {
 
                     // Campos adicionales
                     vendedor: user?.email || "Usuario no identificado",
-                    prioridad: ventaCampos.prioridad,
                   };
 
                   // Limpiar datos antes de guardar (igual que en ventas/page.jsx)
@@ -3200,7 +3199,6 @@ const PresupuestoDetalle = () => {
                       fechaCreacion: new Date().toISOString(),
                       fechaEntrega: cleanVentaData.fechaEntrega,
                       estado: "pendiente",
-                      prioridad: cleanVentaData.prioridad || "media",
                       vendedor: user?.email || "Usuario no identificado",
                       direccionEnvio: cleanVentaData.direccionEnvio,
                       localidadEnvio: cleanVentaData.localidadEnvio,
@@ -3473,11 +3471,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       then: (s) => s.required("El rango horario es obligatorio"),
       otherwise: (s) => s.notRequired(),
     }),
-    prioridad: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("Selecciona la prioridad"),
-      otherwise: (s) => s.notRequired(),
-    }),
     direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
       is: (tipoEnvio, usarDireccionCliente) =>
         tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
@@ -3504,7 +3497,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       costoEnvio: "",
       fechaEntrega: "",
       rangoHorario: "",
-      prioridad: "",
       direccionEnvio: "",
       localidadEnvio: "",
       usarDireccionCliente: true,
@@ -3537,7 +3529,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
-  const prioridades = ["alta", "media", "baja"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
 
@@ -3555,7 +3546,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       setValue("fechaEntrega", "");
       setValue("rangoHorario", "");
       setValue("transportista", "");
-      setValue("prioridad", "");
     }
   }, [watch("tipoEnvio"), setValue]);
 
@@ -3730,29 +3720,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Prioridad *
-                  </label>
-                  <select
-                    {...register("prioridad")}
-                    className={`w-full border rounded-md px-3 py-2 ${
-                      errors.prioridad ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Seleccionar prioridad...</option>
-                    {prioridades.map((p) => (
-                      <option key={p}>
-                        {p.charAt(0).toUpperCase() + p.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.prioridad && (
-                    <span className="text-red-500 text-xs">
-                      {errors.prioridad.message}
-                    </span>
-                  )}
-                </div>
               </>
             )}
         </div>

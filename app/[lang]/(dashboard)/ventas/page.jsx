@@ -132,11 +132,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             .required("Obligatorio"),
         otherwise: (s) => s.notRequired().nullable(true),
       }),
-    prioridad: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("Selecciona la prioridad"),
-      otherwise: (s) => s.notRequired(),
-    }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     usarDireccionCliente: yup.boolean().default(true),
     fechaEntrega: yup.string().when("tipoEnvio", {
@@ -1252,7 +1247,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [esConFactura, setEsConFactura] = useState(false);
   const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
-  const prioridades = ["alta", "media", "baja"];
 
   function calcularPrecioCorteMadera({
     alto,
@@ -1319,7 +1313,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [fechaEntrega, setFechaEntrega] = useState("");
   const [rangoHorario, setRangoHorario] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [prioridad, setPrioridad] = useState("");
 
   React.useEffect(() => {
     if (!watch("pagoParcial") || watch("pagoPendiente")) {
@@ -2693,7 +2686,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {tipo === "venta" && (
                 <>
-                  <div className="space-y-2 rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
                     <div className="text-base font-semibold pb-1">
                       Información de envío
                     </div>
@@ -2716,25 +2709,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     {errors.tipoEnvio && (
                       <span className="text-red-500 dark:text-red-400 text-xs">
                         {errors.tipoEnvio.message}
-                      </span>
-                    )}
-                    {tipoEnvioSeleccionado === "envio_domicilio" && (
-                      <select
-                        {...register("prioridad")}
-                        className="border rounded px-2 py-2 w-full"
-                        disabled={isSubmitting}
-                      >
-                        <option value="">Prioridad...</option>
-                        {prioridades.map((p) => (
-                          <option key={p}>
-                            {p.charAt(0).toUpperCase() + p.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {errors.prioridad && (
-                      <span className="text-red-500 dark:text-red-400 text-xs">
-                        {errors.prioridad.message}
                       </span>
                     )}
                     {tipoEnvioSeleccionado !== "retiro_local" && (

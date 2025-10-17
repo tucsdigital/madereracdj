@@ -936,7 +936,10 @@ const VentaDetalle = () => {
         ? Number(ventaEdit.costoEnvio)
         : 0;
 
-    const total = totalSinEnvio + costoEnvioCalculado;
+    // Calcular descuento de efectivo si aplica (10% sobre el subtotal)
+    const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+
+    const total = totalSinEnvio + costoEnvioCalculado - descuentoEfectivo;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
       (acc, p) => acc + Number(p.monto),
       0
@@ -1133,7 +1136,6 @@ const VentaDetalle = () => {
           : new Date().toISOString(),
         fechaEntrega: ventaEdit.fechaEntrega,
         estado: envioExistente ? envioExistente.data().estado : "pendiente",
-        prioridad: ventaEdit.prioridad || "media",
         vendedor: ventaEdit.vendedor,
         direccionEnvio:
           ventaEdit.usarDireccionCliente !== false
@@ -1221,7 +1223,6 @@ const VentaDetalle = () => {
         localidadEnvio: "",
         transportista: "",
         rangoHorario: "",
-        prioridad: "",
       }),
     };
 
@@ -1706,10 +1707,6 @@ const VentaDetalle = () => {
                     {venta.rangoHorario || "-"}
                   </div>
                   <div className="no-print">
-                    <span className="font-medium">Prioridad:</span>{" "}
-                    {venta.prioridad || "-"}
-                  </div>
-                  <div className="no-print">
                     <span className="font-medium">Vendedor:</span>{" "}
                     {venta.vendedor || "-"}
                   </div>
@@ -2084,7 +2081,6 @@ const VentaDetalle = () => {
                           updated.localidadEnvio = "";
                           updated.transportista = "";
                           updated.rangoHorario = "";
-                          updated.prioridad = "";
                         }
 
                         // Si cambia de retiro local a envío, inicializar campos
@@ -2219,21 +2215,6 @@ const VentaDetalle = () => {
                       />
                     </>
                   )}
-                {/* Solo mostrar fecha de retiro si es retiro local */}
-                {ventaEdit.tipoEnvio === "retiro_local" && (
-                  <input
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    type="date"
-                    value={ventaEdit.fechaEntrega || ""}
-                    onChange={(e) =>
-                      setVentaEdit({
-                        ...ventaEdit,
-                        fechaEntrega: e.target.value,
-                      })
-                    }
-                    placeholder="Fecha de retiro"
-                  />
-                )}
               </div>
             </section>
 
@@ -2257,21 +2238,6 @@ const VentaDetalle = () => {
                   <p className="text-xs text-gray-500 mt-1">
                     El vendedor no se puede modificar una vez creada la venta
                   </p>
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium">Prioridad</span>
-                  <select
-                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                    value={ventaEdit.prioridad || ""}
-                    onChange={(e) =>
-                      setVentaEdit({ ...ventaEdit, prioridad: e.target.value })
-                    }
-                  >
-                    <option value="">Selecciona...</option>
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
-                  </select>
                 </label>
                 <label className="block col-span-2">
                   <span className="text-sm font-medium">Observaciones</span>

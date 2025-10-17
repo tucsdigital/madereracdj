@@ -73,7 +73,6 @@ export default function CreateVentaPage() {
           fechaCreacion: new Date().toISOString(),
           fechaEntrega: cleanVenta.fechaEntrega,
           estado: "pendiente",
-          prioridad: cleanVenta.prioridad || "media",
           vendedor: user?.email || "Usuario no identificado",
           direccionEnvio: cleanVenta.direccionEnvio,
           localidadEnvio: cleanVenta.localidadEnvio,

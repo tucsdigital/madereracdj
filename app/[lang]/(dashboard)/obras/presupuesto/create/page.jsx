@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Search, RefreshCw, Plus, X, Check, Edit3, Trash2 } from "lucide-react";
+import { Filter, Search, RefreshCw, Plus, X, Edit3, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
@@ -858,17 +858,6 @@ export default function CrearPresupuestoObraPage() {
                 <span className="text-sm text-gray-500">
                   ({itemsSeleccionados.length} producto{itemsSeleccionados.length !== 1 ? 's' : ''})
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => cerrarBloque(bloqueActivo)}
-                  className="flex items-center gap-2 text-green-600 hover:text-green-700"
-                >
-                  <Check className="w-4 h-4" />
-                  Cerrar Presupuesto
-                </Button>
               </div>
             </CardTitle>
           </CardHeader>

@@ -1368,7 +1368,7 @@ const ObrasPage = () => {
                 setEditingNotaId(null);
                 setNotaForm({ nombreObra: "", productos: "", fecha: "" });
               }}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium cursor-pointer"
               disabled={savingNota}
             >
               <X className="w-4 h-4 mr-2" />
@@ -1441,7 +1441,7 @@ const ObrasPage = () => {
                 setShowDeleteNotaDialog(false);
                 setNotaToDelete(null);
               }}
-              className="w-full sm:w-auto px-4 py-2 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+              className="w-full sm:w-auto px-4 py-2 rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 cursor-pointer"
               disabled={deletingNota}
             >
               <X className="w-4 h-4 mr-2" />
