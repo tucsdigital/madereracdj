@@ -16,11 +16,7 @@ export const useObra = (id) => {
   
   // Estados de edición de Datos Generales (solo para tipo "obra")
   const [nombreObra, setNombreObra] = useState("");
-  const [tipoObra, setTipoObra] = useState("");
-  const [prioridad, setPrioridad] = useState("");
   const [estadoObra, setEstadoObra] = useState("pendiente_inicio");
-  const [responsable, setResponsable] = useState("");
-  const [responsables] = useState(["Braian", "Damian", "Jonathan"]);
   const [fechasEdit, setFechasEdit] = useState({
     inicio: "",
     fin: "",
@@ -104,10 +100,7 @@ export const useObra = (id) => {
           
           // Inicializar estados de edición de datos generales (si es obra)
           if (data.tipo === "obra") {
-            setTipoObra(data.tipoObra || "");
-            setPrioridad(data.prioridad || "");
             setEstadoObra(data.estado || "pendiente_inicio");
-            setResponsable(data.responsable || "");
             
             const f = data.fechas || {};
             const today = new Date().toISOString().split("T")[0];
@@ -495,9 +488,6 @@ export const useObra = (id) => {
         presupuestoInicialId: obra.id,
         presupuestoInicialBloqueId: datosConversion.bloqueSeleccionado || null,
         presupuestoInicialBloqueNombre: bloqueSeleccionadoNombre,
-        prioridad: datosConversion.prioridad || "media",
-        tipoObra: datosConversion.tipoObra || "",
-        responsable: datosConversion.responsable || "",
         
         // Ubicación de la obra
         ubicacion: datosConversion.ubicacionTipo === "cliente" ? {
@@ -703,10 +693,7 @@ export const useObra = (id) => {
       updateData.descuentoTotal = descuentoCombinado;
       updateData.total = subtotalCombinado - descuentoCombinado;
       
-      if (tipoObra) updateData.tipoObra = tipoObra;
-      if (prioridad) updateData.prioridad = prioridad;
       if (estadoObra) updateData.estado = estadoObra;
-      if (responsable) updateData.responsable = responsable;
       if (fechasEdit.inicio || fechasEdit.fin) updateData.fechas = fechasEdit;
       if (
         ubicacionEdit.direccion ||
@@ -899,11 +886,7 @@ export const useObra = (id) => {
     editando,
     docLinks,
     movimientos,
-    tipoObra,
-    prioridad,
     estadoObra,
-    responsable,
-    responsables,
     fechasEdit,
     ubicacionEdit,
     clienteId,
@@ -938,10 +921,7 @@ export const useObra = (id) => {
     setEditando,
     setDocLinks,
     setMovimientos,
-    setTipoObra,
-    setPrioridad,
     setEstadoObra,
-    setResponsable,
     setFechasEdit,
     setUbicacionEdit,
     setClienteId,

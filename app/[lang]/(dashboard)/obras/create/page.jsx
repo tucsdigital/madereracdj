@@ -60,9 +60,7 @@ export default function CrearObraPage() {
   const params = useParams();
   const { lang } = params || {};
 
-  // Datos generales
-  const [tipoObra, setTipoObra] = useState("Obra Nueva");
-  const [prioridad, setPrioridad] = useState("Alta");
+  // Datos generales eliminados (tipoObra, prioridad, responsable)
 
   // Cliente (idéntico selector + modal a ventas/obras presupuesto)
   const [clientes, setClientes] = useState([]);
@@ -98,11 +96,6 @@ export default function CrearObraPage() {
   const [lote, setLote] = useState("");
   const [descripcionUbicacion, setDescripcionUbicacion] = useState("");
 
-  // Equipo
-  const [responsable, setResponsable] = useState("");
-  const [responsables, setResponsables] = useState(["Braian", "Damian", "Jonathan"]);
-  const [openNuevoResponsable, setOpenNuevoResponsable] = useState(false);
-  const [nuevoResponsable, setNuevoResponsable] = useState("");
 
   // Materiales - catálogo (como ventas, fuente: productos)
   const [productos, setProductos] = useState([]);
@@ -588,13 +581,10 @@ export default function CrearObraPage() {
       await addDoc(collection(db, "obras"), {
         tipo: "obra",
         numeroPedido,
-        tipoObra: tipoObra || "",
-        prioridad: prioridad || "",
         estado: "pendiente_inicio",
         clienteId,
         cliente: clienteObj,
         ubicacion: ubicacionObra,
-        responsable: responsable || "",
         materialesCatalogo: materialesSanitizados,
         presupuestoInicialId: presupuestoInicialId || null,
         montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
@@ -673,35 +663,6 @@ export default function CrearObraPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-gray-600">Tipo de Obra</label>
-              <Select value={tipoObra} onValueChange={setTipoObra}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Remodelación">Remodelación</SelectItem>
-                  <SelectItem value="Obra Nueva">Obra Nueva</SelectItem>
-                  <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                  <SelectItem value="Ampliación">Ampliación</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Prioridad</label>
-              <Select value={prioridad} onValueChange={setPrioridad}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Alta">Alta</SelectItem>
-                  <SelectItem value="Media">Media</SelectItem>
-                  <SelectItem value="Baja">Baja</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -783,23 +744,6 @@ export default function CrearObraPage() {
               </div>
             </div>
           )}
-
-          <div>
-            <label className="text-sm text-gray-600">Responsable</label>
-            <div className="flex items-center gap-2">
-              <Select value={responsable} onValueChange={setResponsable}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccione responsable" />
-                </SelectTrigger>
-                <SelectContent>
-                  {responsables.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" onClick={() => setOpenNuevoResponsable(true)}>+</Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
       </div>
@@ -1410,29 +1354,6 @@ export default function CrearObraPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: nuevo responsable */}
-      <Dialog open={openNuevoResponsable} onOpenChange={setOpenNuevoResponsable}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Agregar responsable</DialogTitle>
-            <DialogDescription>Ingrese el nombre del nuevo responsable para reutilizarlo en futuras obras.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Input value={nuevoResponsable} onChange={(e) => setNuevoResponsable(e.target.value)} placeholder="Nombre" />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpenNuevoResponsable(false)}>Cancelar</Button>
-            <Button onClick={() => {
-              const v = (nuevoResponsable || "").trim();
-              if (!v) return;
-              if (!responsables.includes(v)) setResponsables([...responsables, v]);
-              setResponsable(v);
-              setNuevoResponsable("");
-              setOpenNuevoResponsable(false);
-            }}>Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

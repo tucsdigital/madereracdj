@@ -69,9 +69,6 @@ const PresupuestoPage = () => {
   const [converting, setConverting] = useState(false);
   const [convertMessage, setConvertMessage] = useState("");
   const [datosConversion, setDatosConversion] = useState({
-    tipoObra: "",
-    prioridad: "",
-    responsable: "",
     direccion: "",
     localidad: "",
     provincia: "",
@@ -217,15 +214,6 @@ const PresupuestoPage = () => {
     try {
       setConverting(true);
       setConvertMessage("");
-
-      // Validar campos requeridos
-      if (
-        !datosConversion.tipoObra ||
-        !datosConversion.prioridad ||
-        !datosConversion.responsable
-      ) {
-        throw new Error("Por favor complete todos los campos requeridos");
-      }
 
       // Validar selección de bloque si hay bloques
       if (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado) {
@@ -559,88 +547,21 @@ const PresupuestoPage = () => {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                     <FileText className="w-5 h-5" />
-                    Datos Generales
+                    Cliente
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Cliente
-                      </label>
-                      <Input
-                        value={
-                          obra?.cliente?.nombre ||
-                          obra?.cliente?.razonSocial ||
-                          "Cliente no especificado"
-                        }
-                        disabled
-                        className="bg-gray-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tipo de Obra *
-                      </label>
-                      <Select
-                        value={datosConversion.tipoObra}
-                        onValueChange={(value) =>
-                          handleInputChange("tipoObra", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo de obra" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Remodelación">
-                            Remodelación
-                          </SelectItem>
-                          <SelectItem value="Obra Nueva">Obra Nueva</SelectItem>
-                          <SelectItem value="Mantenimiento">
-                            Mantenimiento
-                          </SelectItem>
-                          <SelectItem value="Ampliación">Ampliación</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Prioridad *
-                      </label>
-                      <Select
-                        value={datosConversion.prioridad}
-                        onValueChange={(value) =>
-                          handleInputChange("prioridad", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Alta">Alta</SelectItem>
-                          <SelectItem value="Media">Media</SelectItem>
-                          <SelectItem value="Baja">Baja</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Responsable *
-                      </label>
-                      <Select
-                        value={datosConversion.responsable}
-                        onValueChange={(value) =>
-                          handleInputChange("responsable", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar responsable" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Braian">Braian</SelectItem>
-                          <SelectItem value="Damian">Damian</SelectItem>
-                          <SelectItem value="Jonathan">Jonathan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cliente
+                    </label>
+                    <Input
+                      value={
+                        obra?.cliente?.nombre ||
+                        obra?.cliente?.razonSocial ||
+                        "Cliente no especificado"
+                      }
+                      disabled
+                      className="bg-gray-50"
+                    />
                   </div>
                 </div>
 
@@ -857,9 +778,6 @@ const PresupuestoPage = () => {
                     onClick={handleConvertToObra}
                     disabled={
                       converting ||
-                      !datosConversion.tipoObra ||
-                      !datosConversion.prioridad ||
-                      !datosConversion.responsable ||
                       (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado)
                     }
                     className="flex items-center gap-2"

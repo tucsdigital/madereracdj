@@ -48,8 +48,6 @@ const ObraDetallePage = () => {
   const router = useRouter();
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
-  const [openNuevoResponsable, setOpenNuevoResponsable] = useState(false);
-  const [nuevoResponsable, setNuevoResponsable] = useState("");
 
   // Variables de paginación para el catálogo
   const [paginaActual, setPaginaActual] = useState(1);
@@ -63,11 +61,7 @@ const ObraDetallePage = () => {
     editando,
     docLinks,
     movimientos,
-    tipoObra,
-    prioridad,
     estadoObra,
-    responsable,
-    responsables,
     fechasEdit,
     ubicacionEdit,
     clienteId,
@@ -98,10 +92,7 @@ const ObraDetallePage = () => {
     setEditando,
     setDocLinks,
     setMovimientos,
-    setTipoObra,
-    setPrioridad,
     setEstadoObra,
-    setResponsable,
     setFechasEdit,
     setUbicacionEdit,
     setClienteId,
@@ -136,13 +127,6 @@ const ObraDetallePage = () => {
     }
   };
 
-  const handleAgregarResponsable = () => {
-    if (nuevoResponsable.trim()) {
-      setResponsables((prev) => [...prev, nuevoResponsable.trim()]);
-      setNuevoResponsable("");
-      setOpenNuevoResponsable(false);
-    }
-  };
 
   const handleCantidadChange = (id, cantidad) => {
     const parsedCantidad = parseNumericValue(cantidad);
@@ -767,11 +751,7 @@ const ObraDetallePage = () => {
             formatearFecha={formatearFecha}
             editando={editando}
             // Estados editables
-            tipoObra={tipoObra}
-            prioridad={prioridad}
             estadoObra={estadoObra}
-            responsable={responsable}
-            responsables={responsables}
             fechasEdit={fechasEdit}
             ubicacionEdit={ubicacionEdit}
             clienteId={clienteId}
@@ -779,10 +759,7 @@ const ObraDetallePage = () => {
             clientes={clientes}
             usarDireccionCliente={usarDireccionCliente}
             // Setters
-            setTipoObra={setTipoObra}
-            setPrioridad={setPrioridad}
             setEstadoObra={setEstadoObra}
-            setResponsable={setResponsable}
             setFechasEdit={setFechasEdit}
             setUbicacionEdit={setUbicacionEdit}
             setClienteId={setClienteId}
@@ -847,37 +824,6 @@ const ObraDetallePage = () => {
           )}
         </div>
       </div>
-
-      {/* Modal: Nuevo Responsable */}
-      <Dialog
-        open={openNuevoResponsable}
-        onOpenChange={setOpenNuevoResponsable}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agregar Nuevo Responsable</DialogTitle>
-            <DialogDescription>
-              Ingrese el nombre del nuevo responsable para la obra.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={nuevoResponsable}
-              onChange={(e) => setNuevoResponsable(e.target.value)}
-              placeholder="Nombre del responsable"
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setOpenNuevoResponsable(false)}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleAgregarResponsable}>Agregar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal: Vista previa de impresión */}
       <Dialog open={openPrint} onOpenChange={setOpenPrint}>

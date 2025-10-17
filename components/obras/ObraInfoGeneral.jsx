@@ -13,11 +13,7 @@ const ObraInfoGeneral = ({
   formatearFecha, 
   editando = false,
   // Estados editables
-  tipoObra,
-  prioridad,
   estadoObra,
-  responsable,
-  responsables,
   fechasEdit,
   ubicacionEdit,
   clienteId,
@@ -25,10 +21,7 @@ const ObraInfoGeneral = ({
   clientes,
   usarDireccionCliente,
   // Setters
-  setTipoObra,
-  setPrioridad,
   setEstadoObra,
-  setResponsable,
   setFechasEdit,
   setUbicacionEdit,
   setClienteId,
@@ -47,15 +40,6 @@ const ObraInfoGeneral = ({
       Inactivo: "bg-gray-100 text-gray-800"
     };
     return estados[estado] || "bg-gray-100 text-gray-800";
-  };
-
-  const getPrioridadColor = (prioridad) => {
-    const prioridades = {
-      baja: "bg-gray-100 text-gray-800",
-      media: "bg-yellow-100 text-yellow-800",
-      alta: "bg-red-100 text-red-800"
-    };
-    return prioridades[prioridad] || "bg-gray-100 text-gray-800";
   };
 
   const handleClienteChange = (clienteId) => {
@@ -142,61 +126,6 @@ const ObraInfoGeneral = ({
                 </Badge>
               )}
             </div>
-            
-            {obra.tipo === "obra" && (
-              <>
-                <div>
-                  <p className="text-sm text-gray-500">Tipo de Obra</p>
-                  {editando ? (
-                    <Input
-                      value={tipoObra}
-                      onChange={(e) => setTipoObra(e.target.value)}
-                      placeholder="Tipo de obra"
-                    />
-                  ) : (
-                    <p className="font-medium">{tipoObra || "No especificado"}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <p className="text-sm text-gray-500">Prioridad</p>
-                  {editando ? (
-                    <Select value={prioridad} onValueChange={setPrioridad}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="baja">Baja</SelectItem>
-                        <SelectItem value="media">Media</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={getPrioridadColor(prioridad)}>
-                      {prioridad || "No especificada"}
-                    </Badge>
-                  )}
-                </div>
-                
-                <div>
-                  <p className="text-sm text-gray-500">Responsable</p>
-                  {editando ? (
-                    <Select value={responsable} onValueChange={setResponsable}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar responsable" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {responsables.map((resp) => (
-                          <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="font-medium">{responsable || "No asignado"}</p>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </div>
 
