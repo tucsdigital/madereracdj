@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -312,7 +312,7 @@ const ObrasPage = () => {
   };
 
   // Columnas para presupuestos
-  const presupuestosColumns = [
+  const presupuestosColumns = useMemo(() => [
     {
       accessorKey: "numeroPedido",
       header: "N° Presupuesto",
@@ -524,10 +524,10 @@ const ObrasPage = () => {
       },
       enableSorting: false,
     },
-  ];
+  ], [presupuestoExpandido]);
 
   // Columnas para obras
-  const obrasColumns = [
+  const obrasColumns = useMemo(() => [
     {
       accessorKey: "numeroPedido",
       header: "N° Obra",
@@ -757,7 +757,7 @@ const ObrasPage = () => {
       },
       enableSorting: false,
     },
-  ];
+  ], []);
 
   // Función para mostrar el diálogo de confirmación
   const showDeleteConfirmation = (id, type, itemName) => {
