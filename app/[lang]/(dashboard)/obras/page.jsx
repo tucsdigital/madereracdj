@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +66,103 @@ const estadosObra = {
   },
 };
 
+// Componente para la celda de total con desplegable (maneja su propio estado)
+const TotalCellWithDropdown = ({ bloques }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsExpanded(false);
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isExpanded]);
+
+  // Si solo hay un bloque, mostrar el total directamente
+  if (bloques.length === 1) {
+    const total = Number(bloques[0]?.total) || 0;
+    return (
+      <div>
+        <div className="font-medium">
+          $
+          {total.toLocaleString("es-AR", {
+            minimumFractionDigits: 2,
+          })}
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5">1 bloque</div>
+      </div>
+    );
+  }
+
+  // Si hay múltiples bloques, mostrar desplegable
+  if (bloques.length > 1) {
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:bg-purple-50 rounded p-1 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+        >
+          <div className="flex-1">
+            <div className="font-medium text-purple-700">
+              1: $
+              {(Number(bloques[0]?.total) || 0).toLocaleString("es-AR", {
+                minimumFractionDigits: 2,
+              })}
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              {bloques.length} bloques
+            </div>
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 text-purple-600" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-purple-600" />
+          )}
+        </div>
+
+        {isExpanded && (
+          <div
+            className="absolute top-full left-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg z-50 min-w-[200px] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1">
+              {bloques.map((bloque, index) => (
+                <div
+                  key={bloque.id || index}
+                  className="flex items-center justify-between p-2 hover:bg-purple-50 rounded transition-colors cursor-default"
+                >
+                  <div className="flex-1">
+                    <div className="text-xs font-semibold text-gray-700">
+                      {bloque.nombre || `Bloque ${index + 1}`}
+                    </div>
+                    <div className="text-xs text-purple-700 font-medium mt-0.5">
+                      ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback si no hay bloques
+  return <div className="font-medium text-gray-400">$0.00</div>;
+};
+
 const ObrasPage = () => {
   const [obrasData, setObrasData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -74,9 +171,6 @@ const ObrasPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
-  
-  // Estado para controlar qué presupuesto tiene los bloques expandidos
-  const [presupuestoExpandido, setPresupuestoExpandido] = useState(null);
   
   // Estados para el calendario semanal
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -107,18 +201,6 @@ const ObrasPage = () => {
   const params = useParams();
   const { lang } = params || {};
   const { user } = useAuth();
-
-  // Cerrar el desplegable al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (presupuestoExpandido) {
-        setPresupuestoExpandido(null);
-      }
-    };
-    
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, [presupuestoExpandido]);
 
   // Funciones para el calendario semanal
   const getWeekDays = useCallback(() => {
@@ -410,90 +492,7 @@ const ObrasPage = () => {
       header: "Total",
       cell: ({ row }) => {
         const bloques = row.original.bloques || [];
-        const presupuestoId = row.original.id;
-        const isExpanded = presupuestoExpandido === presupuestoId;
-        
-        // Si solo hay un bloque, mostrar el total directamente
-        if (bloques.length === 1) {
-          const total = Number(bloques[0]?.total) || 0;
-          return (
-            <div>
-              <div className="font-medium">
-                $
-                {total.toLocaleString("es-AR", {
-                  minimumFractionDigits: 2,
-                })}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">1 bloque</div>
-            </div>
-          );
-        }
-        
-        // Si hay múltiples bloques, mostrar desplegable
-        if (bloques.length > 1) {
-          return (
-            <div className="relative">
-              <div
-                className="flex items-center gap-2 cursor-pointer hover:bg-purple-50 rounded p-1 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPresupuestoExpandido(isExpanded ? null : presupuestoId);
-                }}
-              >
-                <div className="flex-1">
-                  <div className="font-medium text-purple-700">
-                    1: $
-                    {(Number(bloques[0]?.total) || 0).toLocaleString("es-AR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {bloques.length} bloques
-                  </div>
-                </div>
-                {isExpanded ? (
-                  <ChevronUp className="w-4 h-4 text-purple-600" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-purple-600" />
-                )}
-              </div>
-              
-              {isExpanded && (
-                <div 
-                  className="absolute top-full left-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg z-50 min-w-[200px] p-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="space-y-1">
-                    {bloques.map((bloque, index) => (
-                      <div
-                        key={bloque.id || index}
-                        className="flex items-center justify-between p-2 hover:bg-purple-50 rounded transition-colors cursor-default"
-                      >
-                        <div className="flex-1">
-                          <div className="text-xs font-semibold text-gray-700">
-                            {bloque.nombre || `Bloque ${index + 1}`}
-                          </div>
-                          <div className="text-xs text-purple-700 font-medium mt-0.5">
-                            ${(Number(bloque.total) || 0).toLocaleString("es-AR", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        }
-        
-        // Fallback si no hay bloques
-        return (
-          <div className="font-medium text-gray-400">
-            $0.00
-          </div>
-        );
+        return <TotalCellWithDropdown bloques={bloques} />;
       },
     },
     {
@@ -524,7 +523,7 @@ const ObrasPage = () => {
       },
       enableSorting: false,
     },
-  ], [presupuestoExpandido]);
+  ], []);
 
   // Columnas para obras
   const obrasColumns = useMemo(() => [
