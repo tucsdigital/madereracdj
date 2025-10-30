@@ -1,0 +1,863 @@
+codigo,nombre,descripcion,categoria,subCategoria,costo,unidadMedida,proveedor,stockMinimo,valorCompra,valorVenta,stock,estado
+MECHA AC RAP 5 MM, Mecha AC. RPDO 5.00mm,"Mecha para Madera/Acero de 5.00mm
+
+La herramienta precisa para proyectos impecables.
+
+Esta mecha de acero rápido (HSS) de 5.00mm es tu aliada perfecta para perforaciones en madera. Su diseño afilado garantiza un corte limpio y sin astillas, ideal para trabajos de precisión en proyectos de carpintería, como la instalación de herrajes o la preparación de uniones.
+
+Características destacadas:
+
+Material: Acero Rápido (HSS), que asegura mayor durabilidad y resistencia al desgaste.
+
+Precisión: Su punta centrada evita que la broca se desvíe, logrando agujeros exactamente donde los necesitas.
+
+Versatilidad: Compatible con la mayoría de los taladros y atornilladores del mercado.
+
+Con esta mecha, cada perforación será un paso más hacia un acabado profesional. ¡Un básico indispensable en la caja de herramientas de todo carpintero!",Ferretería,MECHAS,1,Unidad,CARLOS DIS,1,1800,3300,6,Activo
+3015,3015,nada,Ferretería,Herrajes,868,Unidad,Global,1,1,2100,,Activo
+3020,3020,nada,Ferretería,Herrajes,1172,Unidad,Global,1,1,2800,,Activo
+3025,3025,nada,Ferretería,Herrajes,1522,Unidad,Global,1,1,3700,,Activo
+3028,3028,nada,Ferretería,Herrajes,0.99,Unidad,CARLOS DIS,1,811,1300,,Activo
+3030,3030,nada,Ferretería,Herrajes,2014,Unidad,Global,1,1,4900,,Activo
+3082,3082,nada,Ferretería,Herrajes,517,Unidad,Global,1,1,1300,20,Activo
+3083,3083,nada,Ferretería,Herrajes,517,Unidad,Global,1,1,1300,7,Activo
+3097,3097,nada,Ferretería,Herrajes,450,Unidad,Global,1,1,1100,,Activo
+3098,3098,nada,Ferretería,Herrajes,450,Unidad,Global,1,1,1100,,Activo
+3105,3105,nada,Ferretería,Herrajes,431,Unidad,Global,1,1,1000,20,Activo
+3106,3106,nada,Ferretería,Herrajes,929,Unidad,Global,1,1,2200,16,Activo
+3109,3109,nada,Ferretería,Herrajes,301,Unidad,Global,1,1,700,15,Activo
+3114,3114,nada,Ferretería,Herrajes,1418,Unidad,Global,1,1,3400,,Activo
+3117,3117,nada,Ferretería,Herrajes,1810,Unidad,Global,1,1,4400,,Activo
+3118,3118,nada,Ferretería,Herrajes,2018,Unidad,Global,1,1,4900,,Activo
+3123,3123,nada,Ferretería,Herrajes,570,Unidad,Global,1,1,1400,,Activo
+3124,3124,nada,Ferretería,Herrajes,1301,Unidad,Global,1,1,3100,21,Activo
+3125,3125,nada,Ferretería,Herrajes,2172,Unidad,Global,1,1,4900,29,Activo
+3125a,3125a,nada,Ferretería,Herrajes,2172,Unidad,Global,1,1,4900,,Activo
+3127,3127,nada,Ferretería,Herrajes,1577,Unidad,Global,1,1,3800,20,Activo
+3128,3128,nada,Ferretería,Herrajes,1782,Unidad,Global,1,1,4300,78,Activo
+3129,3129,nada,Ferretería,Herrajes,2432,Unidad,Global,1,1,5900,,Activo
+3131,3131,nada,Ferretería,Herrajes,228,Unidad,Global,1,1,600,8,Activo
+3132,3132,nada,Ferretería,Herrajes,282,Unidad,Global,1,1,700,10,Activo
+3133,3133,nada,Ferretería,Herrajes,364,Unidad,Global,1,1,900,7,Activo
+3134,3134,nada,Ferretería,Herrajes,421,Unidad,Global,1,1,1100,,Activo
+3135,3135,nada,Ferretería,Herrajes,511,Unidad,Global,1,1,1200,-10,Activo
+3136,3136,nada,Ferretería,Herrajes,641,Unidad,Global,1,1,1600,10,Activo
+3137,3137,nada,Ferretería,Herrajes,736,Unidad,Global,1,1,1800,,Activo
+3138,3138,nada,Ferretería,Herrajes,517,Unidad,Global,1,1,1300,,Activo
+3139,3139,nada,Ferretería,Herrajes,947,Unidad,Global,1,1,2300,,Activo
+3144,3144,nada,Ferretería,Herrajes,1301,Unidad,Global,1,1,3100,,Activo
+3147,3147,nada,Ferretería,Herrajes,1577,Unidad,Global,1,1,3800,,Activo
+3148,3148,nada,Ferretería,Herrajes,1782,Unidad,Global,1,1,4300,,Activo
+3154,3154,nada,Ferretería,Herrajes,1493,Unidad,Global,1,1,3600,,Activo
+3157,3157,nada,Ferretería,Herrajes,1878,Unidad,Global,1,1,4500,,Activo
+3158,3158,nada,Ferretería,Herrajes,2090,Unidad,Global,1,1,5100,,Activo
+3167,3167,nada,Ferretería,Herrajes,1251,Unidad,Global,1,1,3000,-4,Activo
+3171,3171,nada,Ferretería,Herrajes,450,Unidad,Global,1,1,1100,,Activo
+3175,3175,nada,Ferretería,Herrajes,947,Unidad,Global,1,1,2300,3,Activo
+3176,3176,nada,Ferretería,Herrajes,947,Unidad,Global,1,1,2300,,Activo
+3186,3186,nada,Ferretería,Herrajes,2739,Unidad,Global,1,1,6600,,Activo
+3187,3187,nada,Ferretería,Herrajes,8656,Unidad,Global,1,1,2100,,Activo
+3188,3188,nada,Ferretería,Herrajes,4039,Unidad,Global,1,1,9800,,Activo
+3189,3189,nada,Ferretería,Herrajes,10469,Unidad,Global,1,1,25300,,Activo
+3190,3190,nada,Ferretería,Herrajes,5308,Unidad,Global,1,1,12800,,Activo
+3191,3191,nada,Ferretería,Herrajes,12621,Unidad,Global,1,1,30500,,Activo
+3304,3304,nada,Ferretería,Herrajes,1863,Unidad,Global,1,1,4500,,Activo
+3305,3305,nada,Ferretería,Herrajes,2985,Unidad,Global,1,1,7200,,Activo
+3311,3311,nada,Ferretería,Herrajes,1017,Unidad,Global,1,1,2500,,Activo
+3312,3312,nada,Ferretería,Herrajes,1566,Unidad,Global,1,1,3800,,Activo
+3313,3313,nada,Ferretería,Herrajes,1805,Unidad,Global,1,1,4400,,Activo
+3315,3315,nada,Ferretería,Herrajes,772,Unidad,Global,1,1,1900,,Activo
+3316,3316,nada,Ferretería,Herrajes,4407,Unidad,Global,1,1,10700,,Activo
+3382,3382,nada,Ferretería,Herrajes,1726,Unidad,Global,1,1,4200,,Activo
+4015,4015,nada,Ferretería,Herrajes,495,Unidad,Global,1,1,1200,,Activo
+4020,4020,nada,Ferretería,Herrajes,697,Unidad,Global,1,1,1700,,Activo
+4025,4025,nada,Ferretería,Herrajes,845,Unidad,Global,1,1,2000,,Activo
+4030,4030,nada,Ferretería,Herrajes,1042,Unidad,Global,1,1,2500,,Activo
+4517,4517,nada,Ferretería,Herrajes,1429,Unidad,Global,1,1,3500,,Activo
+4518,4518,nada,Ferretería,Herrajes,1956,Unidad,Global,1,1,4700,,Activo
+4519,4519,nada,Ferretería,Herrajes,2242,Unidad,Global,1,1,5400,,Activo
+5040,5040,nada,Ferretería,Herrajes,3771,Unidad,Global,1,1,9100,,Activo
+5050,5050,nada,Ferretería,Herrajes,4138,Unidad,Global,1,1,10000,,Activo
+5060,5060,nada,Ferretería,Herrajes,4679,Unidad,Global,1,1,11300,,Activo
+2002,AMODALORA ANG 380W SKILL,"Herramienta eléctrica potente y de alta velocidad que utiliza discos circulares abrasivos (de corte, desbaste o pulido) para trabajar sobre metal, piedra o cerámica . Es compacto y fácil de manejar.",Ferretería,Maquinas electricas,75057,Unidad,San nicolas,1,1,181600,1,Activo
+4035,ARANDELAS ZINCADA 1/2,"Producto: Arandelas planas zincadas de 1/2 pulgada.
+ Uso: Se coloca entre la tuerca (o cabeza del tornillo/bulón) y la superficie del material. Ideales para distribuir la carga de apriete, protegiendo la superficie y previniendo el aflojamiento.
+ Beneficios: El zincado ofrece resistencia a la corrosión , prolongando la vida útil de la unión en exteriores o ambientes húmedos. Aseguran un mejor asiento y estabilidad en las fijaciones.",Ferretería,Herrajes,40,Unidad,Victoria,1,1,100,583,Activo
+6019,Asfaltica X 1 L,"Pintura Asfáltica Qui-mera (1 Litro)
+
+La protección definitiva contra la humedad para tus proyectos.
+
+Cuando se trata de sellar y proteger superficies, nuestra Pintura Asfáltica Qui-mera de 1 litro es la solución profesional que necesitas. Este impermeabilizante de alta calidad crea una barrera impenetrable que previene filtraciones y protege tus estructuras de los daños causados por la humedad, el agua y las inclemencias del tiempo.
+
+Ideal para la protección de cimientos, muros subterráneos, techos de chapa o madera, y cualquier superficie que requiera una defensa robusta y duradera. Su fórmula de secado rápido facilita la aplicación, permitiendo que tu proyecto avance sin demoras.
+
+Características destacadas:
+
+Función: Impermeabilizante y sellador de alta performance.
+
+Resistencia: Ofrece una excelente protección contra la humedad, el agua y la corrosión.
+
+Versatilidad: Apta para una amplia variedad de materiales como madera, metal, hormigón y mampostería.
+
+Con esta pintura, no solo estás sellando una superficie, sino que estás invirtiendo en la vida útil y la seguridad de tus construcciones. ¡Un aliado indispensable para proyectos que exigen la máxima protección!",Ferretería,Pintura,4265,Unidad,QUI-MERA,1,1,10300,,Activo
+6021,Asfaltica X 10 L,"Pintura Asfáltica Qui-mera (10 Litro)
+
+La protección definitiva contra la humedad para tus proyectos.
+
+Cuando se trata de sellar y proteger superficies, nuestra Pintura Asfáltica Qui-mera de 10 litros es la solución profesional que necesitas. Este impermeabilizante de alta calidad crea una barrera impenetrable que previene filtraciones y protege tus estructuras de los daños causados por la humedad, el agua y las inclemencias del tiempo.
+
+Ideal para la protección de cimientos, muros subterráneos, techos de chapa o madera, y cualquier superficie que requiera una defensa robusta y duradera. Su fórmula de secado rápido facilita la aplicación, permitiendo que tu proyecto avance sin demoras.
+
+Características destacadas:
+
+Función: Impermeabilizante y sellador de alta performance.
+
+Resistencia: Ofrece una excelente protección contra la humedad, el agua y la corrosión.
+
+Versatilidad: Apta para una amplia variedad de materiales como madera, metal, hormigón y mampostería.
+
+Con esta pintura, no solo estás sellando una superficie, sino que estás invirtiendo en la vida útil y la seguridad de tus construcciones. ¡Un aliado indispensable para proyectos que exigen la máxima protección!
+
+",Ferretería,Pintura,30576,Unidad,QUI-MERA,1,1,74000,5,Activo
+6022,Asfaltica X 18 L,"Pintura Asfáltica Qui-mera (18 Litro)
+
+La protección definitiva contra la humedad para tus proyectos.
+
+Cuando se trata de sellar y proteger superficies, nuestra Pintura Asfáltica Qui-mera de 18 litros es la solución profesional que necesitas. Este impermeabilizante de alta calidad crea una barrera impenetrable que previene filtraciones y protege tus estructuras de los daños causados por la humedad, el agua y las inclemencias del tiempo.
+
+Ideal para la protección de cimientos, muros subterráneos, techos de chapa o madera, y cualquier superficie que requiera una defensa robusta y duradera. Su fórmula de secado rápido facilita la aplicación, permitiendo que tu proyecto avance sin demoras.
+
+Características destacadas:
+
+Función: Impermeabilizante y sellador de alta performance.
+
+Resistencia: Ofrece una excelente protección contra la humedad, el agua y la corrosión.
+
+Versatilidad: Apta para una amplia variedad de materiales como madera, metal, hormigón y mampostería.
+
+Con esta pintura, no solo estás sellando una superficie, sino que estás invirtiendo en la vida útil y la seguridad de tus construcciones. ¡Un aliado indispensable para proyectos que exigen la máxima protección!",Ferretería,Pintura,49862,Unidad,QUI-MERA,1,1,120700,4,Activo
+6020,Asfaltica X 4 L,"Pintura Asfáltica Qui-mera (1 Litro)
+
+La protección definitiva contra la humedad para tus proyectos.
+
+Cuando se trata de sellar y proteger superficies, nuestra Pintura Asfáltica Qui-mera de 1 litro es la solución profesional que necesitas. Este impermeabilizante de alta calidad crea una barrera impenetrable que previene filtraciones y protege tus estructuras de los daños causados por la humedad, el agua y las inclemencias del tiempo.
+
+Ideal para la protección de cimientos, muros subterráneos, techos de chapa o madera, y cualquier superficie que requiera una defensa robusta y duradera. Su fórmula de secado rápido facilita la aplicación, permitiendo que tu proyecto avance sin demoras.
+
+Características destacadas:
+
+Función: Impermeabilizante y sellador de alta performance.
+
+Resistencia: Ofrece una excelente protección contra la humedad, el agua y la corrosión.
+
+Versatilidad: Apta para una amplia variedad de materiales como madera, metal, hormigón y mampostería.
+
+Con esta pintura, no solo estás sellando una superficie, sino que estás invirtiendo en la vida útil y la seguridad de tus construcciones. ¡Un aliado indispensable para proyectos que exigen la máxima protección!",Ferretería,Pintura,13357,Unidad,QUI-MERA,1,1,32300,3,Activo
+h11,BASE 5X5 CON TAPA,"Descripción del producto: Bisagra metálica de diseño robusto, ideal para portones y tranqueras. Su diseño ""doble tranquera"" (también conocido como bisagra munición o de pernio) permite una rotación completa y ofrece gran resistencia al peso. Mide 20 cm de largo.
+
+Beneficios:
+
+Alta Durabilidad: Fabricada para soportar las condiciones exteriores (intemperie) y el uso constante.
+
+Mayor Estabilidad: Distribuye el peso de manera eficiente, ideal para portones pesados.
+
+Fácil instalación: Se fija con tornillos o tirafondos (no incluidos) a la madera o poste.
+
+Usos: Principalmente utilizado para la instalación de tranqueras, portones de campo, puertas de granero o cerramientos exteriores de gran tamaño y peso.",Ferretería,Herrajes,1,Unidad,CARLOS DIS,1,4992,8500,10,Activo
+BI 11,"BISAGRA SIMPLE"" TRANQUERA 20 CM""","Descripción del producto: Herraje (generalmente una bisagra o pestillo de gran tamaño) de diseño robusto, ideal para portones pesados, con una longitud de 20 cm .
+
+Beneficios: Gran resistencia mecánica y estructural. Soporta el peso y el movimiento constante de portones exteriores.
+
+Usos: Instalación de puertas grandes, portones de garaje, tranqueras de campo o cerramientos exteriores de madera maciza.",Ferretería,Herrajes,1,Unidad,CARLOS DIS,1,6888,11100,10,Activo
+1527 10,BISAGRA DE ATORNILLAR 10 CM ,"Descripción del producto: Bisagra metálica estándar con hojas planas, diseñada para fijarse directamente con tornillos o tirafondos. Mide 10 cm de largo.
+
+Beneficios: Fácil y rápida de instalar. Versátil para puertas y ventanas de peso moderado.
+
+Usos: Uso general en carpintería para puertas interiores, armarios, ventanas y cajas de madera.",Ferretería,Herrajes,1,Unidad,CARLOS DIS,1,2470,4300,10,Activo
+BIS002,BISAGRA DE ATORNILLAR 30 CM,NADA,Ferretería,Herrajes,1,Unidad,CARLOS DIS,1,6000,11200,,Activo
+1700-20,BISAGRA DOBLE TRANQUERA 20 CM,"Descripción del producto: Bisagra de alta resistencia (a menudo tipo pernio o munición) de 20 cm de longitud, diseñada para grandes portones exteriores.
+
+Beneficios: Distribuye mejor la carga que una bisagra simple, ofreciendo máxima durabilidad y resistencia a la intemperie.
+
+Usos: Fijación y soporte de tranqueras y portones pesados ​​de acceso en propiedades rurales o industriales.",Ferretería,Herrajes,0.98,Unidad,CARLOS DIS,1,13300,23400,5,Activo
+1528 18 R,BISAGRA PASANTE 18 CM,"Descripción del producto: Bisagra cuyo eje o pernio está diseñado para pasar a través del marco o pilar, y se fija por ambos lados. Medida 18 cm .
+
+Beneficios: Ofrece una fijación extremadamente fuerte y segura, a menudo con características antivandálicas.
+
+Usos: Instalación de puertas o portones de seguridad, o donde se requiera una sujeción estructural muy robusta.",Ferretería,Herrajes,1,Unidad,CARLOS DIS,1,7290,12800,10,Activo
+BULON C/R 6X56,BULON CABAEZA REDONDA 6X56,"Descripción del producto: Perno roscado con cabeza redondeada (cabeza de carruaje) y un cuello cuadrado. Diámetro 6 mm y largo 56 mm .
+
+Beneficios: El cuello cuadrado se ancla en la madera impidiendo la rotación al apretar la tuerca. La cabeza lisa ofrece un acabado estético y sin salientes.
+
+Usos: Conjunto de piezas de madera estructurales, fijación de herrajes pesados, donde se requiere un montaje al ras.",Ferretería,Tornillos,95,Unidad,CARLOS DIS,1,95,200,200,Activo
+BULON C/R 6X63,BULON CABAEZA REDONDA 6X63,"Descripción del producto: Perno roscado con cabeza redondeada y cuello cuadrado. Diámetro 6 mm y largo 63 mm .
+
+Beneficios: Ideal para uniones que necesitan una sujeción firme sin necesidad de utilizar arandelas de presión bajo la cabeza.
+
+Usos: Unión de vigas, postes y estructuras de madera de espesor medio.",Ferretería,Tornillos,101,Unidad,CARLOS DIS,1,101,200,220,Activo
+BULON C/R 6X50,BULON CABEZA REDONDA 6X50,"Descripción del producto: Perno roscado con cabeza redondeada y cuello cuadrado. Diámetro 6 mm y largo 50 mm .
+
+Beneficios: Su longitud es ideal para maderas de 2 pulgadas de espesor.
+
+Usos: Fijación de soportes metálicos o herrajes a postes de madera.",Ferretería,Tornillos,90,Unidad,CARLOS DIS,1,90,200,31,Activo
+BULON C/R 6X76,BULON CABEZA REDONDA 6X76,"Descripción del producto: Perno roscado con cabeza redondeada y cuello cuadrado. Diámetro 6 mm y largo 76 mm .
+
+Beneficios: Proporciona un agarre profundo y muy seguro para conjuntos más horribles.
+
+Usos: Construcción de marcos y uniones en estructuras de madera más robustas o para fijar varias capas de madera.",Ferretería,Tornillos,114,Unidad,CARLOS DIS,1,114,200,70,Activo
+6008,Barniz brillante X 1 L,"Descripción del producto: Recubrimiento líquido a base de resinas, transparente, que proporciona un acabado con alto nivel de brillo a la madera. Presentado en envase de 1 litro .
+
+Beneficios: Protege la madera de la humedad, rayones y manchas. Resalta intensamente la veta y el color natural de la madera.
+
+Usos: Acabado de muebles de interior, puertas, marcos, zócalos y artesanías que requieran un aspecto lustroso y duradero.",Ferretería,Pintura,9543,Unidad,QUI-MERA,1,1,23100,7,Activo
+6010,Barniz brillante X 10 L,nada,Ferretería,Pintura,83511,Unidad,QUI-MERA,1,1,202100,,Activo
+6011,Barniz brillante X 20 L,nada,Ferretería,Pintura,158716,Unidad,QUI-MERA,1,1,384100,,Activo
+6009,Barniz brillante X 4 L,"Descripción del producto: Mismo recubrimiento brillante de protección para madera, en formato de 4 litros para cubrir superficies mayores.
+
+Beneficios: Economía por volumen para proyectos grandes. Protección Proporciona y el mismo acabado estético de alto brillo.
+
+Usos: Protección y embellecimiento de pisos de madera, decks, cielorrasos o mobiliario de grandes dimensiones.",Ferretería,Pintura,34358,Unidad,QUI-MERA,1,1,83100,4,Activo
+6012,Barniz satinado X 1 L,nada,Ferretería,Pintura,10668,Unidad,QUI-MERA,1,1,25800,,Activo
+6014,Barniz satinado X 20 L,nada,Ferretería,Pintura,177560,Unidad,QUI-MERA,1,1,429700,,Activo
+6013,Barniz satinado X 4 L,nada,Ferretería,Pintura,38433,Unidad,QUI-MERA,1,1,93000,,Activo
+clav001,CLAVADORA NEU/ BREMEN ,NADA,Ferretería,Maquinas electricas,77438,Unidad,CARLOS DIS,1,77438,123900,,Activo
+4015,CLAVOS ESPIRALADOS 1,nada,Ferretería,Clavos,5303,Unidad,Victoria,1,1,7300,,Activo
+4016,CLAVOS ESPIRALADOS 1 1/2,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 1 1/2 pulgadas de largo (aproximadamente 38 mm).
+
+Beneficios: La rosca espiralada ofrece una resistencia al arranque superior a la de un clavo liso.
+
+Usos: Fijación de tablas de machimbre o listas donde se requiere que la unión no ceda con el tiempo o el movimiento.",Ferretería,Clavos,4929,Unidad,Victoria,1,1,7300,49,Activo
+4017,CLAVOS ESPIRALADOS 2,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 2 pulgadas de largo (aproximadamente 50 mm).
+
+Beneficios: Fijación de alta seguridad para materiales de espesor medio.
+
+Usos: Instalación de subsuelos, estructuras de muebles robustos y elementos sometidos a vibración.",Ferretería,Clavos,4699,Unidad,Victoria,1,1,7300,30,Activo
+4018,CLAVOS ESPIRALADOS 2 2/1,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 2 1/2 pulgadas de largo (aproximadamente 63,5 mm).
+
+Beneficios: Excelente para uniones que atraviesan maderas más gruesas y necesitan una sujeción máxima.
+
+Usos: Construcción de pallets, cajas pesadas y carpintería estructural.",Ferretería,Clavos,4241,Unidad,Victoria,1,1,7300,42,Activo
+4019,CLAVOS ESPIRALADOS 3,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 3 pulgadas de largo (aproximadamente 76 mm).
+
+Beneficios: Proporciona una sujeción muy profunda y fuerte en maderas estructurales.
+
+Usos: Ensamble de marcos, vigas ligeras y trabajos de techado.",Ferretería,Clavos,4033,Unidad,Victoria,1,1,7300,42,Activo
+4020,CLAVOS ESPIRALADOS 4,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 4 pulgadas de largo (aproximadamente 100 mm).
+
+Beneficios: Utilizado para unir maderas gruesas con máxima resistencia a la separación.
+
+Usos: Trabajos de construcción que involucran maderas de 2x4 o similares.",Ferretería,Clavos,4137,Unidad,Victoria,1,1,7300,9,Activo
+4021,CLAVOS ESPIRALADOS 5,"Descripción del producto: Clavos con vástago helicoidal (roscado) que mide 5 pulgadas de largo (aproximadamente 127 mm).
+
+Beneficios: El clavo más largo de la serie espiralada, para uniones muy profundas y críticas.
+
+Usos: Carpintería pesada y uniones estructurales donde se requiere máxima seguridad y anclaje.",Ferretería,Clavos,4116,Unidad,Victoria,1,1,7300,19,Activo
+7271,CLAVOS NEUMATICO 40mm ,"escripción del producto: Clavos unidos por adhesivo o alambre en tiras, diseñados para ser cargados en una clavadora neumática . Mide 40 mm de largo.
+
+Beneficios: Rapidez extrema en la colocación, uniformidad en la profundidad y eficiencia en proyectos de gran escala.
+
+Usos: Fabricación de muebles, pallets, revestimientos y trabajos de producción masiva de carpintería.",Ferretería,,13467,Unidad,CARLOS DIS,1,13467,20700,4,Activo
+4007,CLAVOS PUNTA PARIS 1,nada,Ferretería,Clavos,3809,Unidad,Victoria,1,1,7300,,Activo
+4008,CLAVOS PUNTA PARIS 1 1/2,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 1 1/2 pulgadas de largo.
+
+Beneficios: Clavo económico y versátil para trabajos ligeros.
+
+Usos: Fijación de listones, molduras, armado de cajas y uso en carpintería ligera en general.",Ferretería,Clavos,3556,Unidad,Victoria,1,1,7300,3,Activo
+4009,CLAVOS PUNTA PARIS 2,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 2 pulgadas de largo.
+
+Beneficios: Mayor capacidad de sujeción que el de 1 1/2, ideal para maderas de espesor medio.
+
+Usos: Conjunto de maderas estructurales ligeras, fijación de tablas y construcción básica.",Ferretería,Clavos,3366,Unidad,Victoria,1,1,7300,16,Activo
+4010,CLAVOS PUNTA PARIS 2 1/2,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 2 1/2 pulgadas de largo.
+
+Beneficios: El tamaño más común en construcción. Ofrece buen agarre para espesores estándar.
+
+Usos: Fijación de vigas pequeñas, tablas de entablonado y carpintería de obra.",Ferretería,Clavos,3219,Unidad,Victoria,1,1,7300,34,Activo
+4011,CLAVOS PUNTA PARIS 3,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 3 pulgadas de largo.
+
+Beneficios: Utilizado en uniones estructurales que requieren penetración profunda.
+
+Usos: Construcción de marcos, uniones de 2x4 (o maderas de 2 pulgadas), y carpintería de obra pesada.",Ferretería,Clavos,3219,Unidad,Victoria,1,1,7300,20,Activo
+4012,CLAVOS PUNTA PARIS 3 1/2,nada,Ferretería,Clavos,3219,Unidad,Victoria,1,1,7300,,Activo
+4013,CLAVOS PUNTA PARIS 4,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 4 pulgadas de largo.
+
+Beneficios: Gran longitud para fijar elementos gruesos o múltiples capas de madera.
+
+Usos: Trabajos de techado, armado de estructuras más grandes y carpintería gruesa.",Ferretería,Clavos,3219,Unidad,Victoria,1,1,7300,34,Activo
+4014,CLAVOS PUNTA PARIS 5,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 5 pulgadas de largo.
+
+Beneficios: Ideal para unir maderas de gran escuadría.
+
+Usos: Conjunto de postes y vigas grandes, trabajos de carpintería pesada y rural.",Ferretería,Clavos,3366,Unidad,Victoria,1,1,7300,19,Activo
+c001,CLAVOS PUNTA PARIS 6,"Descripción del producto: Clavos de uso general, vástago liso y cabeza plana estándar, de 6 pulgadas de largo. El clavo más largo de la serie.
+
+Beneficios: Máxima penetración para unir maderas de máximo grosor.
+
+Usos: Construcción de estructuras de madera pesada (por ejemplo, puentes rústicos, muelles o postes de grandes dimensiones).",Ferretería,Clavos,0.97,Unidad,Victoria,1,3500,7200,20,Activo
+6000,Curador X 1 L,"Descripción del producto: Producto químico (insecticida y fungicida) formulado para la protección preventiva y curativa de la madera contra insectos (taladros, termitas) y hongos (putrefacción). Presentado en 1 litro .
+
+Beneficios: Prolonga significativamente la vida útil de la madera. Previene el ataque de plagas y la degradación biológica.
+
+Usos: Tratamiento de maderas nuevas antes de la instalación, o para curar maderas ya afectadas en vigas, postes, techos y muebles.",Ferretería,Pintura,3289,Unidad,QUI-MERA,1,1,8000,8,Activo
+6001,Curador X 4 L,"Descripción del producto: Mismo producto curador de maderas, en formato de 4 litros .
+
+Beneficios: Equilibrio entre economía y manejo, ideal para proyectos medianos.
+
+Usos: Protección de estructuras de pérgolas, decks, o el tratamiento de una cantidad considerable de muebles.",Ferretería,Pintura,7479,Unidad,QUI-MERA,1,1,18100,14,Activo
+6002,Curador X 10 L,"Descripción del producto: Mismo producto curador de maderas, en formato de 10 litros .
+
+Beneficios: Rendimiento ideal para tratar grandes volúmenes de madera de obra o estructuras enteras.
+
+Usos: Inmersión o aplicación por brocha/pulverizador en grandes cantidades de tirantes, machimbres y postes de cercas.",Ferretería,Pintura,16381,Unidad,QUI-MERA,1,1,39600,2,Activo
+6003,Curador X 18 L,"Descripción del producto: Mismo producto curador de maderas, en formato de 18 litros (bidón).
+
+Beneficios: Máxima economía y rendimiento para proyectos profesionales o industriales.
+
+Usos: Tratamiento de maderas en aserraderos, grandes obras de construcción o para el mantenimiento de extensas estructuras rurales.",Ferretería,Pintura,26221,Unidad,QUI-MERA,1,1,63500,5,Activo
+114x1.6x22,DISCO DE CORTE METAL SECUR 115 x 1.6,"DISCO DE CORTE METAL SECUR 115 x 1.6
+Descripción del producto: Disco abrasivo extrafino para amoladoras angulares de 115 mm (4 1/2"") , con un espesor de 1.6 mm . Marca o línea ""SECUR"" (segura).
+
+Beneficios: Cortes muy rápidos y precisos en metales. El espesor delgado minimiza la pérdida de material y el esfuerzo de la máquina.
+
+Usos: Corte de perfiles metálicos, varillas, planchuelas y caños de acero o hierro.",Ferretería,,2217,Unidad,CARLOS DIS,1,2217,3400,30,Activo
+115X1.6,DISCO DE CORTE METAL STANDAR 115 x 1.6,"DISCO DE CORTE METAL ESTÁNDAR 115 x 1.6
+Descripción del producto: Disco abrasivo estándar para amoladoras de 115 mm , con un espesor de 1,6 mm .
+
+Beneficios: Buen rendimiento a un precio más accesible. Corte en metales rápido.
+
+Usos: Trabajos generales de herrería, cortes cotidianos de metales y uso en talleres o en obra.",Ferretería,DISCOS,1321,Unidad,CARLOS DIS,1,1321,2300,25,Activo
+6004,Diluyente X 1 L,nada,Ferretería,Pintura,5890,Unidad,QUI-MERA,1,1,14300,,Activo
+6006,Diluyente X 10 L,nada,Ferretería,Pintura,40327,Unidad,QUI-MERA,1,1,97600,,Activo
+6007,Diluyente X 18 L,nada,Ferretería,Pintura,65509,Unidad,QUI-MERA,1,1,158500,,Activo
+6005,Diluyente X 4 L,nada,Ferretería,Pintura,18311,Unidad,QUI-MERA,1,1,44300,,Activo
+4000,ELECTRODOS (PUNTA AZUL) 3.25 MM 1KG,nada,Ferretería,Electrodos,16330,Unidad,Victoria,1,1,39500,,Activo
+4001,ESCALERAS DE MADERA 1.50,nada,Ferretería,Escaleras de madera,35072,Unidad,Victoria,1,1,84900,,Activo
+4002,ESCALERAS DE MADERA 1.80,nada,Ferretería,Escaleras de madera,42395,Unidad,Victoria,1,1,102600,,Activo
+4003,ESCALERAS DE MADERA 2.10,nada,Ferretería,Escaleras de madera,48270,Unidad,Victoria,1,1,116800,,Activo
+4004,ESCALERAS DE MADERA 2.40,nada,Ferretería,Escaleras de madera,55924,Unidad,Victoria,1,1,135300,,Activo
+4005,ESCALERAS DE MADERA 2.70,nada,Ferretería,Escaleras de madera,62921,Unidad,Victoria,1,1,152300,,Activo
+4006,ESCALERAS DE MADERA 3.00,nada,Ferretería,Escaleras de madera,69734,Unidad,Victoria,1,1,168800,,Activo
+4025,FILTRO ASFALTICO (RUBEROID) LIVIANO 10M,nada,Ferretería,Aislantes,3910,Unidad,Victoria,1,1,9500,,Activo
+4026,FILTRO ASFALTICO (RUBEROID) LIVIANO 20M,nada,Ferretería,Aislantes,7349,Unidad,Victoria,1,1,17800,,Activo
+4027,FILTRO ASFALTICO (RUBEROID) LIVIANO 40M,nada,Ferretería,Aislantes,13809,Unidad,Victoria,1,1,33400,,Activo
+4028,FILTRO ASFALTICO (RUBEROID) PESADO 10M,"Descripción del producto: Fieltro o cartón empapado en asfalto (conocido como Ruberoid), de alta densidad (pesado), vendido en rollos de 10 metros .
+
+Beneficios: Aísla de la humedad y actúa como barrera de vapor. Proteja la estructura del techo antes de la colocación de la teja o chapa final.
+
+Usos: Subcapa impermeable para techos inclinados (bajo tejas o chapas), o como aislante en paredes o pisos flotantes.",Ferretería,Aislantes,5663,Unidad,Victoria,1,1,13700,6,Activo
+4029,FILTRO ASFALTICO (RUBEROID) PESADO 20M,"Descripción del producto: Mismo fieltro asfáltico (Ruberoid) pesado, en rollo de 20 metros .
+
+Beneficios: Menos empalmes y mayor rendimiento por rollo para cubiertas medianas.
+
+Usos: Aislamiento de cubiertas de techos medianos, galpones o garajes.",Ferretería,Aislantes,11462,Unidad,Victoria,1,1,27700,15,Activo
+4030,FILTRO ASFALTICO (RUBEROID) PESADO 40M,"Descripción del producto: Mismo fieltro asfáltico (Ruberoid) pesado, en rollo de 40 metros .
+
+Beneficios: Máxima economía y eficiencia para proyectos de gran superficie.
+
+Usos: Uso industrial o en grandes obras de techado para subcapa protectora.",Ferretería,Aislantes,21711,Unidad,Victoria,1,1,52500,13,Activo
+H0001,HERRAJE 6X6 BC66,"Descripción del producto: Soporte metálico diseñado para la fijación de postes de madera con escuadría de 6x6 pulgadas (aproximadamente 15x15 cm), generalmente un anclaje de base (Base Columna 6x6).
+
+Beneficios: Proporciona un soporte estructural extremadamente sólido y evita el contacto directo del poste con el suelo o la humedad.
+
+Usos: Fijación de pilares de gran tamaño en estructuras de carga como porches, decks elevados o casas de madera.",Ferretería,,7205,Unidad,CARLOS DIS,1,7205,15800,12,Activo
+DIS003,HOJA SIERRA CIR/BREM 7.1/4 24D,"Descripción del producto: Disco o hoja para sierra circular de 7 1/4 pulgadas de diámetro, con 24 dientes (24D). Ideal para corte rápido.
+
+Beneficios: El bajo número de dientes (24D) permite un corte rápido y agresivo, ideal para cortar a favor de la veta o madera gruesa .
+
+Usos: Corte de maderas estructurales, tablones gruesos, madera húmeda y desbaste.",Ferretería,DISCOS,10376,Unidad,CARLOS DIS,1,10376,18300,2,Activo
+DIS0004,HOJA SIERRA CIR/BREM 7.1/4 40D,"Descripción del producto: Disco o hoja para sierra circular de 7 1/4 pulgadas de diámetro, con 40 dientes (40D). Ideal para acabados.
+
+Beneficios: El mayor número de dientes (40D) proporciona un corte más fino y limpio , reduciendo el astillado.
+
+Usos: Corte transversal de maderas, contrachapados, melaminas o donde se requiera un acabado de calidad listo para ensamblar.",Ferretería,DISCOS,11772,Unidad,CARLOS DIS,1,11772,20700,5,Activo
+LAN-001,LANA DE VIDRIO 50MM CAFIGLASS,"Descripción del producto: Material aislante térmico y acústico, fabricado con fibras de vidrio aglomeradas con resina. Espesor de 50 mm . Marca Cafiglass.
+
+Beneficios: Excelente aislamiento térmico, reduciendo el consumo energético. Aislamiento acústico eficaz y resistencia al fuego.
+
+Usos: Aislamiento de techos, cielorrasos, paredes internas y tabiques de durlock o madera.",Ferretería,LANA DE VIDRIO,93808,Unidad,RIO PICO,1,93808,120000,5,Activo
+LIJA007,LIJA AL AGUA 80,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA003,LIJA AL AGUA GRANO 100,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,0.97,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA004,LIJA AL AGUA GRANO 120,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,0.95,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA005,LIJA AL AGUA GRANO 150,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,0.97,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA006,LIJA AL AGUA GRANO 180,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA008,LIJA AL AGUA GRANO 220,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA009,LIJA AL AGUA GRANO 240,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA008,LIJA AL AGUA GRANO 240,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA0010,LIJA AL AGUA GRANO 280,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA0011,LIJA AL AGUA GRANO 320,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA0012,LIJA AL AGUA GRANO 360,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+LIJA0013,LIJA AL AGUA GRANO 400,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,674,1140,50,Activo
+L001,LIJA AL AGUA GRANO 60,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,1,Unidad,SZ SRL,50,674,1140,50,Activo
+LIJA002,LIJA AL AGUA GRANO 80,"Descripción del producto: Hoja de papel abrasivo con soporte impermeable, diseñada para usar mojada (con agua o lubricantes).
+Beneficios: Permite un lijado más limpio y sin obstrucciones (el agua arrastra el material lijado), logrando un acabado muy fino, especialmente en altos gramajes.
+
+Usos:
+
+Granos Gruesos (60-100): Eliminar imperfecciones severas y retirar pintura antigua.
+
+Granos Medios (120-180): Prepare la superficie para la primera capa de acabado.
+
+Granos Finos (220-400): Pulido final de lacas, masillas automotrices o acabados muy finos.",Ferretería,LIJAS,0.98,Unidad,SZ SRL,1,674,1140,50,Activo
+DIS003,LIJA CIR/120,"Descripción del producto: Disco de lija circular diseñado para usar en lijadoras orbitales o roto-orbitales. 
+
+Beneficios: Alta eficiencia en el lijado gracias al movimiento de la máquina. El formato circular es rápido y fácil de reemplazar.
+
+Usos: Lijado de grandes superficies de madera, eliminación de barnices viejos y preparación de la superficie antes de pintar o teñir.",Ferretería,LIJAS,2578,Unidad,CARLOS DIS,1,2578,4500,20,Activo
+DIS1,LIJA CIR/60,"Descripción del producto: Disco de lija circular diseñado para usar en lijadoras orbitales o roto-orbitales. 
+
+Beneficios: Alta eficiencia en el lijado gracias al movimiento de la máquina. El formato circular es rápido y fácil de reemplazar.
+
+Usos: Lijado de grandes superficies de madera, eliminación de barnices viejos y preparación de la superficie antes de pintar o teñir.",Ferretería,LIJAS,2777,Unidad,CARLOS DIS,1,2777,4900,40,Activo
+DIS02,LIJA CIR/80,"Descripción del producto: Disco de lija circular diseñado para usar en lijadoras orbitales o roto-orbitales. 
+
+Beneficios: Alta eficiencia en el lijado gracias al movimiento de la máquina. El formato circular es rápido y fácil de reemplazar.
+
+Usos: Lijado de grandes superficies de madera, eliminación de barnices viejos y preparación de la superficie antes de pintar o teñir.",Ferretería,LIJAS,2578,Unidad,CARLOS DIS,1,2578,4500,20,Activo
+LIJA0018,LIJA ROJA PARA MADERA  180,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+LIJA0015,LIJA ROJA PARA MADERA 100,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+LIJA0016,LIJA ROJA PARA MADERA 120,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+LIJA0017,LIJA ROJA PARA MADERA 150,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+LIJA0014,LIJA ROJA PARA MADERA 60,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+LIJA0014,LIJA ROJA PARA MADERA 80,"Descripción del producto: Hoja o rollo de papel de lija con óxido de aluminio (color rojizo), diseñado específicamente para lijar madera en seco. 
+
+Beneficios: Excelente durabilidad y resistencia a la obstrucción (""empaste"") al lijar madera en seco.
+
+Usos:
+
+Granos Gruesos (60-80): Desbaste y corrección de imperfecciones severas en madera.
+
+Granos Medios (100-150): Lijado intermedio para suavizar la superficie.
+
+Grano Fino (180): Lijado final antes de aplicar selladores o barnices.",Ferretería,LIJAS,1,Unidad,SZ SRL,1,514,880,50,Activo
+2005,MASCARA/CARRERA FOTOSENSIBLE 1/5000 SEGUNDOS,"Descripción del producto: Careta de soldadura electrónica que se oscurece automáticamente (fotosensible) al detectar el arco de soldadura en tan solo 1/5000 de segundo .
+
+Beneficios: Protección constante de los ojos y la cara. La reacción ultrarrápida elimina la necesidad de subir y bajar la máscara manualmente.
+
+Usos: Soldadura por arco eléctrico (MMA), TIG, MIG/MAG y otros procesos de soldadura que generan luz intensa.",Ferretería,Maquinas electricas,42608,Unidad,San nicolas,1,1,103100,1,Activo
+4022,MEMBRANAS ASFÁLTICAS 15KG,nada,Ferretería,Membranas,22038,Unidad,Victoria,1,1,53300,,Activo
+4023,MEMBRANAS ASFÁLTICAS 25KG,nada,Ferretería,Membranas,25477,Unidad,Victoria,1,1,61700,,Activo
+4024,MEMBRANAS ASFÁLTICAS 35KG,"Descripción del producto: Manto impermeable prefabricado, compuesto por asfalto modificado y un refuerzo interno, con un peso aproximado de 35 kg por rollo.
+
+Beneficios: Impermeabilización total de superficies. Alta durabilidad y resistencia a la intemperie.
+
+Usos: Impermeabilización de techos planos, terrazas, losas y cimientos.",Ferretería,Membranas,29016,Unidad,Victoria,1,1,56100,8,Activo
+P00012,MESA QUEBRACHO 2X1 (MEDIO DURMIENTE),NADA,Ferretería,Herrajes,1,Unidad,QUI-MERA,1,1,715000,,Activo
+MECHA AC RAP 6 MM,Mecha AC. RPDO 6.75mm,"Descripción del producto: Broca o mecha helicoidal de acero de alta velocidad (Acero Rápido, HSS), diseñada para perforar metales. Diámetro de 6,75 mm .
+
+Beneficios: Alta resistencia a la temperatura y al desgaste. Perfora acero, hierro, aluminio y otros metales con precisión.
+
+Usos: Perforación de metales en talleres de herrería y mecánica, o para trabajos de precisión donde se requiere una medida específica.",Ferretería,MECHAS,1,Unidad,CARLOS DIS,1,2310,4100,9,Activo
+4037,Metalizado 10MM SIMPLE espumax,"Descripción del producto: Aislante térmico compuesto por una capa de espuma de polietileno de 10 mm de espesor, recubierta en una de sus caras con una lámina de aluminio (metalizado).
+
+Beneficios: Aislamiento térmico superior y barrera de vapor. El metalizado refleja el calor radiante.
+
+Usos: Aislamiento térmico de techos (bajo chapa o teja) y paredes.",Ferretería,Aislantes,1,Unidad,Victoria,1,15333,38500,11,Activo
+4038,Metalizado 5MM SIMPLE espumax,"Descripción del producto: Aislante térmico compuesto por una capa de espuma de polietileno de 5 mm de espesor, recubierta en una de sus caras con una lámina de aluminio (metalizado).
+
+Beneficios: Opción más económica y fácil de instalar. Aísla y actúa como barrera de vapor.
+
+Usos: Aislamiento de techos, pisos flotantes y como aislante ligero en muros.",Ferretería,Aislantes,1,Unidad,Victoria,1,7682,27500,19,Activo
+N003,PENTA NATURAL 1L  SATINADO,"Descripción del producto: Acabado de protección para maderas (posiblemente impregnante o lasur) de color Natural (transparente) y acabado Satinado (semi-brillante). Presentado en 1 litro .
+
+Beneficios: Penetra en la madera, protegiendo desde el interior. Resalta la veta de forma natural y permite que la madera respire (no forma película gruesa).
+
+Usos: Protección y acabado de maderas exteriores e interiores: decks, pérgolas, ventanas, puertas.",Ferretería,,8177,Unidad,QUI-MERA,1,8177,12600,9,Activo
+PEN001,PENTA NATURAL 4L STAIN,"Descripción del producto: Acabado de protección para maderas, color Natural , en formato de 4 litros . Es un ""Stain"" (tinte o lasur) de alta resistencia.
+
+Beneficios: Protección duradera contra los rayos UV y la intemperie. Conserva el aspecto natural de la madera.
+
+Usos: Grandes superficies exteriores como fachadas de madera, decks y cercas de jardín.",Ferretería,,30376,Unidad,QUI-MERA,1,30376,46800,3,Activo
+P0001,PORTON QUEBRACHO 1 X 1 C/VISAGRA,NADA,Ferretería,Herrajes,1,Unidad,Global,1,1,165000,,Activo
+P002,PORTON QUEBRACHO 1 X 1.20 C/VISAGRA,NADA,Ferretería,Herrajes,1,Unidad,Global,1,1,165000,,Activo
+P0003,PORTON QUEBRACHO 3 X 1.50,NADA,Ferretería,Herrajes,1,Unidad,Global,1,1,385000,,Activo
+6015,Penta Curador X 1 L,nada,Ferretería,Pintura,7761,Unidad,QUI-MERA,1,1,18800,,Activo
+6017,Penta Curador X 10 L,nada,Ferretería,Pintura,61563,Unidad,QUI-MERA,1,1,149000,,Activo
+6018,Penta Curador X 18 L,nada,Ferretería,Pintura,104261,Unidad,QUI-MERA,1,1,252300,,Activo
+6016,Penta Curador X 4 L,"Descripción del producto: Impregnante protector de maderas de la marca Penta, con propiedades fungicidas e insecticidas. Presentado en 4 litros .
+
+Beneficios: Protección preventiva y curativa contra el ataque de insectos y hongos. Ideal para la base antes de un acabado final.
+
+Usos: Tratamiento de maderas de obra, estructuras portantes y postes en contacto con la humedad.",Ferretería,Pintura,26565,Unidad,QUI-MERA,1,1,64300,-1,Activo
+6023,Pincel obra N10,nada,Ferretería,Pintura,1250,Unidad,QUI-MERA,1,1,3000,,Activo
+6024,Pincel obra N15,"Descripción del producto: Pincel de cerdas de calidad media-alta, de tamaño estándar, para trabajos de pintura en construcción u obra. El N° 15 indica su tamaño.
+
+Beneficios: Manejo cómodo y buena absorción de pintura. Diseñado para trabajo rudo en obra.
+
+Usos: Aplicación de pinturas al agua o al aceite en superficies grandes o medianas de paredes, cielorrasos y maderas.",Ferretería,Pintura,1531,Unidad,QUI-MERA,1,1,3700,24,Activo
+6025,Pincel obra N20,"Descripción del producto: Pincel de cerdas de calidad media-alta, de tamaño grande. El N° 20 indica su tamaño.
+
+Beneficios: Mayor capacidad de carga de pintura y cobertura más rápida.
+
+Usos: Aplicación de imprimaciones, selladores y pinturas en superficies extensas de obra.",Ferretería,Pintura,1977,Unidad,QUI-MERA,1,1,4800,12,Activo
+6026,Pincel obra N25,"Descripción del producto: Pincel de cerdas de calidad media-alta, de tamaño muy grande. El N° 25 indica su tamaño.
+
+Beneficios: Máxima rapidez en la aplicación. Ideal para pintar grandes áreas sin perder tiempo.
+
+Usos: Enlucido de paredes o aplicación de curadores/protectores en estructuras grandes de madera.",Ferretería,Pintura,2731,Unidad,QUI-MERA,1,1,6600,12,Activo
+6027,Pincel obra N30,nada,Ferretería,Pintura,3433,Unidad,QUI-MERA,1,1,8300,,Activo
+2000,SIERRA CINCULAR 7” 1/4- 1400W SKILL,"Descripción del producto: Herramienta eléctrica (sierra circular de mano) con disco de 7 1/4 pulgadas de diámetro y un potente motor de 1400 Watts . Marca Skill.
+
+Beneficios: Gran potencia para cortes rápidos en madera dura. El tamaño del disco es estándar y muy versátil.
+
+Usos: Cortes rectos en tablas, tablones, contrachapados y cortes angulares en proyectos de carpintería y construcción.",Ferretería,Maquinas electricas,207889,Unidad,San nicolas,1,1,503100,1,Activo
+2001,SIERRA CIRCULAR 7” 1/4 1600W MILWAUKE,"Descripción del producto: Herramienta eléctrica profesional (sierra circular de mano) con disco de 7 1/4 pulgadas y motor de 1600 Watts . Marca Milwaukee.
+
+Beneficios: Máxima potencia y durabilidad para uso intensivo profesional. Ideal para maderas muy duras o para largas jornadas de trabajo.
+
+Usos: Cortes en obra, carpintería industrial y trabajos que exigen un alto rendimiento y precisión.",Ferretería,Maquinas electricas,355517,Unidad,San nicolas,1,1,860400,1,Activo
+SILC002,SILICONA BLANCA ,"Descripción del producto: Sellador elastómero de silicona (monocomponente), que cura al ambiente formando un sello flexible de color blanco .
+
+Beneficios: Excelente resistencia a la humedad, hongos y altas temperaturas. Mantiene la elasticidad.
+
+Usos: Sellado de juntas y uniones en baños, cocinas, sanitarios, ventanas o donde se requiera un acabado blanco estético y resistente a la humedad.",Ferretería,SILICONA,0.94,Unidad,SZ SRL,1,4167,6600,6,Activo
+SILC003,SILICONA NEGRA,"Descripción del producto: Sellador elastómero de silicona (monocomponente), que cura al ambiente formando un sello flexible de color negro .
+
+Beneficios: Proporciona un sellado hermético. El color negro es ideal para contrastar o disimular en ciertos materiales.
+
+Usos: Sellado de vidrios ahumados, marcos de aluminio negro, juntas de motores o aplicaciones automotrices y herrería.",Ferretería,SILICONA,1,Unidad,SZ SRL,1,4167,6600,6,Activo
+SILC001,SILICONA TRANSPARENTE,"Descripción del producto: Sellador elastómero de silicona (monocomponente), que cura al ambiente formando un sello flexible de color transparente .
+
+Beneficios: Ofrece un sellado invisible, ideal para trabajos de alta estética.
+
+Usos: Sellado de peceras, vidrios, mamparas de baño, uniones de mesadas de granito o cualquier material que requiera un sellado discreto e impermeable.",Ferretería,SILICONA,1,Unidad,SZ SRL,1,4167,6600,4,Activo
+SILC004,SILICONA ZINGUERIA GRIS,"Descripción del producto: Sellador de silicona específicamente formulado para adherir y sellar metales, de color gris .
+
+Beneficios: Gran adherencia a chapas y metales (zinguería). Resistencia a la intemperie ya los rayos UV.
+
+Usos: Sellado de uniones en conductos de aire, canaletas, cumbreras, y todo tipo de trabajos de zinguería y techado.",Ferretería,SILICONA,1,Unidad,SZ SRL,1,5555,9500,6,Activo
+GGG,TABLA TIMBO 1 X 6 X 4,NADA,Ferretería,Herrajes,1,Unidad,Global,1,1,30000,,Activo
+2004,TALADRO 13MM C/ PERCUTOR 680W MILWAUKE,"Descripción del producto: Taladro eléctrico profesional con capacidad de mandril de 13 mm y función de percutor (golpe), motor de 680 Watts . Marca Milwaukee.
+
+Beneficios: Versátil para perforar madera, metal y hormigón. La función de percusión permite trabajar en mampostería.
+
+Usos: Perforación de paredes para fijaciones (tarugos), perforación de metales con brocas HSS y trabajos generales de carpintería y albañilería.",Ferretería,Maquinas electricas,110828,Unidad,San nicolas,1,1,268200,1,Activo
+2003,TALADRO DE IMPACTO 13MM 750W BAROVO C/ MALETIN,"Descripción del producto: Taladro de impacto eléctrico con mandril de 13 mm , motor de 750 Watts y función de percusión. Marca Barovo. Incluye maletín .
+
+Beneficios: Mayor potencia (750W) que el modelo de 680W, ideal para perforar hormigón. El maletín facilita el transporte y el almacenamiento.
+
+Usos: Instalación de elementos pesados ​​en concreto, uso en obra y trabajos que requieren más fuerza de impacto.",Ferretería,Maquinas electricas,147481,Unidad,San nicolas,1,1,356900,1,Activo
+TA/ESP,TARUGO ESPIGA 10,"Descripción del producto: Taco de plástico (tarugo) para anclaje en paredes sólidas o huecas, diseñado para ser usado con tornillos. Diámetro de 10 mm .
+
+Beneficios: Gran capacidad de carga para fijaciones medianas a pesadas.
+
+Usos: Colgar estantes, soportes de televisión, armarios de cocina y elementos que requieran un anclaje fuerte.",Ferretería,TARUGOS,16.99,Unidad,CARLOS DIS,1,17,100,258,Activo
+TA/ESP 6,TARUGO ESPIGA 6,"Descripción del producto: Taco de plástico (tarugo) para anclaje en paredes sólidas o huecas. Diámetro de 6 mm .
+
+Beneficios: Ideal para fijaciones ligeras y de bajo perfil.
+
+Usos: Colgar cuadros, lámparas, barras de cortina y accesorios de baño.",Ferretería,TARUGOS,24,Unidad,CARLOS DIS,1,24,100,1000,Activo
+TA/ESP,TARUGO ESPIGA 8,"Descripción del producto: Taco de plástico (tarugo) para anclaje en paredes sólidas o huecas. Diámetro de 8 mm .
+
+Beneficios: El tamaño más versátil para fijaciones domésticas estándar.
+
+Usos: Fijación de rieles, estanterías ligeras, cajas eléctricas y todo tipo de elementos de peso medio.",Ferretería,TARUGOS,19,Unidad,CARLOS DIS,1,19,100,42,Activo
+T5X38,TIRAFONDO 5X38,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 5 mm y largo 38 mm .
+
+Beneficios: Proporciona una sujeción muy fuerte y resistente al torque.
+
+Usos: Fijación de bisagras y herrajes grandes a la madera, o uniones de maderas de 2 pulgadas (donde solo penetra 38 mm).",Ferretería,Tornillos,68,Unidad,CARLOS DIS,1,68,100,100,Activo
+T5X50,TIRAFONDO 5X50,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 5 mm y largo 50 mm .
+
+Beneficios: Sujeción profunda para maderas de espesor medio.
+
+Usos: Armado de muebles y estructuras de madera que requieren una fijación firme.",Ferretería,Tornillos,79,Unidad,CARLOS DIS,1,79,100,120,Activo
+T5X63,TIRAFONDO 5X63,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 5 mm y largo 63 mm .
+
+Beneficios: Penetración más profunda, ideal para unir maderas gruesas.
+
+Usos: Fijación de travesaños o de listas a vigas principales.",Ferretería,Tornillos,96,Unidad,CARLOS DIS,1,96,200,140,Activo
+T6X100,TIRAFONDO 6X100,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 6 mm y largo 100 mm .
+
+Beneficios: Gran diámetro y longitud para la máxima capacidad de carga.
+
+Usos: Fijación de postes, vigas grandes o estructuras de decks al suelo o bases de hormigón (con tarugos adecuados).",Ferretería,Tornillos,124,Unidad,CARLOS DIS,1,124,200,100,Activo
+T6X38,TIRAFONDO 6X38,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 6 mm y largo 38 mm .
+
+Beneficios: Diámetro más grueso para mayor resistencia en uniones de poca profundidad.
+
+Usos: Fijación de herrajes pesados ​​(bisagras, bases) a postes.",Ferretería,Tornillos,50,Unidad,CARLOS DIS,1,50,100,100,Activo
+T6X50,TIRAFONDO 6X50,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 6 mm y largo 50 mm .
+
+Beneficios: Tamaño estándar para fijaciones pesadas en carpintería estructural.
+
+Usos: Armado de estructuras de pérgolas, decks y muebles de exterior.",Ferretería,Tornillos,63,Unidad,CARLOS DIS,1,63,100,100,Activo
+T6X63,TIRAFONDO 6X63,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 6 mm y largo 63 mm .
+
+Beneficios: Proporciona un anclaje profundo y muy resistente para estructuras portantes.
+
+Usos: Unión de vigas y postes principales.",Ferretería,Tornillos,79,Unidad,CARLOS DIS,1,79,200,100,Activo
+T6X76,TIRAFONDO 6X76,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 6 mm y largo 76 mm .
+
+Beneficios: Ideal para maderas de 3 pulgadas o para unir dos maderas de 2 pulgadas con juego.
+
+Usos: Construcción de estructuras de techo y carpintería pesada.",Ferretería,Tornillos,91,Unidad,CARLOS DIS,1,91,200,100,Activo
+T8X50,TIRAFONDO 8X50,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en el diámetro más grande de la serie ( 8 mm ) y largo 50 mm .
+
+Beneficios: Máxima resistencia a la tracción y al corte en uniones de espesor medio.
+
+Usos: Fijación de elementos críticos, herrajes muy pesados ​​o anclaje a pared con tarugos grandes.",Ferretería,Tornillos,94,Unidad,CARLOS DIS,1,94,200,100,Activo
+T8X63,TIRAFONDO 8X63,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 8 mm y largo 63 mm .
+
+Beneficios: Fuerza extrema para uniones estructurales críticas.
+
+Usos: Conjunto de vigas maestras y postes de carga.",Ferretería,Tornillos,115,Unidad,CARLOS DIS,1,115,200,100,Activo
+T8X76,TIRAFONDO 8X76,"Descripción del producto: Tornillo de cabeza hexagonal o plana, con rosca profunda para madera, en diámetro de 8 mm y largo 76 mm .
+
+Beneficios: El tornillo más fuerte de la serie, para las aplicaciones más exigentes.
+
+Usos: Construcción de cabañas, muelles, soportes estructurales de carga.",Ferretería,Tornillos,137,Unidad,CARLOS DIS,1,137,200,70,Activo
+4031,TORNILLOS HEXAGONALES 14 x 1 1/2” x100,"Descripción del producto: Tornillos de cabeza hexagonal (para llave), de gran calibre ( N° 14 ), con largo de 1 1/2 pulgadas , vendidos en cajas de 100 unidades .
+
+Beneficios: Fijación robusta y fácil de apretar con herramientas. El calibre grueso proporciona gran resistencia.
+
+Usos: Fijación de chapas, techos de metal o fibra, y herrajes metálicos a la madera.",Ferretería,Tornillos,4989,Unidad,Victoria,1,1,12100,22,Activo
+4033,TORNILLOS HEXAGONALES 14 x 2 1/2” x100,nada,Ferretería,Tornillos,6527,Unidad,Victoria,1,1,15800,,Activo
+4032,TORNILLOS HEXAGONALES 14 x 2 x100,"Descripción del producto: Tornillos de cabeza hexagonal (para llave), de gran calibre ( N° 14 ), con largo de 2 pulgadas , vendidos en cajas de 100 unidades .
+
+Beneficios: Mayor longitud para un anclaje más seguro en chapas y elementos gruesos.
+
+Usos: Instalación de chapas de techo sobre correas de madera o metal, y uniones de estructuras metálicas ligeras.",Ferretería,Tornillos,5564,Unidad,Victoria,1,1,13500,-1,Activo
+T0001,TRANQUERA QUEBRACHO 1 X 1,"Descripción del producto: Puerta rústica (tranquera) fabricada íntegramente en madera de Quebracho (extremadamente dura) con dimensiones de 1 metro por 1 metro .
+
+Beneficios: Durabilidad excepcional y resistencia total a la intemperie, plagas y putrefacción sin necesidad de curadores constantes.
+
+Usos: Cercados perimetrales, entradas a propiedades rurales, cerramientos decorativos rústicos.",Ferretería,,1,Unidad,Global,1,1,132000,1,Activo
+6100,TUERCA CUPLA 1/2,"Descripción del producto: Tuerca alargada con rosca interna, diseñada para unir o ""acoplar"" dos varillas roscadas. El diámetro de rosca es de 1/2 pulgada .
+
+Beneficios: Permite extender la longitud de un vástago roscado de forma segura y resistente.
+
+Usos: Unión de varillas roscadas en techos suspendidos, tensores o estructuras que requieran gran longitud.",Ferretería,Herrajes,859,Unidad,Global,1,859,2100,100,Activo
+4036,TUERCAS ZINCADA,"Descripción del producto: Elementos roscados internos, con tratamiento de zincado (galvanizado) para proteger contra la corrosión.
+
+Beneficios: Resistencia a la oxidación. Asegure el apriete en bulones y varillas roscadas.
+
+Usos: Uso general en fijación de bulones, conjuntos metálicos o uniones expuestas a ambientes con humedad moderada.",Ferretería,Herrajes,55,Unidad,Victoria,1,1,100,556,Activo
+4034,VARILLA ROSCADA ZINCADA 1/2,"Descripción del producto: Barra de metal totalmente roscada, con diámetro de 1/2 pulgada , protegida con un baño de zincado (galvanizado).
+
+Beneficios: Permite cortar el largo exacto necesario para cada aplicación. El zincado previene la corrosión.
+
+Usos: Fijación de techos suspendidos, anclajes químicos en hormigón o como elemento tensor en estructuras de madera o metal.",Ferretería,Herrajes,2242,Unidad,Victoria,1,1,5400,100,Activo
+n0002,alambre rec x 1,"Descripción del producto: Alambre de acero recocido (tratado térmicamente para mayor flexibilidad), generalmente vendido en rollos de 1 kg .
+
+Beneficios: Gran maleabilidad y facilidad para doblar, atar y torcer.
+
+Usos: Atado de hierros en la construcción (armadura de hormigón), sujeción temporal en obras y uso general en el hogar y el campo.",Ferretería,,6000,Unidad,Victoria,1,3000,6600,11,Activo
+5000,bisagras de atornillar X 10 cm,"Descripción del producto: Bisagras de atornillar 
+
+Beneficios: Las longitudes más grandes son necesarias para soportar puertas y portones más anchos y pesados, distribuyendo mejor la carga.
+
+Usos: Puertas de madera grandes, portones de acceso",Ferretería,Herrajes,2469,Unidad,FCH,1,1,6000,-4,Activo
+5001,bisagras de atornillar X 15 cm,"Descripción del producto: Bisagras de atornillar 
+
+Beneficios: Las longitudes más grandes son necesarias para soportar puertas y portones más anchos y pesados, distribuyendo mejor la carga.
+
+Usos: Puertas de madera grandes, portones de acceso",Ferretería,Herrajes,2649,Unidad,FCH,1,1,6400,4,Activo
+5002,bisagras de atornillar X 20 cm,"Descripción del producto: Bisagras de atornillar 
+
+Beneficios: Las longitudes más grandes son necesarias para soportar puertas y portones más anchos y pesados, distribuyendo mejor la carga.
+
+Usos: Puertas de madera grandes, portones de acceso",Ferretería,Herrajes,3028,Unidad,FCH,1,1,7300,15,Activo
+5003,bisagras de atornillar X 25 cm,"Descripción del producto: Bisagras de atornillar 
+
+Beneficios: Las longitudes más grandes son necesarias para soportar puertas y portones más anchos y pesados, distribuyendo mejor la carga.
+
+Usos: Puertas de madera grandes, portones de acceso",Ferretería,Herrajes,3301,Unidad,FCH,1,1,8000,4,Activo
+5004,bisagras de atornillar X 28 cm,nada,Ferretería,Herrajes,7662,Unidad,FCH,1,1,18500,,Activo
+5005,bisagras de atornillar X 30 cm,"Descripción del producto: Bisagras de atornillar 
+
+Beneficios: Las longitudes más grandes son necesarias para soportar puertas y portones más anchos y pesados, distribuyendo mejor la carga.
+
+Usos: Puertas de madera grandes, portones de acceso",Ferretería,Herrajes,7662,Unidad,FCH,1,1,18500,10,Activo
+n0001,clavo cabeza de plomo x 3,"Descripción del producto: Clavo de 3 pulgadas con una cabeza ancha sellada con plomo.
+
+Beneficios: El plomo se deforma al clavarse, sellando herméticamente el agujero e impidiendo filtraciones de agua.
+
+Usos: Fijación de chapas de techo, tejas asfálticas o placas de fibrocemento, donde la impermeabilidad es crucial.",Ferretería,Clavos,9350,Unidad,provedor ej,1,9350,10300,7,Activo
+5006,pasador X 15 cm,"Descripción del producto: Dispositivo de cierre manual simple, compuesto por una barra de metal (pivote) que se desliza dentro de una guía para asegurar una puerta, portón o ventana. Mide 15 cm de largo.
+
+Beneficios: Mecanismo de seguridad secundario, fácil y rápido de instalar y operar. El tamaño de 15 cm es adecuado para una sujeción firme sin ser excesivamente voluminoso.
+
+Usos: Cierre adicional para puertas interiores o exteriores, ventanas, y para asegurar un panel inactivo en puertas dobles.",Ferretería,Herrajes,4172,Unidad,FCH,1,1,10100,14,Activo
+5007,pasador X 20 cm,"Descripción del producto: Dispositivo de cierre manual de mayor longitud, compuesto por una barra de metal deslizante de 20 cm de largo.
+
+Beneficios: Mayor longitud que el pasador de 15 cm, lo que permite un anclaje más profundo y una mayor seguridad. Ideal para puertas más grandes o gruesas.
+
+Usos: Asegurar puertas de garaje o cobertizos, portones medianos de jardín y como cerrojo principal en puertas de servicio.",Ferretería,Herrajes,5674,Unidad,FCH,1,1,13700,19,Activo
+5008,pasador X 30 cm,nada,Ferretería,Herrajes,12660,Unidad,FCH,1,1,30600,,Activo
+5009,pasador X 40 cm,nada,Ferretería,Herrajes,13859,Unidad,FCH,1,1,33500,,Activo
+5010,pasador al piso X 15 cm,nada,Ferretería,Herrajes,3169,Unidad,FCH,1,1,7700,,Activo
+5011,pasador al piso X 25 cm,nada,Ferretería,Herrajes,4235,Unidad,FCH,1,1,10200,,Activo
+5013,pasador al piso X 30 cm,"Descripción del producto: Pasador de gran longitud ( 30 cm ) diseñado específicamente para ser instalado en la parte inferior de una puerta o portón doble y anclarse en el suelo o umbral . Suele tener un mecanismo de retención para mantenerlo abierto o cerrado.
+
+Beneficios: Fija de manera muy segura el panel pasivo (inactivo) de una puerta doble al suelo, previniendo el movimiento o la apertura involuntaria. La longitud de 30 cm asegura un anclaje firme.
+
+Usos: Utilizado en portones grandes de dos hojas, puertas dobles de garaje o canceles para fijar la hoja que no lleva la cerradura principal.",Ferretería,Herrajes,9144,Unidad,FCH,1,1,22100,19,Activo
+5012,pasador al piso X 30 cm,nada,Ferretería,Herrajes,4265,Unidad,FCH,1,1,10300,,Activo
+5014,pasador al piso X 50 cm,nada,Ferretería,Herrajes,11577,Unidad,FCH,1,1,28000,,Activo

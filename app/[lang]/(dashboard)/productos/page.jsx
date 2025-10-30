@@ -1897,6 +1897,7 @@ const ProductosPage = () => {
                       "stockMinimo",
                       "valorCompra",
                       "valorVenta",
+                      "stock",
                     ].includes(header)
                   ) {
                     // Manejar comas en números (formato argentino)
@@ -2344,6 +2345,21 @@ const ProductosPage = () => {
           }
         }
 
+        // Validar stock (opcional, si se proporciona debe ser válido)
+        if (producto.stock !== undefined && producto.stock !== null && producto.stock !== "") {
+          if (isNaN(producto.stock) || producto.stock < 0) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo stock debe ser un número válido mayor o igual a 0. Valor actual: ${producto.stock}`,
+            });
+            continue;
+          }
+        } else {
+          // Si no se proporciona stock, establecer en 0
+          producto.stock = 0;
+        }
+
         // Validar que valorVenta sea mayor que valorCompra
         if (producto.valorVenta <= producto.valorCompra) {
           productosInvalidos.push({
@@ -2610,13 +2626,15 @@ const ProductosPage = () => {
       "stockMinimo",
       "valorCompra",
       "valorVenta",
+      "stock",
       "estado",
+      "estadoTienda",
     ];
     const csvContent =
       "data:text/csv;charset=utf-8," +
       headers.join(",") +
       "\n" +
-      "1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,Activo";
+      "1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,50,Activo,Activo";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -2752,7 +2770,8 @@ const ProductosPage = () => {
       "valorCompra",
       "valorVenta",
       "stock",
-      "estado"
+      "estado",
+      "estadoTienda"
     ];
 
     const csvRows = [headers.join(",")];
@@ -2770,8 +2789,9 @@ const ProductosPage = () => {
         producto.stockMinimo || "",
         producto.valorCompra || "",
         producto.valorVenta || "",
-        producto.stock || "",
-        producto.estado || "Activo"
+        producto.stock || "0",
+        producto.estado || "Activo",
+        producto.estadoTienda || "Inactivo"
       ].map(field => `"${field}"`).join(",");
       
       csvRows.push(row);
@@ -4443,15 +4463,16 @@ const ProductosPage = () => {
               </h4>
               <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• Solo se permiten productos de categoría "Ferretería"</li>
-                <li>• Todos los campos obligatorios deben estar presentes</li>
+                <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
+                <li>• <strong>Campos opcionales:</strong> stock (si no se proporciona, se establecerá en 0), estadoTienda</li>
                 <li>• El campo "stockMinimo" debe ser un número positivo</li>
                 <li>
                   • El campo "valorCompra" y "valorVenta" deben ser números
                   positivos
                 </li>
+                <li>• El campo "stock" es opcional, pero si se proporciona debe ser un número válido mayor o igual a 0</li>
                 <li>• El campo "proveedor" es obligatorio</li>
                 <li>• Se agregarán automáticamente las fechas de creación</li>
-                <li>• La unidad de medida se establecerá automáticamente</li>
                 <li>• El archivo debe tener encabezados en la primera fila</li>
                 <li>• Los campos numéricos se convertirán automáticamente</li>
                 <li>• Se ignorarán las filas vacías</li>
