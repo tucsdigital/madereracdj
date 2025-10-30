@@ -1840,10 +1840,62 @@ const ProductosPage = () => {
 
           // Si es un archivo CSV, procesar directamente
           if (file.name.toLowerCase().endsWith(".csv")) {
-            const lines = content.split("\n");
-            console.log("Líneas CSV Ferretería encontradas:", lines.length);
+            // Parser CSV mejorado que maneja descripciones multilínea
+            const parseCSV = (text) => {
+              const rows = [];
+              let currentRow = [];
+              let currentField = "";
+              let inQuotes = false;
+              
+              for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+                
+                if (char === '"' && nextChar === '"' && inQuotes) {
+                  // Comillas dobles dentro de un campo entrecomillado
+                  currentField += '"';
+                  i++; // Saltar la siguiente comilla
+                } else if (char === '"') {
+                  // Toggle estado de comillas
+                  inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                  // Separador de campo fuera de comillas
+                  currentRow.push(currentField.trim());
+                  currentField = "";
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                  // Fin de línea fuera de comillas
+                  if (char === '\r' && nextChar === '\n') {
+                    i++; // Saltar el \n en \r\n
+                  }
+                  if (currentField.trim() || currentRow.length > 0) {
+                    currentRow.push(currentField.trim());
+                    if (currentRow.some(field => field.length > 0)) {
+                      rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = "";
+                  }
+                } else {
+                  // Agregar carácter al campo actual
+                  currentField += char;
+                }
+              }
+              
+              // Agregar última fila si existe
+              if (currentField.trim() || currentRow.length > 0) {
+                currentRow.push(currentField.trim());
+                if (currentRow.some(field => field.length > 0)) {
+                  rows.push(currentRow);
+                }
+              }
+              
+              return rows;
+            };
 
-            if (lines.length < 2) {
+            const rows = parseCSV(content);
+            console.log("Filas CSV Ferretería encontradas:", rows.length);
+
+            if (rows.length < 2) {
               reject(
                 new Error(
                   "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
@@ -1852,75 +1904,54 @@ const ProductosPage = () => {
               return;
             }
 
-            const headers = lines[0]
-              .split(",")
-              .map((h) => h.trim().replace(/"/g, ""));
+            const headers = rows[0].map(h => h.replace(/"/g, "").trim());
             console.log("Encabezados Ferretería detectados:", headers);
 
             const productos = [];
-            for (let i = 1; i < lines.length; i++) {
-              if (lines[i].trim()) {
-                // Función para parsear valores CSV correctamente
-                const parseCSVLine = (line) => {
-                  const result = [];
-                  let current = "";
-                  let inQuotes = false;
+            for (let i = 1; i < rows.length; i++) {
+              const values = rows[i];
+              if (values.length === 0 || values.every(v => !v)) continue;
+              
+              const producto = {};
 
-                  for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    if (char === '"') {
-                      inQuotes = !inQuotes;
-                    } else if (char === "," && !inQuotes) {
-                      result.push(current.trim());
-                      current = "";
-                    } else {
-                      current += char;
-                    }
-                  }
-                  result.push(current.trim());
-                  return result;
-                };
+              headers.forEach((header, index) => {
+                let value = values[index] || "";
 
-                const values = parseCSVLine(lines[i]);
-                const producto = {};
+                // Limpiar comillas
+                value = value.replace(/^"|"$/g, "").trim();
 
-                headers.forEach((header, index) => {
-                  let value = values[index] || "";
-
-                  // Limpiar comillas
-                  value = value.replace(/"/g, "");
-
-                  // Convertir valores numéricos
-                  if (
-                    [
-                      "costo",
-                      "stockMinimo",
-                      "valorCompra",
-                      "valorVenta",
-                      "stock",
-                    ].includes(header)
-                  ) {
-                    // Manejar comas en números (formato argentino)
-                    value = value.replace(",", ".");
-                    value = parseFloat(value) || 0;
-                  }
-
-                  producto[header] = value;
-                });
-
-                // Validar que tenga los campos mínimos
-                if (producto.codigo && producto.nombre && producto.categoria) {
-                  productos.push(producto);
-                  console.log(
-                    "Producto Ferretería válido agregado:",
-                    producto.codigo
-                  );
-                } else {
-                  console.log(
-                    "Producto Ferretería inválido ignorado:",
-                    producto
-                  );
+                // Convertir valores numéricos
+                if (
+                  [
+                    "costo",
+                    "stockMinimo",
+                    "valorCompra",
+                    "valorVenta",
+                    "stock",
+                  ].includes(header)
+                ) {
+                  // Manejar comas en números (formato argentino)
+                  value = value.replace(",", ".");
+                  value = parseFloat(value) || 0;
                 }
+
+                producto[header] = value;
+              });
+
+              // Validar que tenga los campos mínimos
+              if (producto.codigo && producto.nombre && producto.categoria) {
+                productos.push(producto);
+                console.log(
+                  "Producto Ferretería válido agregado:",
+                  producto.codigo
+                );
+              } else {
+                console.log(
+                  "Producto Ferretería inválido ignorado en fila",
+                  i + 1,
+                  ":",
+                  producto
+                );
               }
             }
 
@@ -2346,15 +2377,18 @@ const ProductosPage = () => {
         }
 
         // Validar stock (opcional, si se proporciona debe ser válido)
+        // PERMITIR stocks negativos (útil para inventario con deuda/faltante)
         if (producto.stock !== undefined && producto.stock !== null && producto.stock !== "") {
-          if (isNaN(producto.stock) || producto.stock < 0) {
+          if (isNaN(producto.stock)) {
             productosInvalidos.push({
               index: i + 1,
               codigo: producto.codigo,
-              error: `Campo stock debe ser un número válido mayor o igual a 0. Valor actual: ${producto.stock}`,
+              error: `Campo stock debe ser un número válido. Valor actual: ${producto.stock}`,
             });
             continue;
           }
+          // Convertir a número (acepta negativos)
+          producto.stock = Number(producto.stock);
         } else {
           // Si no se proporciona stock, establecer en 0
           producto.stock = 0;
@@ -4470,10 +4504,11 @@ const ProductosPage = () => {
                   • El campo "valorCompra" y "valorVenta" deben ser números
                   positivos
                 </li>
-                <li>• El campo "stock" es opcional, pero si se proporciona debe ser un número válido mayor o igual a 0</li>
+                <li>• El campo "stock" es opcional y <strong>puede ser negativo</strong> (útil para registrar deuda o faltante de inventario)</li>
                 <li>• El campo "proveedor" es obligatorio</li>
                 <li>• Se agregarán automáticamente las fechas de creación</li>
                 <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• <strong>Las descripciones pueden tener múltiples líneas</strong> dentro de comillas</li>
                 <li>• Los campos numéricos se convertirán automáticamente</li>
                 <li>• Se ignorarán las filas vacías</li>
                 <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
