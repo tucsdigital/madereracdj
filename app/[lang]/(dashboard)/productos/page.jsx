@@ -3430,7 +3430,9 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                          🌲
+                          <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Importar Maderas</div>
@@ -3445,7 +3447,10 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          🔧
+                          <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Importar Ferretería</div>
@@ -3460,7 +3465,9 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-green-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                          🏗️
+                          <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Importar Obras</div>
@@ -3501,7 +3508,9 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                          🌲
+                          <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Exportar Maderas</div>
@@ -3516,7 +3525,10 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          🔧
+                          <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Exportar Ferretería</div>
@@ -3531,7 +3543,9 @@ const ProductosPage = () => {
                         className="w-full text-left px-3 py-3 hover:bg-purple-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
                         <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                          🏗️
+                          <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">Exportar Obras</div>
@@ -3575,14 +3589,14 @@ const ProductosPage = () => {
           </div>
 
           {/* Filtros específicos por categoría */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3">
             {/* Filtro de tipo de madera */}
             {cat === "Maderas" && tiposMaderaUnicos.length > 0 && (
-              <div className="flex-1">
-                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
                   <button
                     type="button"
-                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroTipoMadera === ""
                         ? "bg-orange-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3595,7 +3609,7 @@ const ProductosPage = () => {
                     <button
                       key={tipo}
                       type="button"
-                      className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroTipoMadera === tipo
                           ? "bg-orange-600 text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3611,11 +3625,11 @@ const ProductosPage = () => {
 
             {/* Filtro de subcategoría de ferretería */}
             {cat === "Ferretería" && subCategoriasFerreteria.length > 0 && (
-              <div className="flex-1">
-                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
                   <button
                     type="button"
-                    className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroSubCategoria === ""
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3628,7 +3642,7 @@ const ProductosPage = () => {
                     <button
                       key={subCategoria}
                       type="button"
-                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroSubCategoria === subCategoria
                           ? "bg-blue-600 text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3644,11 +3658,11 @@ const ProductosPage = () => {
 
             {/* Filtro de subcategoría de obras */}
             {cat === "Obras" && subCategoriasObras.length > 0 && (
-              <div className="flex-1">
-                <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
                   <button
                     type="button"
-                    className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroSubCategoria === ""
                         ? "bg-purple-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3661,7 +3675,7 @@ const ProductosPage = () => {
                     <button
                       key={subCategoria}
                       type="button"
-                      className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                      className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroSubCategoria === subCategoria
                           ? "bg-purple-600 text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -3676,33 +3690,43 @@ const ProductosPage = () => {
             )}
 
             {/* Filtro de estado de tienda - siempre visible */}
-            <div className="flex-1">
-              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
                 <button
                   type="button"
-                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === ""
                       ? "bg-purple-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroTienda("")}
                 >
-                  🏪 Todas las tiendas
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span className="hidden sm:inline">Todas las tiendas</span>
+                  <span className="sm:hidden">Todas</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "" ? "bg-white/20" : "bg-purple-100 text-purple-700"
+                  }`}>
                     {productos.length}
                   </span>
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === "Activo"
                       ? "bg-green-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroTienda("Activo")}
                 >
-                  ✅ Activos en tienda
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="hidden sm:inline">Activos en tienda</span>
+                  <span className="sm:hidden">Activos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroTienda === "Activo"
                       ? "bg-white/20"
                       : "bg-green-100 text-green-700"
@@ -3712,15 +3736,19 @@ const ProductosPage = () => {
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === "Inactivo"
                       ? "bg-red-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroTienda("Inactivo")}
                 >
-                  ❌ Inactivos en tienda
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="hidden sm:inline">Inactivos en tienda</span>
+                  <span className="sm:hidden">Inactivos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroTienda === "Inactivo"
                       ? "bg-white/20"
                       : "bg-red-100 text-red-700"
@@ -3732,33 +3760,43 @@ const ProductosPage = () => {
             </div>
 
             {/* Filtro de stock - siempre visible */}
-            <div className="flex-1">
-              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
                 <button
                   type="button"
-                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === ""
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroStock("")}
                 >
-                  📦 Todos los productos
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="hidden sm:inline">Todos los productos</span>
+                  <span className="sm:hidden">Todos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "" ? "bg-white/20" : "bg-blue-100 text-blue-700"
+                  }`}>
                     {productos.length}
                   </span>
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === "conStock"
                       ? "bg-green-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroStock("conStock")}
                 >
-                  ✅ Con stock
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="hidden sm:inline">Con stock</span>
+                  <span className="sm:hidden">Con stock</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroStock === "conStock"
                       ? "bg-white/20"
                       : "bg-green-100 text-green-700"
@@ -3768,15 +3806,19 @@ const ProductosPage = () => {
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === "sinStock"
                       ? "bg-orange-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                   onClick={() => setFiltroStock("sinStock")}
                 >
-                  ⚠️ Sin stock
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="hidden sm:inline">Sin stock</span>
+                  <span className="sm:hidden">Sin stock</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroStock === "sinStock"
                       ? "bg-white/20"
                       : "bg-orange-100 text-orange-700"
@@ -4412,9 +4454,12 @@ const ProductosPage = () => {
                   Seleccionar archivo CSV
                 </label>
                 {bulkFile && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     <p className="text-sm text-green-800">
-                      ✅ Archivo seleccionado: <strong>{bulkFile.name}</strong>
+                      Archivo seleccionado: <strong>{bulkFile.name}</strong>
                     </p>
                   </div>
                 )}
@@ -4424,17 +4469,25 @@ const ProductosPage = () => {
                 <button
                   type="button"
                   onClick={downloadExampleCSV}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
                 >
-                  📥 Descargar ejemplo CSV
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
                 </button>
               </div>
             </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <h4 className="font-semibold text-yellow-800 mb-2">
-                ⚠️ Instrucciones:
-              </h4>
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="font-semibold text-yellow-800">
+                  Instrucciones:
+                </h4>
+              </div>
               <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• Solo se permiten productos de categoría "Maderas"</li>
                 <li>• Todos los campos obligatorios deben estar presentes</li>
@@ -4554,9 +4607,12 @@ const ProductosPage = () => {
                   Seleccionar archivo CSV
                 </label>
                 {bulkFileFerreteria && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     <p className="text-sm text-green-800">
-                      ✅ Archivo seleccionado:{" "}
+                      Archivo seleccionado:{" "}
                       <strong>{bulkFileFerreteria.name}</strong>
                     </p>
                   </div>
@@ -4567,17 +4623,25 @@ const ProductosPage = () => {
                 <button
                   type="button"
                   onClick={downloadExampleCSVFerreteria}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
                 >
-                  📥 Descargar ejemplo CSV
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
                 </button>
               </div>
             </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <h4 className="font-semibold text-yellow-800 mb-2">
-                ⚠️ Instrucciones:
-              </h4>
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="font-semibold text-yellow-800">
+                  Instrucciones:
+                </h4>
+              </div>
               <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• Solo se permiten productos de categoría "Ferretería"</li>
                 <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
@@ -4702,9 +4766,12 @@ const ProductosPage = () => {
                   Seleccionar archivo CSV
                 </label>
                 {bulkFileObras && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     <p className="text-sm text-green-800">
-                      ✅ Archivo seleccionado:{" "}
+                      Archivo seleccionado:{" "}
                       <strong>{bulkFileObras.name}</strong>
                     </p>
                   </div>
@@ -4715,17 +4782,25 @@ const ProductosPage = () => {
                 <button
                   type="button"
                   onClick={downloadExampleCSVObras}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
                 >
-                  📥 Descargar ejemplo CSV
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
                 </button>
               </div>
             </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <h4 className="font-semibold text-yellow-800 mb-2">
-                📋 Formato requerido para Obras:
-              </h4>
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h4 className="font-semibold text-yellow-800">
+                  Formato requerido para Obras:
+                </h4>
+              </div>
               <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• <strong>codigo</strong>: Código único del producto</li>
                 <li>• <strong>nombre</strong>: Nombre del producto</li>
