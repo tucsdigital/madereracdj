@@ -1343,6 +1343,7 @@ const ProductosPage = () => {
   const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
   const [filtroTienda, setFiltroTienda] = useState("");
+  const [filtroStock, setFiltroStock] = useState(""); // "" = todos, "conStock" = con stock, "sinStock" = sin stock
 
   const [reload, setReload] = useState(false);
   const [productos, setProductos] = useState([]);
@@ -1637,7 +1638,14 @@ const ProductosPage = () => {
         filtroTienda === "" ||
         estadoTiendaProducto === filtroTienda;
 
-      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda;
+      // Filtro por stock
+      const stockProducto = Number(p.stock) || 0;
+      const cumpleStock =
+        filtroStock === "" ||
+        (filtroStock === "conStock" && stockProducto > 0) ||
+        (filtroStock === "sinStock" && stockProducto <= 0);
+
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda && cumpleStock;
     }).sort((a, b) => {
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
@@ -1649,7 +1657,7 @@ const ProductosPage = () => {
       // Si ambos tienen stock o ambos no tienen stock, mantener orden original
       return 0;
     });
-  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
@@ -1678,7 +1686,7 @@ const ProductosPage = () => {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
+  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
 
   // Obtener tipos de madera únicos
   const tiposMaderaUnicos = [
@@ -2402,6 +2410,24 @@ const ProductosPage = () => {
             error: `El valor de venta debe ser mayor al valor de compra. valorVenta: ${producto.valorVenta}, valorCompra: ${producto.valorCompra}`,
           });
           continue;
+        }
+
+        // Validar estadoTienda si está presente
+        if (producto.estadoTienda !== undefined && producto.estadoTienda !== null && producto.estadoTienda !== "") {
+          const estadoTiendaNormalizado = String(producto.estadoTienda).trim();
+          if (estadoTiendaNormalizado !== "Activo" && estadoTiendaNormalizado !== "Inactivo") {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `El campo estadoTienda debe ser "Activo" o "Inactivo". Valor actual: ${producto.estadoTienda}`,
+            });
+            continue;
+          }
+          // Normalizar el valor
+          producto.estadoTienda = estadoTiendaNormalizado;
+        } else {
+          // Si no se proporciona estadoTienda, establecer por defecto "Inactivo"
+          producto.estadoTienda = "Inactivo";
         }
 
         productosValidos.push({
@@ -3181,7 +3207,7 @@ const ProductosPage = () => {
   useEffect(() => {
     setSelectedProducts([]);
     setSelectAll(false);
-  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda]);
+  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
 
   // Efecto para cerrar dropdowns cuando se hace clic fuera
   useEffect(() => {
@@ -3704,11 +3730,67 @@ const ProductosPage = () => {
                 </button>
               </div>
             </div>
+
+            {/* Filtro de stock - siempre visible */}
+            <div className="flex-1">
+              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                <button
+                  type="button"
+                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroStock === ""
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroStock("")}
+                >
+                  📦 Todos los productos
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-medium">
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroStock === "conStock"
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroStock("conStock")}
+                >
+                  ✅ Con stock
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "conStock"
+                      ? "bg-white/20"
+                      : "bg-green-100 text-green-700"
+                  }`}>
+                    {productos.filter(p => (Number(p.stock) || 0) > 0).length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                    filtroStock === "sinStock"
+                      ? "bg-orange-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroStock("sinStock")}
+                >
+                  ⚠️ Sin stock
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "sinStock"
+                      ? "bg-white/20"
+                      : "bg-orange-100 text-orange-700"
+                  }`}>
+                    {productos.filter(p => (Number(p.stock) || 0) <= 0).length}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Indicador de productos filtrados */}
           <div className="flex items-center justify-between">
-            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda) && (
+            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda || filtroStock) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -3718,6 +3800,7 @@ const ProductosPage = () => {
                   setFiltroTipoMadera("");
                   setFiltroSubCategoria("");
                   setFiltroTienda("");
+                  setFiltroStock("");
                 }}
                 className="text-xs"
               >
@@ -4499,6 +4582,7 @@ const ProductosPage = () => {
                 <li>• Solo se permiten productos de categoría "Ferretería"</li>
                 <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
                 <li>• <strong>Campos opcionales:</strong> stock (si no se proporciona, se establecerá en 0), estadoTienda</li>
+                <li>• El campo "estadoTienda" debe ser "Activo" o "Inactivo". Si no se proporciona, se establecerá por defecto como "Inactivo"</li>
                 <li>• El campo "stockMinimo" debe ser un número positivo</li>
                 <li>
                   • El campo "valorCompra" y "valorVenta" deben ser números
