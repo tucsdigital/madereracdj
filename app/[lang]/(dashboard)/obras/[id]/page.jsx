@@ -391,6 +391,10 @@ const ObraDetallePage = () => {
     setItemsCatalogo((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const actualizarCantidadProductoCatalogo = (id, cantidad) => {
+    handleCantidadChange(id, cantidad);
+  };
+
   const actualizarDescuento = (id, descuento) => {
     setItemsCatalogo((prev) =>
       prev.map((p) =>
@@ -491,6 +495,8 @@ const ObraDetallePage = () => {
             itemsSeleccionados={itemsCatalogo}
             onAgregarProducto={agregarProductoCatalogo}
             onAgregarProductoManual={() => {}}
+            onActualizarCantidad={actualizarCantidadProductoCatalogo}
+            onQuitarProducto={quitarProductoCatalogo}
             editando={editando}
             maxProductos={48}
             showFilters={true}

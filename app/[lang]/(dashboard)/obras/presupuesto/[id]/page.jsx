@@ -367,6 +367,10 @@ const PresupuestoPage = () => {
     }));
   };
 
+  const actualizarCantidadProducto = (id, cantidad) => {
+    handleActualizarCampo(id, "cantidad", cantidad);
+  };
+
   // Formateador para números en formato argentino
   const formatearNumeroArgentino = (numero) => {
     if (numero === null || numero === undefined || isNaN(numero)) return "0";
@@ -714,6 +718,8 @@ const PresupuestoPage = () => {
                     }
                     onAgregarProducto={handleAgregarProductoCatalogo}
                     onAgregarProductoManual={() => {}} // No implementado en conversión
+                    onActualizarCantidad={actualizarCantidadProducto}
+                    onQuitarProducto={handleQuitarProducto}
                     editando={true}
                     maxProductos={100}
                     showFilters={true}

@@ -2582,39 +2582,48 @@ const VentaDetalle = () => {
 
                                 {/* Botón de agregar o controles de cantidad */}
                                 <div className="mt-4">
-                                  {yaAgregado ? (
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => {
-                                          if (cantidadActual > 1) {
-                                            handleDecrementarCantidad(prod.id);
-                                          } else {
-                                            handleQuitarProducto(prod.id);
-                                          }
-                                        }}
-                                        disabled={loadingPrecios}
-                                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
-                                      >
-                                        −
-                                      </button>
-                                      <div className="flex-1 text-center">
-                                        <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
-                                          {cantidadActual}
-                                        </div>
-                                      </div>
-                                      <button
-                                        onClick={() => {
-                                          handleIncrementarCantidad(prod.id);
-                                        }}
-                                        disabled={loadingPrecios}
-                                        className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  ) : (
+                                {yaAgregado ? (
+                                  <div className="flex items-center gap-2">
                                     <button
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (cantidadActual > 1) {
+                                          handleDecrementarCantidad(prod.id);
+                                        } else {
+                                          handleQuitarProducto(prod.id);
+                                        }
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                      −
+                                    </button>
+                                    <div className="flex-1 text-center">
+                                      <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                        {cantidadActual}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleIncrementarCantidad(prod.id);
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                         if (prod.categoria === "Maderas") {
                                           const alto = Number(prod.alto) || 0;
                                           const ancho = Number(prod.ancho) || 0;

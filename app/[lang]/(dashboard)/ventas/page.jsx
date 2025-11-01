@@ -2022,7 +2022,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 {yaAgregado ? (
                                   <div className="flex items-center gap-2">
                                     <button
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         if (cantidadActual > 1) {
                                           handleDecrementarCantidad(prod.id);
                                         } else {
@@ -2040,7 +2043,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       </div>
                                     </div>
                                     <button
-                                      onClick={() => {
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         handleIncrementarCantidad(prod.id);
                                       }}
                                       disabled={isSubmitting}
@@ -2051,7 +2057,10 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   </div>
                                 ) : (
                                   <button
-                                    onClick={() => {
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       if (prod.categoria === "Maderas") {
                                         const alto = Number(prod.alto) || 0;
                                         const ancho = Number(prod.ancho) || 0;

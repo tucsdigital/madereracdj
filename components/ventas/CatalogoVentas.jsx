@@ -570,7 +570,10 @@ const CatalogoVentas = ({
                         {yaAgregado ? (
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => {
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 if (cantidadActual > 1) {
                                   onActualizarCantidad?.(prod.id, cantidadActual - 1);
                                 } else {
@@ -587,7 +590,10 @@ const CatalogoVentas = ({
                               </div>
                             </div>
                             <button
-                              onClick={() => {
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 onActualizarCantidad?.(prod.id, cantidadActual + 1);
                               }}
                               className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors"
@@ -597,7 +603,10 @@ const CatalogoVentas = ({
                           </div>
                         ) : (
                           <button
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               onAgregarProducto(prod);
                             }}
                             disabled={prod.stock !== undefined && prod.stock <= 0}

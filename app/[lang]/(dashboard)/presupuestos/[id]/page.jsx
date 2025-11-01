@@ -882,6 +882,86 @@ const PresupuestoDetalle = () => {
     );
   };
 
+  // Funciones para manipular cantidad de productos
+  const handleIncrementarCantidad = (id) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = p.cantidad + 1;
+          
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && p.unidad === "M2") {
+            const precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: nuevaCantidad,
+              precioPorPie: p.precioPorPie,
+            });
+
+            const precioFinal = p.cepilladoAplicado
+              ? precioBase * 1.066
+              : precioBase;
+
+            const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+            return {
+              ...p,
+              cantidad: nuevaCantidad,
+              precio: precioRedondeado,
+            };
+          }
+          // Para otros productos, solo cambiar cantidad
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleDecrementarCantidad = (id) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = Math.max(1, p.cantidad - 1);
+          
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && p.unidad === "M2") {
+            const precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: nuevaCantidad,
+              precioPorPie: p.precioPorPie,
+            });
+
+            const precioFinal = p.cepilladoAplicado
+              ? precioBase * 1.066
+              : precioBase;
+
+            const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+            return {
+              ...p,
+              cantidad: nuevaCantidad,
+              precio: precioRedondeado,
+            };
+          }
+          // Para otros productos, solo cambiar cantidad
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleQuitarProducto = (id) => {
+    setPresupuestoEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.filter((p) => p.id !== id),
+    }));
+  };
+
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
     setErrorForm("");
@@ -2097,7 +2177,9 @@ const PresupuestoDetalle = () => {
                                         <div className="flex items-center gap-2">
                                           <button
                                             type="button"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
                                               if (cantidadActual > 1) {
                                                 handleDecrementarCantidad(prod.id);
                                               } else {
@@ -2116,7 +2198,9 @@ const PresupuestoDetalle = () => {
                                           </div>
                                           <button
                                             type="button"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
                                               handleIncrementarCantidad(prod.id);
                                             }}
                                             disabled={loadingPrecios}
@@ -2128,7 +2212,9 @@ const PresupuestoDetalle = () => {
                                       ) : (
                                         <button
                                           type="button"
-                                          onClick={() => {
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
                                               // Calcular precio inicial según el tipo de producto
                                               let precioCalculado = 0;
                                               const alto = Number(prod.alto) || 0;
