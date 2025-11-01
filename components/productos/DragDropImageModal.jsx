@@ -31,7 +31,10 @@ const DragDropImageModal = ({
             Confirmar Subida de Imagen
           </DialogTitle>
           <DialogDescription>
-            Estás a punto de subir una imagen al siguiente producto
+            {Array.isArray(imagePreview) 
+              ? `Estás a punto de subir ${imagePreview.length} imagen(es) al siguiente producto`
+              : 'Estás a punto de subir una imagen al siguiente producto'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -55,6 +58,16 @@ const DragDropImageModal = ({
                 <div className="text-sm text-gray-600">
                   Categoría: <span className="font-semibold">{producto.categoria}</span>
                 </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                    (producto.imagenes?.length || 0) >= 3
+                      ? 'bg-green-100 text-green-700 border border-green-300'
+                      : 'bg-blue-100 text-blue-700 border border-blue-200'
+                  }`}>
+                    <ImageIcon className="w-3 h-3" />
+                    <span>Imágenes actuales: {producto.imagenes?.length || 0}/3</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -64,22 +77,42 @@ const DragDropImageModal = ({
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4" />
-                Vista previa de la imagen:
+                Vista previa {Array.isArray(imagePreview) && imagePreview.length > 1 ? `(${imagePreview.length} imágenes)` : ''}:
               </div>
-              <div className="flex items-center gap-4">
-                <img 
-                  src={imagePreview} 
-                  alt="Preview" 
-                  className="w-32 h-32 object-cover rounded-lg border-2 border-gray-300 shadow-sm"
-                />
-                <div className="flex-1">
-                  <div className="text-sm text-gray-600 break-all">
-                    <span className="font-medium">Archivo:</span>
-                    <br />
-                    {fileName}
+              
+              {/* Si es un array de imágenes, mostrar galería */}
+              {Array.isArray(imagePreview) ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {imagePreview.map((img, index) => (
+                    <div key={index} className="flex flex-col gap-2">
+                      <img 
+                        src={img.preview} 
+                        alt={`Preview ${index + 1}`} 
+                        className="w-full h-24 object-cover rounded-lg border-2 border-gray-300 shadow-sm"
+                      />
+                      <div className="text-xs text-gray-600 truncate text-center" title={img.name}>
+                        {img.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Vista de imagen única */
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-32 h-32 object-cover rounded-lg border-2 border-gray-300 shadow-sm"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-600 break-all">
+                      <span className="font-medium">Archivo:</span>
+                      <br />
+                      {fileName}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -88,7 +121,13 @@ const DragDropImageModal = ({
             <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-amber-800">
               <p className="font-medium mb-1">Importante:</p>
-              <p>Esta imagen se agregará a la galería del producto. Si deseas que sea la imagen principal, podrás reordenarla después en el editor del producto.</p>
+              <p>
+                {Array.isArray(imagePreview) && imagePreview.length > 1
+                  ? `Estas ${imagePreview.length} imágenes se agregarán a la galería del producto. `
+                  : 'Esta imagen se agregará a la galería del producto. '
+                }
+                Cada producto puede tener un máximo de 3 imágenes.
+              </p>
             </div>
           </div>
         </div>
@@ -115,7 +154,10 @@ const DragDropImageModal = ({
             ) : (
               <>
                 <ImageIcon className="w-4 h-4 mr-2" />
-                Confirmar y Subir
+                {Array.isArray(imagePreview) && imagePreview.length > 1
+                  ? `Subir ${imagePreview.length} Imágenes`
+                  : 'Confirmar y Subir'
+                }
               </>
             )}
           </Button>

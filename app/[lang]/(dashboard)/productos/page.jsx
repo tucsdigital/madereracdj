@@ -3086,43 +3086,63 @@ const ProductosPage = () => {
     e.stopPropagation();
     setDragOverProductId(null);
 
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      
-      // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        showToast("Por favor, arrastra solo archivos de imagen", "error");
-        return;
-      }
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
 
-      // Validar límite de imágenes (máximo 3 por producto)
-      const currentImagesCount = (product.imagenes || []).length;
-      if (currentImagesCount >= 3) {
-        showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
-        return;
-      }
+    // Validar límite de imágenes (máximo 3 por producto)
+    const currentImagesCount = (product.imagenes || []).length;
+    if (currentImagesCount >= 3) {
+      showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
+      return;
+    }
 
-      // Validar tamaño (5MB máximo)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        showToast("La imagen es demasiado grande. Tamaño máximo: 5MB", "error");
-        return;
-      }
+    // Calcular cuántas imágenes se pueden agregar
+    const espacioDisponible = 3 - currentImagesCount;
+    const archivosASubir = files.slice(0, espacioDisponible);
 
-      // Crear preview
+    // Validar que todos sean imágenes
+    const archivosInvalidos = archivosASubir.filter(file => !file.type.startsWith('image/'));
+    if (archivosInvalidos.length > 0) {
+      showToast("Por favor, arrastra solo archivos de imagen", "error");
+      return;
+    }
+
+    // Validar tamaño (5MB máximo por imagen)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const archivosGrandes = archivosASubir.filter(file => file.size > maxSize);
+    if (archivosGrandes.length > 0) {
+      showToast(`${archivosGrandes.length} imagen(es) son demasiado grandes. Tamaño máximo: 5MB`, "error");
+      return;
+    }
+
+    // Si hay más archivos de los que se pueden subir, avisar
+    if (files.length > espacioDisponible) {
+      showToast(`Solo se pueden agregar ${espacioDisponible} imagen(es) más. Se procesarán las primeras ${espacioDisponible}.`, "warning");
+    }
+
+    // Crear previews para todas las imágenes
+    const previews = [];
+    let loadedCount = 0;
+
+    archivosASubir.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setDraggedImage({
+        previews[index] = {
           file: file,
           preview: event.target.result,
           name: file.name
-        });
-        setTargetProduct(product);
-        setDragDropModalOpen(true);
+        };
+        loadedCount++;
+
+        // Cuando todas las imágenes estén cargadas, abrir el modal
+        if (loadedCount === archivosASubir.length) {
+          setDraggedImage(previews); // Ahora es un array
+          setTargetProduct(product);
+          setDragDropModalOpen(true);
+        }
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
   const handleConfirmImageUpload = async () => {
@@ -3130,11 +3150,15 @@ const ProductosPage = () => {
 
     try {
       setUploadingImage(true);
-      showToast("Subiendo imagen...", "loading");
-
+      
+      // Convertir a array si es un solo archivo (retrocompatibilidad)
+      const imagesToUpload = Array.isArray(draggedImage) ? draggedImage : [draggedImage];
+      
       // Validación adicional: verificar límite de imágenes
       const currentImages = targetProduct.imagenes || [];
-      if (currentImages.length >= 3) {
+      const espacioDisponible = 3 - currentImages.length;
+      
+      if (espacioDisponible === 0) {
         showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
         setUploadingImage(false);
         setDragDropModalOpen(false);
@@ -3143,28 +3167,44 @@ const ProductosPage = () => {
         return;
       }
 
-      // Subir la imagen al servidor
-      const formData = new FormData();
-      formData.append('file', draggedImage.file);
+      // Limitar las imágenes a subir según el espacio disponible
+      const imagenesFiltradas = imagesToUpload.slice(0, espacioDisponible);
+      
+      showToast(`Subiendo ${imagenesFiltradas.length} imagen(es)...`, "loading");
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      // Subir todas las imágenes al servidor
+      const uploadedUrls = [];
+      
+      for (let i = 0; i < imagenesFiltradas.length; i++) {
+        const imagen = imagenesFiltradas[i];
+        
+        const formData = new FormData();
+        formData.append('file', imagen.file);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al subir imagen');
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error al subir imagen');
+        }
+
+        const result = await response.json();
+        uploadedUrls.push(result.url);
+        
+        // Actualizar el toast con el progreso
+        if (imagenesFiltradas.length > 1) {
+          showToast(`Subiendo imagen ${i + 1} de ${imagenesFiltradas.length}...`, "loading");
+        }
       }
 
-      const result = await response.json();
-      const imageUrl = result.url;
-
-      // Actualizar el producto en Firebase con la nueva imagen
+      // Actualizar el producto en Firebase con todas las nuevas imágenes
       const productoRef = doc(db, "productos", targetProduct.id);
       
       await updateDoc(productoRef, {
-        imagenes: [...currentImages, imageUrl],
+        imagenes: [...currentImages, ...uploadedUrls],
         fechaActualizacion: new Date().toISOString(),
       });
 
@@ -3173,17 +3213,19 @@ const ProductosPage = () => {
       setDraggedImage(null);
       setTargetProduct(null);
       
-      const imagenesRestantes = 3 - currentImages.length - 1;
+      const totalImagenes = currentImages.length + uploadedUrls.length;
+      const imagenesRestantes = 3 - totalImagenes;
+      
       showToast(
-        `¡Imagen ${currentImages.length + 1}/3 subida correctamente!${
-          imagenesRestantes > 0 ? ` Puedes agregar ${imagenesRestantes} más.` : ' Límite alcanzado.'
+        `¡${uploadedUrls.length} imagen(es) subida(s) correctamente! Total: ${totalImagenes}/3${
+          imagenesRestantes > 0 ? ` - Puedes agregar ${imagenesRestantes} más.` : ' - Límite alcanzado.'
         }`,
         "success"
       );
 
     } catch (error) {
-      console.error("Error al subir imagen:", error);
-      showToast("Error al subir la imagen: " + error.message, "error");
+      console.error("Error al subir imágenes:", error);
+      showToast("Error al subir las imágenes: " + error.message, "error");
     } finally {
       setUploadingImage(false);
     }
@@ -5170,7 +5212,7 @@ const ProductosPage = () => {
         isOpen={dragDropModalOpen}
         onClose={handleCloseImageModal}
         onConfirm={handleConfirmImageUpload}
-        imagePreview={draggedImage?.preview}
+        imagePreview={Array.isArray(draggedImage) ? draggedImage : draggedImage?.preview}
         fileName={draggedImage?.name}
         producto={targetProduct}
         uploading={uploadingImage}
