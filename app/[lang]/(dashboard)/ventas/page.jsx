@@ -1885,6 +1885,8 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         const yaAgregado = productosSeleccionados.some(
                           (p) => p.id === prod.id
                         );
+                        const itemAgregado = productosSeleccionados.find((p) => p.id === prod.id);
+                        const cantidadActual = itemAgregado?.cantidad || 0;
                         const precio = (() => {
                           if (prod.categoria === "Maderas") {
                             return prod.precioPorPie || 0;
@@ -2017,109 +2019,137 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
                               {/* Botón de agregar */}
                               <div className="mt-4">
-                                <button
-                                  onClick={() => {
-                                    if (prod.categoria === "Maderas") {
-                                      const alto = Number(prod.alto) || 0;
-                                      const ancho = Number(prod.ancho) || 0;
-                                      const largo = Number(prod.largo) || 0;
-                                      const precioPorPie = Number(prod.precioPorPie) || 0;
-
-                                      if (prod.unidadMedida === "Unidad") {
-                                        if (precioPorPie > 0) {
-                                          const precioUnidad = Math.round(precioPorPie / 100) * 100;
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio: precioUnidad,
-                                            unidad: prod.unidadMedida,
-                                            stock: prod.stock,
-                                            alto,
-                                            ancho,
-                                            largo,
-                                            precioPorPie,
-                                          });
+                                {yaAgregado ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        if (cantidadActual > 1) {
+                                          handleDecrementarCantidad(prod.id);
                                         } else {
-                                          setSubmitStatus("error");
-                                          setSubmitMessage("El producto de madera por unidad no tiene un precio válido.");
-                                          return;
+                                          handleQuitarProducto(prod.id);
                                         }
-                                      } else if (prod.unidadMedida === "M2") {
-                                        if (alto > 0 && largo > 0 && precioPorPie > 0) {
-                                          const precioM2 = calcularPrecioMachimbre({
-                                            alto,
-                                            largo,
-                                            cantidad: 1,
-                                            precioPorPie,
-                                          });
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio: precioM2,
-                                            unidad: prod.unidadMedida,
-                                            stock: prod.stock,
-                                            alto,
-                                            largo,
-                                            precioPorPie,
-                                          });
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                      −
+                                    </button>
+                                    <div className="flex-1 text-center">
+                                      <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                        {cantidadActual}
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        handleIncrementarCantidad(prod.id);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (prod.categoria === "Maderas") {
+                                        const alto = Number(prod.alto) || 0;
+                                        const ancho = Number(prod.ancho) || 0;
+                                        const largo = Number(prod.largo) || 0;
+                                        const precioPorPie = Number(prod.precioPorPie) || 0;
+
+                                        if (prod.unidadMedida === "Unidad") {
+                                          if (precioPorPie > 0) {
+                                            const precioUnidad = Math.round(precioPorPie / 100) * 100;
+                                            handleAgregarProducto({
+                                              id: prod.id,
+                                              nombre: prod.nombre,
+                                              precio: precioUnidad,
+                                              unidad: prod.unidadMedida,
+                                              stock: prod.stock,
+                                              alto,
+                                              ancho,
+                                              largo,
+                                              precioPorPie,
+                                            });
+                                          } else {
+                                            setSubmitStatus("error");
+                                            setSubmitMessage("El producto de madera por unidad no tiene un precio válido.");
+                                            return;
+                                          }
+                                        } else if (prod.unidadMedida === "M2") {
+                                          if (alto > 0 && largo > 0 && precioPorPie > 0) {
+                                            const precioM2 = calcularPrecioMachimbre({
+                                              alto,
+                                              largo,
+                                              cantidad: 1,
+                                              precioPorPie,
+                                            });
+                                            handleAgregarProducto({
+                                              id: prod.id,
+                                              nombre: prod.nombre,
+                                              precio: precioM2,
+                                              unidad: prod.unidadMedida,
+                                              stock: prod.stock,
+                                              alto,
+                                              largo,
+                                              precioPorPie,
+                                            });
+                                          } else {
+                                            setSubmitStatus("error");
+                                            setSubmitMessage(
+                                              "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
+                                            );
+                                            return;
+                                          }
                                         } else {
-                                          setSubmitStatus("error");
-                                          setSubmitMessage(
-                                            "El producto machimbre/deck no tiene dimensiones válidas en la base de datos."
-                                          );
-                                          return;
+                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                            const precioCorte = calcularPrecioCorteMadera({
+                                              alto,
+                                              ancho,
+                                              largo,
+                                              precioPorPie,
+                                            });
+                                            handleAgregarProducto({
+                                              id: prod.id,
+                                              nombre: prod.nombre,
+                                              precio: precioCorte,
+                                              unidad: prod.unidadMedida,
+                                              stock: prod.stock,
+                                              alto,
+                                              ancho,
+                                              largo,
+                                              precioPorPie,
+                                            });
+                                          } else {
+                                            setSubmitStatus("error");
+                                            setSubmitMessage(
+                                              "El producto de madera no tiene dimensiones válidas en la base de datos."
+                                            );
+                                            return;
+                                          }
                                         }
                                       } else {
-                                        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                          const precioCorte = calcularPrecioCorteMadera({
-                                            alto,
-                                            ancho,
-                                            largo,
-                                            precioPorPie,
-                                          });
-                                          handleAgregarProducto({
-                                            id: prod.id,
-                                            nombre: prod.nombre,
-                                            precio: precioCorte,
-                                            unidad: prod.unidadMedida,
-                                            stock: prod.stock,
-                                            alto,
-                                            ancho,
-                                            largo,
-                                            precioPorPie,
-                                          });
-                                        } else {
-                                          setSubmitStatus("error");
-                                          setSubmitMessage(
-                                            "El producto de madera no tiene dimensiones válidas en la base de datos."
-                                          );
-                                          return;
-                                        }
+                                        handleAgregarProducto({
+                                          id: prod.id,
+                                          nombre: prod.nombre,
+                                          precio: precio,
+                                          unidad:
+                                            prod.unidadMedida ||
+                                            prod.unidadVenta ||
+                                            prod.unidadVentaHerraje ||
+                                            prod.unidadVentaQuimico ||
+                                            prod.unidadVentaHerramienta,
+                                          stock: prod.stock,
+                                        });
                                       }
-                                    } else {
-                                      handleAgregarProducto({
-                                        id: prod.id,
-                                        nombre: prod.nombre,
-                                        precio: precio,
-                                        unidad:
-                                          prod.unidadMedida ||
-                                          prod.unidadVenta ||
-                                          prod.unidadVentaHerraje ||
-                                          prod.unidadVentaQuimico ||
-                                          prod.unidadVentaHerramienta,
-                                        stock: prod.stock,
-                                      });
-                                    }
-                                  }}
-                                  disabled={yaAgregado || isSubmitting}
-                                  className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                                    yaAgregado
-                                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed"
-                                      : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                  }`}
-                                >
-                                  {yaAgregado ? "Ya agregado" : "Agregar"}
-                                </button>
+                                    }}
+                                    disabled={isSubmitting}
+                                    className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
+                                  >
+                                    Agregar
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>

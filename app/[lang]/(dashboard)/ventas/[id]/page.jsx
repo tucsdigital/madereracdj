@@ -2513,6 +2513,8 @@ const VentaDetalle = () => {
 
                           {productosPaginados.map((prod) => {
                           const yaAgregado = (ventaEdit.productos || []).some((p) => p.id === prod.id);
+                          const itemAgregado = (ventaEdit.productos || []).find((p) => p.id === prod.id);
+                          const cantidadActual = itemAgregado?.cantidad || 0;
                           const precio = (() => {
                             if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
                             if (prod.categoria === "Ferretería") return prod.valorVenta || 0;
@@ -2578,18 +2580,95 @@ const VentaDetalle = () => {
                                   )}
                                 </div>
 
-                                {/* Botón de agregar */}
+                                {/* Botón de agregar o controles de cantidad */}
                                 <div className="mt-4">
+                                  {yaAgregado ? (
+                                    <div className="flex items-center gap-2">
                                       <button
-                                    onClick={() => {
-                                      if (yaAgregado) return;
-                                      if (prod.categoria === "Maderas") {
-                                        const alto = Number(prod.alto) || 0;
-                                        const ancho = Number(prod.ancho) || 0;
-                                        const largo = Number(prod.largo) || 0;
-                                        const precioPorPie = Number(prod.precioPorPie) || 0;
-                                        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-                                          const precioCalc = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                        onClick={() => {
+                                          if (cantidadActual > 1) {
+                                            handleDecrementarCantidad(prod.id);
+                                          } else {
+                                            handleQuitarProducto(prod.id);
+                                          }
+                                        }}
+                                        disabled={loadingPrecios}
+                                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                      >
+                                        −
+                                      </button>
+                                      <div className="flex-1 text-center">
+                                        <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                          {cantidadActual}
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          handleIncrementarCantidad(prod.id);
+                                        }}
+                                        disabled={loadingPrecios}
+                                        className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        if (prod.categoria === "Maderas") {
+                                          const alto = Number(prod.alto) || 0;
+                                          const ancho = Number(prod.ancho) || 0;
+                                          const largo = Number(prod.largo) || 0;
+                                          const precioPorPie = Number(prod.precioPorPie) || 0;
+                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                            const precioCalc = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: [
+                                                ...(prev.productos || []),
+                                                {
+                                                  id: prod.id,
+                                                  nombre: prod.nombre,
+                                                  precio: precioCalc,
+                                                  unidad: prod.unidadMedida,
+                                                  stock: prod.stock,
+                                                  cantidad: 1,
+                                                  descuento: 0,
+                                                  categoria: prod.categoria,
+                                                  alto,
+                                                  ancho,
+                                                  largo,
+                                                  precioPorPie,
+                                                  cepilladoAplicado: false,
+                                                  tipoMadera: prod.tipoMadera || "",
+                                                  subcategoria: prod.subcategoria || prod.subCategoria || "",
+                                                },
+                                              ],
+                                            }));
+                                          } else {
+                                            console.warn("El producto de madera no tiene dimensiones válidas.");
+                                          }
+                                        } else if (prod.categoria === "Ferretería") {
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                nombre: prod.nombre,
+                                                precio: prod.valorVenta || 0,
+                                                unidad: prod.unidadMedida || prod.unidadVenta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                              },
+                                            ],
+                                          }));
+                                        } else {
+                                          const precioOtro = (
+                                            prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0
+                                          );
                                           setVentaEdit((prev) => ({
                                             ...prev,
                                             productos: [
@@ -2597,69 +2676,23 @@ const VentaDetalle = () => {
                                               {
                                                 id: prod.id,
                                                 nombre: prod.nombre,
-                                                precio: precioCalc,
-                                                unidad: prod.unidadMedida,
+                                                precio: precioOtro,
+                                                unidad: prod.unidadMedida || prod.unidadVenta,
                                                 stock: prod.stock,
                                                 cantidad: 1,
                                                 descuento: 0,
                                                 categoria: prod.categoria,
-                                                alto,
-                                                ancho,
-                                                largo,
-                                                precioPorPie,
-                                                cepilladoAplicado: false,
-                                                tipoMadera: prod.tipoMadera || "",
-                                                subcategoria: prod.subcategoria || prod.subCategoria || "",
                                               },
                                             ],
                                           }));
-                                        } else {
-                                          console.warn("El producto de madera no tiene dimensiones válidas.");
                                         }
-                                      } else if (prod.categoria === "Ferretería") {
-                                          setVentaEdit((prev) => ({
-                                            ...prev,
-                                          productos: [
-                                            ...(prev.productos || []),
-                                            {
-                                              id: prod.id,
-                                              nombre: prod.nombre,
-                                              precio: prod.valorVenta || 0,
-                                              unidad: prod.unidadMedida || prod.unidadVenta,
-                                              stock: prod.stock,
-                                              cantidad: 1,
-                                              descuento: 0,
-                                              categoria: prod.categoria,
-                                            },
-                                          ],
-                                        }));
-                                      } else {
-                                        const precioOtro = (
-                                          prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0
-                                        );
-                                        setVentaEdit((prev) => ({
-                                          ...prev,
-                                          productos: [
-                                            ...(prev.productos || []),
-                                            {
-                                              id: prod.id,
-                                              nombre: prod.nombre,
-                                              precio: precioOtro,
-                                              unidad: prod.unidadMedida || prod.unidadVenta,
-                                              stock: prod.stock,
-                                              cantidad: 1,
-                                              descuento: 0,
-                                              categoria: prod.categoria,
-                                            },
-                                          ],
-                                        }));
-                                      }
-                                    }}
-                                    disabled={yaAgregado || loadingPrecios}
-                                    className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${yaAgregado ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"}`}
-                                  >
-                                    {yaAgregado ? "Ya agregado" : "Agregar"}
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
+                                    >
+                                      Agregar
                                     </button>
+                                  )}
                                 </div>
                               </div>
                             </div>

@@ -12,6 +12,8 @@ const CatalogoVentas = ({
   itemsSeleccionados = [],
   onAgregarProducto,
   onAgregarProductoManual,
+  onActualizarCantidad, // Nueva prop para actualizar cantidad
+  onQuitarProducto, // Nueva prop para quitar producto
   editando = false,
   maxProductos = 48,
   showFilters = true,
@@ -436,6 +438,8 @@ const CatalogoVentas = ({
 
               {productosPaginados.map((prod) => {
                 const yaAgregado = itemsSeleccionados.some((p) => p.id === prod.id);
+                const itemAgregado = itemsSeleccionados.find((p) => p.id === prod.id);
+                const cantidadActual = itemAgregado?.cantidad || 0;
                 const precio = (() => {
                   if (prod.categoria === "Maderas") {
                     return prod.precioPorPie || 0;
@@ -563,22 +567,49 @@ const CatalogoVentas = ({
                       </div>
 
                       <div className="mt-4">
-                        <button
-                          onClick={() => {
-                            if (yaAgregado) return;
-                            onAgregarProducto(prod);
-                          }}
-                          disabled={yaAgregado || (prod.stock !== undefined && prod.stock <= 0)}
-                          className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            yaAgregado 
-                              ? "bg-green-100 text-green-700 cursor-not-allowed" 
-                              : (prod.stock !== undefined && prod.stock <= 0)
+                        {yaAgregado ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                if (cantidadActual > 1) {
+                                  onActualizarCantidad?.(prod.id, cantidadActual - 1);
+                                } else {
+                                  onQuitarProducto?.(prod.id);
+                                }
+                              }}
+                              className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
+                            >
+                              −
+                            </button>
+                            <div className="flex-1 text-center">
+                              <div className="bg-green-100 text-green-700 py-2 px-3 rounded-md text-sm font-bold">
+                                {cantidadActual}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                onActualizarCantidad?.(prod.id, cantidadActual + 1);
+                              }}
+                              className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              onAgregarProducto(prod);
+                            }}
+                            disabled={prod.stock !== undefined && prod.stock <= 0}
+                            className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                              (prod.stock !== undefined && prod.stock <= 0)
                                 ? "bg-red-100 text-red-700 cursor-not-allowed"
                                 : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          {yaAgregado ? "Ya agregado" : (prod.stock !== undefined && prod.stock <= 0) ? "Sin stock" : "Agregar"}
-                        </button>
+                            }`}
+                          >
+                            {(prod.stock !== undefined && prod.stock <= 0) ? "Sin stock" : "Agregar"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

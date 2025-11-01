@@ -1961,6 +1961,8 @@ const PresupuestoDetalle = () => {
                               const yaAgregado = (
                                 presupuestoEdit.productos || []
                               ).some((p) => p.id === prod.id);
+                              const itemAgregado = (presupuestoEdit.productos || []).find((p) => p.id === prod.id);
+                              const cantidadActual = itemAgregado?.cantidad || 0;
                               const precio = (() => {
                                 if (prod.categoria === "Maderas") {
                                   return prod.precioPorPie || 0;
@@ -2091,92 +2093,122 @@ const PresupuestoDetalle = () => {
                                     </div>
 
                                     <div className="mt-auto">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                            // Calcular precio inicial según el tipo de producto
-                                            let precioCalculado = 0;
-                                            const alto = Number(prod.alto) || 0;
-                                            const ancho =
-                                              Number(prod.ancho) || 0;
-                                            const largo =
-                                              Number(prod.largo) || 0;
-                                            const precioPorPie =
-                                              Number(prod.precioPorPie) || 0;
-                                            if (prod.categoria === "Maderas") {
-                                              if (prod.unidadMedida === "M2") {
-                                                precioCalculado = calcularPrecioMachimbre({
-                                                    alto: alto,
-                                                    largo: largo,
-                                                    cantidad: 1,
-                                                    precioPorPie: precioPorPie,
-                                                  });
-                                              } else if (prod.unidadMedida === "Unidad") {
-                                                // Madera por unidad: usar precioPorPie como precio unitario directo
-                                                const precioUnidad = Math.round((precioPorPie || 0) / 100) * 100;
-                                                precioCalculado = precioUnidad;
+                                      {yaAgregado ? (
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (cantidadActual > 1) {
+                                                handleDecrementarCantidad(prod.id);
                                               } else {
-                                                precioCalculado = calcularPrecioCorteMadera({
-                                                    alto: alto,
-                                                    ancho: ancho,
-                                                    largo: largo,
-                                                    precioPorPie: precioPorPie,
-                                                  });
+                                                handleQuitarProducto(prod.id);
                                               }
-                                            } else if (
-                                              prod.categoria === "Ferretería"
-                                            ) {
-                                              precioCalculado =
-                                                prod.valorVenta || 0;
-                                            } else {
-                                              precioCalculado =
-                                                prod.precioUnidad ||
-                                                prod.precioUnidadVenta ||
-                                                prod.precioUnidadHerraje ||
-                                                prod.precioUnidadQuimico ||
-                                                prod.precioUnidadHerramienta ||
-                                                0;
-                                            }
+                                            }}
+                                            disabled={loadingPrecios}
+                                            className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                          >
+                                            −
+                                          </button>
+                                          <div className="flex-1 text-center">
+                                            <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                              {cantidadActual}
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleIncrementarCantidad(prod.id);
+                                            }}
+                                            disabled={loadingPrecios}
+                                            className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                              // Calcular precio inicial según el tipo de producto
+                                              let precioCalculado = 0;
+                                              const alto = Number(prod.alto) || 0;
+                                              const ancho =
+                                                Number(prod.ancho) || 0;
+                                              const largo =
+                                                Number(prod.largo) || 0;
+                                              const precioPorPie =
+                                                Number(prod.precioPorPie) || 0;
+                                              if (prod.categoria === "Maderas") {
+                                                if (prod.unidadMedida === "M2") {
+                                                  precioCalculado = calcularPrecioMachimbre({
+                                                      alto: alto,
+                                                      largo: largo,
+                                                      cantidad: 1,
+                                                      precioPorPie: precioPorPie,
+                                                    });
+                                                } else if (prod.unidadMedida === "Unidad") {
+                                                  // Madera por unidad: usar precioPorPie como precio unitario directo
+                                                  const precioUnidad = Math.round((precioPorPie || 0) / 100) * 100;
+                                                  precioCalculado = precioUnidad;
+                                                } else {
+                                                  precioCalculado = calcularPrecioCorteMadera({
+                                                      alto: alto,
+                                                      ancho: ancho,
+                                                      largo: largo,
+                                                      precioPorPie: precioPorPie,
+                                                    });
+                                                }
+                                              } else if (
+                                                prod.categoria === "Ferretería"
+                                              ) {
+                                                precioCalculado =
+                                                  prod.valorVenta || 0;
+                                              } else {
+                                                precioCalculado =
+                                                  prod.precioUnidad ||
+                                                  prod.precioUnidadVenta ||
+                                                  prod.precioUnidadHerraje ||
+                                                  prod.precioUnidadQuimico ||
+                                                  prod.precioUnidadHerramienta ||
+                                                  0;
+                                              }
 
-                                          setPresupuestoEdit((prev) => ({
-                                            ...prev,
-                                            productos: [
-                                              ...(prev.productos || []),
-                                              {
-                                                id: prod.id,
-                                                nombre: prod.nombre,
-                                                precio: precioCalculado,
-                                                unidad:
-                                                  prod.unidadMedida ||
-                                                  prod.unidadVenta ||
-                                                  prod.unidadVentaHerraje ||
-                                                  prod.unidadVentaQuimico ||
-                                                  prod.unidadVentaHerramienta,
-                                                stock: prod.stock,
-                                                cantidad: 1,
-                                                descuento: 0,
-                                                categoria: prod.categoria,
-                                                alto: alto,
-                                                ancho: ancho,
-                                                largo: largo,
-                                                precioPorPie: precioPorPie,
-                                                cepilladoAplicado: false,
-                                                tipoMadera:
-                                                  prod.tipoMadera || "",
-                                                subcategoria: prod.subcategoria || prod.subCategoria || "",
-                                              },
-                                            ],
-                                          }));
-                                        }}
-                                        disabled={yaAgregado}
-                                        className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                                          yaAgregado
-                                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed"
-                                            : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        }`}
-                                      >
-                                        {yaAgregado ? "Ya agregado" : "Agregar"}
-                                      </button>
+                                            setPresupuestoEdit((prev) => ({
+                                              ...prev,
+                                              productos: [
+                                                ...(prev.productos || []),
+                                                {
+                                                  id: prod.id,
+                                                  nombre: prod.nombre,
+                                                  precio: precioCalculado,
+                                                  unidad:
+                                                    prod.unidadMedida ||
+                                                    prod.unidadVenta ||
+                                                    prod.unidadVentaHerraje ||
+                                                    prod.unidadVentaQuimico ||
+                                                    prod.unidadVentaHerramienta,
+                                                  stock: prod.stock,
+                                                  cantidad: 1,
+                                                  descuento: 0,
+                                                  categoria: prod.categoria,
+                                                  alto: alto,
+                                                  ancho: ancho,
+                                                  largo: largo,
+                                                  precioPorPie: precioPorPie,
+                                                  cepilladoAplicado: false,
+                                                  tipoMadera:
+                                                    prod.tipoMadera || "",
+                                                  subcategoria: prod.subcategoria || prod.subCategoria || "",
+                                                },
+                                              ],
+                                            }));
+                                          }}
+                                          disabled={loadingPrecios}
+                                          className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
+                                        >
+                                          Agregar
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
