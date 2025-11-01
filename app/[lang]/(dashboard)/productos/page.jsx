@@ -3096,6 +3096,13 @@ const ProductosPage = () => {
         return;
       }
 
+      // Validar límite de imágenes (máximo 3 por producto)
+      const currentImagesCount = (product.imagenes || []).length;
+      if (currentImagesCount >= 3) {
+        showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
+        return;
+      }
+
       // Validar tamaño (5MB máximo)
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
@@ -3125,6 +3132,17 @@ const ProductosPage = () => {
       setUploadingImage(true);
       showToast("Subiendo imagen...", "loading");
 
+      // Validación adicional: verificar límite de imágenes
+      const currentImages = targetProduct.imagenes || [];
+      if (currentImages.length >= 3) {
+        showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
+        setUploadingImage(false);
+        setDragDropModalOpen(false);
+        setDraggedImage(null);
+        setTargetProduct(null);
+        return;
+      }
+
       // Subir la imagen al servidor
       const formData = new FormData();
       formData.append('file', draggedImage.file);
@@ -3144,7 +3162,6 @@ const ProductosPage = () => {
 
       // Actualizar el producto en Firebase con la nueva imagen
       const productoRef = doc(db, "productos", targetProduct.id);
-      const currentImages = targetProduct.imagenes || [];
       
       await updateDoc(productoRef, {
         imagenes: [...currentImages, imageUrl],
@@ -3155,7 +3172,14 @@ const ProductosPage = () => {
       setDragDropModalOpen(false);
       setDraggedImage(null);
       setTargetProduct(null);
-      showToast("¡Imagen subida correctamente al producto!", "success");
+      
+      const imagenesRestantes = 3 - currentImages.length - 1;
+      showToast(
+        `¡Imagen ${currentImages.length + 1}/3 subida correctamente!${
+          imagenesRestantes > 0 ? ` Puedes agregar ${imagenesRestantes} más.` : ' Límite alcanzado.'
+        }`,
+        "success"
+      );
 
     } catch (error) {
       console.error("Error al subir imagen:", error);
@@ -3942,7 +3966,9 @@ const ProductosPage = () => {
                       key={p.id}
                       className={`border-b border-default-300 transition-all duration-200 data-[state=selected]:bg-muted ${
                         dragOverProductId === p.id 
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 scale-[1.01] shadow-lg border-blue-300 ring-2 ring-blue-400 ring-opacity-50' 
+                          ? (p.imagenes && p.imagenes.length >= 3)
+                            ? 'bg-gradient-to-r from-red-50 to-pink-50 scale-[1.01] shadow-lg border-red-300 ring-2 ring-red-400 ring-opacity-50'
+                            : 'bg-gradient-to-r from-blue-50 to-indigo-50 scale-[1.01] shadow-lg border-blue-300 ring-2 ring-blue-400 ring-opacity-50'
                           : 'hover:bg-gray-50'
                       }`}
                       onDragOver={(e) => handleDragOver(e, p.id)}
@@ -3965,8 +3991,57 @@ const ProductosPage = () => {
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-semibold text-default-900">
-                          {p.nombre}
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-default-900 flex-1">
+                            {p.nombre}
+                          </div>
+                          {p.imagenes && p.imagenes.length > 0 ? (
+                            <div className="group relative flex-shrink-0">
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${
+                                p.imagenes.length >= 3
+                                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300'
+                                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200'
+                              }`}>
+                                <svg className={`w-3.5 h-3.5 ${
+                                  p.imagenes.length >= 3 ? 'text-green-600' : 'text-blue-600'
+                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className={`text-xs font-semibold ${
+                                  p.imagenes.length >= 3 ? 'text-green-700' : 'text-blue-700'
+                                }`}>
+                                  {p.imagenes.length}/3
+                                </span>
+                                {p.imagenes.length >= 3 && (
+                                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                                {p.imagenes.length >= 3 
+                                  ? '✓ Límite alcanzado (3/3)'
+                                  : `${p.imagenes.length} ${p.imagenes.length === 1 ? 'imagen' : 'imágenes'} - Puedes agregar ${3 - p.imagenes.length} más`
+                                }
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group relative flex-shrink-0">
+                              <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-full opacity-40">
+                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-xs font-semibold text-gray-400">
+                                  0/3
+                                </span>
+                              </div>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                                Sin imágenes - Arrastra una imagen aquí
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
