@@ -784,7 +784,8 @@ const PresupuestoDetalle = () => {
     return texto
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, ""); // Eliminar todos los espacios para búsqueda flexible
   }, []);
 
   // Productos filtrados (idéntico a ventas)
@@ -939,6 +940,15 @@ const PresupuestoDetalle = () => {
         items: productosArr,
         numeroPedido,
         fechaActualizacion: new Date().toISOString(),
+        // Limpiar campos de envío si es retiro local
+        ...(presupuestoEdit.tipoEnvio === "retiro_local" && {
+          costoEnvio: 0,
+          direccionEnvio: "",
+          localidadEnvio: "",
+          transportista: "",
+          rangoHorario: "",
+          fechaEntrega: "",
+        }),
       };
       
       // Limpiar valores undefined antes de guardar
@@ -959,6 +969,15 @@ const PresupuestoDetalle = () => {
         items: productosArr,
         numeroPedido,
         fechaActualizacion: new Date().toISOString(),
+        // Limpiar campos de envío si es retiro local
+        ...(presupuestoEdit.tipoEnvio === "retiro_local" && {
+          costoEnvio: 0,
+          direccionEnvio: "",
+          localidadEnvio: "",
+          transportista: "",
+          rangoHorario: "",
+          fechaEntrega: "",
+        }),
       });
       setEditando(false);
       setErrorForm("");
@@ -1410,17 +1429,36 @@ const PresupuestoDetalle = () => {
                   </label>
                   <select
                     value={presupuestoEdit.tipoEnvio || ""}
-                    onChange={(e) =>
-                      setPresupuestoEdit({
-                        ...presupuestoEdit,
-                        tipoEnvio: e.target.value,
-                        // Si se selecciona retiro local, limpiar costo de envío
-                        costoEnvio:
-                          e.target.value === "retiro_local"
-                            ? ""
-                            : presupuestoEdit.costoEnvio,
-                      })
-                    }
+                    onChange={(e) => {
+                      const nuevoTipoEnvio = e.target.value;
+                      setPresupuestoEdit((prev) => {
+                        const updated = {
+                          ...prev,
+                          tipoEnvio: nuevoTipoEnvio,
+                        };
+
+                        // Si se selecciona retiro local, limpiar campos de envío
+                        if (nuevoTipoEnvio === "retiro_local") {
+                          updated.costoEnvio = "";
+                          updated.fechaEntrega = "";
+                          updated.direccionEnvio = "";
+                          updated.localidadEnvio = "";
+                          updated.transportista = "";
+                          updated.rangoHorario = "";
+                        }
+
+                        // Si cambia de retiro local a envío, inicializar campos
+                        if (
+                          nuevoTipoEnvio !== "retiro_local" &&
+                          prev.tipoEnvio === "retiro_local"
+                        ) {
+                          updated.usarDireccionCliente = true;
+                          updated.costoEnvio = "0";
+                        }
+
+                        return updated;
+                      });
+                    }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
                     <option value="">Seleccionar tipo de envío...</option>
@@ -1430,23 +1468,166 @@ const PresupuestoDetalle = () => {
                 </div>
                 {presupuestoEdit.tipoEnvio &&
                   presupuestoEdit.tipoEnvio !== "retiro_local" && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Costo de envío
-                      </label>
-                      <Input
-                        type="number"
-                        value={presupuestoEdit.costoEnvio || ""}
-                        onChange={(e) =>
-                          setPresupuestoEdit({
-                            ...presupuestoEdit,
-                            costoEnvio: e.target.value,
-                          })
-                        }
-                        placeholder="Costo de envío"
-                        className="w-full"
-                      />
-                    </div>
+                    <>
+                      <div className="col-span-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={presupuestoEdit.usarDireccionCliente !== false}
+                            onChange={(e) =>
+                              setPresupuestoEdit({
+                                ...presupuestoEdit,
+                                usarDireccionCliente: e.target.checked,
+                              })
+                            }
+                          />
+                          <span className="text-sm font-medium">
+                            Usar dirección del cliente
+                          </span>
+                        </label>
+                      </div>
+
+                      {presupuestoEdit.usarDireccionCliente === false ? (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Dirección de envío
+                            </label>
+                            <Input
+                              value={presupuestoEdit.direccionEnvio || ""}
+                              onChange={(e) =>
+                                setPresupuestoEdit({
+                                  ...presupuestoEdit,
+                                  direccionEnvio: e.target.value,
+                                })
+                              }
+                              placeholder="Dirección de envío"
+                              className="w-full"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Localidad/Ciudad
+                            </label>
+                            <Input
+                              value={presupuestoEdit.localidadEnvio || ""}
+                              onChange={(e) =>
+                                setPresupuestoEdit({
+                                  ...presupuestoEdit,
+                                  localidadEnvio: e.target.value,
+                                })
+                              }
+                              placeholder="Localidad/Ciudad"
+                              className="w-full"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Dirección de envío
+                            </label>
+                            <Input
+                              value={presupuestoEdit.cliente?.direccion || ""}
+                              readOnly
+                              placeholder="Dirección del cliente"
+                              className="w-full bg-gray-50"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Localidad/Ciudad
+                            </label>
+                            <Input
+                              value={presupuestoEdit.cliente?.localidad || ""}
+                              readOnly
+                              placeholder="Localidad del cliente"
+                              className="w-full bg-gray-50"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Transportista
+                        </label>
+                        <select
+                          value={presupuestoEdit.transportista || ""}
+                          onChange={(e) =>
+                            setPresupuestoEdit({
+                              ...presupuestoEdit,
+                              transportista: e.target.value,
+                            })
+                          }
+                          className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        >
+                          <option value="">Seleccionar transportista...</option>
+                          <option value="camion">camion</option>
+                          <option value="camioneta 1">camioneta 1</option>
+                          <option value="camioneta 2">camioneta 2</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Costo de envío
+                        </label>
+                        <Input
+                          type="number"
+                          value={presupuestoEdit.costoEnvio || ""}
+                          onChange={(e) =>
+                            setPresupuestoEdit({
+                              ...presupuestoEdit,
+                              costoEnvio: e.target.value,
+                            })
+                          }
+                          placeholder="Costo de envío"
+                          className="w-full"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Fecha de entrega
+                        </label>
+                        <Input
+                          type="date"
+                          value={presupuestoEdit.fechaEntrega || ""}
+                          onChange={(e) =>
+                            setPresupuestoEdit({
+                              ...presupuestoEdit,
+                              fechaEntrega: e.target.value,
+                            })
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Rango horario
+                        </label>
+                        <select
+                          value={presupuestoEdit.rangoHorario || ""}
+                          onChange={(e) =>
+                            setPresupuestoEdit({
+                              ...presupuestoEdit,
+                              rangoHorario: e.target.value,
+                            })
+                          }
+                          className="w-full border border-gray-300 rounded-md px-3 py-2"
+                        >
+                          <option value="">Seleccionar rango horario...</option>
+                          <option value="8:00 - 12:00">8:00 - 12:00</option>
+                          <option value="12:00 - 17:00">12:00 - 17:00</option>
+                          <option value="17:00 - 20:00">17:00 - 20:00</option>
+                        </select>
+                      </div>
+                    </>
                   )}
               </div>
 
@@ -1597,80 +1778,9 @@ const PresupuestoDetalle = () => {
                         </div>
                       </div>
 
-                      {/* Filtros específicos por categoría */}
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        {/* Filtro de tipo de madera */}
-                        {categoriaId === "Maderas" &&
-                          tiposMadera.length > 0 && (
-                            <div className="flex-1">
-                              <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
-                                <button
-                                  type="button"
-                                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                    filtroTipoMadera === ""
-                                      ? "bg-orange-600 text-white"
-                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                  }`}
-                                  onClick={() => setFiltroTipoMadera("")}
-                                >
-                                  Todos los tipos
-                                </button>
-                                {tiposMadera.map((tipo) => (
-                                  <button
-                                    key={tipo}
-                                    type="button"
-                                    className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                      filtroTipoMadera === tipo
-                                        ? "bg-orange-600 text-white"
-                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                    }`}
-                                    onClick={() => setFiltroTipoMadera(tipo)}
-                                  >
-                                    {tipo}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                        {/* Filtro de subcategoría de ferretería */}
-                        {categoriaId === "Ferretería" &&
-                          subCategoriasFerreteria.length > 0 && (
-                            <div className="flex-1">
-                              <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
-                                <button
-                                  type="button"
-                                  className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                    filtroSubCategoria === ""
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                  }`}
-                                  onClick={() => setFiltroSubCategoria("")}
-                                >
-                                  Todas las subcategorías
-                                </button>
-                                {subCategoriasFerreteria.map((subCategoria) => (
-                                  <button
-                                    key={subCategoria}
-                                    type="button"
-                                    className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                      filtroSubCategoria === subCategoria
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                    }`}
-                                    onClick={() =>
-                                      setFiltroSubCategoria(subCategoria)
-                                    }
-                                  >
-                                    {subCategoria}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                        {/* Buscador mejorado */}
-                        <div className="flex-1 relative">
+                      {/* Buscador mejorado - siempre visible */}
+                      <div className="w-full">
+                        <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg
                               className="h-5 w-5 text-gray-400"
@@ -1701,6 +1811,79 @@ const PresupuestoDetalle = () => {
                             className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                           />
                         </div>
+                      </div>
+
+                      {/* Filtros específicos por categoría */}
+                      <div className="flex flex-col gap-3">
+                        {/* Filtro de tipo de madera */}
+                        {categoriaId === "Maderas" &&
+                          tiposMadera.length > 0 && (
+                            <div className="w-full">
+                              <div className="flex flex-wrap gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                                <button
+                                  type="button"
+                                  className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                    filtroTipoMadera === ""
+                                      ? "bg-orange-600 text-white"
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  }`}
+                                  onClick={() => setFiltroTipoMadera("")}
+                                >
+                                  Todos los tipos
+                                </button>
+                                {tiposMadera.map((tipo) => (
+                                  <button
+                                    key={tipo}
+                                    type="button"
+                                    className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                      filtroTipoMadera === tipo
+                                        ? "bg-orange-600 text-white"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                    }`}
+                                    onClick={() => setFiltroTipoMadera(tipo)}
+                                  >
+                                    {tipo}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Filtro de subcategoría de ferretería */}
+                        {categoriaId === "Ferretería" &&
+                          subCategoriasFerreteria.length > 0 && (
+                            <div className="w-full">
+                              <div className="flex flex-wrap gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-gray-600 overflow-x-auto">
+                                <button
+                                  type="button"
+                                  className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                    filtroSubCategoria === ""
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  }`}
+                                  onClick={() => setFiltroSubCategoria("")}
+                                >
+                                  Todas las subcategorías
+                                </button>
+                                {subCategoriasFerreteria.map((subCategoria) => (
+                                  <button
+                                    key={subCategoria}
+                                    type="button"
+                                    className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                      filtroSubCategoria === subCategoria
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                    }`}
+                                    onClick={() =>
+                                      setFiltroSubCategoria(subCategoria)
+                                    }
+                                  >
+                                    {subCategoria}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>

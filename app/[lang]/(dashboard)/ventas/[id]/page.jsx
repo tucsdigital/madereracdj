@@ -472,24 +472,24 @@ const VentaDetalle = () => {
         if (busquedaNormalizada !== "") {
           if (busquedaNormalizada.endsWith(".")) {
             const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
-          cumpleBusqueda = 
+            cumpleBusqueda = 
               nombreNormalizado.startsWith(busquedaSinPunto) ||
               unidadNormalizada.startsWith(busquedaSinPunto);
-        } else {
-          cumpleBusqueda = 
+          } else {
+            cumpleBusqueda = 
               nombreNormalizado.includes(busquedaNormalizada) ||
               unidadNormalizada.includes(busquedaNormalizada);
+          }
         }
-      }
         const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
-      const cumpleTipoMadera =
-        categoriaId !== "Maderas" ||
-        filtroTipoMadera === "" ||
-        prod.tipoMadera === filtroTipoMadera;
-      const cumpleSubCategoria =
-        categoriaId !== "Ferretería" ||
-        filtroSubCategoria === "" ||
-        prod.subCategoria === filtroSubCategoria;
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
         return (
           cumpleCategoria && cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
         );
@@ -2366,79 +2366,9 @@ const VentaDetalle = () => {
                       </div>
                     </div>
 
-                    {/* Filtros específicos por categoría */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {/* Filtro de tipo de madera */}
-                      {categoriaId === "Maderas" && tiposMadera.length > 0 && (
-                        <div className="flex-1">
-                          <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                            <button
-                              type="button"
-                              className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                filtroTipoMadera === ""
-                                  ? "bg-orange-600 text-white"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                              onClick={() => setFiltroTipoMadera("")}
-                            >
-                              Todos los tipos
-                            </button>
-                            {tiposMadera.map((tipo) => (
-                              <button
-                                key={tipo}
-                                type="button"
-                                className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                  filtroTipoMadera === tipo
-                                    ? "bg-orange-600 text-white"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                                onClick={() => setFiltroTipoMadera(tipo)}
-                              >
-                                {tipo}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Filtro de subcategoría de ferretería */}
-                      {categoriaId === "Ferretería" &&
-                        subCategoriasFerreteria.length > 0 && (
-                          <div className="flex-1">
-                            <div className="flex bg-card rounded-lg p-1 shadow-sm border border-gray-200">
-                              <button
-                                type="button"
-                                className={`rounded-md px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                  filtroSubCategoria === ""
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-gray-100 text-gray-700"
-                                }`}
-                                onClick={() => setFiltroSubCategoria("")}
-                              >
-                                Todas las subcategorías
-                              </button>
-                              {subCategoriasFerreteria.map((subCategoria) => (
-                                <button
-                                  key={subCategoria}
-                                  type="button"
-                                  className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
-                                    filtroSubCategoria === subCategoria
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-gray-100 text-gray-700"
-                                  }`}
-                                  onClick={() =>
-                                    setFiltroSubCategoria(subCategoria)
-                                  }
-                                >
-                                  {subCategoria}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Buscador mejorado */}
-                      <div className="flex-1 relative">
+                    {/* Buscador mejorado - siempre visible */}
+                    <div className="w-full">
+                      <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <svg
                             className="h-5 w-5 text-gray-400"
@@ -2462,6 +2392,78 @@ const VentaDetalle = () => {
                           className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
                         />
                       </div>
+                    </div>
+
+                    {/* Filtros específicos por categoría */}
+                    <div className="flex flex-col gap-3">
+                      {/* Filtro de tipo de madera */}
+                      {categoriaId === "Maderas" && tiposMadera.length > 0 && (
+                        <div className="w-full">
+                          <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-gray-200">
+                            <button
+                              type="button"
+                              className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                filtroTipoMadera === ""
+                                  ? "bg-orange-600 text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() => setFiltroTipoMadera("")}
+                            >
+                              Todos los tipos
+                            </button>
+                            {tiposMadera.map((tipo) => (
+                              <button
+                                key={tipo}
+                                type="button"
+                                className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                  filtroTipoMadera === tipo
+                                    ? "bg-orange-600 text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                                onClick={() => setFiltroTipoMadera(tipo)}
+                              >
+                                {tipo}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Filtro de subcategoría de ferretería */}
+                      {categoriaId === "Ferretería" &&
+                        subCategoriasFerreteria.length > 0 && (
+                          <div className="w-full">
+                            <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-gray-200 overflow-x-auto">
+                              <button
+                                type="button"
+                                className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                  filtroSubCategoria === ""
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                                onClick={() => setFiltroSubCategoria("")}
+                              >
+                                Todas las subcategorías
+                              </button>
+                              {subCategoriasFerreteria.map((subCategoria) => (
+                                <button
+                                  key={subCategoria}
+                                  type="button"
+                                  className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                    filtroSubCategoria === subCategoria
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                  onClick={() =>
+                                    setFiltroSubCategoria(subCategoria)
+                                  }
+                                >
+                                  {subCategoria}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
