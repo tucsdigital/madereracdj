@@ -33,17 +33,35 @@ const SalesStats = () => {
   const toDateSafe = useCallback((value) => {
     if (!value) return null;
     try {
+      // Si es un Timestamp de Firebase
+      if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+        const d = new Date(value.seconds * 1000);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Si es una instancia de Date
+      if (value instanceof Date) return value;
+      // Si es un string con formato ISO (incluye T)
       if (typeof value === "string" && value.includes("T")) {
         const d = new Date(value);
         return isNaN(d.getTime()) ? null : d;
       }
-      if (typeof value === "string") {
+      // Si es un string en formato YYYY-MM-DD
+      if (typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [y, m, d] = value.split("-").map(Number);
         if (!y || !m || !d) return null;
         const dt = new Date(y, m - 1, d);
         return isNaN(dt.getTime()) ? null : dt;
       }
-      if (value instanceof Date) return value;
+      // Si es un string con otro formato de fecha, intentar parsearlo
+      if (typeof value === "string") {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Si es un número (timestamp en milisegundos)
+      if (typeof value === "number") {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
       return null;
     } catch {
       return null;
@@ -77,9 +95,24 @@ const SalesStats = () => {
       try {
         setLoading(true);
         const ventasSnap = await getDocs(collection(db, "ventas"));
-        setVentasData(
-          ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
+        const ventas = ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+        
+        // Debug: mostrar las ventas 509 y 508
+        console.log("=== TODAS LAS VENTAS CARGADAS ===");
+        console.log("Total ventas:", ventas.length);
+        const ventas509_508 = ventas.filter(v => 
+          v.numeroPedido === "VENTA-00509" || v.numeroPedido === "VENTA-00508"
         );
+        console.log("Ventas 509 y 508 encontradas:", ventas509_508.length);
+        ventas509_508.forEach(v => {
+          console.log("Venta:", v.numeroPedido);
+          console.log("  - fecha:", v.fecha);
+          console.log("  - fechaCreacion:", v.fechaCreacion);
+          console.log("  - total:", v.total);
+        });
+        console.log("================================");
+        
+        setVentasData(ventas);
         const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
         setPresupuestosData(
           presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
@@ -136,10 +169,32 @@ const SalesStats = () => {
   }, [rangoRapido]);
 
   const ventasFiltradas = useMemo(() => {
-    return (ventasData || []).filter((v) =>
-      isInRange(v.fecha || v.fechaCreacion)
-    );
-  }, [ventasData, isInRange]);
+    const filtradas = (ventasData || []).filter((v) => {
+      const fechaVenta = v.fecha || v.fechaCreacion;
+      const resultado = isInRange(fechaVenta);
+      
+      // Debug para las ventas 509 y 508
+      if (v.numeroPedido === "VENTA-00509" || v.numeroPedido === "VENTA-00508") {
+        console.log("=== DEBUG VENTA", v.numeroPedido, "===");
+        console.log("Fecha campo:", v.fecha);
+        console.log("FechaCreacion campo:", v.fechaCreacion);
+        console.log("Fecha usada:", fechaVenta);
+        console.log("Tipo de fecha:", typeof fechaVenta);
+        console.log("Fecha parseada:", toDateSafe(fechaVenta));
+        console.log("Resultado isInRange:", resultado);
+        console.log("Rango desde:", fechaDesde);
+        console.log("Rango hasta:", fechaHasta);
+        console.log("========================");
+      }
+      
+      return resultado;
+    });
+    
+    console.log("Total ventas cargadas:", ventasData?.length);
+    console.log("Total ventas filtradas:", filtradas.length);
+    
+    return filtradas;
+  }, [ventasData, isInRange, fechaDesde, fechaHasta, toDateSafe]);
 
   const presupuestosFiltrados = useMemo(() => {
     return (presupuestosData || []).filter((p) =>
