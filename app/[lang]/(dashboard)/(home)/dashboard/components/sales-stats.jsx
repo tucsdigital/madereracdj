@@ -95,24 +95,9 @@ const SalesStats = () => {
       try {
         setLoading(true);
         const ventasSnap = await getDocs(collection(db, "ventas"));
-        const ventas = ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-        
-        // Debug: mostrar las ventas 509 y 508
-        console.log("=== TODAS LAS VENTAS CARGADAS ===");
-        console.log("Total ventas:", ventas.length);
-        const ventas509_508 = ventas.filter(v => 
-          v.numeroPedido === "VENTA-00509" || v.numeroPedido === "VENTA-00508"
+        setVentasData(
+          ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
         );
-        console.log("Ventas 509 y 508 encontradas:", ventas509_508.length);
-        ventas509_508.forEach(v => {
-          console.log("Venta:", v.numeroPedido);
-          console.log("  - fecha:", v.fecha);
-          console.log("  - fechaCreacion:", v.fechaCreacion);
-          console.log("  - total:", v.total);
-        });
-        console.log("================================");
-        
-        setVentasData(ventas);
         const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
         setPresupuestosData(
           presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
@@ -170,35 +155,20 @@ const SalesStats = () => {
 
   const ventasFiltradas = useMemo(() => {
     const filtradas = (ventasData || []).filter((v) => {
-      const fechaVenta = v.fecha || v.fechaCreacion;
+      // IMPORTANTE: Usar fechaCreacion primero, ya que es la fecha real de creación de la venta
+      // El campo "fecha" puede ser una fecha manual/editable que no refleja cuando se hizo la venta
+      const fechaVenta = v.fechaCreacion || v.fecha;
       const resultado = isInRange(fechaVenta);
-      
-      // Debug para las ventas 509 y 508
-      if (v.numeroPedido === "VENTA-00509" || v.numeroPedido === "VENTA-00508") {
-        console.log("=== DEBUG VENTA", v.numeroPedido, "===");
-        console.log("Fecha campo:", v.fecha);
-        console.log("FechaCreacion campo:", v.fechaCreacion);
-        console.log("Fecha usada:", fechaVenta);
-        console.log("Tipo de fecha:", typeof fechaVenta);
-        console.log("Fecha parseada:", toDateSafe(fechaVenta));
-        console.log("Resultado isInRange:", resultado);
-        console.log("Rango desde:", fechaDesde);
-        console.log("Rango hasta:", fechaHasta);
-        console.log("========================");
-      }
       
       return resultado;
     });
     
-    console.log("Total ventas cargadas:", ventasData?.length);
-    console.log("Total ventas filtradas:", filtradas.length);
-    
     return filtradas;
-  }, [ventasData, isInRange, fechaDesde, fechaHasta, toDateSafe]);
+  }, [ventasData, isInRange]);
 
   const presupuestosFiltrados = useMemo(() => {
     return (presupuestosData || []).filter((p) =>
-      isInRange(p.fecha || p.fechaCreacion)
+      isInRange(p.fechaCreacion || p.fecha)
     );
   }, [presupuestosData, isInRange]);
 
@@ -485,19 +455,6 @@ const SalesStats = () => {
 
     // Calcular comisión: 2.5% para todas las ventas con cliente
     const comisionTotal = totalVentasConCliente * (COMMISSION_RATE / 100);
-
-    // Debug logs
-    console.log("=== DEBUG COMISIONES ===");
-    console.log("Total ventas filtradas:", ventasFiltradas.length);
-    console.log("Total monto ventas filtradas:", kpis.ventasMonto);
-    console.log("Total ventas procesadas:", totalVentasProcesadas);
-    console.log("Total ventas con cliente:", totalVentasConCliente);
-    console.log(
-      "Ventas con cliente no encontrado:",
-      ventasClienteNoEncontradoIds
-    );
-    console.log("Comisión total (2.5%):", comisionTotal);
-    console.log("========================");
 
     return {
       totalVentasConCliente,
