@@ -161,13 +161,16 @@ const PresupuestoDetalle = ({
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
     
-    const ya = bloqueActual.productos.some((x) => x.id === prod.id);
-    if (ya) return;
+    // Generar ID único para permitir duplicados del mismo producto
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    const uniqueId = `${prod.id}-${timestamp}-${randomSuffix}`;
     
     const unidadMedida = prod.unidadMedida || "UN";
     const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
-      id: prod.id,
+      id: uniqueId, // ID único para permitir duplicados
+      originalId: prod.id, // ID original del producto para referencia
       nombre: prod.nombre,
       categoria: prod.categoria || "",
       subCategoria: prod.subCategoria || prod.subcategoria || "",
@@ -234,6 +237,28 @@ const PresupuestoDetalle = ({
     setBloques(prev => prev.map((bloque, index) => 
       index === bloqueActivo 
         ? { ...bloque, productos: bloque.productos.filter((p) => p.id !== id) }
+        : bloque
+    ));
+  };
+
+  const duplicarProducto = (producto) => {
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual) return;
+    
+    // Generar ID único para el producto duplicado
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    const uniqueId = `${producto.originalId || producto.id}-${timestamp}-${randomSuffix}`;
+    
+    const duplicado = {
+      ...producto,
+      id: uniqueId,
+      originalId: producto.originalId || producto.id,
+    };
+    
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, productos: [...bloque.productos, duplicado] }
         : bloque
     ));
   };
@@ -689,12 +714,13 @@ const PresupuestoDetalle = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
               {productosFiltrados.map((prod) => {
-              const yaAgregado = itemsSeleccionados.some((p) => p.id === prod.id);
+                // Contar cuántas veces se ha agregado este producto (por originalId)
+                const vecesAgregado = itemsSeleccionados.filter((p) => p.originalId === prod.id || p.id === prod.id).length;
                 const precio = Number(prod.valorVenta) || 0;
                 
                 return (
                   <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
-                    yaAgregado ? "border-green-200 bg-green-50" : "border-gray-200 hover:border-blue-300"
+                    vecesAgregado > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-blue-300"
                   }`}>
                     <div className="p-4 flex flex-col h-full">
                       <div className="flex items-start justify-between mb-3">
@@ -705,6 +731,14 @@ const PresupuestoDetalle = ({
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-semibold truncate">{prod.nombre}</h4>
+                              {vecesAgregado > 0 && (
+                                <div className="flex items-center gap-1 text-blue-600 mt-1">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                  </svg>
+                                  <span className="text-xs font-medium">Agregado ({vecesAgregado})</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -717,15 +751,10 @@ const PresupuestoDetalle = ({
                       </div>
                       <div className="mt-4">
                         <button
-                        onClick={() => { if (!yaAgregado) agregarProducto(prod); }}
-                          disabled={yaAgregado}
-                          className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                            yaAgregado 
-                              ? "bg-green-100 text-green-700 cursor-not-allowed" 
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
+                          onClick={() => agregarProducto(prod)}
+                          className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
                         >
-                          {yaAgregado ? "Ya agregado" : "Agregar"}
+                          {vecesAgregado > 0 ? `Agregar otra (${vecesAgregado + 1})` : "Agregar"}
                         </button>
                       </div>
                     </div>
@@ -758,7 +787,7 @@ const PresupuestoDetalle = ({
                     <th className="p-2 text-right">Valor Unit.</th>
                     <th className="p-2 text-center">Desc. %</th>
                     <th className="p-2 text-right">Subtotal</th>
-                    <th className="p-2 text-center">Acción</th>
+                    <th className="p-2 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -780,7 +809,14 @@ const PresupuestoDetalle = ({
                                   className="h-8"
                                 />
                               ) : (
-                                p.nombre
+                                <div className="flex items-center gap-2">
+                                  <span>{p.nombre}</span>
+                                  {itemsSeleccionados.filter(item => (item.originalId || item.id) === (p.originalId || p.id)).length > 1 && (
+                                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                                      Duplicado
+                                    </Badge>
+                                  )}
+                                </div>
                               )}
                             </div>
                             <div className="text-xs text-gray-500">{p.categoria}</div>
@@ -880,13 +916,25 @@ const PresupuestoDetalle = ({
                           </td>
                           
                             <td className="p-2 text-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                              onClick={() => quitarProducto(p.id)}
-                              >
-                                Quitar
-                              </Button>
+                              <div className="flex items-center gap-1 justify-center">
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => duplicarProducto(p)} 
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  title="Duplicar producto"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => quitarProducto(p.id)} 
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </td>
                         </tr>
                         {/* Fila adicional para descripción del producto */}

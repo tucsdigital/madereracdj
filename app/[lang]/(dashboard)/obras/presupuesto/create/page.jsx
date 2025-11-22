@@ -235,13 +235,14 @@ export default function CrearPresupuestoObraPage() {
     const bloqueActual = bloques[bloqueActivo];
     if (!bloqueActual) return;
     
-    const ya = bloqueActual.items.some((x) => x.id === prod.id);
-    if (ya) return;
+    // Generar ID único para cada instancia del producto
+    const instanceId = `${prod.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     const unidadMedida = prod.unidadMedida || "UN";
     const valorVenta = Number(prod.valorVenta) || 0;
     const nuevo = {
-      id: prod.id,
+      id: instanceId, // ID único para la instancia
+      originalId: prod.id, // ID original del producto para referencia
       nombre: prod.nombre,
       categoria: prod.categoria || "",
       subCategoria: prod.subCategoria || prod.subcategoria || "",
@@ -311,6 +312,28 @@ export default function CrearPresupuestoObraPage() {
         : bloque
     ));
   }, [bloqueActivo]);
+
+  const duplicarProducto = useCallback((producto) => {
+    const bloqueActual = bloques[bloqueActivo];
+    if (!bloqueActual) return;
+    
+    // Generar ID único para el producto duplicado
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    const uniqueId = `${producto.originalId || producto.id}-${timestamp}-${randomSuffix}`;
+    
+    const duplicado = {
+      ...producto,
+      id: uniqueId,
+      originalId: producto.originalId || producto.id,
+    };
+    
+    setBloques(prev => prev.map((bloque, index) => 
+      index === bloqueActivo 
+        ? { ...bloque, items: [...bloque.items, duplicado] }
+        : bloque
+    ));
+  }, [bloques, bloqueActivo]);
 
   // Handlers de edición por fila
   const actualizarCampo = (id, campo, valor) => {
@@ -416,6 +439,7 @@ export default function CrearPresupuestoObraPage() {
           const ml = u === "ML" ? largoNum * cantNum : 0;
           return {
             id: p.id,
+            originalId: p.originalId || p.id, // Para compatibilidad con productos existentes
             nombre: p.nombre,
             categoria: p.categoria,
             subCategoria: p.subCategoria,
@@ -426,7 +450,7 @@ export default function CrearPresupuestoObraPage() {
             cantidad: cantNum,
             descuento: Number(p.descuento) || 0,
             precio: Number(p.precio) || 0,
-                descripcion: p.descripcion || "",
+            descripcion: p.descripcion || "",
             m2,
             ml,
           };
@@ -638,10 +662,11 @@ export default function CrearPresupuestoObraPage() {
                   )}
 
                   {productosPaginados.map((prod) => {
-                    const yaAgregado = itemsSeleccionados.some((p) => p.id === prod.id);
+                    // Contar cuántas veces está agregado este producto
+                    const vecesAgregado = itemsSeleccionados.filter((p) => p.originalId === prod.id || p.id === prod.id).length;
                     const precio = Number(prod.valorVenta) || 0;
                     return (
-                      <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${yaAgregado ? "border-green-200 bg-green-50" : "border-gray-200 hover:border-blue-300"}`}>
+                      <div key={prod.id} className={`group relative rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${vecesAgregado > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:border-blue-300"}`}>
                         <div className="p-4 flex flex-col h-full">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
@@ -655,10 +680,10 @@ export default function CrearPresupuestoObraPage() {
                                     <div className="text-xs text-blue-600 mt-1">{prod.subCategoria}</div>
                                   )}
                                 </div>
-                                {yaAgregado && (
-                                  <div className="flex items-center gap-1 text-green-600">
+                                {vecesAgregado > 0 && (
+                                  <div className="flex items-center gap-1 text-blue-600">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                                    <span className="text-xs font-medium">Agregado</span>
+                                    <span className="text-xs font-medium">Agregado ({vecesAgregado})</span>
                                   </div>
                                 )}
                               </div>
@@ -680,18 +705,10 @@ export default function CrearPresupuestoObraPage() {
 
                           <div className="mt-4">
                             <button
-                              onClick={() => {
-                                if (yaAgregado) return;
-                                agregarProducto(prod);
-                              }}
-                              disabled={yaAgregado}
-                              className={`w-full py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-                                yaAgregado 
-                                  ? "bg-green-100 text-green-700 cursor-not-allowed" 
-                                  : "bg-blue-600 text-white hover:bg-blue-700"
-                              }`}
+                              onClick={() => agregarProducto(prod)}
+                              className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
                             >
-                              {yaAgregado ? "Ya agregado" : "Agregar"}
+                              {vecesAgregado > 0 ? `Agregar otra (${vecesAgregado + 1})` : "Agregar"}
                             </button>
                           </div>
                         </div>
@@ -858,6 +875,12 @@ export default function CrearPresupuestoObraPage() {
                 <span className="text-sm text-gray-500">
                   ({itemsSeleccionados.length} producto{itemsSeleccionados.length !== 1 ? 's' : ''})
                 </span>
+                <div className="flex items-center gap-1 text-xs text-gray-400" title="Puedes agregar el mismo producto múltiples veces con diferentes cantidades o medidas">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+                  </svg>
+                  <span>Duplicados permitidos</span>
+                </div>
               </div>
             </CardTitle>
           </CardHeader>
@@ -878,7 +901,7 @@ export default function CrearPresupuestoObraPage() {
                   </th>
                   <th className="p-2 text-center">Desc. %</th>
                   <th className="p-2 text-right">Subtotal</th>
-                  <th className="p-2 text-center">Acción</th>
+                  <th className="p-2 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -895,7 +918,14 @@ export default function CrearPresupuestoObraPage() {
                             {p._esManual ? (
                               <Input value={p.nombre} onChange={(e) => actualizarNombreManual(p.id, e.target.value)} className="h-8" />
                             ) : (
-                              p.nombre
+                              <div className="flex items-center gap-2">
+                                <span>{p.nombre}</span>
+                                {itemsSeleccionados.filter(item => (item.originalId || item.id) === (p.originalId || p.id)).length > 1 && (
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                                    Duplicado
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
                           <div className="text-xs text-gray-500">{p.categoria}</div>
@@ -957,7 +987,25 @@ export default function CrearPresupuestoObraPage() {
                         </td>
                         <td className="p-2 text-right font-semibold">$ {formatARNumber(sub)}</td>
                         <td className="p-2 text-center">
-                          <Button variant="outline" onClick={() => quitarProducto(p.id)} size="sm">Quitar</Button>
+                          <div className="flex items-center gap-1 justify-center">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => duplicarProducto(p)} 
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Duplicar producto"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => quitarProducto(p.id)} 
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                       {/* Fila adicional para descripción del producto */}
@@ -1174,32 +1222,6 @@ export default function CrearPresupuestoObraPage() {
               </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-      {/* Modal Nuevo Cliente */}
-      <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Agregar Cliente</DialogTitle>
-            <DialogDescription className="text-base text-default-600">Complete los datos del nuevo cliente para agregarlo al sistema.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <Input placeholder="Nombre *" value={nuevoCliente.nombre} onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} />
-            <Input placeholder="CUIT / DNI" value={nuevoCliente.cuit} onChange={(e) => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
-            <Input placeholder="Dirección *" value={nuevoCliente.direccion} onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} />
-            <Input placeholder="Teléfono *" value={nuevoCliente.telefono} onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} />
-            <Input placeholder="Email" value={nuevoCliente.email} onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
-            <Input placeholder="Localidad" value={nuevoCliente.localidad} onChange={(e) => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })} />
-            <Input placeholder="Partido" value={nuevoCliente.partido} onChange={(e) => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })} />
-            <Input placeholder="Barrio" value={nuevoCliente.barrio} onChange={(e) => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })} />
-            <Input placeholder="Área" value={nuevoCliente.area} onChange={(e) => setNuevoCliente({ ...nuevoCliente, area: e.target.value })} />
-            <Input placeholder="Lote" value={nuevoCliente.lote} onChange={(e) => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })} />
-            <Input placeholder="Descripción" value={nuevoCliente.descripcion} onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })} />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpenNuevoCliente(false)}>Cancelar</Button>
-            <Button onClick={handleGuardarNuevoCliente}>Guardar</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
