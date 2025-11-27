@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
@@ -74,6 +75,16 @@ const formatFechaSegura = (fecha) => {
 const GastosPage = () => {
   const { user } = useAuth();
   const [vistaActiva, setVistaActiva] = useState("internos"); // internos | proveedores
+  
+  // Estados para segmentación de fechas
+  const hoyISO = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split("T")[0];
+  const [fechaDesde, setFechaDesde] = useState(inicioMesISO);
+  const [fechaHasta, setFechaHasta] = useState(hoyISO);
+  const [rangoRapido, setRangoRapido] = useState("month");
   
   // Estados comunes
   const [gastosInternos, setGastosInternos] = useState([]);
@@ -140,6 +151,100 @@ const GastosPage = () => {
       observaciones: "",
     },
   });
+
+  // Helper para convertir fechas de forma segura
+  const toDateSafe = useCallback((value) => {
+    if (!value) return null;
+    try {
+      // Si es un Timestamp de Firebase
+      if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+        const d = new Date(value.seconds * 1000);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Si es una instancia de Date
+      if (value instanceof Date) return value;
+      // Si es un string con formato ISO (incluye T)
+      if (typeof value === "string" && value.includes("T")) {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Si es un string en formato YYYY-MM-DD
+      if (typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [y, m, d] = value.split("-").map(Number);
+        if (!y || !m || !d) return null;
+        const dt = new Date(y, m - 1, d);
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+      // Si es un string con otro formato de fecha, intentar parsearlo
+      if (typeof value === "string") {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      // Si es un número (timestamp en milisegundos)
+      if (typeof value === "number") {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Verificar si una fecha está en el rango seleccionado
+  const isInRange = useCallback(
+    (dateValue) => {
+      const d = toDateSafe(dateValue);
+      if (!d) return false;
+      const from = toDateSafe(fechaDesde);
+      const to = toDateSafe(fechaHasta);
+      if (!from || !to) return true;
+      const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const f0 = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+      const t0 = new Date(
+        to.getFullYear(),
+        to.getMonth(),
+        to.getDate(),
+        23,
+        59,
+        59
+      );
+      return d0 >= f0 && d0 <= t0;
+    },
+    [fechaDesde, fechaHasta, toDateSafe]
+  );
+
+  // Efecto para actualizar fechas según el rango rápido
+  useEffect(() => {
+    const today = new Date();
+    const to = today.toISOString().split("T")[0];
+    let from = inicioMesISO;
+    if (rangoRapido === "7d") {
+      from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+    } else if (rangoRapido === "30d") {
+      from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+    } else if (rangoRapido === "90d") {
+      from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+    } else if (rangoRapido === "ytd") {
+      const y = new Date().getFullYear();
+      from = new Date(y, 0, 1).toISOString().split("T")[0];
+    } else if (rangoRapido === "month") {
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      from = new Date(y, m, 1).toISOString().split("T")[0];
+    } else if (rangoRapido === "custom") {
+      // no cambia fechas
+      return;
+    }
+    setFechaDesde(from);
+    setFechaHasta(to);
+  }, [rangoRapido]);
 
   // Cargar datos desde Firebase
   useEffect(() => {
@@ -431,30 +536,46 @@ const GastosPage = () => {
     resetProveedor();
   };
 
-  // Calcular totales
+  // Filtrar gastos internos por fecha
+  const gastosInternosFiltradosPorFecha = useMemo(() => {
+    return gastosInternos.filter(g => {
+      const fechaGasto = g.fechaCreacion || g.fecha;
+      return isInRange(fechaGasto);
+    });
+  }, [gastosInternos, isInRange]);
+
+  // Filtrar cuentas por pagar por fecha
+  const cuentasPorPagarFiltradasPorFecha = useMemo(() => {
+    return cuentasPorPagar.filter(c => {
+      const fechaCuenta = c.fechaCreacion || c.fecha;
+      return isInRange(fechaCuenta);
+    });
+  }, [cuentasPorPagar, isInRange]);
+
+  // Calcular totales (usando datos filtrados por fecha)
   const totalesInternos = useMemo(() => {
-    const total = gastosInternos.reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
+    const total = gastosInternosFiltradosPorFecha.reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
     const porCategoria = {};
     Object.keys(categoriasGastoInterno).forEach(key => {
-      porCategoria[key] = gastosInternos
+      porCategoria[key] = gastosInternosFiltradosPorFecha
         .filter(g => g.categoria === key)
         .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
     });
     return { total, porCategoria };
-  }, [gastosInternos]);
+  }, [gastosInternosFiltradosPorFecha]);
 
   const totalesProveedores = useMemo(() => {
-    const total = cuentasPorPagar.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
-    const pagado = cuentasPorPagar.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
+    const total = cuentasPorPagarFiltradasPorFecha.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
+    const pagado = cuentasPorPagarFiltradasPorFecha.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
     const pendiente = total - pagado;
     const porEstado = {
-      pendiente: cuentasPorPagar.filter(c => c.estadoPago === "pendiente").length,
-      parcial: cuentasPorPagar.filter(c => c.estadoPago === "parcial").length,
-      pagado: cuentasPorPagar.filter(c => c.estadoPago === "pagado").length,
+      pendiente: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "pendiente").length,
+      parcial: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "parcial").length,
+      pagado: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "pagado").length,
     };
     
     // Calcular deudas vencidas
-    const vencidas = cuentasPorPagar.filter(c => {
+    const vencidas = cuentasPorPagarFiltradasPorFecha.filter(c => {
       const saldo = (Number(c.monto) || 0) - (Number(c.montoPagado) || 0);
       return c.fechaVencimiento && 
              new Date(c.fechaVencimiento) < new Date() && 
@@ -466,13 +587,13 @@ const GastosPage = () => {
     );
     
     return { total, pagado, pendiente, porEstado, vencidas: vencidas.length, montoVencido };
-  }, [cuentasPorPagar]);
+  }, [cuentasPorPagarFiltradasPorFecha]);
 
-  // Agrupar cuentas por proveedor
+  // Agrupar cuentas por proveedor (usando datos filtrados por fecha)
   const cuentasPorProveedor = useMemo(() => {
     const grupos = {};
     
-    cuentasPorPagar.forEach(cuenta => {
+    cuentasPorPagarFiltradasPorFecha.forEach(cuenta => {
       const provId = cuenta.proveedorId;
       if (!grupos[provId]) {
         grupos[provId] = {
@@ -494,19 +615,19 @@ const GastosPage = () => {
     });
     
     return Object.values(grupos).sort((a, b) => b.pendiente - a.pendiente);
-  }, [cuentasPorPagar]);
+  }, [cuentasPorPagarFiltradasPorFecha]);
 
-  // Filtrar datos
+  // Filtrar datos (aplicando filtros de búsqueda sobre los datos ya filtrados por fecha)
   const gastosInternosFiltrados = useMemo(() => {
-    return gastosInternos.filter(g => {
+    return gastosInternosFiltradosPorFecha.filter(g => {
       const busqueda = filtroInterno.toLowerCase();
       return (g.concepto || "").toLowerCase().includes(busqueda) ||
              (g.observaciones || "").toLowerCase().includes(busqueda);
     });
-  }, [gastosInternos, filtroInterno]);
+  }, [gastosInternosFiltradosPorFecha, filtroInterno]);
 
   const cuentasPorPagarFiltradas = useMemo(() => {
-    return cuentasPorPagar.filter(c => {
+    return cuentasPorPagarFiltradasPorFecha.filter(c => {
       const busqueda = filtroProveedor.toLowerCase();
       const matchBusqueda = (c.concepto || "").toLowerCase().includes(busqueda) ||
                            (c.proveedor?.nombre || "").toLowerCase().includes(busqueda);
@@ -514,7 +635,7 @@ const GastosPage = () => {
       const matchProveedorId = !filtroProveedorId || c.proveedorId === filtroProveedorId;
       return matchBusqueda && matchEstado && matchProveedorId;
     });
-  }, [cuentasPorPagar, filtroProveedor, filtroEstadoPago, filtroProveedorId]);
+  }, [cuentasPorPagarFiltradasPorFecha, filtroProveedor, filtroEstadoPago, filtroProveedorId]);
 
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
@@ -548,6 +669,23 @@ const GastosPage = () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  // Componente QuickRangeButton
+  const QuickRangeButton = ({ value, label, icon }) => (
+    <button
+      type="button"
+      onClick={() => setRangoRapido(value)}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+        rangoRapido === value
+          ? "bg-primary text-white border-primary shadow-sm"
+          : "bg-card border-gray-300 text-gray-700 hover:bg-gray-100"
+      }`}
+      aria-pressed={rangoRapido === value}
+    >
+      {icon ? <Icon icon={icon} className="w-3.5 h-3.5" /> : null}
+      {label}
+    </button>
+  );
 
   if (loading) {
     return (
@@ -588,6 +726,69 @@ const GastosPage = () => {
           </TabsTrigger>
         </TabsList>
 
+        {/* Selector de rango de fechas */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-3">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Filtro de Fechas
+              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <QuickRangeButton
+                  value="month"
+                  label="Mes"
+                  icon="heroicons:calendar-days"
+                />
+                <QuickRangeButton value="7d" label="7d" icon="heroicons:bolt" />
+                <QuickRangeButton
+                  value="30d"
+                  label="30d"
+                  icon="heroicons:calendar-days"
+                />
+                <QuickRangeButton value="90d" label="90d" icon="heroicons:clock" />
+                <QuickRangeButton
+                  value="ytd"
+                  label="YTD"
+                  icon="heroicons:chart-pie"
+                />
+                <QuickRangeButton
+                  value="custom"
+                  label="Custom"
+                  icon="heroicons:adjustments-horizontal"
+                />
+              </div>
+            </div>
+            {rangoRapido === "custom" && (
+              <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    Desde
+                  </span>
+                  <input
+                    type="date"
+                    value={fechaDesde}
+                    onChange={(e) => setFechaDesde(e.target.value)}
+                    className="border rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    Hasta
+                  </span>
+                  <input
+                    type="date"
+                    value={fechaHasta}
+                    onChange={(e) => setFechaHasta(e.target.value)}
+                    className="border rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                  />
+                </div>
+              </div>
+            )}
+          </CardHeader>
+        </Card>
+
+
         {/* Vista de Gastos Internos */}
         <TabsContent value="internos" className="space-y-6">
           {/* Dashboard de gastos internos */}
@@ -602,7 +803,7 @@ const GastosPage = () => {
                       ${totalesInternos.total.toLocaleString("es-AR")}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {gastosInternos.length} registros
+                      {gastosInternosFiltradosPorFecha.length} registros en el período
                     </div>
                   </div>
                   <TrendingDown className="w-12 h-12 text-red-500" />
@@ -619,7 +820,7 @@ const GastosPage = () => {
                       <div className="text-sm text-gray-500">{cat.label}</div>
                       <div className="text-2xl font-bold">${totalesInternos.porCategoria[key]?.toLocaleString("es-AR") || "0"}</div>
                       <div className="text-xs text-gray-400 mt-1">
-                        {gastosInternos.filter(g => g.categoria === key).length} gastos
+                        {gastosInternosFiltradosPorFecha.filter(g => g.categoria === key).length} gastos
                       </div>
                     </div>
                   </div>
