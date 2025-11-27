@@ -64,6 +64,7 @@ const ProductoDetailPage = () => {
 
   // Formulario de edición
   const [editForm, setEditForm] = useState({
+    codigo: "",
     nombre: "",
     descripcion: "",
     proveedor: "",
@@ -108,6 +109,7 @@ const ProductoDetailPage = () => {
         
         // Cargar formulario con datos existentes
         setEditForm({
+          codigo: productoData.codigo || "",
           nombre: productoData.nombre || "",
           descripcion: productoData.descripcion || "",
           proveedor: productoData.proveedor || "",
@@ -249,6 +251,9 @@ const ProductoDetailPage = () => {
       const updates = {};
       
       // Solo actualizar campos que han cambiado
+      if (editForm.codigo !== producto.codigo) {
+        updates.codigo = editForm.codigo;
+      }
       if (editForm.nombre !== producto.nombre) {
         updates.nombre = editForm.nombre;
       }
@@ -530,6 +535,17 @@ const ProductoDetailPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
+                    Código del Producto *
+                  </label>
+                  <Input
+                    value={editForm.codigo}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, codigo: e.target.value }))}
+                    placeholder="Ej: MAD-001"
+                    className="font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
                     Nombre del Producto *
                   </label>
                   <Input
@@ -538,6 +554,9 @@ const ProductoDetailPage = () => {
                     placeholder="Nombre del producto"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     Estado *
@@ -552,9 +571,6 @@ const ProductoDetailPage = () => {
                     <option value="Descontinuado">Descontinuado</option>
                   </select>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     Estado de Tienda *
@@ -568,62 +584,63 @@ const ProductoDetailPage = () => {
                     <option value="Inactivo">Inactivo</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Unidad de Medida *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={editForm.unidadMedida}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Unidad de Medida *
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={editForm.unidadMedida}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Seleccionar unidad</option>
+                    {unidadesMedida.map((unidad) => (
+                      <option key={unidad} value={unidad}>
+                        {unidad}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddUnidadMedida(true)}
+                    className="px-3"
+                  >
+                    +
+                  </Button>
+                </div>
+                {showAddUnidadMedida && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      placeholder="Nueva unidad de medida"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddNewValue('unidadMedida', newValue)}
                     >
-                      <option value="">Seleccionar unidad</option>
-                      {unidadesMedida.map((unidad) => (
-                        <option key={unidad} value={unidad}>
-                          {unidad}
-                        </option>
-                      ))}
-                    </select>
+                      Agregar
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-3"
+                      onClick={() => {
+                        setShowAddUnidadMedida(false);
+                        setNewValue("");
+                      }}
                     >
-                      +
+                      Cancelar
                     </Button>
                   </div>
-                  {showAddUnidadMedida && (
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        value={newValue}
-                        onChange={(e) => setNewValue(e.target.value)}
-                        placeholder="Nueva unidad de medida"
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
-                      >
-                        Agregar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowAddUnidadMedida(false);
-                          setNewValue("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
               <div className="space-y-2">

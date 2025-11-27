@@ -1422,9 +1422,11 @@ const ProductosPage = () => {
   const [draggedImage, setDraggedImage] = useState(null);
   const [targetProduct, setTargetProduct] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("info");
+  const [showDragDropBanner, setShowDragDropBanner] = useState(true);
 
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
@@ -2768,7 +2770,16 @@ const ProductosPage = () => {
       "precioPorPie",
       "stock",
       "estado",
-      "ubicacion"
+      "estadoTienda",
+      "ubicacion",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes"
     ];
 
     const csvRows = [headers.join(",")];
@@ -2789,7 +2800,16 @@ const ProductosPage = () => {
         producto.precioPorPie || "",
         producto.stock || "",
         producto.estado || "Activo",
-        producto.ubicacion || ""
+        producto.estadoTienda || "Inactivo",
+        producto.ubicacion || "",
+        producto.freeShipping ? "Si" : "No",
+        producto.featuredBrand ? "Si" : "No",
+        producto.newArrival ? "Si" : "No",
+        producto.specialOffer ? "Si" : "No",
+        producto.rating || "0",
+        producto.discount?.amount || "0",
+        producto.discount?.percentage || "0",
+        (producto.imagenes || []).join(" | ")
       ].map(field => `"${field}"`).join(",");
       
       csvRows.push(row);
@@ -2831,7 +2851,15 @@ const ProductosPage = () => {
       "valorVenta",
       "stock",
       "estado",
-      "estadoTienda"
+      "estadoTienda",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes"
     ];
 
     const csvRows = [headers.join(",")];
@@ -2851,7 +2879,15 @@ const ProductosPage = () => {
         producto.valorVenta || "",
         producto.stock || "0",
         producto.estado || "Activo",
-        producto.estadoTienda || "Inactivo"
+        producto.estadoTienda || "Inactivo",
+        producto.freeShipping ? "Si" : "No",
+        producto.featuredBrand ? "Si" : "No",
+        producto.newArrival ? "Si" : "No",
+        producto.specialOffer ? "Si" : "No",
+        producto.rating || "0",
+        producto.discount?.amount || "0",
+        producto.discount?.percentage || "0",
+        (producto.imagenes || []).join(" | ")
       ].map(field => `"${field}"`).join(",");
       
       csvRows.push(row);
@@ -2886,6 +2922,7 @@ const ProductosPage = () => {
       "categoria",
       "subCategoria",
       "estado",
+      "estadoTienda",
       "unidad",
       "stockMinimo",
       "unidadMedida",
@@ -2904,6 +2941,7 @@ const ProductosPage = () => {
         producto.categoria || "Obras",
         producto.subCategoria || "",
         producto.estado || "Activo",
+        producto.estadoTienda || "Inactivo",
         producto.unidad || "",
         producto.stockMinimo || "",
         producto.unidadMedida || "",
@@ -3049,13 +3087,18 @@ const ProductosPage = () => {
 
   const handleCantidadChange = async (id, nuevaCantidad) => {
     try {
-      const cantidad = Math.max(1, parseInt(nuevaCantidad) || 1);
+      // Si el campo está vacío o es inválido, guardar como vacío (null)
+      // Si tiene un valor, asegurarse de que sea al menos 1
+      const cantidad = nuevaCantidad === "" || nuevaCantidad === null || nuevaCantidad === undefined
+        ? null
+        : Math.max(1, parseInt(nuevaCantidad) || 1);
+      
       const productoRef = doc(db, "productos", id);
       await updateDoc(productoRef, {
         cantidad: cantidad,
         fechaActualizacion: new Date().toISOString(),
       });
-      console.log(`Cantidad actualizada para producto ${id}: ${cantidad}`);
+      console.log(`Cantidad actualizada para producto ${id}: ${cantidad || 'vacío (default: 1)'}`);
     } catch (error) {
       console.error("Error al actualizar cantidad:", error);
       alert("Error al actualizar la cantidad: " + error.message);
@@ -3150,6 +3193,7 @@ const ProductosPage = () => {
 
     try {
       setUploadingImage(true);
+      setUploadProgress(0);
       
       // Convertir a array si es un solo archivo (retrocompatibilidad)
       const imagesToUpload = Array.isArray(draggedImage) ? draggedImage : [draggedImage];
@@ -3170,13 +3214,29 @@ const ProductosPage = () => {
       // Limitar las imágenes a subir según el espacio disponible
       const imagenesFiltradas = imagesToUpload.slice(0, espacioDisponible);
       
-      showToast(`Subiendo ${imagenesFiltradas.length} imagen(es)...`, "loading");
+      // Mensaje inicial más descriptivo
+      const mensajeInicial = imagenesFiltradas.length === 1 
+        ? 'Preparando imagen para subir...' 
+        : `Preparando ${imagenesFiltradas.length} imágenes para subir...`;
+      showToast(mensajeInicial, "loading");
 
       // Subir todas las imágenes al servidor
       const uploadedUrls = [];
       
       for (let i = 0; i < imagenesFiltradas.length; i++) {
         const imagen = imagenesFiltradas[i];
+        
+        // Actualizar progreso en el modal
+        const progresoActual = Math.round(((i) / imagenesFiltradas.length) * 90); // 90% para subidas, 10% para guardar
+        setUploadProgress(progresoActual);
+        
+        // Actualizar toast con progreso
+        if (imagenesFiltradas.length > 1) {
+          showToast(
+            `📤 Subiendo imagen ${i + 1} de ${imagenesFiltradas.length}`, 
+            "loading"
+          );
+        }
         
         const formData = new FormData();
         formData.append('file', imagen.file);
@@ -3193,14 +3253,11 @@ const ProductosPage = () => {
 
         const result = await response.json();
         uploadedUrls.push(result.url);
-        
-        // Actualizar el toast con el progreso
-        if (imagenesFiltradas.length > 1) {
-          showToast(`Subiendo imagen ${i + 1} de ${imagenesFiltradas.length}...`, "loading");
-        }
       }
 
       // Actualizar el producto en Firebase con todas las nuevas imágenes
+      setUploadProgress(95);
+      showToast("💾 Guardando en la base de datos...", "loading");
       const productoRef = doc(db, "productos", targetProduct.id);
       
       await updateDoc(productoRef, {
@@ -3208,24 +3265,27 @@ const ProductosPage = () => {
         fechaActualizacion: new Date().toISOString(),
       });
 
+      setUploadProgress(100);
+
       // Cerrar modal y mostrar éxito
       setDragDropModalOpen(false);
       setDraggedImage(null);
       setTargetProduct(null);
+      setUploadProgress(0);
       
       const totalImagenes = currentImages.length + uploadedUrls.length;
       const imagenesRestantes = 3 - totalImagenes;
       
-      showToast(
-        `¡${uploadedUrls.length} imagen(es) subida(s) correctamente! Total: ${totalImagenes}/3${
-          imagenesRestantes > 0 ? ` - Puedes agregar ${imagenesRestantes} más.` : ' - Límite alcanzado.'
-        }`,
-        "success"
-      );
+      const mensajeExito = imagenesFiltradas.length === 1
+        ? `✅ Imagen subida correctamente. Galería: ${totalImagenes}/3${imagenesRestantes > 0 ? ` (${imagenesRestantes} espacio${imagenesRestantes !== 1 ? 's' : ''} disponible${imagenesRestantes !== 1 ? 's' : ''})` : ' (completa)'}`
+        : `✅ ${uploadedUrls.length} imágenes subidas correctamente. Galería: ${totalImagenes}/3${imagenesRestantes > 0 ? ` (${imagenesRestantes} espacio${imagenesRestantes !== 1 ? 's' : ''} disponible${imagenesRestantes !== 1 ? 's' : ''})` : ' (completa)'}`;
+      
+      showToast(mensajeExito, "success");
 
     } catch (error) {
       console.error("Error al subir imágenes:", error);
-      showToast("Error al subir las imágenes: " + error.message, "error");
+      showToast("❌ Error al subir las imágenes: " + error.message, "error");
+      setUploadProgress(0);
     } finally {
       setUploadingImage(false);
     }
@@ -3256,6 +3316,27 @@ const ProductosPage = () => {
     } catch (error) {
       console.error("Error al actualizar valor de venta:", error);
       alert("Error al actualizar el valor de venta: " + error.message);
+    }
+  };
+
+  // Función para cambiar el estado de tienda rápidamente
+  const handleToggleEstadoTienda = async (id, estadoActual) => {
+    try {
+      const nuevoEstado = estadoActual === "Activo" ? "Inactivo" : "Activo";
+      const productoRef = doc(db, "productos", id);
+      
+      await updateDoc(productoRef, {
+        estadoTienda: nuevoEstado,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      
+      showToast(
+        `Estado de tienda cambiado a ${nuevoEstado}`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Error al cambiar estado de tienda:", error);
+      showToast("Error al cambiar el estado de tienda", "error");
     }
   };
 
@@ -3623,34 +3704,40 @@ const ProductosPage = () => {
                 )}
               </div>
 
-              {/* Botones de acción para productos seleccionados (solo visible cuando hay selección) */}
-              {selectedProducts.length > 0 && (
-                <>
-                  {/* Botón Editar Masivo */}
-                  <Button
-                    variant="outline"
-                    onClick={openBulkEditModal}
-                    className="w-full sm:w-auto border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 font-medium text-blue-700"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Editar ({selectedProducts.length})
-                  </Button>
+              {/* Botones de acción para productos seleccionados (siempre visibles) */}
+              {/* Botón Editar Masivo */}
+              <Button
+                variant="outline"
+                onClick={openBulkEditModal}
+                disabled={selectedProducts.length === 0}
+                className={`w-full sm:w-auto border-2 transition-all duration-200 font-medium ${
+                  selectedProducts.length > 0
+                    ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar {selectedProducts.length > 0 ? `(${selectedProducts.length})` : ''}
+              </Button>
 
-                  {/* Botón Borrar Seleccionados */}
-                  <Button
-                    variant="destructive"
-                    onClick={() => setDeleteModalOpen(true)}
-                    className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Borrar ({selectedProducts.length})
-                  </Button>
-                </>
-              )}
+              {/* Botón Borrar Seleccionados */}
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteModalOpen(true)}
+                disabled={selectedProducts.length === 0}
+                className={`w-full sm:w-auto transition-all duration-200 font-medium ${
+                  selectedProducts.length > 0
+                    ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed hover:bg-gray-200'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Borrar {selectedProducts.length > 0 ? `(${selectedProducts.length})` : ''}
+              </Button>
             </div>
           </div>
 
@@ -3896,8 +3983,8 @@ const ProductosPage = () => {
             </div>
           </div>
 
-          {/* Indicador de productos filtrados */}
-          <div className="flex items-center justify-between">
+          {/* Indicador de productos filtrados y banner de ayuda drag & drop */}
+          <div className="flex flex-col gap-3">
             {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda || filtroStock) && (
               <Button
                 variant="outline"
@@ -3910,10 +3997,49 @@ const ProductosPage = () => {
                   setFiltroTienda("");
                   setFiltroStock("");
                 }}
-                className="text-xs"
+                className="text-xs w-fit"
               >
                 Limpiar filtros
               </Button>
+            )}
+            
+            {/* Banner informativo sobre drag & drop de imágenes */}
+            {showDragDropBanner && (
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm animate-fadeIn">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex-shrink-0 shadow-sm">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1 flex items-center gap-2">
+                      <span className="text-lg">💡</span>
+                      <span>Tip: Agregar imágenes a productos</span>
+                    </h4>
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      Puedes <strong className="font-bold bg-blue-100 px-1.5 py-0.5 rounded">arrastrar y soltar</strong> imágenes (o múltiples imágenes a la vez) directamente sobre cualquier producto de la lista. 
+                      Cada producto puede tener hasta <strong className="font-bold text-blue-900">3 imágenes</strong>. 
+                      El <span className="inline-flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 font-medium">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px]">0/3</span>
+                      </span> indicador muestra cuántas ya tiene cada producto.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDragDropBanner(false)}
+                    className="p-1.5 hover:bg-blue-200 rounded-lg transition-colors flex-shrink-0 group"
+                    title="Cerrar"
+                  >
+                    <svg className="w-4 h-4 text-blue-600 group-hover:text-blue-800 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -4006,17 +4132,66 @@ const ProductosPage = () => {
                   {productosPaginados.map((p) => (
                     <tr
                       key={p.id}
-                      className={`border-b border-default-300 transition-all duration-200 data-[state=selected]:bg-muted ${
+                      className={`border-b border-default-300 transition-all duration-300 data-[state=selected]:bg-muted relative ${
                         dragOverProductId === p.id 
                           ? (p.imagenes && p.imagenes.length >= 3)
-                            ? 'bg-gradient-to-r from-red-50 to-pink-50 scale-[1.01] shadow-lg border-red-300 ring-2 ring-red-400 ring-opacity-50'
-                            : 'bg-gradient-to-r from-blue-50 to-indigo-50 scale-[1.01] shadow-lg border-blue-300 ring-2 ring-blue-400 ring-opacity-50'
+                            ? 'bg-gradient-to-r from-red-50 via-pink-50 to-red-50 scale-[1.02] shadow-2xl border-2 border-red-400 ring-4 ring-red-300 ring-opacity-30'
+                            : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 scale-[1.02] shadow-2xl border-2 border-blue-400 ring-4 ring-blue-300 ring-opacity-30'
                           : 'hover:bg-gray-50'
                       }`}
                       onDragOver={(e) => handleDragOver(e, p.id)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, p)}
                     >
+                      {/* Overlay cuando se arrastra sobre el producto */}
+                      {dragOverProductId === p.id && (
+                        <td colSpan="100%" className="absolute inset-0 pointer-events-none z-10">
+                          <div className={`absolute inset-0 flex items-center justify-center ${
+                            (p.imagenes && p.imagenes.length >= 3)
+                              ? 'bg-red-500/10 backdrop-blur-sm'
+                              : 'bg-blue-500/10 backdrop-blur-sm'
+                          }`}>
+                            <div className={`flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl border-2 ${
+                              (p.imagenes && p.imagenes.length >= 3)
+                                ? 'bg-gradient-to-r from-red-100 to-pink-100 border-red-300 text-red-800'
+                                : 'bg-gradient-to-r from-blue-100 to-indigo-100 border-blue-300 text-blue-800'
+                            }`}>
+                              {(p.imagenes && p.imagenes.length >= 3) ? (
+                                <>
+                                  <svg className="w-6 h-6 text-red-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.64-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                  </svg>
+                                  <div>
+                                    <div className="font-bold text-lg">Límite alcanzado</div>
+                                    <div className="text-sm">Este producto ya tiene 3/3 imágenes</div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-8 h-8 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <div>
+                                    <div className="font-bold text-lg flex items-center gap-2">
+                                      <span>Soltar imágenes aquí</span>
+                                      <svg className="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                      </svg>
+                                    </div>
+                                    <div className="text-sm">
+                                      {p.imagenes && p.imagenes.length > 0 
+                                        ? `${p.imagenes.length}/3 imágenes - ${3 - p.imagenes.length} espacio${3 - p.imagenes.length !== 1 ? 's' : ''} disponible${3 - p.imagenes.length !== 1 ? 's' : ''}`
+                                        : 'Hasta 3 imágenes permitidas'
+                                      }
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                    
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="flex items-center justify-center">
                           <input
@@ -4129,12 +4304,13 @@ const ProductosPage = () => {
                           <input
                             type="number"
                             min="1"
-                            value={p.cantidad || ""}
+                            value={p.cantidad === null || p.cantidad === undefined ? "" : p.cantidad}
                             onChange={(e) => {
                               handleCantidadChange(p.id, e.target.value);
                             }}
-                            className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-medium bg-white focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            title="Cantidad"
+                            placeholder="1"
+                            className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-medium bg-white focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-400"
+                            title="Cantidad (default: 1)"
                           />
                         </div>
                       </td>
@@ -4211,21 +4387,22 @@ const ProductosPage = () => {
                             $
                             {formatearNumeroArgentino(
                               (() => {
+                                // Si cantidad es null/undefined, usar 1 por defecto
+                                const cantidadActual = p.cantidad === null || p.cantidad === undefined ? 1 : Number(p.cantidad) || 1;
                                 const precioUnitario =
                                   p.categoria === "Maderas"
                                     ? (() => {
                                         const unidad = (p.unidadMedida || "").toString();
-                                        const cantidad = Number(p.cantidad) || 1;
                                         if (unidad === "M2") {
                                           return calcularPrecioMachimbre({
                                             alto: Number(p.alto) || 0,
                                             largo: Number(p.largo) || 0,
-                                            cantidad,
+                                            cantidad: cantidadActual,
                                             precioPorPie: Number(p.precioPorPie) || 0,
                                           });
                                         } else if (unidad === "Unidad") {
                                           const pUnit = Math.round((Number(p.precioPorPie) || 0) / 100) * 100;
-                                          return Math.round((pUnit * cantidad) / 100) * 100;
+                                          return Math.round((pUnit * cantidadActual) / 100) * 100;
                                         }
                                         const base = calcularPrecioCorteMadera({
                                           alto: Number(p.alto) || 0,
@@ -4233,11 +4410,11 @@ const ProductosPage = () => {
                                           largo: Number(p.largo) || 0,
                                           precioPorPie: Number(p.precioPorPie) || 0,
                                         });
-                                        return Math.round((base * cantidad) / 100) * 100;
+                                        return Math.round((base * cantidadActual) / 100) * 100;
                                       })()
                                     : p.categoria === "Obras"
-                                    ? (Number(p.valorVenta) || 0) * (Number(p.cantidad) || 1)
-                                    : (Number(p.valorVenta) || 0) * (Number(p.cantidad) || 1);
+                                    ? (Number(p.valorVenta) || 0) * cantidadActual
+                                    : (Number(p.valorVenta) || 0) * cantidadActual;
                                 return precioUnitario;
                               })()
                             )}
@@ -4259,17 +4436,34 @@ const ProductosPage = () => {
                         </span>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:rtl:pl-0">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            p.estadoTienda === "Activo"
-                              ? "bg-green-100 text-green-800"
-                              : p.estadoTienda === "Inactivo" || !p.estadoTienda
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {p.estadoTienda || "Inactivo"}
-                        </span>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleToggleEstadoTienda(p.id, p.estadoTienda || "Inactivo")}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                              p.estadoTienda === "Activo"
+                                ? "bg-green-500"
+                                : "bg-gray-300"
+                            }`}
+                            title={`Click para ${p.estadoTienda === "Activo" ? "desactivar" : "activar"} en tienda`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                p.estadoTienda === "Activo"
+                                  ? "translate-x-6"
+                                  : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                          <span
+                            className={`text-xs font-semibold ${
+                              p.estadoTienda === "Activo"
+                                ? "text-green-700"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {p.estadoTienda || "Inactivo"}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="flex gap-2 justify-center">
@@ -5216,6 +5410,7 @@ const ProductosPage = () => {
         fileName={draggedImage?.name}
         producto={targetProduct}
         uploading={uploadingImage}
+        uploadProgress={uploadProgress}
       />
 
       {/* Notificación Toast */}

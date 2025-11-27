@@ -36,9 +36,13 @@ export async function POST(request) {
     const fileName = `productos/${timestamp}-${randomString}.${extension}`;
 
     // Subir a Vercel Blob
+    // Usar el token personalizado o el estándar
+    const token = process.env.demo_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN;
+    
     const blob = await put(fileName, file, {
       access: 'public',
       addRandomSuffix: false,
+      token: token,
     });
 
     return NextResponse.json({
