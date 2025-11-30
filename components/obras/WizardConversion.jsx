@@ -53,6 +53,7 @@ const WizardConversion = ({
 
   // Estado para gestión de cliente
   const [clienteConfirmado, setClienteConfirmado] = useState(null); // Cliente que se usará en la obra
+  const [clienteConfirmadoExplicitamente, setClienteConfirmadoExplicitamente] = useState(false); // Flag para saber si el usuario confirmó explícitamente
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   const [clienteConfirmadoId, setClienteConfirmadoId] = useState(null);
 
@@ -79,9 +80,10 @@ const WizardConversion = ({
       fechaFin.setDate(fechaFin.getDate() + 30); // 30 días por defecto
       const fechaFinStr = fechaFin.toISOString().split("T")[0];
 
-      // Inicializar cliente confirmado con el cliente del presupuesto
-      setClienteConfirmado(presupuesto.cliente || null);
-      setClienteConfirmadoId(presupuesto.clienteId || null);
+      // NO inicializar cliente confirmado automáticamente - el usuario debe confirmarlo
+      setClienteConfirmado(null);
+      setClienteConfirmadoId(null);
+      setClienteConfirmadoExplicitamente(false);
 
       setDatos({
         bloqueSeleccionado: presupuesto.bloques?.length > 0 ? presupuesto.bloques[0].id : "",
@@ -105,6 +107,7 @@ const WizardConversion = ({
   const handleClienteGuardado = async (clienteId, clienteData) => {
     setClienteConfirmadoId(clienteId);
     setClienteConfirmado(clienteData);
+    setClienteConfirmadoExplicitamente(true); // Marcar como confirmado explícitamente
     setShowFormularioCliente(false);
     
     // Si el cliente tiene direccion/localidad, actualizar datos de ubicación
@@ -124,12 +127,17 @@ const WizardConversion = ({
   const handleConfirmarClienteActual = () => {
     setClienteConfirmado(presupuesto.cliente || null);
     setClienteConfirmadoId(presupuesto.clienteId || null);
+    setClienteConfirmadoExplicitamente(true); // Marcar como confirmado explícitamente
   };
 
   // Validar paso 1
   const validarPaso1 = () => {
-    // Validar que hay un cliente confirmado
-    if (!clienteConfirmado && !clienteConfirmadoId) {
+    // Validar que hay un cliente (confirmado explícitamente o del presupuesto)
+    const clienteValido = clienteConfirmadoExplicitamente 
+      ? (clienteConfirmado || clienteConfirmadoId)
+      : (presupuesto?.cliente || presupuesto?.clienteId);
+    
+    if (!clienteValido) {
       setError("Por favor confirme o seleccione un cliente");
       return false;
     }
@@ -298,9 +306,13 @@ const WizardConversion = ({
       const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
       const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
 
-      // Usar cliente confirmado o el del presupuesto como fallback (declarar ANTES de usar)
-      const clienteFinal = clienteConfirmado || presupuesto.cliente || null;
-      const clienteIdFinal = clienteConfirmadoId || presupuesto.clienteId || presupuesto.cliente?.id || null;
+      // Usar cliente confirmado explícitamente o el del presupuesto como fallback
+      const clienteFinal = clienteConfirmadoExplicitamente 
+        ? (clienteConfirmado || presupuesto.cliente || null)
+        : (presupuesto.cliente || null);
+      const clienteIdFinal = clienteConfirmadoExplicitamente
+        ? (clienteConfirmadoId || presupuesto.clienteId || presupuesto.cliente?.id || null)
+        : (presupuesto.clienteId || presupuesto.cliente?.id || null);
 
       // Construir ubicación usando cliente confirmado o el del presupuesto
       const clienteParaUbicacion = clienteFinal || presupuesto.cliente || {};
@@ -502,8 +514,8 @@ const WizardConversion = ({
                   </Button>
                 </div>
 
-                {/* Indicador de cliente confirmado */}
-                {clienteConfirmado && (
+                {/* Indicador de cliente confirmado - Solo mostrar si fue confirmado explícitamente */}
+                {clienteConfirmadoExplicitamente && clienteConfirmado && (
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-600" />
@@ -592,7 +604,10 @@ const WizardConversion = ({
             )}
 
             <div className="flex justify-end pt-4">
-              <Button onClick={handleSiguiente} disabled={convirtiendo || !clienteConfirmado && !clienteConfirmadoId}>
+              <Button 
+                onClick={handleSiguiente} 
+                disabled={convirtiendo || (!clienteConfirmadoExplicitamente && !presupuesto?.cliente && !presupuesto?.clienteId)}
+              >
                 Siguiente
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>

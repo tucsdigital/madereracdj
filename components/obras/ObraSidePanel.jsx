@@ -361,12 +361,14 @@ const ObraSidePanel = ({
                 <div className="flex-1">
                   <div className="text-xs text-gray-500 mb-2">Estado</div>
                   <Select
-                    value={nuevoEstado}
-                    onValueChange={setNuevoEstado}
+                    value={nuevoEstado || obra?.estado || "pendiente_inicio"}
+                    onValueChange={(value) => {
+                      setNuevoEstado(value);
+                    }}
                     disabled={cambiandoEstado}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue />
+                      <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
                     <SelectContent>
                       {estadosObra.map((estado) => (
@@ -376,12 +378,12 @@ const ObraSidePanel = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  {nuevoEstado !== obra.estado && (
+                  {nuevoEstado && nuevoEstado !== obra?.estado && (
                     <Button
                       size="sm"
                       onClick={handleCambiarEstado}
                       disabled={cambiandoEstado}
-                      className="mt-2 w-full"
+                      className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {cambiandoEstado ? (
                         <>
@@ -389,7 +391,9 @@ const ObraSidePanel = ({
                           Guardando...
                         </>
                       ) : (
-                        "Guardar Cambio de Estado"
+                        <>
+                          Guardar Cambio de Estado
+                        </>
                       )}
                     </Button>
                   )}
