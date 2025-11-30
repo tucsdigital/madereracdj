@@ -178,6 +178,13 @@ const SalesStats = () => {
       .filter((o) => isInRange(o.fechaCreacion));
   }, [obrasData, isInRange]);
 
+  // Obras confirmadas: solo en_ejecucion y completada (para cálculo de comisiones)
+  const obrasConfirmadas = useMemo(() => {
+    return obrasFiltradas.filter(
+      (o) => o.estado === "en_ejecucion" || o.estado === "completada"
+    );
+  }, [obrasFiltradas]);
+
   const kpis = useMemo(() => {
     const ventasCount = ventasFiltradas.length;
     const ventasMonto = ventasFiltradas.reduce(
@@ -186,7 +193,7 @@ const SalesStats = () => {
     );
     const ticketPromedio = ventasCount > 0 ? ventasMonto / ventasCount : 0;
 
-    // Calcular totales de obras
+    // Calcular totales de obras (todas las filtradas)
     const obrasCount = obrasFiltradas.length;
     const obrasMonto = obrasFiltradas.reduce((acc, o) => {
       // Calcular total de la obra
@@ -200,7 +207,21 @@ const SalesStats = () => {
           (Number(o.descuentoTotal) || 0);
       return acc + total;
     }, 0);
-    const obrasComision = obrasMonto * (OBRAS_COMMISSION_RATE / 100);
+
+    // Calcular comisión solo sobre obras confirmadas
+    const obrasMontoConfirmadas = obrasConfirmadas.reduce((acc, o) => {
+      // Calcular total de la obra
+      const total =
+        Number(o.total) ||
+        Number(o.subtotal) ||
+        (Number(o.productosTotal) || 0) +
+          (Number(o.materialesTotal) || 0) +
+          (Number(o.gastoObraManual) || 0) +
+          (Number(o.costoEnvio) || 0) -
+          (Number(o.descuentoTotal) || 0);
+      return acc + total;
+    }, 0);
+    const obrasComision = obrasMontoConfirmadas * (OBRAS_COMMISSION_RATE / 100);
 
     const estados = ventasFiltradas.reduce(
       (acc, v) => {
@@ -286,6 +307,7 @@ const SalesStats = () => {
     ventasFiltradas,
     presupuestosFiltrados,
     obrasFiltradas,
+    obrasConfirmadas,
     OBRAS_COMMISSION_RATE,
   ]);
 
@@ -875,7 +897,7 @@ const SalesStats = () => {
                   ${nf.format(Math.round(kpis.obrasComision))}
                 </div>
                 <div className="text-[10px] md:text-xs text-default-500 mt-1">
-                  2.5% sobre total
+                  2.5% sobre obras confirmadas
                 </div>
               </div>
             </div>

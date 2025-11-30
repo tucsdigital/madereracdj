@@ -55,57 +55,18 @@ import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 import { useAuth } from "@/provider/auth.provider";
 import { useRouter } from "next/navigation";
-// Importar componentes reutilizables
-import CatalogoObras from "@/components/obras/CatalogoObras";
-import TablaProductosObras from "@/components/obras/TablaProductosObras";
-import CatalogoVentas from "@/components/ventas/CatalogoVentas";
-import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
+import WizardConversion from "@/components/obras/WizardConversion";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 
 const PresupuestoPage = () => {
   const params = useParams();
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
-  const [showConvertForm, setShowConvertForm] = useState(false);
-  const [converting, setConverting] = useState(false);
-  const [convertMessage, setConvertMessage] = useState("");
-  const [datosConversion, setDatosConversion] = useState({
-    direccion: "",
-    localidad: "",
-    provincia: "",
-    descripcionGeneral: "",
-    ubicacionTipo: "cliente", // "cliente" o "nueva"
-    categoriaMaterial: "",
-    productoSeleccionado: "",
-    cantidadMaterial: "",
-    busquedaProducto: "",
-    materialesAdicionales: [],
-    bloqueSeleccionado: null, // ID del bloque seleccionado para conversión
-  });
+  const [showWizardConversion, setShowWizardConversion] = useState(false);
+  const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
   // Estado para controlar cuándo guardar desde el componente PresupuestoDetalle
   const [shouldSave, setShouldSave] = useState(false);
-
-
-
-  // Búsqueda debounced para productos (como en create/page.jsx)
-  const [busquedaDebounced, setBusquedaDebounced] = useState("");
-  useEffect(() => {
-    const id = setTimeout(
-      () => setBusquedaDebounced(datosConversion.busquedaProducto),
-      150
-    );
-    return () => clearTimeout(id);
-  }, [datosConversion.busquedaProducto]);
-
-  // Paginación para productos (como en create/page.jsx)
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [productosPorPagina] = useState(12);
-  const [isPending, startTransition] = React.useTransition();
-
-  // Resetear página cuando cambien los filtros
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [datosConversion.categoriaMaterial, busquedaDebounced]);
 
   const router = useRouter();
   const { user } = useAuth();
@@ -134,23 +95,8 @@ const PresupuestoPage = () => {
     setItemsPresupuesto,
     setDescripcionGeneral,
     guardarEdicion,
-    convertirPresupuestoToObra,
   } = useObra(id);
 
-  // Cargar catálogo de productos cuando se monta el componente
-  useEffect(() => {
-    if (!catalogoCargado && !loading) {
-      cargarCatalogoProductos();
-    }
-  }, [catalogoCargado, loading, cargarCatalogoProductos]);
-
-  // Log para debuggear productos del catálogo
-  useEffect(() => {
-    if (productosCatalogo && productosCatalogo.length > 0) {
-      console.log("Productos del catálogo cargados:", productosCatalogo.length);
-      console.log("Primer producto de ejemplo:", productosCatalogo[0]);
-    }
-  }, [productosCatalogo]);
 
 
 
@@ -188,187 +134,30 @@ const PresupuestoPage = () => {
     setShouldSave(false);
   };
 
-  const handleToggleConvertForm = async () => {
-    if (!showConvertForm) {
-      // Cargar catálogo de productos normales si no está cargado
-      await cargarCatalogoProductos();
-
-      // Pre-llenar datos del cliente si existen
-      if (obra?.cliente) {
-        setDatosConversion((prev) => ({
-          ...prev,
-          direccion: obra.cliente.direccion || "",
-          localidad: obra.cliente.localidad || "",
-          provincia: obra.cliente.provincia || "",
-          descripcionGeneral:
-            obra.descripcionGeneral || descripcionGeneral || "",
-          ubicacionTipo: "cliente",
-          materialesAdicionales: [],
-        }));
-      }
-    }
-    setShowConvertForm(!showConvertForm);
-  };
-
-  const handleConvertToObra = async () => {
+  // Handler para cuando se guarda un cliente desde el formulario
+  const handleClienteGuardado = async (clienteId, clienteData) => {
     try {
-      setConverting(true);
-      setConvertMessage("");
+      // Actualizar el presupuesto en Firestore
+      await updateDoc(doc(db, "obras", obra.id), {
+        clienteId: clienteId,
+        cliente: clienteData,
+        fechaModificacion: new Date().toISOString(),
+      });
 
-      // Validar selección de bloque si hay bloques
-      if (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado) {
-        throw new Error("Por favor seleccione un bloque para convertir a obra");
-      }
-
-      // Validar ubicación si se selecciona "nueva ubicación"
-      if (datosConversion.ubicacionTipo === "nueva") {
-        if (
-          !datosConversion.direccion ||
-          !datosConversion.localidad ||
-          !datosConversion.provincia
-        ) {
-          throw new Error("Por favor complete todos los campos de ubicación");
-        }
-      }
-
-      // Preparar datos de conversión con el bloque seleccionado
-      const datosConversionConBloque = {
-        ...datosConversion,
-        bloqueSeleccionado: datosConversion.bloqueSeleccionado
+      // Actualizar el estado local de la obra
+      const obraActualizada = {
+        ...obra,
+        clienteId: clienteId,
+        cliente: clienteData,
       };
+      setObra(obraActualizada);
+      handleObraUpdate(obraActualizada);
 
-      // Llamar a la función de conversión con los datos del formulario
-      await convertirPresupuestoToObra(datosConversionConBloque, user);
-
-      setConvertMessage("✅ Bloque convertido a obra exitosamente");
-      setShowConvertForm(false);
-
-      // Limpiar mensaje después de 3 segundos
-      setTimeout(() => setConvertMessage(""), 3000);
+      setShowFormularioCliente(false);
     } catch (error) {
-      console.error("Error al convertir presupuesto a obra:", error);
-      setConvertMessage(`❌ Error: ${error.message}`);
-
-      // Limpiar mensaje después de 5 segundos
-      setTimeout(() => setConvertMessage(""), 5000);
-    } finally {
-      setConverting(false);
+      console.error("Error al actualizar cliente:", error);
+      alert("Error al actualizar el cliente");
     }
-  };
-
-  const handleInputChange = (field, value) => {
-    setDatosConversion((prev) => {
-      const newData = { ...prev, [field]: value };
-
-      // Si cambia la categoría, limpiar el producto seleccionado
-      if (field === "categoriaMaterial") {
-        newData.productoSeleccionado = "";
-        newData.cantidadMaterial = "";
-      }
-
-      return newData;
-    });
-  };
-
-  // Funciones para manejar productos seleccionados usando los componentes reutilizables
-  const handleAgregarProductoCatalogo = (producto) => {
-    console.log(
-      "Producto recibido en handleAgregarProductoCatalogo:",
-      producto
-    );
-
-    // Verificar si ya está agregado
-    const yaAgregado = datosConversion.materialesAdicionales.some(
-      (p) => p.id === producto.id
-    );
-    if (yaAgregado) return;
-
-    let productoParaAgregar = {
-      id: producto.id,
-      nombre: producto.nombre,
-      categoria: producto.categoria,
-      subcategoria: producto.subcategoria,
-      tipoMadera: producto.tipoMadera,
-      unidad: producto.unidadMedida || producto.unidad,
-      cantidad: 1,
-      precio: producto.precio,
-      descuento: 0,
-      cepilladoAplicado: false,
-      stock: producto.stock,
-    };
-
-    // Si es madera, calcular precio según tipo
-    if (producto.categoria === "Maderas") {
-      const alto = Number(producto.alto) || 0;
-      const ancho = Number(producto.ancho) || 0;
-      const largo = Number(producto.largo) || 0;
-      const precioPorPie = Number(producto.precioPorPie) || 0;
-
-      if (producto.unidadMedida === "Unidad") {
-        if (precioPorPie > 0) {
-          const precioUnidad = Math.round(precioPorPie / 100) * 100;
-          productoParaAgregar.precio = precioUnidad;
-        } else {
-          productoParaAgregar.precio = 0;
-        }
-      } else if (producto.unidadMedida === "M2") {
-        if (alto > 0 && largo > 0 && precioPorPie > 0) {
-          const precioM2 = alto * largo * precioPorPie * 1;
-          productoParaAgregar.precio = Math.round(precioM2 / 100) * 100;
-        } else {
-          productoParaAgregar.precio = 0;
-        }
-      } else {
-        if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-          const factor = 0.2734;
-          const precioCorte = factor * alto * ancho * largo * precioPorPie;
-          productoParaAgregar.precio = Math.round(precioCorte / 100) * 100;
-        } else {
-          productoParaAgregar.precio = 0;
-        }
-      }
-
-      productoParaAgregar = {
-        ...productoParaAgregar,
-        alto,
-        ancho,
-        largo,
-        precioPorPie,
-      };
-    }
-
-    console.log("Producto final a agregar:", productoParaAgregar);
-
-    setDatosConversion((prev) => ({
-      ...prev,
-      materialesAdicionales: [
-        ...prev.materialesAdicionales,
-        productoParaAgregar,
-      ],
-    }));
-  };
-
-  const handleQuitarProducto = (id) => {
-    setDatosConversion((prev) => ({
-      ...prev,
-      materialesAdicionales: prev.materialesAdicionales.filter(
-        (p) => p.id !== id
-      ),
-    }));
-  };
-
-  const handleActualizarCampo = (id, campo, valor) => {
-    setDatosConversion((prev) => ({
-      ...prev,
-      materialesAdicionales: prev.materialesAdicionales.map((p) => {
-        if (p.id !== id) return p;
-        return { ...p, [campo]: valor };
-      }),
-    }));
-  };
-
-  const actualizarCantidadProducto = (id, cantidad) => {
-    handleActualizarCampo(id, "cantidad", cantidad);
   };
 
   // Formateador para números en formato argentino
@@ -424,38 +213,62 @@ const PresupuestoPage = () => {
         onToggleEdit={handleToggleEdit}
         onPrint={handlePrint}
         onConvertToObra={
-          obra?.tipo === "presupuesto" ? handleToggleConvertForm : undefined
+          obra?.tipo === "presupuesto" ? () => setShowWizardConversion(true) : undefined
         }
-        converting={converting}
+        converting={false}
         showBackButton={true}
         backUrl={`/${lang}/obras`}
       />
 
-      {/* Mensaje de conversión */}
-      {convertMessage && (
-        <div
-          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
-            convertMessage.startsWith("✅")
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-red-50 border-red-200 text-red-800"
-          }`}
-        >
-          {convertMessage.startsWith("✅") ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Building className="w-5 h-5 text-green-600" />
-            </div>
-          ) : (
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <Building className="w-5 h-5 text-red-600" />
-            </div>
-          )}
-          <span className="font-semibold">{convertMessage}</span>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Sección Cliente Editable - PRIMERA SECCIÓN */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Cliente
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFormularioCliente(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Cambiar Cliente
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {obra?.cliente ? (
+                <div className="space-y-2">
+                  <p className="font-medium text-gray-900">{obra.cliente.nombre || "Sin nombre"}</p>
+                  {obra.cliente.telefono && (
+                    <p className="text-sm text-gray-600">Tel: {obra.cliente.telefono}</p>
+                  )}
+                  {obra.cliente.direccion && (
+                    <p className="text-sm text-gray-600">
+                      {obra.cliente.direccion}
+                      {obra.cliente.localidad && `, ${obra.cliente.localidad}`}
+                      {obra.cliente.provincia && `, ${obra.cliente.provincia}`}
+                    </p>
+                  )}
+                  {(obra.cliente.barrio || obra.cliente.lote) && (
+                    <div className="flex gap-4 text-sm text-gray-600">
+                      {obra.cliente.barrio && <span>Barrio: {obra.cliente.barrio}</span>}
+                      {obra.cliente.lote && <span>Lote: {obra.cliente.lote}</span>}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500">No hay cliente asignado</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Componente PresupuestoDetalle - maneja tanto bloques como presupuestos sin bloques */}
           <PresupuestoDetalle
             obra={obra}
@@ -466,344 +279,6 @@ const PresupuestoPage = () => {
             onResetShouldSave={handleResetShouldSave}
           />
 
-          {/* Formulario de conversión a obra */}
-          {showConvertForm && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <Building className="w-5 h-5" />
-                  Convertir Presupuesto a Obra
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="p-6 space-y-6">
-                {/* Selección de Bloque */}
-                {obra?.bloques && obra.bloques.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      <Icon icon="heroicons:squares-2x2" className="w-5 h-5" />
-                      Seleccionar Presupuesto para Convertir
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {obra.bloques.map((bloque) => (
-                        <div
-                          key={bloque.id}
-                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                            datosConversion.bloqueSeleccionado === bloque.id
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 hover:border-gray-300 bg-white"
-                          }`}
-                          onClick={() => setDatosConversion(prev => ({
-                            ...prev,
-                            bloqueSeleccionado: prev.bloqueSeleccionado === bloque.id ? null : bloque.id
-                          }))}
-                        >
-                          <div className="flex items-center gap-3 mb-3">
-                            <input
-                              type="radio"
-                              checked={datosConversion.bloqueSeleccionado === bloque.id}
-                              onChange={() => setDatosConversion(prev => ({
-                                ...prev,
-                                bloqueSeleccionado: prev.bloqueSeleccionado === bloque.id ? null : bloque.id
-                              }))}
-                              className="w-4 h-4 text-blue-600"
-                            />
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-lg">{bloque.nombre}</h4>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Productos:</span>
-                              <span className="font-medium">{bloque.productos?.length || 0}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Subtotal:</span>
-                              <span className="font-medium">${formatearNumeroArgentino(bloque.subtotal || 0)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Descuento:</span>
-                              <span className="font-medium text-orange-600">${formatearNumeroArgentino(bloque.descuentoTotal || 0)}</span>
-                            </div>
-                            <div className="flex justify-between border-t pt-2">
-                              <span className="text-gray-600 font-semibold">Total:</span>
-                              <span className="font-bold text-green-600">${formatearNumeroArgentino(bloque.total || 0)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {datosConversion.bloqueSeleccionado && (
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-800">
-                          <strong>Presupuesto seleccionado:</strong> {obra.bloques.find(b => b.id === datosConversion.bloqueSeleccionado)?.nombre}
-                        </p>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Solo los productos de este presupuesto se convertirán a obra. Los demás presupuestos permanecerán como presupuesto.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Datos Generales */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Cliente
-                  </h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cliente
-                    </label>
-                    <Input
-                      value={
-                        obra?.cliente?.nombre ||
-                        obra?.cliente?.razonSocial ||
-                        "Cliente no especificado"
-                      }
-                      disabled
-                      className="bg-gray-50"
-                    />
-                  </div>
-                </div>
-
-                {/* Ubicación */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    Ubicación
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="ubicacionTipo"
-                          value="cliente"
-                          checked={datosConversion.ubicacionTipo === "cliente"}
-                          onChange={(e) =>
-                            handleInputChange("ubicacionTipo", e.target.value)
-                          }
-                        />
-                        <span className="text-sm font-medium">
-                          Usar ubicación del cliente
-                        </span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="ubicacionTipo"
-                          value="nueva"
-                          checked={datosConversion.ubicacionTipo === "nueva"}
-                          onChange={(e) =>
-                            handleInputChange("ubicacionTipo", e.target.value)
-                          }
-                        />
-                        <span className="text-sm font-medium">
-                          Especificar nueva ubicación
-                        </span>
-                      </label>
-                    </div>
-
-                    {datosConversion.ubicacionTipo === "cliente" ? (
-                      <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-800">
-                          <strong>Ubicación del cliente:</strong>
-                          <br />
-                          {obra?.cliente?.direccion || "Sin dirección"}
-                          <br />
-                          {obra?.cliente?.localidad || "Sin localidad"}
-                          <br />
-                          {obra?.cliente?.provincia || "Sin provincia"}
-                          {(obra?.cliente?.barrio || obra?.cliente?.area || obra?.cliente?.lote) && (
-                            <>
-                              <br />
-                              {obra?.cliente?.barrio && <span>Barrio: {obra.cliente.barrio}</span>}
-                              {obra?.cliente?.area && <><br />Área: {obra.cliente.area}</>}
-                              {obra?.cliente?.lote && <><br />Lote: {obra.cliente.lote}</>}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Dirección
-                          </label>
-                          <Input
-                            value={datosConversion.direccion}
-                            onChange={(e) =>
-                              handleInputChange("direccion", e.target.value)
-                            }
-                            placeholder="Dirección de la obra"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Localidad
-                          </label>
-                          <Input
-                            value={datosConversion.localidad}
-                            onChange={(e) =>
-                              handleInputChange("localidad", e.target.value)
-                            }
-                            placeholder="Localidad"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Provincia
-                          </label>
-                          <Input
-                            value={datosConversion.provincia}
-                            onChange={(e) =>
-                              handleInputChange("provincia", e.target.value)
-                            }
-                            placeholder="Provincia"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Barrio
-                          </label>
-                          <Input
-                            value={datosConversion.barrio || ""}
-                            onChange={(e) => handleInputChange("barrio", e.target.value)}
-                            placeholder="Barrio"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Área
-                          </label>
-                          <Input
-                            value={datosConversion.area || ""}
-                            onChange={(e) => handleInputChange("area", e.target.value)}
-                            placeholder="Área"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Lote
-                          </label>
-                          <Input
-                            value={datosConversion.lote || ""}
-                            onChange={(e) => handleInputChange("lote", e.target.value)}
-                            placeholder="Lote"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Materiales a Utilizar - Usando CatalogoVentas y TablaProductosVentas */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Icon icon="heroicons:cube" className="w-5 h-5" />
-                    Materiales a Utilizar
-                  </h3>
-
-                  {/* Catálogo de productos usando CatalogoVentas */}
-                  <CatalogoVentas
-                    titulo="Catálogo de Productos"
-                    productos={productosCatalogo || []}
-                    productosPorCategoria={productosPorCategoria || {}}
-                    categorias={categorias || []}
-                    itemsSeleccionados={
-                      datosConversion.materialesAdicionales || []
-                    }
-                    onAgregarProducto={handleAgregarProductoCatalogo}
-                    onAgregarProductoManual={() => {}} // No implementado en conversión
-                    onActualizarCantidad={actualizarCantidadProducto}
-                    onQuitarProducto={handleQuitarProducto}
-                    editando={true}
-                    maxProductos={100}
-                    showFilters={true}
-                    showSearch={true}
-                    showPagination={true}
-                    productosPorPagina={12}
-                  />
-
-                  {/* Tabla de productos seleccionados usando TablaProductosVentas */}
-                  {datosConversion.materialesAdicionales &&
-                    datosConversion.materialesAdicionales.length > 0 && (
-                      <TablaProductosVentas
-                        titulo="Productos Seleccionados para la Obra"
-                        items={datosConversion.materialesAdicionales}
-                        editando={true}
-                        onQuitarProducto={handleQuitarProducto}
-                        onActualizarCampo={handleActualizarCampo}
-                        onActualizarNombreManual={() => {}} // No implementado en conversión
-                        formatearNumeroArgentino={formatearNumeroArgentino}
-                        showTotals={true}
-                        showDescripcionGeneral={false}
-                      />
-                    )}
-                </div>
-
-                {/* Descripción General */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Descripción General de la Obra
-                  </h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Descripción detallada de la obra
-                    </label>
-                    <textarea
-                      value={datosConversion.descripcionGeneral}
-                      onChange={(e) =>
-                        handleInputChange("descripcionGeneral", e.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                      rows={4}
-                      placeholder="Describa en detalle los trabajos a realizar, especificaciones técnicas, materiales especiales, cronograma, etc..."
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Esta descripción será utilizada para el seguimiento y
-                      control de la obra.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={handleToggleConvertForm}
-                    disabled={converting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleConvertToObra}
-                    disabled={
-                      converting ||
-                      (obra?.bloques && obra.bloques.length > 0 && !datosConversion.bloqueSeleccionado)
-                    }
-                    className="flex items-center gap-2"
-                  >
-                    {converting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Convirtiendo...
-                      </>
-                    ) : (
-                      <>
-                        <Building className="w-4 h-4" />
-                        Convertir a Obra
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Barra lateral */}
@@ -945,6 +420,30 @@ const PresupuestoPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Wizard de Conversión */}
+      <WizardConversion
+        presupuesto={obra}
+        open={showWizardConversion}
+        onClose={() => setShowWizardConversion(false)}
+        user={user}
+        lang={lang}
+        onSuccess={(obraId, nuevaObra) => {
+          // Redirigir a la nueva obra
+          router.push(`/${lang}/obras/${obraId}`);
+        }}
+      />
+
+      {/* Formulario de Cliente */}
+      <FormularioClienteObras
+        open={showFormularioCliente}
+        onClose={() => setShowFormularioCliente(false)}
+        clienteExistente={obra?.cliente ? {
+          id: obra.clienteId,
+          ...(obra.cliente || {})
+        } : null}
+        onClienteGuardado={handleClienteGuardado}
+      />
     </div>
   );
 };

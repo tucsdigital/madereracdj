@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc } from "firebase/firestore";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,22 +70,7 @@ export default function CrearObraPage() {
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clientesLoading, setClientesLoading] = useState(false);
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
-  const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({
-    nombre: "",
-    cuit: "",
-    direccion: "",
-    telefono: "",
-    email: "",
-    localidad: "",
-    partido: "",
-    barrio: "",
-    area: "",
-    lote: "",
-    descripcion: "",
-    esClienteViejo: false,
-  });
-  const [activeTabCliente, setActiveTabCliente] = useState("datos");
+  const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
   // Ubicación
   const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
@@ -469,32 +455,16 @@ export default function CrearObraPage() {
   }, 0), [itemsCatalogo]);
   const productosTotal = useMemo(() => productosSubtotal - productosDescuentoTotal, [productosSubtotal, productosDescuentoTotal]);
 
-  // Guardar nuevo cliente (idéntico a ventas)
-  const handleGuardarNuevoCliente = async () => {
-    if (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono) {
-      alert("Nombre, dirección y teléfono son obligatorios");
-      return;
-    }
-    const clienteObj = {
-      nombre: nuevoCliente.nombre,
-      cuit: nuevoCliente.cuit || "",
-      direccion: nuevoCliente.direccion,
-      telefono: nuevoCliente.telefono,
-      email: nuevoCliente.email || "",
-      localidad: nuevoCliente.localidad || "",
-      partido: nuevoCliente.partido || "",
-      barrio: nuevoCliente.barrio || "",
-      area: nuevoCliente.area || "",
-      lote: nuevoCliente.lote || "",
-      descripcion: nuevoCliente.descripcion || "",
-      esClienteViejo: nuevoCliente.esClienteViejo || false,
-    };
-    const docRef = await addDoc(collection(db, "clientes"), clienteObj);
-    const agregado = { ...clienteObj, id: docRef.id };
-    setClientes((prev) => [...prev, agregado]);
-    setClienteId(docRef.id);
-    setNuevoCliente({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "", esClienteViejo: false });
-    setOpenNuevoCliente(false);
+  // Handler para cuando se guarda un cliente desde el nuevo formulario
+  const handleClienteGuardado = (clienteId, clienteData) => {
+    setClientes((prev) => {
+      // Verificar si ya existe para evitar duplicados
+      const existe = prev.find(c => c.id === clienteId);
+      if (existe) return prev;
+      return [...prev, clienteData];
+    });
+    setClienteId(clienteId);
+    setShowFormularioCliente(false);
     setDropdownClientesOpen(false);
   };
 
@@ -570,7 +540,7 @@ export default function CrearObraPage() {
           direccion: direccion || "",
           localidad: localidad || "",
           provincia: provincia || "",
-          partido: nuevoCliente.partido || "",
+          partido: "",
           barrio: barrio || "",
           area: area || "",
           lote: lote || "",
@@ -636,7 +606,7 @@ export default function CrearObraPage() {
                   {clienteSeleccionado ? `${clienteSeleccionado.nombre} - ${clienteSeleccionado.telefono || ""}` : "Seleccionar cliente..."}
                 </span>
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" size="sm" className="text-primary font-semibold" onClick={(e) => { e.stopPropagation(); setOpenNuevoCliente(true); }} disabled={clientesLoading}>Nuevo</Button>
+                  <Button type="button" variant="ghost" size="sm" className="text-primary font-semibold" onClick={(e) => { e.stopPropagation(); setShowFormularioCliente(true); }} disabled={clientesLoading}>Nuevo</Button>
                   <svg className="w-5 h-5 text-default-600" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
                 </div>
               </div>
@@ -1243,116 +1213,13 @@ export default function CrearObraPage() {
         </Button>
       </div>
 
-      {/* Modal Nuevo Cliente (idéntico a ventas) */}
-      <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" />
-              Agregar Cliente
-            </DialogTitle>
-            <DialogDescription className="text-base text-default-600">
-              Complete los datos del nuevo cliente para agregarlo al sistema.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col h-full">
-            <div className="flex border-b border-gray-200 mb-4">
-              <button type="button" className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTabCliente === "datos" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`} onClick={() => setActiveTabCliente("datos")}>
-                Datos Básicos
-              </button>
-              <button type="button" className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTabCliente === "ubicacion" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`} onClick={() => setActiveTabCliente("ubicacion")}>
-                Ubicación
-              </button>
-              <button type="button" className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTabCliente === "adicional" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`} onClick={() => setActiveTabCliente("adicional")}>
-                Adicional
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {activeTabCliente === "datos" && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <input type="checkbox" id="esClienteViejo" checked={nuevoCliente.esClienteViejo} onChange={(e) => setNuevoCliente({ ...nuevoCliente, esClienteViejo: e.target.checked })} className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
-                    <label htmlFor="esClienteViejo" className="text-sm font-medium text-blue-800 dark:text-blue-200">¿Es un cliente antiguo?</label>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
-                      <Input placeholder="Nombre completo" className="w-full" value={nuevoCliente.nombre} onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CUIT / DNI</label>
-                      <Input placeholder="CUIT o DNI" className="w-full" value={nuevoCliente.cuit || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono *</label>
-                      <Input placeholder="Teléfono" className="w-full" value={nuevoCliente.telefono} onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                      <Input placeholder="Email" type="email" className="w-full" value={nuevoCliente.email} onChange={(e) => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección *</label>
-                      <Input placeholder="Dirección completa" className="w-full" value={nuevoCliente.direccion} onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} required />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {activeTabCliente === "ubicacion" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Localidad</label>
-                      <Input placeholder="Localidad" className="w-full" value={nuevoCliente.localidad || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, localidad: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Partido</label>
-                      <Input placeholder="Partido" className="w-full" value={nuevoCliente.partido || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, partido: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barrio</label>
-                      <Input placeholder="Barrio" className="w-full" value={nuevoCliente.barrio || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Área</label>
-                      <Input placeholder="Área" className="w-full" value={nuevoCliente.area || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, area: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lote</label>
-                      <Input placeholder="Lote" className="w-full" value={nuevoCliente.lote || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, lote: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {activeTabCliente === "adicional" && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
-                    <Textarea placeholder="Información adicional sobre el cliente" className="w-full min-h-[120px]" value={nuevoCliente.descripcion || ""} onChange={(e) => setNuevoCliente({ ...nuevoCliente, descripcion: e.target.value })} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                {activeTabCliente !== "datos" && (
-                  <Button type="button" variant="outline" onClick={() => { if (activeTabCliente === "ubicacion") setActiveTabCliente("datos"); if (activeTabCliente === "adicional") setActiveTabCliente("ubicacion"); }} className="text-sm">Anterior</Button>
-                )}
-                {activeTabCliente !== "adicional" && (
-                  <Button type="button" variant="outline" onClick={() => { if (activeTabCliente === "datos") setActiveTabCliente("ubicacion"); if (activeTabCliente === "ubicacion") setActiveTabCliente("adicional"); }} disabled={(activeTabCliente === "datos" && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono)) || (activeTabCliente === "ubicacion" && (!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono))} className="text-sm">Siguiente</Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setOpenNuevoCliente(false)} className="text-sm">Cancelar</Button>
-                <Button variant="default" onClick={handleGuardarNuevoCliente} disabled={!nuevoCliente.nombre || !nuevoCliente.direccion || !nuevoCliente.telefono} className="text-sm">Guardar Cliente</Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Formulario de Cliente */}
+      <FormularioClienteObras
+        open={showFormularioCliente}
+        onClose={() => setShowFormularioCliente(false)}
+        clienteExistente={null}
+        onClienteGuardado={handleClienteGuardado}
+      />
 
     </div>
   );

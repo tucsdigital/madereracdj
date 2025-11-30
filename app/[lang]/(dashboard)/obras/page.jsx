@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
 import {
   Building,
   CheckCircle,
@@ -26,11 +27,17 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Printer,
+  Eye,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
 import { useAuth } from "@/provider/auth.provider";
+import ObrasHeader from "@/components/obras/ObrasHeader";
+import CalendarioObras from "@/components/obras/CalendarioObras";
+import ObraSidePanel from "@/components/obras/ObraSidePanel";
+import WizardConversion from "@/components/obras/WizardConversion";
 
 const estadosObra = {
   pendiente_inicio: {
@@ -172,7 +179,7 @@ const ObrasPage = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   
-  // Estados para el calendario semanal
+  // Estados para el calendario
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     const day = today.getDay();
@@ -182,6 +189,94 @@ const ObrasPage = () => {
     monday.setHours(0, 0, 0, 0);
     return monday;
   });
+  
+  // Estado para fecha de inicio del mes (cuando vista es "mes")
+  const [currentMonthStart, setCurrentMonthStart] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  
+  // Obra seleccionada para panel lateral (etapa 3)
+  const [obraSeleccionada, setObraSeleccionada] = useState(null);
+  const [showObraPanel, setShowObraPanel] = useState(false);
+  
+  // Wizard de conversión (etapa 4)
+  const [presupuestoParaConvertir, setPresupuestoParaConvertir] = useState(null);
+  const [showWizardConversion, setShowWizardConversion] = useState(false);
+  
+  // Estado para impresión de obras
+  const [imprimiendoObraId, setImprimiendoObraId] = useState(null);
+  
+  // Función para imprimir obra
+  const handleImprimirObra = async (obra) => {
+    if (!obra) return;
+
+    try {
+      setImprimiendoObraId(obra.id);
+      // Cargar presupuesto si existe
+      let presupuesto = null;
+      if (obra.presupuestoInicialId) {
+        try {
+          const presDoc = await getDoc(doc(db, "obras", obra.presupuestoInicialId));
+          if (presDoc.exists()) {
+            presupuesto = { id: presDoc.id, ...presDoc.data() };
+          }
+        } catch (e) {
+          console.error("Error al cargar presupuesto:", e);
+        }
+      }
+
+      const movimientos = obra.cobranzas?.historialPagos || [];
+      const contenido = generarContenidoImpresion(
+        obra,
+        presupuesto,
+        obra.presupuestoInicialId ? "presupuesto" : "gasto",
+        movimientos
+      );
+
+      // Crear iframe temporal para generar PDF
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+      iframe.contentDocument.write(contenido);
+      iframe.contentDocument.close();
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await descargarPDFDesdeIframe(obra, presupuesto, obra.presupuestoInicialId ? "presupuesto" : "gasto", movimientos, iframe);
+
+      document.body.removeChild(iframe);
+    } catch (error) {
+      console.error("Error al imprimir:", error);
+      alert("Error al generar el PDF");
+    } finally {
+      setImprimiendoObraId(null);
+    }
+  };
+  
+  // Obtener fecha de inicio según la vista
+  const fechaInicioCalendario = useMemo(() => {
+    return vistaCalendario === "semana" ? currentWeekStart : currentMonthStart;
+  }, [vistaCalendario, currentWeekStart, currentMonthStart]);
+  
+  // Handler para cambiar fecha de inicio del calendario
+  const handleFechaInicioChange = (nuevaFecha) => {
+    if (vistaCalendario === "semana") {
+      setCurrentWeekStart(nuevaFecha);
+    } else {
+      setCurrentMonthStart(nuevaFecha);
+    }
+  };
+  
+  // Filtrar obras que tienen fechas válidas para el calendario
+  const obrasParaCalendario = useMemo(() => {
+    return obras.filter((obra) => {
+      if (!obra.fechas) return false;
+      const fechaInicio = obra.fechas.inicio;
+      const fechaFin = obra.fechas.fin;
+      return fechaInicio && fechaFin;
+    });
+  }, [obras]);
   const [notas, setNotas] = useState([]);
   const [showNotaDialog, setShowNotaDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -197,53 +292,24 @@ const ObrasPage = () => {
   const [notaToDelete, setNotaToDelete] = useState(null);
   const [loadingNotas, setLoadingNotas] = useState(true);
   
+  // Estados para el nuevo header
+  const [vistaCalendario, setVistaCalendario] = useState("semana");
+  const [busquedaGlobal, setBusquedaGlobal] = useState("");
+  const [filtros, setFiltros] = useState({
+    estado: "",
+    cliente: "",
+    estadoPago: "",
+    fechaDesde: "",
+    fechaHasta: "",
+  });
+  const [clientes, setClientes] = useState([]);
+  
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
   const { user } = useAuth();
 
-  // Funciones para el calendario semanal
-  const getWeekDays = useCallback(() => {
-    const days = [];
-    const weekStart = new Date(currentWeekStart);
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(weekStart);
-      day.setDate(weekStart.getDate() + i);
-      days.push(day);
-    }
-    return days;
-  }, [currentWeekStart]);
-
-  const goToPreviousWeek = () => {
-    const newWeekStart = new Date(currentWeekStart);
-    newWeekStart.setDate(currentWeekStart.getDate() - 7);
-    setCurrentWeekStart(newWeekStart);
-  };
-
-  const goToNextWeek = () => {
-    const newWeekStart = new Date(currentWeekStart);
-    newWeekStart.setDate(currentWeekStart.getDate() + 7);
-    setCurrentWeekStart(newWeekStart);
-  };
-
-  const goToToday = () => {
-    const today = new Date();
-    const day = today.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diff);
-    monday.setHours(0, 0, 0, 0);
-    setCurrentWeekStart(monday);
-  };
-
-  const formatDateKey = (date) => {
-    return date.toISOString().split("T")[0];
-  };
-
-  const getNotasForDate = (date) => {
-    const dateKey = formatDateKey(date);
-    return notas.filter((nota) => nota.fecha === dateKey);
-  };
+  // Funciones del calendario ahora están en CalendarioObras component
 
   // Cargar notas desde Firestore
   const loadNotas = useCallback(async () => {
@@ -268,6 +334,23 @@ const ObrasPage = () => {
   useEffect(() => {
     loadNotas();
   }, [loadNotas]);
+
+  // Cargar clientes para el filtro
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        const clientesSnap = await getDocs(collection(db, "clientes"));
+        const clientesData = clientesSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setClientes(clientesData);
+      } catch (error) {
+        console.error("Error al cargar clientes:", error);
+      }
+    };
+    fetchClientes();
+  }, []);
 
   // Guardar o actualizar nota
   const saveNota = async () => {
@@ -503,11 +586,38 @@ const ObrasPage = () => {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
+              variant="default"
+              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              title="Convertir a Obra"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPresupuestoParaConvertir(row.original);
+                setShowWizardConversion(true);
+              }}
+            >
+              <Icon icon="heroicons:arrow-right-circle" className="w-4 h-4 mr-1" />
+              Convertir
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              title="Editar"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/${lang}/obras/presupuesto/${row.original.id}`);
+              }}
+            >
+              <Icon icon="heroicons:pencil" className="w-4 h-4 mr-1" />
+              Editar
+            </Button>
+            <Button
+              size="sm"
               variant="outline"
               className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
               title="Eliminar"
               onClick={(e) => {
-                e.stopPropagation(); // Prevenir que se active el click de la fila
+                e.stopPropagation();
                 window.dispatchEvent(
                   new CustomEvent("deletePresupuesto", {
                     detail: { id: row.original.id },
@@ -523,7 +633,7 @@ const ObrasPage = () => {
       },
       enableSorting: false,
     },
-  ], []);
+  ], [lang, router]);
 
   // Columnas para obras
   const obrasColumns = useMemo(() => [
@@ -532,9 +642,48 @@ const ObrasPage = () => {
       header: "N° Obra",
       cell: ({ row }) => {
         const numero = row.getValue("numeroPedido");
+        const obra = row.original;
+        const tieneDocumentacion = obra.documentacion?.links && Array.isArray(obra.documentacion.links) && obra.documentacion.links.length > 0;
+        // Verificar si hay notas asociadas (por número de obra o nombre de cliente)
+        const tieneNotas = notas.some(n => {
+          const nombreNota = (n.nombreObra || "").toLowerCase();
+          const numeroObra = (numero || "").toLowerCase();
+          const nombreCliente = (obra.cliente?.nombre || "").toLowerCase();
+          return nombreNota === numeroObra || nombreNota === nombreCliente;
+        });
+        // Verificar si está en ejecución actualmente según fechas
+        const estaEnEjecucion = obra.estado === "en_ejecucion" && obra.fechas?.inicio && obra.fechas?.fin;
+        const hoy = new Date().toISOString().split("T")[0];
+        const enRangoFechas = estaEnEjecucion && hoy >= obra.fechas.inicio && hoy <= obra.fechas.fin;
+        
         return (
+          <div className="flex items-center gap-2">
           <div className="font-medium cursor-pointer hover:underline text-blue-600">
             {numero || "Sin número"}
+            </div>
+            <div className="flex items-center gap-1">
+              {tieneDocumentacion && (
+                <Icon
+                  icon="heroicons:paper-clip"
+                  className="w-4 h-4 text-blue-500"
+                  title="Tiene documentación"
+                />
+              )}
+              {tieneNotas && (
+                <Icon
+                  icon="heroicons:document-text"
+                  className="w-4 h-4 text-yellow-500"
+                  title="Tiene notas asociadas"
+                />
+              )}
+              {enRangoFechas && (
+                <Icon
+                  icon="heroicons:play-circle"
+                  className="w-4 h-4 text-green-500 animate-pulse"
+                  title="En ejecución actualmente"
+                />
+              )}
+            </div>
           </div>
         );
       },
@@ -732,31 +881,49 @@ const ObrasPage = () => {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => {
+        const obra = row.original;
+        const estaImprimiendo = imprimiendoObraId === obra.id;
+        
         return (
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="outline"
-              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
-              title="Eliminar"
+              variant="default"
+              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              title="Ver panel"
               onClick={(e) => {
-                e.stopPropagation(); // Prevenir que se active el click de la fila
-                window.dispatchEvent(
-                  new CustomEvent("deleteObra", {
-                    detail: { id: row.original.id },
-                  })
-                );
+                e.stopPropagation();
+                setObraSeleccionada(obra);
+                setShowObraPanel(true);
               }}
             >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Eliminar
+              <Eye className="w-4 h-4 mr-1" />
+              Ver panel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              title="Imprimir / Exportar PDF"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleImprimirObra(obra);
+              }}
+              disabled={estaImprimiendo}
+            >
+              {estaImprimiendo ? (
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+              ) : (
+                <Printer className="w-4 h-4 mr-1" />
+              )}
+              Imprimir
             </Button>
           </div>
         );
       },
       enableSorting: false,
     },
-  ], []);
+  ], [notas, imprimiendoObraId]);
 
   // Función para mostrar el diálogo de confirmación
   const showDeleteConfirmation = (id, type, itemName) => {
@@ -879,8 +1046,8 @@ const ObrasPage = () => {
     };
   }, [obrasData]);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  // Función para cargar datos (reutilizable)
+  const fetchData = useCallback(async () => {
       try {
         setLoading(true);
         const obrasSnap = await getDocs(collection(db, "obras"));
@@ -944,10 +1111,14 @@ const ObrasPage = () => {
                 (a, p) => a + (Number(p.monto) || 0),
                 0
               );
-            const estadoPago =
-              abonado >= presupuestoTotal && presupuestoTotal > 0
-                ? "pagado"
-                : "pendiente";
+          let estadoPago = "pendiente";
+          if (presupuestoTotal > 0) {
+            if (abonado >= presupuestoTotal) {
+              estadoPago = "pagado";
+            } else if (abonado > 0) {
+              estadoPago = "parcial";
+            }
+          }
             // estadoUI: para presupuestos siempre "activo"; para obras conservar su estado
             const estadoUI =
               o.tipo === "presupuesto" ? "activo" : o.estado || "";
@@ -966,13 +1137,115 @@ const ObrasPage = () => {
       } finally {
         setLoading(false);
       }
-    };
-    fetchData();
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   // Separar presupuestos y obras
-  const presupuestos = obrasData.filter((o) => o.tipo === "presupuesto");
-  const obras = obrasData.filter((o) => o.tipo === "obra");
+  const presupuestosBase = obrasData.filter((o) => o.tipo === "presupuesto");
+  const obrasBase = obrasData.filter((o) => o.tipo === "obra");
+
+  // Aplicar filtros y búsqueda
+  const presupuestos = useMemo(() => {
+    let filtered = [...presupuestosBase];
+
+    // Filtro por cliente
+    if (filtros.cliente) {
+      filtered = filtered.filter((p) => p.clienteId === filtros.cliente);
+    }
+
+    // Filtro por rango de fechas
+    if (filtros.fechaDesde) {
+      filtered = filtered.filter((p) => {
+        const fechaCreacion = p.fechaCreacion || "";
+        return fechaCreacion >= filtros.fechaDesde;
+      });
+    }
+    if (filtros.fechaHasta) {
+      filtered = filtered.filter((p) => {
+        const fechaCreacion = p.fechaCreacion || "";
+        return fechaCreacion <= filtros.fechaHasta + "T23:59:59";
+      });
+    }
+
+    // Búsqueda global
+    if (busquedaGlobal) {
+      const searchLower = busquedaGlobal.toLowerCase();
+      filtered = filtered.filter((p) => {
+        const numeroPedido = (p.numeroPedido || "").toLowerCase();
+        const clienteNombre = (p.cliente?.nombre || "").toLowerCase();
+        const clienteCuit = (p.cliente?.cuit || "").toLowerCase();
+        const clienteDireccion = (p.cliente?.direccion || "").toLowerCase();
+        return (
+          numeroPedido.includes(searchLower) ||
+          clienteNombre.includes(searchLower) ||
+          clienteCuit.includes(searchLower) ||
+          clienteDireccion.includes(searchLower)
+        );
+      });
+    }
+
+    return filtered;
+  }, [presupuestosBase, filtros, busquedaGlobal]);
+
+  const obras = useMemo(() => {
+    let filtered = [...obrasBase];
+
+    // Filtro por estado
+    if (filtros.estado) {
+      filtered = filtered.filter((o) => o.estado === filtros.estado);
+    }
+
+    // Filtro por cliente
+    if (filtros.cliente) {
+      filtered = filtered.filter((o) => o.clienteId === filtros.cliente);
+    }
+
+    // Filtro por estado de pago
+    if (filtros.estadoPago) {
+      filtered = filtered.filter((o) => o.estadoPago === filtros.estadoPago);
+    }
+
+    // Filtro por rango de fechas
+    if (filtros.fechaDesde) {
+      filtered = filtered.filter((o) => {
+        const fechaCreacion = o.fechaCreacion || "";
+        const fechaInicio = o.fechas?.inicio || "";
+        return fechaCreacion >= filtros.fechaDesde || fechaInicio >= filtros.fechaDesde;
+      });
+    }
+    if (filtros.fechaHasta) {
+      filtered = filtered.filter((o) => {
+        const fechaCreacion = o.fechaCreacion || "";
+        const fechaFin = o.fechas?.fin || "";
+        const hasta = filtros.fechaHasta + "T23:59:59";
+        return fechaCreacion <= hasta || fechaFin <= filtros.fechaHasta;
+      });
+    }
+
+    // Búsqueda global
+    if (busquedaGlobal) {
+      const searchLower = busquedaGlobal.toLowerCase();
+      filtered = filtered.filter((o) => {
+        const numeroPedido = (o.numeroPedido || "").toLowerCase();
+        const clienteNombre = (o.cliente?.nombre || "").toLowerCase();
+        const clienteCuit = (o.cliente?.cuit || "").toLowerCase();
+        const clienteDireccion = (o.cliente?.direccion || "").toLowerCase();
+        const ubicacionDireccion = (o.ubicacion?.direccion || "").toLowerCase();
+        return (
+          numeroPedido.includes(searchLower) ||
+          clienteNombre.includes(searchLower) ||
+          clienteCuit.includes(searchLower) ||
+          clienteDireccion.includes(searchLower) ||
+          ubicacionDireccion.includes(searchLower)
+        );
+      });
+    }
+
+    return filtered;
+  }, [obrasBase, filtros, busquedaGlobal]);
 
   if (loading) {
     return (
@@ -1021,212 +1294,54 @@ const ObrasPage = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Gestión de Obras y Presupuestos
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Administra y da seguimiento a todas las obras y presupuestos
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/obras/presupuesto/create`)}
+      {/* Header Funcional */}
+      <ObrasHeader
+        onNuevaObra={() => {
+          // Por ahora navega a la página de creación, en etapa 4 abriremos el wizard
+          router.push(`/${lang}/obras/create`);
+        }}
+        onNuevoPresupuesto={() => {
+          router.push(`/${lang}/obras/presupuesto/create`);
+        }}
+        vistaCalendario={vistaCalendario}
+        onVistaCalendarioChange={setVistaCalendario}
+        busquedaGlobal={busquedaGlobal}
+        onBusquedaGlobalChange={setBusquedaGlobal}
+        filtros={filtros}
+        onFiltrosChange={setFiltros}
+        clientes={clientes}
             disabled={deleting}
-          >
-            <Icon icon="heroicons:document-plus" className="w-5 h-5" />
-            <span className="hidden sm:inline">Nuevo Presupuesto</span>
-            <span className="sm:hidden">Presupuesto</span>
-          </Button>
-          <Button
-            variant="default"
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 text-base font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 hover:shadow-xl"
-            onClick={() => router.push(`/${lang}/obras/create`)}
-            disabled={deleting}
-          >
-            <Icon icon="heroicons:building-office" className="w-5 h-5" />
-            <span className="hidden sm:inline">Nueva Obra</span>
-            <span className="sm:hidden">Obra</span>
-          </Button>
-        </div>
-      </div>
+      />
 
-      {/* Calendario Semanal de Notas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Icon icon="heroicons:calendar" className="w-5 h-5" />
-            Calendario Semanal - Notas de Obras
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Navegación del calendario */}
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousWeek}
-              className="flex items-center gap-2"
-            >
-              <Icon icon="heroicons:chevron-left" className="w-4 h-4" />
-              Anterior
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToToday}
-              >
-                Hoy
-              </Button>
-              <span className="text-sm font-medium">
-                {currentWeekStart.toLocaleDateString("es-AR", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextWeek}
-              className="flex items-center gap-2"
-            >
-              Siguiente
-              <Icon icon="heroicons:chevron-right" className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {/* Grid de días */}
-          <div className="grid grid-cols-7 gap-2">
-            {getWeekDays().map((day, index) => {
-              const isToday =
-                day.toDateString() === new Date().toDateString();
-              const dayNotas = getNotasForDate(day);
-              const diasSemana = [
-                "Lun",
-                "Mar",
-                "Mié",
-                "Jue",
-                "Vie",
-                "Sáb",
-                "Dom",
-              ];
-
-              return (
-                <div
-                  key={index}
-                  className={`border rounded-lg p-2 min-h-[180px] transition-all ${
-                    isToday
-                      ? "bg-blue-50 border-blue-300 shadow-md"
-                      : "bg-white border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="text-center mb-2">
-                    <div className="text-[10px] font-semibold text-gray-600 uppercase">
-                      {diasSemana[index]}
-                    </div>
-                    <div
-                      className={`text-base font-bold ${
-                        isToday ? "text-blue-600" : "text-gray-800"
-                      }`}
-                    >
-                      {day.getDate()}
-                    </div>
-            </div>
-            
-                  {/* Botón para agregar nota */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="w-full mb-1.5 text-[10px] h-6 px-1"
-                    onClick={() => {
-                      setSelectedDate(formatDateKey(day));
+      {/* Calendario Inteligente de Obras y Notas */}
+      <CalendarioObras
+        obras={obrasParaCalendario}
+        notas={notas}
+        vista={vistaCalendario}
+        fechaInicio={fechaInicioCalendario}
+        onFechaInicioChange={handleFechaInicioChange}
+        onObraClick={(obra) => {
+          setObraSeleccionada(obra);
+          setShowObraPanel(true);
+        }}
+        onNotaClick={(nota) => {
+          openEditDialog(nota);
+        }}
+        onAgregarNota={(dateKey) => {
+          setSelectedDate(dateKey);
                       setEditingNotaId(null);
                       setNotaForm({
                         nombreObra: "",
                         productos: "",
-                        fecha: formatDateKey(day),
+            fecha: dateKey,
                       });
                       setShowNotaDialog(true);
                     }}
-                  >
-                    <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
-                    Agregar
-                  </Button>
-
-                  {/* Notas del día */}
-                  <div className="space-y-1.5">
-                    {loadingNotas ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                      </div>
-                    ) : dayNotas.length === 0 ? (
-                      <div className="text-center py-2 text-[10px] text-gray-400">
-                        Sin notas
-                      </div>
-                    ) : (
-                      dayNotas.map((nota) => (
-                        <div
-                          key={nota.id}
-                          className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1.5 text-xs relative group hover:shadow-sm transition-all ${
-                            deletingNota === nota.id ? 'opacity-50 pointer-events-none' : ''
-                          }`}
-                        >
-                          {deletingNota === nota.id && (
-                            <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded">
-                              <Loader2 className="w-4 h-4 animate-spin text-red-600" />
-                            </div>
-                          )}
-                          <div className="flex items-start justify-between gap-1">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-800 truncate text-[11px]">
-                                {nota.nombreObra}
-                              </div>
-                              {nota.productos && (
-                                <div className="text-gray-600 mt-0.5 text-[9px] line-clamp-1">
-                                  {nota.productos}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditDialog(nota);
-                                }}
-                                className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all duration-200 hover:scale-110 cursor-pointer"
-                                title="Editar nota"
-                                disabled={deletingNota === nota.id}
-                              >
-                                <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  confirmDeleteNota(nota);
-                                }}
-                                className="w-5 h-5 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all duration-200 hover:scale-110 cursor-pointer"
-                                title="Eliminar nota"
-                                disabled={deletingNota === nota.id}
-                              >
-                                <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-            </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+        loadingNotas={loadingNotas}
+        deletingNota={deletingNota}
+        onEditNota={openEditDialog}
+        onDeleteNota={confirmDeleteNota}
+      />
 
       {/* Tablas mejoradas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
@@ -1564,6 +1679,51 @@ const ObrasPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Panel Lateral de Obra */}
+      <ObraSidePanel
+        obra={obraSeleccionada}
+        open={showObraPanel}
+        onClose={() => {
+          setShowObraPanel(false);
+          setObraSeleccionada(null);
+        }}
+        onVerDetalle={() => {
+          if (obraSeleccionada) {
+            router.push(`/${lang}/obras/${obraSeleccionada.id}`);
+          }
+        }}
+        onObraUpdate={(obraActualizada) => {
+          // Actualizar la obra en el estado local
+          setObrasData((prev) =>
+            prev.map((o) => (o.id === obraActualizada.id ? obraActualizada : o))
+          );
+          // Actualizar la obra seleccionada
+          setObraSeleccionada(obraActualizada);
+        }}
+        user={user}
+        lang={lang}
+      />
+
+      {/* Wizard de Conversión Presupuesto → Obra */}
+      <WizardConversion
+        presupuesto={presupuestoParaConvertir}
+        open={showWizardConversion}
+        onClose={() => {
+          setShowWizardConversion(false);
+          setPresupuestoParaConvertir(null);
+        }}
+        user={user}
+        lang={lang}
+        onSuccess={(obraId, nuevaObra) => {
+          // Mostrar mensaje de éxito
+          setDeleteMessage(`✅ Obra ${nuevaObra.numeroPedido} creada exitosamente`);
+          setTimeout(() => setDeleteMessage(""), 5000);
+          
+          // Recargar datos para que aparezca la nueva obra
+          fetchData();
+        }}
+      />
     </div>
   );
 };

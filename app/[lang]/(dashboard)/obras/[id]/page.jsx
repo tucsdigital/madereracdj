@@ -32,7 +32,6 @@ import {
   calcularPrecioCorteMadera,
 } from "@/lib/obra-utils";
 import ObraHeader from "@/components/obras/ObraHeader";
-import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
@@ -42,12 +41,18 @@ import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import CatalogoObras from "@/components/obras/CatalogoObras";
 import TablaProductosObras from "@/components/obras/TablaProductosObras";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import { User, Edit, MapPin, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 const ObraDetallePage = () => {
   const params = useParams();
   const router = useRouter();
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
+  const [showFormularioCliente, setShowFormularioCliente] = useState(false);
+  const [showCamposSecundarios, setShowCamposSecundarios] = useState(false);
 
   // Variables de paginación para el catálogo
   const [paginaActual, setPaginaActual] = useState(1);
@@ -124,6 +129,27 @@ const ObraDetallePage = () => {
       guardarEdicion();
     } else {
       setEditando(true);
+    }
+  };
+
+  // Handler para cuando se guarda un cliente desde el formulario
+  const handleClienteGuardado = async (clienteId, clienteData) => {
+    try {
+      // Actualizar la obra en Firestore
+      await updateDoc(doc(db, "obras", obra.id), {
+        clienteId: clienteId,
+        cliente: clienteData,
+        fechaModificacion: new Date().toISOString(),
+      });
+
+      // Actualizar el estado local usando los setters del hook
+      setClienteId(clienteId);
+      setCliente(clienteData);
+
+      setShowFormularioCliente(false);
+    } catch (error) {
+      console.error("Error al actualizar cliente:", error);
+      alert("Error al actualizar el cliente");
     }
   };
 
@@ -461,7 +487,172 @@ const ObraDetallePage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-        <ObraCobranza
+          {/* PRIMER BLOQUE: Cliente, Dirección, Estado, Fechas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Información Principal
+                </div>
+                {!editando && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFormularioCliente(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Cambiar Cliente
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Cliente */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Cliente</label>
+                {obra?.cliente ? (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="font-medium text-gray-900">{obra.cliente.nombre || "Sin nombre"}</p>
+                    {obra.cliente.telefono && (
+                      <p className="text-sm text-gray-600 mt-1">Tel: {obra.cliente.telefono}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay cliente asignado</p>
+                )}
+              </div>
+
+              {/* Dirección */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Dirección
+                </label>
+                {obra?.ubicacion?.direccion || obra?.cliente?.direccion ? (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-900">
+                      {obra.ubicacion?.direccion || obra.cliente?.direccion || ""}
+                      {obra.ubicacion?.localidad || obra.cliente?.localidad ? (
+                        <span>, {obra.ubicacion?.localidad || obra.cliente?.localidad}</span>
+                      ) : null}
+                      {obra.ubicacion?.provincia || obra.cliente?.provincia ? (
+                        <span>, {obra.ubicacion?.provincia || obra.cliente?.provincia}</span>
+                      ) : null}
+                    </p>
+                    {(obra.ubicacion?.barrio || obra.cliente?.barrio || obra.ubicacion?.lote || obra.cliente?.lote) && (
+                      <div className="flex gap-4 text-xs text-gray-600 mt-1">
+                        {obra.ubicacion?.barrio || obra.cliente?.barrio ? (
+                          <span>Barrio: {obra.ubicacion?.barrio || obra.cliente?.barrio}</span>
+                        ) : null}
+                        {obra.ubicacion?.lote || obra.cliente?.lote ? (
+                          <span>Lote: {obra.ubicacion?.lote || obra.cliente?.lote}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">No hay dirección especificada</p>
+                )}
+              </div>
+
+              {/* Estado y Fechas en grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Estado */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Estado</label>
+                  {editando ? (
+                    <Select value={estadoObra} onValueChange={setEstadoObra}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente_inicio">Pendiente Inicio</SelectItem>
+                        <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
+                        <SelectItem value="pausada">Pausada</SelectItem>
+                        <SelectItem value="completada">Completada</SelectItem>
+                        <SelectItem value="cancelada">Cancelada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge
+                      className={
+                        estadoObra === "pendiente_inicio"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : estadoObra === "en_ejecucion"
+                          ? "bg-blue-100 text-blue-800"
+                          : estadoObra === "pausada"
+                          ? "bg-gray-100 text-gray-800"
+                          : estadoObra === "completada"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }
+                    >
+                      {estadoObra === "pendiente_inicio"
+                        ? "Pendiente Inicio"
+                        : estadoObra === "en_ejecucion"
+                        ? "En Ejecución"
+                        : estadoObra === "pausada"
+                        ? "Pausada"
+                        : estadoObra === "completada"
+                        ? "Completada"
+                        : "Cancelada"}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Fecha Inicio */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Fecha Inicio
+                  </label>
+                  {editando ? (
+                    <Input
+                      type="date"
+                      value={fechasEdit?.inicio || ""}
+                      onChange={(e) =>
+                        setFechasEdit({ ...fechasEdit, inicio: e.target.value })
+                      }
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">
+                      {fechasEdit?.inicio || obra?.fechas?.inicio
+                        ? formatearFecha(fechasEdit?.inicio || obra.fechas.inicio)
+                        : "No especificada"}
+                    </p>
+                  )}
+                </div>
+
+                {/* Fecha Fin (opcional) */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Fecha Fin <span className="text-gray-400 text-xs">(opcional)</span>
+                  </label>
+                  {editando ? (
+                    <Input
+                      type="date"
+                      value={fechasEdit?.fin || ""}
+                      onChange={(e) =>
+                        setFechasEdit({ ...fechasEdit, fin: e.target.value || null })
+                      }
+                      min={fechasEdit?.inicio || obra?.fechas?.inicio}
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900">
+                      {fechasEdit?.fin || obra?.fechas?.fin
+                        ? formatearFecha(fechasEdit?.fin || obra.fechas.fin)
+                        : "No especificada"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* SEGUNDO BLOQUE: Pagos / cobranzas, Saldo, Acciones rápidas */}
+          <ObraCobranza
             movimientos={movimientos}
             onMovimientosChange={setMovimientos}
             editando={editando}
@@ -486,348 +677,158 @@ const ObraDetallePage = () => {
               );
             }}
           />
-          {/* Selector de Materiales del Catálogo */}
-          <CatalogoVentas
-            titulo="Materiales a Utilizar"
-            productos={productosCatalogo}
-            productosPorCategoria={productosPorCategoria}
-            categorias={categorias}
-            itemsSeleccionados={itemsCatalogo}
-            onAgregarProducto={agregarProductoCatalogo}
-            onAgregarProductoManual={() => {}}
-            onActualizarCantidad={actualizarCantidadProductoCatalogo}
-            onQuitarProducto={quitarProductoCatalogo}
-            editando={editando}
-            maxProductos={48}
-            showFilters={true}
-            showSearch={true}
-            showPagination={true}
-            productosPorPagina={12}
-          />
+          {/* TERCER BLOQUE: Materiales / productos (editables inline) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Materiales y Productos</h3>
+            
+            {/* Selector de Materiales del Catálogo */}
+            <CatalogoVentas
+              titulo="Materiales a Utilizar"
+              productos={productosCatalogo}
+              productosPorCategoria={productosPorCategoria}
+              categorias={categorias}
+              itemsSeleccionados={itemsCatalogo}
+              onAgregarProducto={agregarProductoCatalogo}
+              onAgregarProductoManual={() => {}}
+              onActualizarCantidad={actualizarCantidadProductoCatalogo}
+              onQuitarProducto={quitarProductoCatalogo}
+              editando={editando}
+              maxProductos={48}
+              showFilters={true}
+              showSearch={true}
+              showPagination={true}
+              productosPorPagina={12}
+            />
 
-          {/* Tabla de Materiales Seleccionados */}
-          <TablaProductosVentas
-            titulo="Materiales Seleccionados"
-            items={itemsCatalogo}
-            editando={editando}
-            onQuitarProducto={quitarProductoCatalogo}
-            onActualizarCampo={(id, campo, valor) => {
-              if (campo === "cantidad") handleCantidadChange(id, valor);
-              else if (campo === "alto") handleAltoChange(id, valor);
-              else if (campo === "ancho") handleAnchoChange(id, valor);
-              else if (campo === "largo") handleLargoChange(id, valor);
-              else if (campo === "precioPorPie")
-                handlePrecioPorPieChange(id, valor);
-              else if (campo === "cepilladoAplicado")
-                toggleCepillado(id, valor);
-              else if (campo === "descuento") actualizarDescuento(id, valor);
-            }}
-            onActualizarNombreManual={() => {}}
-            formatearNumeroArgentino={formatearNumeroArgentino}
-            showTotals={true}
-            showDescripcionGeneral={false}
-          />
+            {/* Tabla de Materiales Seleccionados */}
+            <TablaProductosVentas
+              titulo="Materiales Seleccionados"
+              items={itemsCatalogo}
+              editando={editando}
+              onQuitarProducto={quitarProductoCatalogo}
+              onActualizarCampo={(id, campo, valor) => {
+                if (campo === "cantidad") handleCantidadChange(id, valor);
+                else if (campo === "alto") handleAltoChange(id, valor);
+                else if (campo === "ancho") handleAnchoChange(id, valor);
+                else if (campo === "largo") handleLargoChange(id, valor);
+                else if (campo === "precioPorPie")
+                  handlePrecioPorPieChange(id, valor);
+                else if (campo === "cepilladoAplicado")
+                  toggleCepillado(id, valor);
+                else if (campo === "descuento") actualizarDescuento(id, valor);
+              }}
+              onActualizarNombreManual={() => {}}
+              formatearNumeroArgentino={formatearNumeroArgentino}
+              showTotals={true}
+              showDescripcionGeneral={false}
+            />
+          </div>
 
-          {/* Presupuesto Inicial */}
+          {/* CUARTO BLOQUE: Documentación, Notas, Campos secundarios (colapsable) */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon
-                  icon="heroicons:clipboard-document-list"
-                  className="w-5 h-5"
-                />
-                Presupuesto Inicial
+              <CardTitle 
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => setShowCamposSecundarios(!showCamposSecundarios)}
+              >
+                <span>Información Adicional</span>
+                {showCamposSecundarios ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {presupuesto ? (
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-blue-900">
-                        Presupuesto Vinculado: {presupuesto.numeroPedido}
-                      </p>
-                      {obra?.presupuestoInicialBloqueId && (
-                        <p className="text-sm text-blue-700 mt-1">
-                          Bloque seleccionado: {obra?.presupuestoInicialBloqueNombre || obra?.presupuestoInicialBloqueId}
-                        </p>
+            {showCamposSecundarios && (
+              <CardContent className="space-y-6">
+                {/* Documentación */}
+                <ObraDocumentacion
+                  docLinks={docLinks}
+                  onDocLinksChange={setDocLinks}
+                  editando={editando}
+                />
+
+                {/* Presupuesto Inicial (si existe) */}
+                {presupuesto && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">Presupuesto Inicial</h4>
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-blue-900">
+                            Presupuesto Vinculado: {presupuesto.numeroPedido}
+                          </p>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Total: ${formatearNumeroArgentino(presupuesto.total || 0)}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
+                        >
+                          Ver Presupuesto
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Información de envío (si existe) */}
+                {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">Información de Envío</h4>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                      <div>
+                        <p className="text-sm text-gray-500">Tipo de Envío</p>
+                        <p className="font-medium">{obra.tipoEnvio}</p>
+                      </div>
+                      {obra.direccionEnvio && (
+                        <div>
+                          <p className="text-sm text-gray-500">Dirección de Envío</p>
+                          <p className="font-medium">{obra.direccionEnvio}</p>
+                        </div>
                       )}
-                      {presupuesto?.bloques?.length > 0 && (
-                        <div className="mt-3">
-                          <label className="block text-sm text-blue-800 mb-1">Cambiar bloque</label>
-                          <Select
-                            value={obra?.presupuestoInicialBloqueId || ""}
-                            onValueChange={(val) => cambiarBloquePresupuesto(val)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Seleccionar bloque" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {presupuesto.bloques.map((b) => (
-                                <SelectItem key={b.id} value={b.id}>
-                                  {b.nombre || b.id} - {formatearNumeroArgentino(b.total || 0)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      {obra.localidadEnvio && (
+                        <div>
+                          <p className="text-sm text-gray-500">Localidad</p>
+                          <p className="font-medium">{obra.localidadEnvio}</p>
+                        </div>
+                      )}
+                      {obra.transportista && (
+                        <div>
+                          <p className="text-sm text-gray-500">Transportista</p>
+                          <p className="font-medium">{obra.transportista}</p>
+                        </div>
+                      )}
+                      {obra.fechaEntrega && (
+                        <div>
+                          <p className="text-sm text-gray-500">Fecha de Entrega</p>
+                          <p className="font-medium">{formatearFecha(obra.fechaEntrega)}</p>
+                        </div>
+                      )}
+                      {obra.rangoHorario && (
+                        <div>
+                          <p className="text-sm text-gray-500">Rango Horario</p>
+                          <p className="font-medium">{obra.rangoHorario}</p>
                         </div>
                       )}
                     </div>
-                    {editando && (
-                      <Button
-                        variant="outline"
-                        onClick={handleDesvincularPresupuesto}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Desvincular
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-gray-600 mb-4">
-                    No hay presupuesto inicial vinculado
-                  </p>
-                  {editando && (
-                    <div className="space-y-4">
-                      <div className="flex gap-2">
-                        <Select
-                          value={presupuestoSeleccionadoId}
-                          onValueChange={setPresupuestoSeleccionadoId}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Seleccionar presupuesto existente" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {presupuestosDisponibles.map((pres) => (
-                              <SelectItem key={pres.id} value={pres.id}>
-                                {pres.numeroPedido} -{" "}
-                                {formatearNumeroArgentino(pres.total || 0)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          onClick={handleVincularPresupuesto}
-                          disabled={!presupuestoSeleccionadoId}
-                        >
-                          Vincular
-                        </Button>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-gray-500">o</span>
-                      </div>
-                      <Button
-                        onClick={handleCrearPresupuestoDesdeAqui}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Crear Nuevo Presupuesto
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Productos del Presupuesto Inicial */}
-              {presupuesto && (
-                <>
-                  {/* Selector de Productos de Obra */}
-                  <CatalogoObras
-                    titulo="Productos de Obra"
-                    productos={productosObraCatalogo}
-                    productosPorCategoria={productosObraPorCategoria}
-                    categorias={categoriasObra}
-                    itemsSeleccionados={itemsPresupuesto}
-                    onAgregarProducto={(prod) => {
-                      const ya = itemsPresupuesto.some((x) => x.id === prod.id);
-                      if (ya) return;
-
-                      const nuevo = {
-                        id: prod.id,
-                        nombre: prod.nombre,
-                        categoria: prod.categoria || "",
-                        subcategoria: prod.subcategoria || "",
-                        unidad: prod.unidad || prod.unidadMedida || "UN",
-                        cantidad: 1,
-                        descuento: 0,
-                        precio: Number(prod.valorVenta) || 0,
-                        valorVenta: Number(prod.valorVenta) || 0,
-                      };
-
-                      if (prod.categoria?.toLowerCase() === "maderas") {
-                        nuevo.alto = Number(prod.alto) || 0;
-                        nuevo.ancho = Number(prod.ancho) || 0;
-                        nuevo.largo = Number(prod.largo) || 0;
-                        nuevo.precioPorPie = Number(prod.precioPorPie) || 0;
-                        nuevo.cepilladoAplicado = false;
-                      }
-
-                      setItemsPresupuesto((prev) => [...prev, nuevo]);
-                    }}
-                    onAgregarProductoManual={() => {}}
-                    editando={editando}
-                    maxProductos={48}
-                    showFilters={true}
-                    showSearch={true}
-                    showPagination={true}
-                    productosPorPagina={12}
-                  />
-
-                  {/* Tabla de Productos del Presupuesto */}
-                  <TablaProductosObras
-                    titulo="Productos de la Obra"
-                    items={itemsPresupuesto}
-                    editando={editando}
-                    onQuitarProducto={(id) =>
-                      setItemsPresupuesto((prev) =>
-                        prev.filter((p) => p.id !== id)
-                      )
-                    }
-                    onActualizarCampo={(id, campo, valor) => {
-                      setItemsPresupuesto((prev) =>
-                        prev.map((p) => {
-                          if (p.id !== id) return p;
-                          const nuevo = { ...p, [campo]: valor };
-
-                          // Recalcular precio si es madera
-                          if (
-                            campo === "cantidad" ||
-                            campo === "alto" ||
-                            campo === "ancho" ||
-                            campo === "largo" ||
-                            campo === "precioPorPie" ||
-                            campo === "cepilladoAplicado"
-                          ) {
-                            if (p.categoria?.toLowerCase() === "maderas") {
-                              if (
-                                p.subcategoria === "machimbre" ||
-                                p.subcategoria === "deck"
-                              ) {
-                                const alto = Number(nuevo.alto) || 0;
-                                const largo = Number(nuevo.largo) || 0;
-                                const cantidad = Number(nuevo.cantidad) || 1;
-                                const precioPorPie =
-                                  Number(nuevo.precioPorPie) || 0;
-                                const precioBase =
-                                  alto * largo * precioPorPie * cantidad;
-                                const precioFinal = nuevo.cepilladoAplicado
-                                  ? precioBase * 1.066
-                                  : precioBase;
-                                nuevo.precio =
-                                  Math.round(precioFinal / 100) * 100;
-                              } else {
-                                const alto = Number(nuevo.ancho) || 0;
-                                const ancho = Number(nuevo.ancho) || 0;
-                                const largo = Number(nuevo.largo) || 0;
-                                const precioPorPie =
-                                  Number(nuevo.precioPorPie) || 0;
-                                const factor = 0.2734;
-                                const precioBase =
-                                  factor * alto * ancho * largo * precioPorPie;
-                                const precioFinal = nuevo.cepilladoAplicado
-                                  ? precioBase * 1.066
-                                  : precioBase;
-                                nuevo.precio =
-                                  Math.round(precioFinal / 100) * 100;
-                              }
-                            }
-                          }
-
-                          return nuevo;
-                        })
-                      );
-                    }}
-                    onActualizarNombreManual={() => {}}
-                    formatearNumeroArgentino={formatearNumeroArgentino}
-                    showTotals={true}
-                    showDescripcionGeneral={false}
-                  />
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Barra lateral */}
-        <div className="space-y-6">
-          <ObraInfoGeneral
-            obra={obra}
-            formatearFecha={formatearFecha}
-            editando={editando}
-            // Estados editables
-            estadoObra={estadoObra}
-            fechasEdit={fechasEdit}
-            ubicacionEdit={ubicacionEdit}
-            clienteId={clienteId}
-            cliente={cliente}
-            clientes={clientes}
-            usarDireccionCliente={usarDireccionCliente}
-            // Setters
-            setEstadoObra={setEstadoObra}
-            setFechasEdit={setFechasEdit}
-            setUbicacionEdit={setUbicacionEdit}
-            setClienteId={setClienteId}
-            setCliente={setCliente}
-            setUsarDireccionCliente={setUsarDireccionCliente}
-          />
-
-          <ObraDocumentacion
-            docLinks={docLinks}
-            onDocLinksChange={setDocLinks}
-            editando={editando}
-          />
-
-          {/* Información de envío si existe */}
-          {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Icon icon="heroicons:truck" className="w-5 h-5" />
-                  Información de Envío
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-500">Tipo de Envío</p>
-                  <p className="font-medium">{obra.tipoEnvio}</p>
-                </div>
-                {obra.direccionEnvio && (
-                  <div>
-                    <p className="text-sm text-gray-500">Dirección de Envío</p>
-                    <p className="font-medium">{obra.direccionEnvio}</p>
-                  </div>
-                )}
-                {obra.localidadEnvio && (
-                  <div>
-                    <p className="text-sm text-gray-500">Localidad</p>
-                    <p className="font-medium">{obra.localidadEnvio}</p>
-                  </div>
-                )}
-                {obra.transportista && (
-                  <div>
-                    <p className="text-sm text-gray-500">Transportista</p>
-                    <p className="font-medium">{obra.transportista}</p>
-                  </div>
-                )}
-                {obra.fechaEntrega && (
-                  <div>
-                    <p className="text-sm text-gray-500">Fecha de Entrega</p>
-                    <p className="font-medium">
-                      {formatearFecha(obra.fechaEntrega)}
-                    </p>
-                  </div>
-                )}
-                {obra.rangoHorario && (
-                  <div>
-                    <p className="text-sm text-gray-500">Rango Horario</p>
-                    <p className="font-medium">{obra.rangoHorario}</p>
                   </div>
                 )}
               </CardContent>
-            </Card>
-          )}
+            )}
+          </Card>
+        </div>
+
+        {/* Barra lateral - Solo Resumen Financiero */}
+        <div className="space-y-6">
+          <ObraResumenFinanciero
+            obra={obra}
+            presupuesto={presupuesto}
+            modoCosto={modoCosto}
+            formatearNumeroArgentino={formatearNumeroArgentino}
+          />
         </div>
       </div>
 
@@ -869,6 +870,17 @@ const ObraDetallePage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Formulario de Cliente */}
+      <FormularioClienteObras
+        open={showFormularioCliente}
+        onClose={() => setShowFormularioCliente(false)}
+        clienteExistente={obra?.cliente ? {
+          id: obra.clienteId,
+          ...(obra.cliente || {})
+        } : null}
+        onClienteGuardado={handleClienteGuardado}
+      />
     </div>
   );
 };
