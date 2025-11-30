@@ -179,6 +179,17 @@ const ObrasPage = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   
+  // Estados para el nuevo header (deben ir antes de los useMemo que los usan)
+  const [vistaCalendario, setVistaCalendario] = useState("mes");
+  const [busquedaGlobal, setBusquedaGlobal] = useState("");
+  const [filtros, setFiltros] = useState({
+    estado: "",
+    cliente: "",
+    estadoPago: "",
+    fechaDesde: "",
+    fechaHasta: "",
+  });
+  
   // Estados para el calendario
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
@@ -268,15 +279,6 @@ const ObrasPage = () => {
     }
   };
   
-  // Filtrar obras que tienen fechas válidas para el calendario
-  const obrasParaCalendario = useMemo(() => {
-    return obras.filter((obra) => {
-      if (!obra.fechas) return false;
-      const fechaInicio = obra.fechas.inicio;
-      const fechaFin = obra.fechas.fin;
-      return fechaInicio && fechaFin;
-    });
-  }, [obras]);
   const [notas, setNotas] = useState([]);
   const [showNotaDialog, setShowNotaDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -291,17 +293,6 @@ const ObrasPage = () => {
   const [showDeleteNotaDialog, setShowDeleteNotaDialog] = useState(false);
   const [notaToDelete, setNotaToDelete] = useState(null);
   const [loadingNotas, setLoadingNotas] = useState(true);
-  
-  // Estados para el nuevo header
-  const [vistaCalendario, setVistaCalendario] = useState("semana");
-  const [busquedaGlobal, setBusquedaGlobal] = useState("");
-  const [filtros, setFiltros] = useState({
-    estado: "",
-    cliente: "",
-    estadoPago: "",
-    fechaDesde: "",
-    fechaHasta: "",
-  });
   const [clientes, setClientes] = useState([]);
   
   const router = useRouter();
@@ -1246,6 +1237,16 @@ const ObrasPage = () => {
 
     return filtered;
   }, [obrasBase, filtros, busquedaGlobal]);
+
+  // Filtrar obras que tienen fechas válidas para el calendario
+  const obrasParaCalendario = useMemo(() => {
+    return obras.filter((obra) => {
+      if (!obra.fechas) return false;
+      const fechaInicio = obra.fechas.inicio;
+      const fechaFin = obra.fechas.fin;
+      return fechaInicio && fechaFin;
+    });
+  }, [obras]);
 
   if (loading) {
     return (

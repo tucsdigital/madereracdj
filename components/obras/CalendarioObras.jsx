@@ -8,6 +8,8 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Building,
+  FileText,
 } from "lucide-react";
 import { formatearNumeroArgentino } from "@/lib/obra-utils";
 
@@ -398,15 +400,15 @@ const CalendarioObras = ({
           </div>
         )}
 
-        {/* Vista Mes */}
+        {/* Vista Mes - Calendario Completo Mensual */}
         {vista === "mes" && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* Headers de días de la semana */}
-            <div className="grid grid-cols-7 gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-2 mb-3">
               {diasSemana.map((dia) => (
                 <div
                   key={dia}
-                  className="text-center text-xs font-semibold text-gray-600 uppercase py-2"
+                  className="text-center text-sm font-bold text-gray-700 uppercase py-3 bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg border border-gray-200"
                 >
                   {dia}
                 </div>
@@ -427,20 +429,20 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border rounded-lg p-1.5 min-h-[120px] transition-all ${
+                    className={`border-2 rounded-xl p-2 min-h-[140px] transition-all duration-200 ${
                       !dayObj.isCurrentMonth
-                        ? "bg-gray-50 border-gray-100 opacity-50"
+                        ? "bg-gray-50/50 border-gray-100 opacity-40"
                         : isToday
-                        ? "bg-blue-50 border-blue-300 shadow-md"
-                        : "bg-white border-gray-200 hover:border-gray-300"
+                        ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-400 shadow-lg ring-2 ring-blue-200"
+                        : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-md"
                     }`}
                   >
-                    {/* Número del día */}
-                    <div className="text-center mb-1">
+                    {/* Header del día */}
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
                       <div
-                        className={`text-xs font-bold ${
+                        className={`text-sm font-bold ${
                           isToday
-                            ? "text-blue-600"
+                            ? "text-blue-700"
                             : dayObj.isCurrentMonth
                             ? "text-gray-800"
                             : "text-gray-400"
@@ -448,81 +450,149 @@ const CalendarioObras = ({
                       >
                         {day.getDate()}
                       </div>
-                    </div>
-
-                    {/* Contador de items */}
-                    {totalItems > 0 && (
-                      <div className="text-center mb-1">
+                      {totalItems > 0 && (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1.5 py-0 bg-blue-100 text-blue-700 border-blue-200"
+                          className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 border-indigo-300 font-semibold"
                         >
-                          {dayObras.length > 0 && (
-                            <span className="mr-1">
-                              {dayObras.length} {dayObras.length === 1 ? "obra" : "obras"}
-                            </span>
-                          )}
-                          {dayNotas.length > 0 && (
-                            <span>
-                              {dayNotas.length} {dayNotas.length === 1 ? "nota" : "notas"}
-                            </span>
-                          )}
+                          {totalItems}
                         </Badge>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
-                    {/* Obras (máximo 2 visibles) */}
-                    <div className="space-y-0.5">
-                      {dayObras.slice(0, 2).map((obra) => {
-                        const estado = obra.estado || "pendiente_inicio";
-                        const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
+                    {/* Contenido del día */}
+                    <div className="space-y-1.5 flex-1">
+                      {/* Obras del día */}
+                      {dayObras.length > 0 && (
+                        <div className="space-y-1">
+                          {dayObras.slice(0, 3).map((obra) => {
+                            const estado = obra.estado || "pendiente_inicio";
+                            const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
+                            const total = obra.presupuestoTotal || obra.total || 0;
 
-                        return (
-                          <div
-                            key={obra.id}
-                            onClick={() => onObraClick(obra)}
-                            className={`${colores.bg} ${colores.border} border rounded px-1 py-0.5 text-[9px] cursor-pointer hover:shadow-sm transition-all`}
-                          >
-                            <div className="font-semibold truncate">
-                              {obra.numeroPedido || "Sin número"}
+                            return (
+                              <div
+                                key={obra.id}
+                                onClick={() => onObraClick(obra)}
+                                className={`${colores.bg} ${colores.border} border rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group`}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-[11px] truncate flex items-center gap-1">
+                                      <Building className="w-3 h-3 shrink-0" />
+                                      {obra.numeroPedido || "Sin número"}
+                                    </div>
+                                    <div className="text-[9px] text-gray-600 truncate mt-0.5">
+                                      {obra.cliente?.nombre || "Sin cliente"}
+                                    </div>
+                                    <div className="text-[9px] font-semibold mt-0.5 text-gray-700">
+                                      {formatearNumeroArgentino(total)}
+                                    </div>
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className={`${colores.badge} text-[8px] px-1 py-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity`}
+                                  >
+                                    {estado === "en_ejecucion" ? "Activa" : estado === "completada" ? "Completa" : estado === "pendiente_inicio" ? "Pendiente" : estado === "pausada" ? "Pausada" : "Cancelada"}
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {dayObras.length > 3 && (
+                            <div className="text-[9px] text-gray-500 text-center py-1 font-medium">
+                              +{dayObras.length - 3} obra{dayObras.length - 3 > 1 ? "s" : ""} más
                             </div>
-                          </div>
-                        );
-                      })}
-                      {dayObras.length > 2 && (
-                        <div className="text-[8px] text-gray-500 text-center">
-                          +{dayObras.length - 2} más
+                          )}
+                        </div>
+                      )}
+
+                      {/* Notas del día */}
+                      {dayNotas.length > 0 && (
+                        <div className="space-y-1">
+                          {dayNotas.slice(0, 2).map((nota) => (
+                            <div
+                              key={nota.id}
+                              className={`bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group relative ${
+                                deletingNota === nota.id
+                                  ? "opacity-50 pointer-events-none"
+                                  : ""
+                              }`}
+                              onClick={() => onNotaClick(nota)}
+                            >
+                              {deletingNota === nota.id && (
+                                <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-lg">
+                                  <Icon
+                                    icon="heroicons:arrow-path"
+                                    className="w-4 h-4 animate-spin text-red-600"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-bold text-[11px] truncate flex items-center gap-1">
+                                    <FileText className="w-3 h-3 shrink-0 text-yellow-700" />
+                                    {nota.nombreObra}
+                                  </div>
+                                  {nota.productos && (
+                                    <div className="text-[9px] text-gray-600 mt-0.5 line-clamp-1">
+                                      {nota.productos}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onEditNota(nota);
+                                    }}
+                                    className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all"
+                                    title="Editar nota"
+                                    disabled={deletingNota === nota.id}
+                                  >
+                                    <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteNota(nota);
+                                    }}
+                                    className="w-5 h-5 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all"
+                                    title="Eliminar nota"
+                                    disabled={deletingNota === nota.id}
+                                  >
+                                    <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {dayNotas.length > 2 && (
+                            <div className="text-[9px] text-gray-500 text-center py-1 font-medium">
+                              +{dayNotas.length - 2} nota{dayNotas.length - 2 > 1 ? "s" : ""} más
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mensaje vacío */}
+                      {totalItems === 0 && dayObj.isCurrentMonth && (
+                        <div className="text-center py-2 text-[9px] text-gray-400">
+                          Sin eventos
                         </div>
                       )}
                     </div>
 
-                    {/* Notas (máximo 1 visible) */}
-                    {dayNotas.length > 0 && (
-                      <div
-                        className="bg-yellow-50 border border-yellow-200 rounded px-1 py-0.5 text-[9px] mt-0.5 cursor-pointer hover:shadow-sm transition-all"
-                        onClick={() => onNotaClick(dayNotas[0])}
-                      >
-                        <div className="font-semibold truncate flex items-center gap-0.5">
-                          <FileText className="w-2.5 h-2.5" />
-                          {dayNotas[0].nombreObra}
-                        </div>
-                        {dayNotas.length > 1 && (
-                          <div className="text-[8px] text-gray-500 text-center mt-0.5">
-                            +{dayNotas.length - 1} más
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Botón agregar (solo si es del mes actual) */}
+                    {/* Botón agregar nota (solo si es del mes actual) */}
                     {dayObj.isCurrentMonth && (
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="w-full mt-1 text-[9px] h-5 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                        className="w-full mt-2 text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
                         onClick={() => onAgregarNota(dateKey)}
                       >
-                        <Icon icon="heroicons:plus" className="w-2.5 h-2.5" />
+                        <Icon icon="heroicons:plus" className="w-3 h-3 mr-1" />
+                        Agregar Nota
                       </Button>
                     )}
                   </div>
