@@ -38,9 +38,11 @@ import {
   ExternalLink,
   Loader2,
   X,
+  Trash2,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { useAuth } from "@/provider/auth.provider";
 import {
   formatearNumeroArgentino,
   formatearFecha,
@@ -70,9 +72,11 @@ const ObraSidePanel = ({
   onClose,
   onVerDetalle,
   onObraUpdate,
+  onObraDelete,
   user,
   lang,
 }) => {
+  const { user: authUser } = useAuth();
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [nuevoEstado, setNuevoEstado] = useState(obra?.estado || "");
   const [showNotaDialog, setShowNotaDialog] = useState(false);
@@ -83,6 +87,8 @@ const ObraSidePanel = ({
   });
   const [guardandoNota, setGuardandoNota] = useState(false);
   const [imprimiendo, setImprimiendo] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Calcular totales
   const totales = useMemo(() => {
@@ -185,6 +191,48 @@ const ObraSidePanel = ({
       alert("Error al guardar la nota");
     } finally {
       setGuardandoNota(false);
+    }
+  };
+
+  // Eliminar obra
+  const handleEliminarObra = async () => {
+    if (!obra || !authUser) return;
+
+    try {
+      setEliminando(true);
+      
+      // Usar la API de eliminación
+      const response = await fetch("/api/delete-document", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          documentId: obra.id,
+          collectionName: "obras",
+          userId: authUser.uid,
+          userEmail: authUser.email,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al eliminar la obra");
+      }
+
+      // Notificar al componente padre
+      if (onObraDelete) {
+        onObraDelete(obra.id);
+      }
+
+      // Cerrar panel
+      onClose();
+    } catch (error) {
+      console.error("Error al eliminar obra:", error);
+      alert(`Error al eliminar la obra: ${error.message}`);
+    } finally {
+      setEliminando(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -480,11 +528,70 @@ const ObraSidePanel = ({
                     </>
                   )}
                 </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={eliminando}
+                >
+                  {eliminando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Eliminar Obra
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Diálogo de confirmación de eliminación */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar la obra <strong>{obra?.numeroPedido || "sin número"}</strong>?
+              <br />
+              <span className="text-red-600 font-medium">Esta acción no se puede deshacer.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={eliminando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleEliminarObra}
+              disabled={eliminando}
+            >
+              {eliminando ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Eliminar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo para Nota Rápida */}
       <Dialog open={showNotaDialog} onOpenChange={setShowNotaDialog}>

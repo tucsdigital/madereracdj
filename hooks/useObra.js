@@ -724,6 +724,99 @@ export const useObra = (id) => {
 
     try {
       await updateDoc(target, updateData);
+      
+      // SINCRONIZACIÓN BIDIRECCIONAL: Si es una obra con presupuesto enlazado, actualizar el presupuesto
+      if (obra.tipo === "obra" && obra.presupuestoInicialId && productosObraSanitizados.length > 0) {
+        try {
+          const presupuestoRef = doc(db, "obras", obra.presupuestoInicialId);
+          const presupuestoSnap = await getDoc(presupuestoRef);
+          
+          if (presupuestoSnap.exists()) {
+            const presupuestoData = presupuestoSnap.data();
+            
+            // Si hay bloques y se especificó un bloque
+            if (obra.presupuestoInicialBloqueId && Array.isArray(presupuestoData.bloques)) {
+              const bloquesActualizados = presupuestoData.bloques.map((bloque) => {
+                if (bloque.id === obra.presupuestoInicialBloqueId) {
+                  // Actualizar productos del bloque
+                  const productosSubtotal = productosObraSanitizados.reduce((acc, p) => {
+                    const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                    const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                    const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                    return acc + base;
+                  }, 0);
+                  
+                  const productosDescuento = productosObraSanitizados.reduce((acc, p) => {
+                    const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                    const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                    const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                    return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+                  }, 0);
+                  
+                  return {
+                    ...bloque,
+                    productos: productosObraSanitizados,
+                    subtotal: productosSubtotal,
+                    descuentoTotal: productosDescuento,
+                    total: productosSubtotal - productosDescuento,
+                  };
+                }
+                return bloque;
+              });
+              
+              // Recalcular totales del presupuesto
+              const presupuestoSubtotal = bloquesActualizados.reduce((acc, b) => acc + (Number(b.subtotal) || 0), 0);
+              const presupuestoDescuento = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoTotal) || 0), 0);
+              // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
+              const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
+              const descuentoEfectivo = pagoEnEfectivo ? presupuestoSubtotal * 0.1 : 0;
+              const presupuestoTotal = presupuestoSubtotal - presupuestoDescuento - descuentoEfectivo;
+              
+              await updateDoc(presupuestoRef, {
+                bloques: bloquesActualizados,
+                subtotal: presupuestoSubtotal,
+                descuentoTotal: presupuestoDescuento,
+                descuentoEfectivo: descuentoEfectivo,
+                total: presupuestoTotal,
+                fechaModificacion: new Date().toISOString(),
+              });
+            } else {
+              // Sin bloques: actualizar productos directamente
+              const productosSubtotal = productosObraSanitizados.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + base;
+              }, 0);
+              
+              const productosDescuento = productosObraSanitizados.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+              }, 0);
+              
+              // Calcular descuento por pago en efectivo si aplica (10% del subtotal)
+              const pagoEnEfectivo = presupuestoData.pagoEnEfectivo || false;
+              const descuentoEfectivo = pagoEnEfectivo ? productosSubtotal * 0.1 : 0;
+              const presupuestoTotal = productosSubtotal - productosDescuento - descuentoEfectivo;
+              
+              await updateDoc(presupuestoRef, {
+                productos: productosObraSanitizados,
+                subtotal: productosSubtotal,
+                descuentoTotal: productosDescuento,
+                descuentoEfectivo: descuentoEfectivo,
+                total: presupuestoTotal,
+                fechaModificacion: new Date().toISOString(),
+              });
+            }
+          }
+        } catch (syncError) {
+          console.error("Error al sincronizar con presupuesto:", syncError);
+          // No bloquear el guardado si falla la sincronización
+        }
+      }
+      
       setEditando(false);
       // Recargar la obra para reflejar cambios
       const obraDoc = await getDoc(doc(db, "obras", id));

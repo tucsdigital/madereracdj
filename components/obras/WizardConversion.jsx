@@ -298,6 +298,10 @@ const WizardConversion = ({
       const descuentoTotalCombinado = productosObraDescuento + materialesDescuento;
       const totalCombinado = subtotalCombinado - descuentoTotalCombinado;
 
+      // Usar cliente confirmado o el del presupuesto como fallback (declarar ANTES de usar)
+      const clienteFinal = clienteConfirmado || presupuesto.cliente || null;
+      const clienteIdFinal = clienteConfirmadoId || presupuesto.clienteId || presupuesto.cliente?.id || null;
+
       // Construir ubicación usando cliente confirmado o el del presupuesto
       const clienteParaUbicacion = clienteFinal || presupuesto.cliente || {};
       const ubicacion = datos.ubicacionTipo === "cliente" ? {
@@ -315,10 +319,6 @@ const WizardConversion = ({
         area: datos.area || "",
         lote: datos.lote || "",
       };
-
-      // Usar cliente confirmado o el del presupuesto como fallback
-      const clienteFinal = clienteConfirmado || presupuesto.cliente || null;
-      const clienteIdFinal = clienteConfirmadoId || presupuesto.clienteId || presupuesto.cliente?.id || null;
 
       const nuevaObra = {
         tipo: "obra",

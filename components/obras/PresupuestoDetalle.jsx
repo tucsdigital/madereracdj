@@ -18,7 +18,7 @@ import {
   Save
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { doc, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
 
 const PresupuestoDetalle = ({
   obra,
@@ -354,13 +354,239 @@ const PresupuestoDetalle = ({
         };
       });
 
+      // Recalcular totales generales del presupuesto
+      const presupuestoSubtotal = bloquesActualizados.reduce((acc, b) => acc + (Number(b.subtotal) || 0), 0);
+      const presupuestoDescuento = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoTotal) || 0), 0);
+      const presupuestoDescuentoEfectivo = bloquesActualizados.reduce((acc, b) => acc + (Number(b.descuentoEfectivo) || 0), 0);
+      const presupuestoTotal = presupuestoSubtotal - presupuestoDescuento - presupuestoDescuentoEfectivo;
+
       const updateData = {
         bloques: bloquesActualizados,
+        subtotal: presupuestoSubtotal,
+        descuentoTotal: presupuestoDescuento,
+        descuentoEfectivo: presupuestoDescuentoEfectivo,
+        total: presupuestoTotal,
         fechaModificacion: new Date().toISOString(),
       };
 
       await updateDoc(obraRef, updateData);
       console.log("✅ Datos guardados en Firestore:", updateData);
+
+      // SINCRONIZACIÓN BIDIRECCIONAL: Buscar y actualizar obras vinculadas a este presupuesto
+      try {
+        const obrasQuery = query(
+          collection(db, "obras"),
+          where("presupuestoInicialId", "==", obra.id),
+          where("tipo", "==", "obra")
+        );
+        const obrasSnap = await getDocs(obrasQuery);
+        
+        if (!obrasSnap.empty) {
+          const actualizacionesObras = obrasSnap.docs.map(async (obraDoc) => {
+            const obraData = obraDoc.data();
+            const bloqueIdObra = obraData.presupuestoInicialBloqueId;
+            
+            // Si la obra está vinculada a un bloque específico
+            if (bloqueIdObra) {
+              const bloqueActualizado = bloquesActualizados.find(b => b.id === bloqueIdObra);
+              if (bloqueActualizado) {
+                // Sanitizar productos del bloque actualizado
+                const productosObraSanitizados = Array.isArray(bloqueActualizado.productos) ? bloqueActualizado.productos.map((p) => {
+                  const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+                  const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+                  const precio = Number(p.precio) || 0;
+                  const cantidad = Number(p.cantidad) || 1;
+                  const descuento = Number(p.descuento) || 0;
+                  const base = isMachDeck ? precio : precio * cantidad;
+                  const subtotal = Math.round(base * (1 - descuento / 100));
+                  const item = {
+                    id: p.id,
+                    nombre: p.nombre || "",
+                    categoria: p.categoria || "",
+                    subcategoria: p.subcategoria || "",
+                    unidad: p.unidad || p.unidadMedida || "",
+                    cantidad,
+                    descuento,
+                    precio,
+                    subtotal,
+                  };
+                  if (esMadera) {
+                    item.alto = Number(p.alto) || 0;
+                    item.ancho = Number(p.ancho) || 0;
+                    item.largo = Number(p.largo) || 0;
+                    item.precioPorPie = Number(p.precioPorPie) || 0;
+                    item.cepilladoAplicado = !!p.cepilladoAplicado;
+                  }
+                  return item;
+                }) : [];
+                
+                // Recalcular totales de productos de la obra
+                const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
+                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                  return acc + base;
+                }, 0);
+                
+                const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
+                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                  return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+                }, 0);
+                
+                // Mantener materiales existentes de la obra
+                const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
+                const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
+                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                  return acc + base;
+                }, 0);
+                
+                const materialesDescuento = materialesExistentes.reduce((acc, p) => {
+                  const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                  const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                  const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                  return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+                }, 0);
+                
+                // Totales combinados
+                const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
+                const descuentoCombinado = productosObraDescuento + materialesDescuento;
+                
+                // Actualizar la obra vinculada con TODOS los totales
+                await updateDoc(doc(db, "obras", obraDoc.id), {
+                  productos: productosObraSanitizados,
+                  // Total de productos del presupuesto
+                  productosSubtotal: productosObraSubtotal,
+                  productosDescuento: productosObraDescuento,
+                  productosTotal: productosObraSubtotal - productosObraDescuento,
+                  // Total de materiales (mantener existentes)
+                  materialesSubtotal: materialesSubtotal,
+                  materialesDescuento: materialesDescuento,
+                  materialesTotal: materialesSubtotal - materialesDescuento,
+                  // Totales combinados
+                  subtotal: subtotalCombinado,
+                  descuentoTotal: descuentoCombinado,
+                  total: subtotalCombinado - descuentoCombinado,
+                  fechaModificacion: new Date().toISOString(),
+                });
+                
+                console.log(`✅ Obra ${obraDoc.id} sincronizada con bloque ${bloqueIdObra}`);
+              }
+            } else {
+              // Sin bloque específico: actualizar productos directamente
+              const productosPresupuesto = Array.isArray(obra.productos) ? obra.productos : [];
+              const productosObraSanitizados = productosPresupuesto.map((p) => {
+                const esMadera = String(p.categoria || "").toLowerCase() === "maderas";
+                const isMachDeck = esMadera && (p.subcategoria === "machimbre" || p.subcategoria === "deck");
+                const precio = Number(p.precio) || 0;
+                const cantidad = Number(p.cantidad) || 1;
+                const descuento = Number(p.descuento) || 0;
+                const base = isMachDeck ? precio : precio * cantidad;
+                const subtotal = Math.round(base * (1 - descuento / 100));
+                const item = {
+                  id: p.id,
+                  nombre: p.nombre || "",
+                  categoria: p.categoria || "",
+                  subcategoria: p.subcategoria || "",
+                  unidad: p.unidad || p.unidadMedida || "",
+                  cantidad,
+                  descuento,
+                  precio,
+                  subtotal,
+                };
+                if (esMadera) {
+                  item.alto = Number(p.alto) || 0;
+                  item.ancho = Number(p.ancho) || 0;
+                  item.largo = Number(p.largo) || 0;
+                  item.precioPorPie = Number(p.precioPorPie) || 0;
+                  item.cepilladoAplicado = !!p.cepilladoAplicado;
+                }
+                return item;
+              });
+              
+              const productosObraSubtotal = productosObraSanitizados.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + base;
+              }, 0);
+              
+              const productosObraDescuento = productosObraSanitizados.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+              }, 0);
+              
+              // Mantener materiales existentes
+              const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
+              const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + base;
+              }, 0);
+              
+              const materialesDescuento = materialesExistentes.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+              }, 0);
+              
+              const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
+              const descuentoCombinado = productosObraDescuento + materialesDescuento;
+              
+              // Mantener materiales existentes
+              const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
+              const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + base;
+              }, 0);
+              
+              const materialesDescuento = materialesExistentes.reduce((acc, p) => {
+                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
+                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
+                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
+                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
+              }, 0);
+              
+              const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
+              const descuentoCombinado = productosObraDescuento + materialesDescuento;
+              
+              await updateDoc(doc(db, "obras", obraDoc.id), {
+                productos: productosObraSanitizados,
+                // Total de productos del presupuesto
+                productosSubtotal: productosObraSubtotal,
+                productosDescuento: productosObraDescuento,
+                productosTotal: productosObraSubtotal - productosObraDescuento,
+                // Total de materiales (mantener existentes)
+                materialesSubtotal: materialesSubtotal,
+                materialesDescuento: materialesDescuento,
+                materialesTotal: materialesSubtotal - materialesDescuento,
+                // Totales combinados
+                subtotal: subtotalCombinado,
+                descuentoTotal: descuentoCombinado,
+                total: subtotalCombinado - descuentoCombinado,
+                fechaModificacion: new Date().toISOString(),
+              });
+              
+              console.log(`✅ Obra ${obraDoc.id} sincronizada (sin bloque específico)`);
+            }
+          });
+          
+          await Promise.all(actualizacionesObras);
+          console.log(`✅ ${obrasSnap.docs.length} obra(s) sincronizada(s) exitosamente`);
+        }
+      } catch (syncError) {
+        console.error("Error al sincronizar obras vinculadas:", syncError);
+        // No bloquear el guardado si falla la sincronización
+      }
 
       // Actualizar el estado local de la obra directamente
       const obraActualizada = {

@@ -909,6 +909,19 @@ const ObrasPage = () => {
               )}
               Imprimir
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              title="Eliminar obra"
+              onClick={(e) => {
+                e.stopPropagation();
+                showDeleteConfirmation(obra.id, "obra", obra.numeroPedido || "obra");
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Eliminar
+            </Button>
           </div>
         );
       },
@@ -1325,6 +1338,11 @@ const ObrasPage = () => {
           setObraSeleccionada(obra);
           setShowObraPanel(true);
         }}
+        onObraDelete={(obraId) => {
+          setObrasData((prev) => prev.filter((o) => o.id !== obraId));
+          setShowObraPanel(false);
+          setObraSeleccionada(null);
+        }}
         onNotaClick={(nota) => {
           openEditDialog(nota);
         }}
@@ -1701,6 +1719,11 @@ const ObrasPage = () => {
           );
           // Actualizar la obra seleccionada
           setObraSeleccionada(obraActualizada);
+        }}
+        onObraDelete={(obraId) => {
+          setObrasData((prev) => prev.filter((o) => o.id !== obraId));
+          setShowObraPanel(false);
+          setObraSeleccionada(null);
         }}
         user={user}
         lang={lang}

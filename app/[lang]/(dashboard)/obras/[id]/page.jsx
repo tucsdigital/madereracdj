@@ -722,14 +722,30 @@ const ObraDetallePage = () => {
                           <p className="text-sm text-blue-700 mt-1">
                             Total: ${formatearNumeroArgentino(presupuesto.total || 0)}
                           </p>
+                          {obra.presupuestoInicialBloqueNombre && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              Bloque: {obra.presupuestoInicialBloqueNombre}
+                            </p>
+                          )}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
-                        >
-                          Ver Presupuesto
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
+                          >
+                            Ver Presupuesto
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}?edit=true`)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Editar Presupuesto
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
