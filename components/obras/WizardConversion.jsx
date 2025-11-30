@@ -54,6 +54,7 @@ const WizardConversion = ({
   // Estado para gestión de cliente
   const [clienteConfirmado, setClienteConfirmado] = useState(null); // Cliente que se usará en la obra
   const [clienteConfirmadoExplicitamente, setClienteConfirmadoExplicitamente] = useState(false); // Flag para saber si el usuario confirmó explícitamente
+  const [opcionCliente, setOpcionCliente] = useState("confirmar"); // "confirmar" o "cambiar" - predeterminado: confirmar
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   const [clienteConfirmadoId, setClienteConfirmadoId] = useState(null);
 
@@ -76,14 +77,22 @@ const WizardConversion = ({
   useEffect(() => {
     if (presupuesto && open) {
       const hoy = new Date().toISOString().split("T")[0];
-      const fechaFin = new Date();
-      fechaFin.setDate(fechaFin.getDate() + 30); // 30 días por defecto
-      const fechaFinStr = fechaFin.toISOString().split("T")[0];
 
-      // NO inicializar cliente confirmado automáticamente - el usuario debe confirmarlo
-      setClienteConfirmado(null);
-      setClienteConfirmadoId(null);
-      setClienteConfirmadoExplicitamente(false);
+      // Inicializar con opción predeterminada: confirmar cliente actual
+      setOpcionCliente("confirmar");
+      
+      // Confirmar automáticamente el cliente del presupuesto si existe
+      if (presupuesto.cliente || presupuesto.clienteId) {
+        setClienteConfirmado(presupuesto.cliente || null);
+        setClienteConfirmadoId(presupuesto.clienteId || null);
+        setClienteConfirmadoExplicitamente(true);
+      } else {
+        setClienteConfirmado(null);
+        setClienteConfirmadoId(null);
+        setClienteConfirmadoExplicitamente(false);
+      }
+      
+      setShowFormularioCliente(false);
 
       setDatos({
         bloqueSeleccionado: presupuesto.bloques?.length > 0 ? presupuesto.bloques[0].id : "",
@@ -95,7 +104,7 @@ const WizardConversion = ({
         area: presupuesto.cliente?.area || "",
         lote: presupuesto.cliente?.lote || "",
         fechaInicio: hoy,
-        fechaFin: fechaFinStr,
+        fechaFin: "", // Eliminado del wizard
         descripcionGeneral: presupuesto.descripcionGeneral || "",
       });
       setPasoActual(1);
@@ -108,7 +117,9 @@ const WizardConversion = ({
     setClienteConfirmadoId(clienteId);
     setClienteConfirmado(clienteData);
     setClienteConfirmadoExplicitamente(true); // Marcar como confirmado explícitamente
+    setOpcionCliente("cambiar"); // Cambiar a opción "cambiar" ya que se seleccionó un cliente diferente
     setShowFormularioCliente(false);
+    setError(""); // Limpiar errores
     
     // Si el cliente tiene direccion/localidad, actualizar datos de ubicación
     if (clienteData.direccion || clienteData.localidad) {
@@ -123,21 +134,33 @@ const WizardConversion = ({
     }
   };
 
-  // Confirmar cliente actual del presupuesto
-  const handleConfirmarClienteActual = () => {
-    setClienteConfirmado(presupuesto.cliente || null);
-    setClienteConfirmadoId(presupuesto.clienteId || null);
-    setClienteConfirmadoExplicitamente(true); // Marcar como confirmado explícitamente
+  // Manejar cambio de opción de cliente
+  const handleOpcionClienteChange = (opcion) => {
+    setOpcionCliente(opcion);
+    setError(""); // Limpiar errores anteriores
+    if (opcion === "confirmar") {
+      // Confirmar cliente actual automáticamente
+      if (presupuesto?.cliente || presupuesto?.clienteId) {
+        setClienteConfirmado(presupuesto.cliente || null);
+        setClienteConfirmadoId(presupuesto.clienteId || null);
+        setClienteConfirmadoExplicitamente(true);
+        setShowFormularioCliente(false);
+      } else {
+        setError("El presupuesto no tiene un cliente asociado. Por favor seleccione 'Cambiar / Cargar cliente'.");
+        setClienteConfirmadoExplicitamente(false);
+      }
+    } else {
+      // Abrir formulario para cambiar/cargar cliente
+      setShowFormularioCliente(true);
+      // No confirmar aún, esperar a que el usuario guarde el cliente
+      setClienteConfirmadoExplicitamente(false);
+    }
   };
 
   // Validar paso 1
   const validarPaso1 = () => {
-    // Validar que hay un cliente (confirmado explícitamente o del presupuesto)
-    const clienteValido = clienteConfirmadoExplicitamente 
-      ? (clienteConfirmado || clienteConfirmadoId)
-      : (presupuesto?.cliente || presupuesto?.clienteId);
-    
-    if (!clienteValido) {
+    // Validar que el cliente fue confirmado explícitamente
+    if (!clienteConfirmadoExplicitamente || (!clienteConfirmado && !clienteConfirmadoId)) {
       setError("Por favor confirme o seleccione un cliente");
       return false;
     }
@@ -162,11 +185,6 @@ const WizardConversion = ({
     }
     if (!datos.fechaInicio) {
       setError("Por favor complete la fecha de inicio");
-      return false;
-    }
-    // fechaFin es opcional ahora
-    if (datos.fechaFin && datos.fechaFin < datos.fechaInicio) {
-      setError("La fecha de fin debe ser posterior a la fecha de inicio");
       return false;
     }
     return true;
@@ -352,7 +370,7 @@ const WizardConversion = ({
         ubicacion,
         fechas: {
           inicio: datos.fechaInicio,
-          fin: datos.fechaFin || datos.fechaInicio, // Si no hay fechaFin, usar fechaInicio
+          fin: null, // Fecha fin no se establece en el wizard, solo en edición
         },
         gastoObraManual: 0,
         materialesSubtotal: 0,
@@ -492,26 +510,53 @@ const WizardConversion = ({
                   )}
                 </div>
 
-                {/* Botones de acción */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleConfirmarClienteActual}
-                    className="flex-1"
-                    disabled={convirtiendo}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Confirmar cliente actual
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => setShowFormularioCliente(true)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={convirtiendo}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Cambiar / Cargar cliente
-                  </Button>
+                {/* Switches de opción de cliente */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Opción de Cliente <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="opcionCliente"
+                        value="confirmar"
+                        checked={opcionCliente === "confirmar"}
+                        onChange={(e) => handleOpcionClienteChange(e.target.value)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        disabled={convirtiendo}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="font-medium text-gray-900">Confirmar cliente actual</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Usar el cliente del presupuesto: {presupuesto.cliente?.nombre || "Sin nombre"}
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <input
+                        type="radio"
+                        name="opcionCliente"
+                        value="cambiar"
+                        checked={opcionCliente === "cambiar"}
+                        onChange={(e) => handleOpcionClienteChange(e.target.value)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        disabled={convirtiendo}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Edit className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium text-gray-900">Cambiar / Cargar cliente</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Seleccionar o crear un nuevo cliente
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Indicador de cliente confirmado - Solo mostrar si fue confirmado explícitamente */}
@@ -606,7 +651,7 @@ const WizardConversion = ({
             <div className="flex justify-end pt-4">
               <Button 
                 onClick={handleSiguiente} 
-                disabled={convirtiendo || (!clienteConfirmadoExplicitamente && !presupuesto?.cliente && !presupuesto?.clienteId)}
+                disabled={convirtiendo || !clienteConfirmadoExplicitamente}
               >
                 Siguiente
                 <ChevronRight className="w-4 h-4 ml-2" />
@@ -754,39 +799,23 @@ const WizardConversion = ({
               )}
             </div>
 
-            {/* Fechas */}
+            {/* Fecha de Inicio */}
             <div className="space-y-4">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Fechas de Ejecución
+                Fecha de Inicio <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Fecha de Inicio <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="date"
-                    value={datos.fechaInicio}
-                    onChange={(e) =>
-                      setDatos({ ...datos, fechaInicio: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
-                    Fecha de Fin (opcional)
-                  </label>
-                  <Input
-                    type="date"
-                    value={datos.fechaFin}
-                    onChange={(e) =>
-                      setDatos({ ...datos, fechaFin: e.target.value })
-                    }
-                    min={datos.fechaInicio}
-                  />
-                </div>
-              </div>
+              <Input
+                type="date"
+                value={datos.fechaInicio}
+                onChange={(e) =>
+                  setDatos({ ...datos, fechaInicio: e.target.value })
+                }
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500">
+                La fecha de fin se puede configurar después en la edición de la obra.
+              </p>
             </div>
 
             {/* Descripción General (opcional) */}

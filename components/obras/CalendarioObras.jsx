@@ -113,12 +113,13 @@ const CalendarioObras = ({
     return d.toISOString().split("T")[0];
   }, []);
 
-  // Verificar si una fecha está en el rango de una obra
+  // Verificar si una fecha coincide con la fecha de inicio de una obra
+  // Solo mostrar obras en su fecha de inicio, no en cascada
   const obraEnFecha = useCallback((obra, dateKey) => {
     if (!obra.fechas) return false;
     const fechaInicio = obra.fechas.inicio || "";
-    const fechaFin = obra.fechas.fin || "";
-    return dateKey >= fechaInicio && dateKey <= fechaFin;
+    // Solo mostrar la obra en su fecha de inicio exacta
+    return dateKey === fechaInicio;
   }, []);
 
   // Obtener obras para una fecha específica
