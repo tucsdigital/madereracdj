@@ -20,8 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Icon } from "@iconify/react";
-import { Printer, Edit, Plus, Trash2, Search, Filter } from "lucide-react";
+import { Printer, Edit, User, MapPin, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { useObra } from "@/hooks/useObra";
 import {
   formatearNumeroArgentino,
@@ -35,14 +34,10 @@ import ObraHeader from "@/components/obras/ObraHeader";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
-import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
-import CatalogoObras from "@/components/obras/CatalogoObras";
-import TablaProductosObras from "@/components/obras/TablaProductosObras";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
-import { User, Edit, MapPin, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
@@ -54,10 +49,6 @@ const ObraDetallePage = () => {
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   const [showCamposSecundarios, setShowCamposSecundarios] = useState(false);
 
-  // Variables de paginación para el catálogo
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [productosPorPagina] = useState(12);
-
   const {
     obra,
     loading,
@@ -68,56 +59,21 @@ const ObraDetallePage = () => {
     movimientos,
     estadoObra,
     fechasEdit,
-    ubicacionEdit,
-    clienteId,
-    cliente,
-    clientes,
-    usarDireccionCliente,
     productosCatalogo,
     productosPorCategoria,
     categorias,
-    categoriaId,
-    busquedaProducto,
-    busquedaDebounced,
     itemsCatalogo,
-    isPendingCat,
-    productosObraCatalogo,
-    productosObraPorCategoria,
-    categoriasObra,
-    categoriaObraId,
-    busquedaProductoObra,
-    busquedaDebouncedObra,
-    itemsPresupuesto,
-    isPendingObra,
     gastoObraManual,
-    presupuestosDisponibles,
-    presupuestoSeleccionadoId,
     modoCosto,
-    descripcionGeneral,
     setEditando,
     setDocLinks,
     setMovimientos,
     setEstadoObra,
     setFechasEdit,
-    setUbicacionEdit,
     setClienteId,
     setCliente,
-    setUsarDireccionCliente,
-    setCategoriaId,
-    setBusquedaProducto,
     setItemsCatalogo,
-    setCategoriaObraId,
-    setBusquedaProductoObra,
-    setItemsPresupuesto,
-    setGastoObraManual,
-    setPresupuestoSeleccionadoId,
-    setModoCosto,
-    setDescripcionGeneral,
     guardarEdicion,
-    handleDesvincularPresupuesto,
-    handleVincularPresupuesto,
-    handleCrearPresupuestoDesdeAqui,
-    cambiarBloquePresupuesto,
   } = useObra(id);
 
   const handlePrint = () => {
@@ -134,6 +90,11 @@ const ObraDetallePage = () => {
 
   // Handler para cuando se guarda un cliente desde el formulario
   const handleClienteGuardado = async (clienteId, clienteData) => {
+    if (!obra?.id) {
+      console.error("No se puede actualizar: obra no disponible");
+      return;
+    }
+    
     try {
       // Actualizar la obra en Firestore
       await updateDoc(doc(db, "obras", obra.id), {
