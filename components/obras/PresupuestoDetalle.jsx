@@ -540,25 +540,6 @@ const PresupuestoDetalle = ({
               const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
               const descuentoCombinado = productosObraDescuento + materialesDescuento;
               
-              // Mantener materiales existentes
-              const materialesExistentes = Array.isArray(obraData.materialesCatalogo) ? obraData.materialesCatalogo : [];
-              const materialesSubtotal = materialesExistentes.reduce((acc, p) => {
-                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                return acc + base;
-              }, 0);
-              
-              const materialesDescuento = materialesExistentes.reduce((acc, p) => {
-                const esMadera = String(p.categoria || '').toLowerCase() === 'maderas';
-                const isMachDeck = esMadera && (p.subcategoria === 'machimbre' || p.subcategoria === 'deck');
-                const base = isMachDeck ? (Number(p.precio) || 0) : (Number(p.precio) || 0) * (Number(p.cantidad) || 0);
-                return acc + Math.round(base * (Number(p.descuento) || 0) / 100);
-              }, 0);
-              
-              const subtotalCombinado = productosObraSubtotal + materialesSubtotal;
-              const descuentoCombinado = productosObraDescuento + materialesDescuento;
-              
               await updateDoc(doc(db, "obras", obraDoc.id), {
                 productos: productosObraSanitizados,
                 // Total de productos del presupuesto
