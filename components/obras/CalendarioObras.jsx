@@ -473,22 +473,6 @@ const CalendarioObras = ({
                       </Button>
                     )}
                   </div>
-
-                  {/* Botón para ver todos los items del día */}
-                  {(dayObras.length > MAX_OBRAS_VISIBLES || dayNotas.length > MAX_NOTAS_VISIBLES || (dayObras.length + dayNotas.length > 0)) && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full mt-2 text-[10px] h-6 px-1 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        abrirModalDia(dateKey, day);
-                      }}
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      Ver todos ({dayObras.length + dayNotas.length})
-                    </Button>
-                  )}
                 </div>
               );
             })}
@@ -866,39 +850,21 @@ const CalendarioObras = ({
                       )}
                     </div>
 
-                    {/* Botones de acción del día */}
-                    <div className="mt-2 space-y-1">
-                      {/* Botón ver todos si hay items */}
-                      {(dayObras.length > MAX_OBRAS_VISIBLES || dayNotas.length > MAX_NOTAS_VISIBLES || (dayObras.length + dayNotas.length > 0)) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-[10px] h-7 px-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            abrirModalDia(dateKey, day);
-                          }}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          Ver todos ({dayObras.length + dayNotas.length})
-                        </Button>
-                      )}
-                      {/* Botón agregar nota (solo si es del mes actual) */}
-                      {dayObj.isCurrentMonth && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="w-full text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAgregarNota(dateKey);
-                          }}
-                        >
-                          <Icon icon="heroicons:plus" className="w-3 h-3 mr-1" />
-                          Agregar Nota
-                        </Button>
-                      )}
-                    </div>
+                    {/* Botón agregar nota (solo si es del mes actual) */}
+                    {dayObj.isCurrentMonth && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full mt-2 text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAgregarNota(dateKey);
+                        }}
+                      >
+                        <Icon icon="heroicons:plus" className="w-3 h-3 mr-1" />
+                        Agregar Nota
+                      </Button>
+                    )}
                   </div>
                 );
               })}

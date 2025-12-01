@@ -626,6 +626,13 @@ const ObrasPage = () => {
     },
   ], [lang, router, setPresupuestoParaConvertir, setShowWizardConversion]);
 
+  // Función para mostrar el diálogo de confirmación
+  const showDeleteConfirmation = (id, type, itemName) => {
+    setItemToDelete({ id, name: itemName });
+    setDeleteType(type);
+    setShowDeleteDialog(true);
+  };
+
   // Columnas para obras
   const obrasColumns = useMemo(() => [
     {
@@ -920,13 +927,6 @@ const ObrasPage = () => {
       enableSorting: false,
     },
   ], [notas, imprimiendoObraId, lang, router, setObraSeleccionada, setShowObraPanel, showDeleteConfirmation]);
-
-  // Función para mostrar el diálogo de confirmación
-  const showDeleteConfirmation = (id, type, itemName) => {
-    setItemToDelete({ id, name: itemName });
-    setDeleteType(type);
-    setShowDeleteDialog(true);
-  };
 
   // Función para confirmar la eliminación
   const confirmDelete = async () => {
