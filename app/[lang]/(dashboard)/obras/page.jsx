@@ -29,6 +29,9 @@ import {
   ChevronUp,
   Printer,
   Eye,
+  Pencil,
+  ArrowRightCircle,
+  Edit,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
@@ -576,9 +579,9 @@ const ObrasPage = () => {
         return (
           <div className="flex items-center gap-2">
             <Button
-              size="sm"
+              size="icon"
               variant="default"
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
               title="Convertir a Obra"
               onClick={(e) => {
                 e.stopPropagation();
@@ -586,26 +589,24 @@ const ObrasPage = () => {
                 setShowWizardConversion(true);
               }}
             >
-              <Icon icon="heroicons:arrow-right-circle" className="w-4 h-4 mr-1" />
-              Convertir
+              <ArrowRightCircle className="w-4 h-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 px-3 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              className="h-8 w-8 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
               title="Editar"
               onClick={(e) => {
                 e.stopPropagation();
                 router.push(`/${lang}/obras/presupuesto/${row.original.id}`);
               }}
             >
-              <Icon icon="heroicons:pencil" className="w-4 h-4 mr-1" />
-              Editar
+              <Pencil className="w-4 h-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              className="h-8 w-8 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
               title="Eliminar"
               onClick={(e) => {
                 e.stopPropagation();
@@ -616,15 +617,14 @@ const ObrasPage = () => {
                 );
               }}
             >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Eliminar
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         );
       },
       enableSorting: false,
     },
-  ], [lang, router]);
+  ], [lang, router, setPresupuestoParaConvertir, setShowWizardConversion]);
 
   // Columnas para obras
   const obrasColumns = useMemo(() => [
@@ -878,9 +878,9 @@ const ObrasPage = () => {
         return (
           <div className="flex items-center gap-2">
             <Button
-              size="sm"
+              size="icon"
               variant="default"
-              className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
               title="Ver panel"
               onClick={(e) => {
                 e.stopPropagation();
@@ -888,46 +888,38 @@ const ObrasPage = () => {
                 setShowObraPanel(true);
               }}
             >
-              <Eye className="w-4 h-4 mr-1" />
-              Ver panel
+              <Eye className="w-4 h-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 px-3 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
-              title="Imprimir / Exportar PDF"
+              className="h-8 w-8 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              title="Editar"
               onClick={(e) => {
                 e.stopPropagation();
-                handleImprimirObra(obra);
+                router.push(`/${lang}/obras/${obra.id}`);
               }}
-              disabled={estaImprimiendo}
             >
-              {estaImprimiendo ? (
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-              ) : (
-                <Printer className="w-4 h-4 mr-1" />
-              )}
-              Imprimir
+              <Pencil className="w-4 h-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="outline"
-              className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              className="h-8 w-8 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
               title="Eliminar obra"
               onClick={(e) => {
                 e.stopPropagation();
                 showDeleteConfirmation(obra.id, "obra", obra.numeroPedido || "obra");
               }}
             >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Eliminar
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         );
       },
       enableSorting: false,
     },
-  ], [notas, imprimiendoObraId]);
+  ], [notas, imprimiendoObraId, lang, router, setObraSeleccionada, setShowObraPanel, showDeleteConfirmation]);
 
   // Función para mostrar el diálogo de confirmación
   const showDeleteConfirmation = (id, type, itemName) => {

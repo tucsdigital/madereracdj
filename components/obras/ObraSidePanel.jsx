@@ -370,7 +370,24 @@ const ObraSidePanel = ({
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent 
+                      position="popper"
+                      sideOffset={5}
+                      className="z-[1001]"
+                      onCloseAutoFocus={(e) => {
+                        // Prevenir que el foco vuelva al trigger cuando se cierra dentro del Sheet
+                        // Esto evita el conflicto de aria-hidden
+                        e.preventDefault();
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Permitir que el Select se cierre al hacer clic fuera
+                        // pero prevenir el conflicto de accesibilidad
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="dialog"]')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
                       {estadosObra.map((estado) => (
                         <SelectItem key={estado.value} value={estado.value}>
                           {estado.label}
