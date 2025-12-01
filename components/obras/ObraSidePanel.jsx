@@ -382,8 +382,8 @@ const ObraSidePanel = ({
                       onPointerDownOutside={(e) => {
                         // Permitir que el Select se cierre al hacer clic fuera
                         // pero prevenir el conflicto de accesibilidad
-                        const target = e.target as HTMLElement;
-                        if (target.closest('[role="dialog"]')) {
+                        const target = e.target;
+                        if (target && target.closest && target.closest('[role="dialog"]')) {
                           e.preventDefault();
                         }
                       }}

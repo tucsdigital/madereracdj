@@ -1,8 +1,15 @@
 "use client";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Icon } from "@iconify/react";
 import {
   Calendar,
@@ -10,8 +17,10 @@ import {
   ChevronRight,
   Building,
   FileText,
+  X,
+  Eye,
 } from "lucide-react";
-import { formatearNumeroArgentino } from "@/lib/obra-utils";
+import { formatearNumeroArgentino, formatearFecha } from "@/lib/obra-utils";
 
 // Colores según estado de obra
 const coloresEstado = {
@@ -61,6 +70,13 @@ const CalendarioObras = ({
   onEditNota,
   onDeleteNota,
 }) => {
+  // Estado para el modal del día
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [showModalDia, setShowModalDia] = useState(false);
+
+  // Límites de items a mostrar
+  const MAX_OBRAS_VISIBLES = 3;
+  const MAX_NOTAS_VISIBLES = 2;
   // Obtener días de la semana
   const getWeekDays = useCallback(() => {
     if (!fechaInicio) return [];
@@ -194,6 +210,25 @@ const CalendarioObras = ({
 
   const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+  // Función para abrir el modal del día
+  const abrirModalDia = useCallback((dateKey, day) => {
+    const obrasDelDia = getObrasForDate(dateKey);
+    const notasDelDia = getNotasForDate(dateKey);
+    setDiaSeleccionado({
+      dateKey,
+      day,
+      obras: obrasDelDia,
+      notas: notasDelDia,
+    });
+    setShowModalDia(true);
+  }, [getObrasForDate, getNotasForDate]);
+
+  // Función para cerrar el modal
+  const cerrarModalDia = useCallback(() => {
+    setShowModalDia(false);
+    setDiaSeleccionado(null);
+  }, []);
+
   return (
     <Card className="rounded-2xl shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
       <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
@@ -252,15 +287,21 @@ const CalendarioObras = ({
               const dayObras = getObrasForDate(dateKey);
               const dayNotas = getNotasForDate(dateKey);
 
-              return (
-                <div
-                  key={index}
-                  className={`border rounded-lg p-2 min-h-[200px] transition-all ${
-                    isToday
-                      ? "bg-blue-50 border-blue-300 shadow-md"
-                      : "bg-white border-gray-200 hover:border-gray-300"
-                  }`}
-                >
+                return (
+                  <div
+                    key={index}
+                    className={`border rounded-lg p-2 min-h-[200px] transition-all cursor-pointer ${
+                      isToday
+                        ? "bg-blue-50 border-blue-300 shadow-md"
+                        : "bg-white border-gray-200 hover:border-gray-300"
+                    }`}
+                    onClick={() => {
+                      if (dayObras.length > 0 || dayNotas.length > 0) {
+                        abrirModalDia(dateKey, day);
+                      }
+                    }}
+                    title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
+                  >
                   {/* Header del día */}
                   <div className="text-center mb-2 pb-2 border-b border-gray-200">
                     <div className="text-[10px] font-semibold text-gray-600 uppercase">
@@ -280,7 +321,10 @@ const CalendarioObras = ({
                     size="sm"
                     variant="ghost"
                     className="w-full mb-2 text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
-                    onClick={() => onAgregarNota(dateKey)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAgregarNota(dateKey);
+                    }}
                   >
                     <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
                     Nota
@@ -288,7 +332,7 @@ const CalendarioObras = ({
 
                   {/* Obras del día */}
                   <div className="space-y-1.5 mb-2">
-                    {dayObras.map((obra) => {
+                    {dayObras.slice(0, MAX_OBRAS_VISIBLES).map((obra) => {
                       const estado = obra.estado || "pendiente_inicio";
                       const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
                       const total = obra.presupuestoTotal || obra.total || 0;
@@ -296,7 +340,10 @@ const CalendarioObras = ({
                       return (
                         <div
                           key={obra.id}
-                          onClick={() => onObraClick(obra)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onObraClick(obra);
+                          }}
                           className={`${colores.bg} ${colores.border} border rounded px-2 py-1.5 text-xs cursor-pointer hover:shadow-md transition-all group`}
                         >
                           <div className="flex items-start justify-between gap-1">
@@ -321,6 +368,20 @@ const CalendarioObras = ({
                         </div>
                       );
                     })}
+                    {dayObras.length > MAX_OBRAS_VISIBLES && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-[10px] h-6 px-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirModalDia(dateKey, day);
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver {dayObras.length - MAX_OBRAS_VISIBLES} más
+                      </Button>
+                    )}
                   </div>
 
                   {/* Notas del día */}
@@ -337,7 +398,7 @@ const CalendarioObras = ({
                         Sin notas
                       </div>
                     ) : (
-                      dayNotas.map((nota) => (
+                      dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
                         <div
                           key={nota.id}
                           className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-[10px] relative group hover:shadow-sm transition-all ${
@@ -345,7 +406,10 @@ const CalendarioObras = ({
                               ? "opacity-50 pointer-events-none"
                               : "cursor-pointer"
                           }`}
-                          onClick={() => onNotaClick(nota)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNotaClick(nota);
+                          }}
                         >
                           {deletingNota === nota.id && (
                             <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded">
@@ -394,12 +458,200 @@ const CalendarioObras = ({
                         </div>
                       ))
                     )}
+                    {dayNotas.length > MAX_NOTAS_VISIBLES && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirModalDia(dateKey, day);
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver {dayNotas.length - MAX_NOTAS_VISIBLES} más
+                      </Button>
+                    )}
                   </div>
+
+                  {/* Botón para ver todos los items del día */}
+                  {(dayObras.length > MAX_OBRAS_VISIBLES || dayNotas.length > MAX_NOTAS_VISIBLES || (dayObras.length + dayNotas.length > 0)) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-2 text-[10px] h-6 px-1 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        abrirModalDia(dateKey, day);
+                      }}
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      Ver todos ({dayObras.length + dayNotas.length})
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* Modal del día seleccionado */}
+        <Dialog open={showModalDia} onOpenChange={setShowModalDia}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                {diaSeleccionado && formatearFecha(diaSeleccionado.dateKey)}
+              </DialogTitle>
+              <DialogDescription>
+                {diaSeleccionado && (
+                  <>
+                    {diaSeleccionado.obras.length} obra{diaSeleccionado.obras.length !== 1 ? "s" : ""} y{" "}
+                    {diaSeleccionado.notas.length} nota{diaSeleccionado.notas.length !== 1 ? "s" : ""}
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {diaSeleccionado && (
+              <div className="space-y-6 mt-4">
+                {/* Obras del día */}
+                {diaSeleccionado.obras.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Building className="w-5 h-5 text-blue-600" />
+                      Obras ({diaSeleccionado.obras.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {diaSeleccionado.obras.map((obra) => {
+                        const estado = obra.estado || "pendiente_inicio";
+                        const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
+                        const total = obra.presupuestoTotal || obra.total || 0;
+
+                        return (
+                          <div
+                            key={obra.id}
+                            onClick={() => {
+                              onObraClick(obra);
+                              cerrarModalDia();
+                            }}
+                            className={`${colores.bg} ${colores.border} border-2 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Building className="w-5 h-5 text-gray-600" />
+                                  <span className="font-bold text-lg text-gray-900">
+                                    {obra.numeroPedido || "Sin número"}
+                                  </span>
+                                  <Badge className={colores.badge}>
+                                    {estado === "en_ejecucion" ? "En Ejecución" : 
+                                     estado === "completada" ? "Completada" : 
+                                     estado === "pendiente_inicio" ? "Pendiente" : 
+                                     estado === "pausada" ? "Pausada" : "Cancelada"}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-gray-600 mb-1">
+                                  <strong>Cliente:</strong> {obra.cliente?.nombre || "Sin cliente"}
+                                </div>
+                                {obra.cliente?.telefono && (
+                                  <div className="text-sm text-gray-600 mb-1">
+                                    <strong>Teléfono:</strong> {obra.cliente.telefono}
+                                  </div>
+                                )}
+                                <div className="text-lg font-bold text-gray-900 mt-2">
+                                  Total: {formatearNumeroArgentino(total)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notas del día */}
+                {diaSeleccionado.notas.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-yellow-600" />
+                      Notas ({diaSeleccionado.notas.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {diaSeleccionado.notas.map((nota) => (
+                        <div
+                          key={nota.id}
+                          className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 hover:shadow-lg transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <FileText className="w-5 h-5 text-yellow-700" />
+                                <span className="font-bold text-lg text-gray-900">
+                                  {nota.nombreObra}
+                                </span>
+                              </div>
+                              {nota.productos && (
+                                <div className="text-sm text-gray-700 mb-2">
+                                  <strong>Productos:</strong> {nota.productos}
+                                </div>
+                              )}
+                              {nota.fecha && (
+                                <div className="text-xs text-gray-500">
+                                  Fecha: {formatearFecha(nota.fecha)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditNota(nota);
+                                  cerrarModalDia();
+                                }}
+                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                              >
+                                <Icon icon="heroicons:pencil" className="w-4 h-4 mr-1" />
+                                Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteNota(nota);
+                                }}
+                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                disabled={deletingNota === nota.id}
+                              >
+                                {deletingNota === nota.id ? (
+                                  <Icon icon="heroicons:arrow-path" className="w-4 h-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Icon icon="heroicons:trash" className="w-4 h-4 mr-1" />
+                                )}
+                                Eliminar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Mensaje si no hay items */}
+                {diaSeleccionado.obras.length === 0 && diaSeleccionado.notas.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No hay obras ni notas para este día
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Vista Mes - Calendario Completo Mensual */}
         {vista === "mes" && (
@@ -436,7 +688,13 @@ const CalendarioObras = ({
                         : isToday
                         ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-400 shadow-lg ring-2 ring-blue-200"
                         : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-md"
-                    }`}
+                    } ${totalItems > 0 ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (totalItems > 0 && dayObj.isCurrentMonth) {
+                        abrirModalDia(dateKey, day);
+                      }
+                    }}
+                    title={totalItems > 0 && dayObj.isCurrentMonth ? "Clic para ver todos los eventos del día" : ""}
                   >
                     {/* Header del día */}
                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
@@ -466,7 +724,7 @@ const CalendarioObras = ({
                       {/* Obras del día */}
                       {dayObras.length > 0 && (
                         <div className="space-y-1">
-                          {dayObras.slice(0, 3).map((obra) => {
+                          {dayObras.slice(0, MAX_OBRAS_VISIBLES).map((obra) => {
                             const estado = obra.estado || "pendiente_inicio";
                             const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
                             const total = obra.presupuestoTotal || obra.total || 0;
@@ -474,7 +732,10 @@ const CalendarioObras = ({
                             return (
                               <div
                                 key={obra.id}
-                                onClick={() => onObraClick(obra)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onObraClick(obra);
+                                }}
                                 className={`${colores.bg} ${colores.border} border rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group`}
                               >
                                 <div className="flex items-start justify-between gap-1">
@@ -500,10 +761,19 @@ const CalendarioObras = ({
                               </div>
                             );
                           })}
-                          {dayObras.length > 3 && (
-                            <div className="text-[9px] text-gray-500 text-center py-1 font-medium">
-                              +{dayObras.length - 3} obra{dayObras.length - 3 > 1 ? "s" : ""} más
-                            </div>
+                          {dayObras.length > MAX_OBRAS_VISIBLES && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full text-[9px] h-6 px-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirModalDia(dateKey, day);
+                              }}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Ver {dayObras.length - MAX_OBRAS_VISIBLES} más
+                            </Button>
                           )}
                         </div>
                       )}
@@ -511,7 +781,7 @@ const CalendarioObras = ({
                       {/* Notas del día */}
                       {dayNotas.length > 0 && (
                         <div className="space-y-1">
-                          {dayNotas.slice(0, 2).map((nota) => (
+                          {dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
                             <div
                               key={nota.id}
                               className={`bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group relative ${
@@ -519,7 +789,10 @@ const CalendarioObras = ({
                                   ? "opacity-50 pointer-events-none"
                                   : ""
                               }`}
-                              onClick={() => onNotaClick(nota)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNotaClick(nota);
+                              }}
                             >
                               {deletingNota === nota.id && (
                                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-lg">
@@ -568,10 +841,19 @@ const CalendarioObras = ({
                               </div>
                             </div>
                           ))}
-                          {dayNotas.length > 2 && (
-                            <div className="text-[9px] text-gray-500 text-center py-1 font-medium">
-                              +{dayNotas.length - 2} nota{dayNotas.length - 2 > 1 ? "s" : ""} más
-                            </div>
+                          {dayNotas.length > MAX_NOTAS_VISIBLES && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full text-[9px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirModalDia(dateKey, day);
+                              }}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Ver {dayNotas.length - MAX_NOTAS_VISIBLES} más
+                            </Button>
                           )}
                         </div>
                       )}
@@ -584,18 +866,39 @@ const CalendarioObras = ({
                       )}
                     </div>
 
-                    {/* Botón agregar nota (solo si es del mes actual) */}
-                    {dayObj.isCurrentMonth && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="w-full mt-2 text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
-                        onClick={() => onAgregarNota(dateKey)}
-                      >
-                        <Icon icon="heroicons:plus" className="w-3 h-3 mr-1" />
-                        Agregar Nota
-                      </Button>
-                    )}
+                    {/* Botones de acción del día */}
+                    <div className="mt-2 space-y-1">
+                      {/* Botón ver todos si hay items */}
+                      {(dayObras.length > MAX_OBRAS_VISIBLES || dayNotas.length > MAX_NOTAS_VISIBLES || (dayObras.length + dayNotas.length > 0)) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-[10px] h-7 px-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirModalDia(dateKey, day);
+                          }}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          Ver todos ({dayObras.length + dayNotas.length})
+                        </Button>
+                      )}
+                      {/* Botón agregar nota (solo si es del mes actual) */}
+                      {dayObj.isCurrentMonth && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full text-[10px] h-7 px-2 bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-300 font-medium shadow-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAgregarNota(dateKey);
+                          }}
+                        >
+                          <Icon icon="heroicons:plus" className="w-3 h-3 mr-1" />
+                          Agregar Nota
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
