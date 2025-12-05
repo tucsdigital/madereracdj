@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,14 @@ import { collection, getDocs } from "firebase/firestore";
 import FormularioClienteObras from "./FormularioClienteObras";
 
 /**
+ * Caché global de clientes para evitar recargas innecesarias
+ * Se mantiene en memoria durante la sesión
+ */
+let clientesCache = null;
+let clientesCacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+/**
  * Selector de Cliente para Obras y Presupuestos
  * 
  * Permite:
@@ -22,6 +30,8 @@ import FormularioClienteObras from "./FormularioClienteObras";
  * 2. Crear un cliente nuevo
  * 
  * No importa si los clientes tienen el formato nuevo o viejo, todos se muestran.
+ * 
+ * OPTIMIZADO: Usa caché para evitar recargas innecesarias de Firestore
  */
 const SelectorClienteObras = ({
   open,
@@ -29,21 +39,36 @@ const SelectorClienteObras = ({
   clienteActual = null, // Cliente actualmente asignado (si existe)
   onClienteSeleccionado, // Callback: (clienteId, clienteData) => void
 }) => {
-  const [clientes, setClientes] = useState([]);
+  const [clientes, setClientes] = useState(clientesCache || []);
   const [loading, setLoading] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [showFormularioNuevo, setShowFormularioNuevo] = useState(false);
 
-  // Cargar clientes cuando se abre el diálogo
+  // Cargar clientes cuando se abre el diálogo (solo si no hay caché válido)
   useEffect(() => {
     if (open) {
-      cargarClientes();
       setBusqueda("");
       setShowFormularioNuevo(false);
+      
+      // Verificar si el caché es válido
+      const ahora = Date.now();
+      const cacheValido = 
+        clientesCache && 
+        clientesCacheTimestamp && 
+        (ahora - clientesCacheTimestamp) < CACHE_DURATION;
+      
+      if (cacheValido) {
+        // Usar caché existente
+        setClientes(clientesCache);
+        setLoading(false);
+      } else {
+        // Cargar desde Firestore
+        cargarClientes();
+      }
     }
   }, [open]);
 
-  const cargarClientes = async () => {
+  const cargarClientes = useCallback(async () => {
     try {
       setLoading(true);
       const clientesSnap = await getDocs(collection(db, "clientes"));
@@ -51,32 +76,40 @@ const SelectorClienteObras = ({
         id: doc.id,
         ...doc.data(),
       }));
+      
+      // Actualizar caché
+      clientesCache = clientesData;
+      clientesCacheTimestamp = Date.now();
+      
       setClientes(clientesData);
     } catch (error) {
       console.error("Error al cargar clientes:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Filtrar clientes según búsqueda
-  const clientesFiltrados = clientes.filter((c) => {
-    if (!busqueda.trim()) return true;
-    const q = busqueda.toLowerCase();
-    const nombre = (c.nombre || "").toLowerCase();
-    const telefono = (c.telefono || "").toLowerCase();
-    const cuit = (c.cuit || "").toLowerCase();
-    const direccion = (c.direccion || "").toLowerCase();
-    const localidad = (c.localidad || "").toLowerCase();
+  // Filtrar clientes según búsqueda - MEMOIZADO para evitar recálculos innecesarios
+  const clientesFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return clientes;
     
-    return (
-      nombre.includes(q) ||
-      telefono.includes(q) ||
-      cuit.includes(q) ||
-      direccion.includes(q) ||
-      localidad.includes(q)
-    );
-  });
+    const q = busqueda.toLowerCase();
+    return clientes.filter((c) => {
+      const nombre = (c.nombre || "").toLowerCase();
+      const telefono = (c.telefono || "").toLowerCase();
+      const cuit = (c.cuit || "").toLowerCase();
+      const direccion = (c.direccion || "").toLowerCase();
+      const localidad = (c.localidad || "").toLowerCase();
+      
+      return (
+        nombre.includes(q) ||
+        telefono.includes(q) ||
+        cuit.includes(q) ||
+        direccion.includes(q) ||
+        localidad.includes(q)
+      );
+    });
+  }, [clientes, busqueda]);
 
   const handleSeleccionarCliente = (cliente) => {
     if (onClienteSeleccionado) {
@@ -85,14 +118,21 @@ const SelectorClienteObras = ({
     onClose();
   };
 
-  const handleNuevoClienteGuardado = (clienteId, clienteData) => {
+  const handleNuevoClienteGuardado = useCallback((clienteId, clienteData) => {
+    // Actualizar caché con el nuevo cliente
+    if (clientesCache) {
+      clientesCache = [...clientesCache, { id: clienteId, ...clienteData }];
+      clientesCacheTimestamp = Date.now();
+      setClientes(clientesCache);
+    }
+    
     // Cuando se guarda un nuevo cliente, seleccionarlo automáticamente
     if (onClienteSeleccionado) {
       onClienteSeleccionado(clienteId, clienteData);
     }
     setShowFormularioNuevo(false);
     onClose();
-  };
+  }, [onClienteSeleccionado, onClose]);
 
   // Si se está mostrando el formulario de nuevo cliente, mostrar ese componente
   if (showFormularioNuevo) {
@@ -257,3 +297,9 @@ const SelectorClienteObras = ({
 };
 
 export default SelectorClienteObras;
+
+// Exportar función para invalidar caché desde otros componentes
+export const invalidarCacheClientes = () => {
+  clientesCache = null;
+  clientesCacheTimestamp = null;
+};

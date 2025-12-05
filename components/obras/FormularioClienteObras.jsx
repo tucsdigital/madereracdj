@@ -46,11 +46,21 @@ const FormularioClienteObras = ({
   });
 
   // Cargar datos del cliente existente si se está editando
+  // OPTIMIZADO: Usa datos existentes primero, solo consulta Firestore si faltan datos críticos
   useEffect(() => {
     if (open) {
       if (clienteExistente) {
-        // Si es un objeto con id, cargar desde Firestore
-        if (clienteExistente.id) {
+        // Si el objeto ya tiene los datos necesarios, usarlos directamente (más rápido)
+        if (clienteExistente.nombre || clienteExistente.telefono) {
+          setFormData({
+            nombre: clienteExistente.nombre || "",
+            telefono: clienteExistente.telefono || "",
+            lugar: clienteExistente.direccion || clienteExistente.localidad || "",
+            lote: clienteExistente.lote || "",
+            barrio: clienteExistente.barrio || "",
+          });
+        } else if (clienteExistente.id) {
+          // Solo consultar Firestore si NO tenemos los datos básicos
           const cargarCliente = async () => {
             try {
               const clienteDoc = await getDoc(doc(db, "clientes", clienteExistente.id));
@@ -70,15 +80,6 @@ const FormularioClienteObras = ({
             }
           };
           cargarCliente();
-        } else {
-          // Si es un objeto directo (datos embedidos)
-          setFormData({
-            nombre: clienteExistente.nombre || "",
-            telefono: clienteExistente.telefono || "",
-            lugar: clienteExistente.direccion || clienteExistente.localidad || "",
-            lote: clienteExistente.lote || "",
-            barrio: clienteExistente.barrio || "",
-          });
         }
       } else {
         // Nuevo cliente - resetear formulario

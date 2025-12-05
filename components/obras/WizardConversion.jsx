@@ -34,7 +34,7 @@ import {
   Plus,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, doc, getDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import SelectorClienteObras from "./SelectorClienteObras";
 
@@ -209,29 +209,39 @@ const WizardConversion = ({
   };
 
   // Generar número de obra
+  // OPTIMIZADO: Usa query limitada en lugar de cargar todas las obras
   const getNextObraNumber = async () => {
     try {
-      const obrasSnap = await getDocs(collection(db, "obras"));
-      const obras = obrasSnap.docs
-        .map((d) => d.data())
-        .filter((o) => o.tipo === "obra" && o.numeroPedido?.startsWith("OBRA-"));
+      // Consulta optimizada: solo obtener obras con número OBRA- ordenadas descendente, limitado a 1
+      const obrasQuery = query(
+        collection(db, "obras"),
+        where("tipo", "==", "obra"),
+        where("numeroPedido", ">=", "OBRA-"),
+        where("numeroPedido", "<", "OBRA-Z"), // Rango para números OBRA-
+        orderBy("numeroPedido", "desc"),
+        limit(1)
+      );
       
-      if (obras.length === 0) {
+      const obrasSnap = await getDocs(obrasQuery);
+      
+      if (obrasSnap.empty) {
         return "OBRA-00001";
       }
 
-      const numeros = obras
-        .map((o) => {
-          const match = o.numeroPedido?.match(/OBRA-(\d+)/);
-          return match ? parseInt(match[1], 10) : 0;
-        })
-        .filter((n) => !isNaN(n));
-
-      const maxNum = Math.max(...numeros, 0);
-      const nextNum = maxNum + 1;
-      return `OBRA-${String(nextNum).padStart(5, "0")}`;
+      // Solo procesar el primer resultado (el más reciente)
+      const ultimaObra = obrasSnap.docs[0].data();
+      const match = ultimaObra.numeroPedido?.match(/OBRA-(\d+)/);
+      
+      if (match) {
+        const ultimoNum = parseInt(match[1], 10);
+        const nextNum = ultimoNum + 1;
+        return `OBRA-${String(nextNum).padStart(5, "0")}`;
+      }
+      
+      return "OBRA-00001";
     } catch (error) {
       console.error("Error al generar número de obra:", error);
+      // Fallback: usar timestamp si falla la consulta optimizada
       return `OBRA-${String(Date.now()).slice(-5)}`;
     }
   };
