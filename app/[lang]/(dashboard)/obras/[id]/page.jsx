@@ -37,7 +37,7 @@ import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
-import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
@@ -88,8 +88,8 @@ const ObraDetallePage = () => {
     }
   };
 
-  // Handler para cuando se guarda un cliente desde el formulario
-  const handleClienteGuardado = async (clienteId, clienteData) => {
+  // Handler para cuando se selecciona un cliente (existente o nuevo)
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
     if (!obra?.id) {
       console.error("No se puede actualizar: obra no disponible");
       return;
@@ -848,15 +848,15 @@ const ObraDetallePage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Formulario de Cliente */}
-      <FormularioClienteObras
+      {/* Selector de Cliente */}
+      <SelectorClienteObras
         open={showFormularioCliente}
         onClose={() => setShowFormularioCliente(false)}
-        clienteExistente={obra?.cliente ? {
+        clienteActual={obra?.cliente ? {
           id: obra.clienteId,
           ...(obra.cliente || {})
         } : null}
-        onClienteGuardado={handleClienteGuardado}
+        onClienteSeleccionado={handleClienteSeleccionado}
       />
     </div>
   );

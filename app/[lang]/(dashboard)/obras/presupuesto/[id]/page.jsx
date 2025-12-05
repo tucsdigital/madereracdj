@@ -56,7 +56,7 @@ import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 import { useAuth } from "@/provider/auth.provider";
 import { useRouter } from "next/navigation";
 import WizardConversion from "@/components/obras/WizardConversion";
-import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 
 const PresupuestoPage = () => {
   const params = useParams();
@@ -134,8 +134,8 @@ const PresupuestoPage = () => {
     setShouldSave(false);
   };
 
-  // Handler para cuando se guarda un cliente desde el formulario
-  const handleClienteGuardado = async (clienteId, clienteData) => {
+  // Handler para cuando se selecciona un cliente (existente o nuevo)
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
     try {
       // Actualizar el presupuesto en Firestore
       await updateDoc(doc(db, "obras", obra.id), {
@@ -434,15 +434,15 @@ const PresupuestoPage = () => {
         }}
       />
 
-      {/* Formulario de Cliente */}
-      <FormularioClienteObras
+      {/* Selector de Cliente */}
+      <SelectorClienteObras
         open={showFormularioCliente}
         onClose={() => setShowFormularioCliente(false)}
-        clienteExistente={obra?.cliente ? {
+        clienteActual={obra?.cliente ? {
           id: obra.clienteId,
           ...(obra.cliente || {})
         } : null}
-        onClienteGuardado={handleClienteGuardado}
+        onClienteSeleccionado={handleClienteSeleccionado}
       />
     </div>
   );
