@@ -36,7 +36,7 @@ import {
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import FormularioClienteObras from "./FormularioClienteObras";
+import SelectorClienteObras from "./SelectorClienteObras";
 
 const WizardConversion = ({
   presupuesto,
@@ -112,8 +112,8 @@ const WizardConversion = ({
     }
   }, [presupuesto, open]);
 
-  // Handler para cuando se guarda un cliente desde el formulario
-  const handleClienteGuardado = async (clienteId, clienteData) => {
+  // Handler para cuando se selecciona un cliente (existente o nuevo)
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
     setClienteConfirmadoId(clienteId);
     setClienteConfirmado(clienteData);
     setClienteConfirmadoExplicitamente(true); // Marcar como confirmado explícitamente
@@ -870,15 +870,15 @@ const WizardConversion = ({
           </div>
         )}
 
-        {/* Formulario de Cliente */}
-        <FormularioClienteObras
+        {/* Selector de Cliente */}
+        <SelectorClienteObras
           open={showFormularioCliente}
           onClose={() => setShowFormularioCliente(false)}
-          clienteExistente={clienteConfirmado || presupuesto.cliente ? {
+          clienteActual={clienteConfirmado || presupuesto.cliente ? {
             id: clienteConfirmadoId || presupuesto.clienteId,
             ...(clienteConfirmado || presupuesto.cliente || {})
           } : null}
-          onClienteGuardado={handleClienteGuardado}
+          onClienteSeleccionado={handleClienteSeleccionado}
         />
       </SheetContent>
     </Sheet>
