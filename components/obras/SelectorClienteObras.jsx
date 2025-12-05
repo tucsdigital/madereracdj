@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, User, Plus, Search } from "lucide-react";
+import { Loader2, User, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import FormularioClienteObras from "./FormularioClienteObras";
@@ -43,12 +43,17 @@ const SelectorClienteObras = ({
   const [loading, setLoading] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [showFormularioNuevo, setShowFormularioNuevo] = useState(false);
+  
+  // Paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const CLIENTES_POR_PAGINA = 20; // Renderizar solo 20 clientes a la vez
 
   // Cargar clientes cuando se abre el diálogo (solo si no hay caché válido)
   useEffect(() => {
     if (open) {
       setBusqueda("");
       setShowFormularioNuevo(false);
+      setPaginaActual(1); // Resetear a primera página
       
       // Verificar si el caché es válido
       const ahora = Date.now();
@@ -67,6 +72,11 @@ const SelectorClienteObras = ({
       }
     }
   }, [open]);
+  
+  // Resetear página cuando cambia la búsqueda
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda]);
 
   const cargarClientes = useCallback(async () => {
     try {
@@ -110,6 +120,14 @@ const SelectorClienteObras = ({
       );
     });
   }, [clientes, busqueda]);
+  
+  // Paginación: calcular clientes a mostrar
+  const totalPaginas = Math.ceil(clientesFiltrados.length / CLIENTES_POR_PAGINA);
+  const inicio = (paginaActual - 1) * CLIENTES_POR_PAGINA;
+  const fin = inicio + CLIENTES_POR_PAGINA;
+  const clientesPaginados = useMemo(() => {
+    return clientesFiltrados.slice(inicio, fin);
+  }, [clientesFiltrados, inicio, fin]);
 
   const handleSeleccionarCliente = (cliente) => {
     if (onClienteSeleccionado) {
@@ -217,74 +235,111 @@ const SelectorClienteObras = ({
                 </Button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {clientesFiltrados.map((cliente) => {
-                  const esClienteActual =
-                    clienteActual?.id === cliente.id ||
-                    (clienteActual &&
-                      clienteActual.nombre === cliente.nombre &&
-                      clienteActual.telefono === cliente.telefono);
+              <>
+                <div className="divide-y divide-gray-100">
+                  {/* OPTIMIZADO: Solo renderizar los clientes de la página actual */}
+                  {clientesPaginados.map((cliente) => {
+                    const esClienteActual =
+                      clienteActual?.id === cliente.id ||
+                      (clienteActual &&
+                        clienteActual.nombre === cliente.nombre &&
+                        clienteActual.telefono === cliente.telefono);
 
-                  return (
-                    <div
-                      key={cliente.id}
-                      onClick={() => handleSeleccionarCliente(cliente)}
-                      className={`p-4 cursor-pointer transition-colors hover:bg-blue-50 ${
-                        esClienteActual ? "bg-blue-50 border-l-4 border-blue-600" : ""
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-gray-900">
-                              {cliente.nombre || "Sin nombre"}
-                            </p>
-                            {esClienteActual && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                Actual
-                              </span>
-                            )}
+                    return (
+                      <div
+                        key={cliente.id}
+                        onClick={() => handleSeleccionarCliente(cliente)}
+                        className={`p-4 cursor-pointer transition-colors hover:bg-blue-50 ${
+                          esClienteActual ? "bg-blue-50 border-l-4 border-blue-600" : ""
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-gray-900">
+                                {cliente.nombre || "Sin nombre"}
+                              </p>
+                              {esClienteActual && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                  Actual
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                              {cliente.telefono && (
+                                <span className="flex items-center gap-1">
+                                  📞 {cliente.telefono}
+                                </span>
+                              )}
+                              {cliente.cuit && (
+                                <span className="flex items-center gap-1">
+                                  🆔 {cliente.cuit}
+                                </span>
+                              )}
+                              {(cliente.direccion || cliente.localidad) && (
+                                <span className="flex items-center gap-1">
+                                  📍 {cliente.direccion || cliente.localidad}
+                                  {cliente.localidad && cliente.direccion && `, ${cliente.localidad}`}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                            {cliente.telefono && (
-                              <span className="flex items-center gap-1">
-                                📞 {cliente.telefono}
-                              </span>
-                            )}
-                            {cliente.cuit && (
-                              <span className="flex items-center gap-1">
-                                🆔 {cliente.cuit}
-                              </span>
-                            )}
-                            {(cliente.direccion || cliente.localidad) && (
-                              <span className="flex items-center gap-1">
-                                📍 {cliente.direccion || cliente.localidad}
-                                {cliente.localidad && cliente.direccion && `, ${cliente.localidad}`}
-                              </span>
-                            )}
-                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSeleccionarCliente(cliente);
+                            }}
+                            className="ml-2"
+                          >
+                            Seleccionar
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSeleccionarCliente(cliente);
-                          }}
-                          className="ml-2"
-                        >
-                          Seleccionar
-                        </Button>
                       </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Paginación - Solo mostrar si hay más de una página */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t mt-4">
+                    <div className="text-sm text-gray-600">
+                      Mostrando {inicio + 1}-{Math.min(fin, clientesFiltrados.length)} de {clientesFiltrados.length} clientes
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaActual === 1}
+                        className="flex items-center gap-1"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Anterior
+                      </Button>
+                      <div className="text-sm text-gray-600 px-2">
+                        Página {paginaActual} de {totalPaginas}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaActual === totalPaginas}
+                        className="flex items-center gap-1"
+                      >
+                        Siguiente
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Información adicional */}
-          {clientesFiltrados.length > 0 && (
+          {/* Información adicional - Solo mostrar si no hay paginación */}
+          {clientesFiltrados.length > 0 && totalPaginas === 1 && (
             <div className="text-xs text-gray-500 text-center pt-2 border-t">
               {clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? "s" : ""}{" "}
               {busqueda.trim() ? "encontrado(s)" : "disponible(s)"}
