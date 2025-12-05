@@ -52,29 +52,36 @@ const ProveedoresPage = () => {
     fetchProveedores();
   }, []);
 
+  // OPTIMIZADO: Cargar datos solo cuando se abre el modal y no están cargados
   const handleVerDetalle = async (proveedor) => {
     setSelectedProveedor(proveedor);
     setEditProveedor({ ...proveedor });
     setEditMsg("");
     setDetalleOpen(true);
     
-    // Consultar cuentas por pagar (gastos de tipo proveedor)
-    const gastosSnap = await getDocs(
-      query(collection(db, "gastos"), 
-      where("tipo", "==", "proveedor"),
-      where("proveedorId", "==", proveedor.id))
-    );
-    const gastosData = gastosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setCuentasPorPagar(gastosData);
+    // Solo consultar si es un proveedor diferente al actualmente seleccionado
+    if (selectedProveedor?.id !== proveedor.id) {
+      // Consultar cuentas por pagar (gastos de tipo proveedor)
+      const gastosSnap = await getDocs(
+        query(collection(db, "gastos"), 
+        where("tipo", "==", "proveedor"),
+        where("proveedorId", "==", proveedor.id))
+      );
+      const gastosData = gastosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCuentasPorPagar(gastosData);
+    }
   };
 
   const handleGuardar = async () => {
     if (!form.nombre || !form.telefono) return;
     setSaving(true);
-    await addDoc(collection(db, "proveedores"), {
+    // OPTIMIZADO: Agregar directamente a la lista local en lugar de recargar todo
+    const docRef = await addDoc(collection(db, "proveedores"), {
       ...form,
       fechaCreacion: new Date().toISOString()
     });
+    const nuevoProveedor = { id: docRef.id, ...form, fechaCreacion: new Date().toISOString() };
+    setProveedores(prev => [nuevoProveedor, ...prev]);
     setForm({ 
       nombre: "", 
       cuit: "", 
@@ -88,9 +95,6 @@ const ProveedoresPage = () => {
       observaciones: ""
     });
     setOpen(false);
-    // Refrescar lista
-    const snap = await getDocs(collection(db, "proveedores"));
-    setProveedores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     setSaving(false);
   };
 
@@ -104,9 +108,8 @@ const ProveedoresPage = () => {
     try {
       await updateDoc(doc(db, "proveedores", editProveedor.id), editProveedor);
       setEditMsg("Datos actualizados correctamente.");
-      // Refrescar lista
-      const snap = await getDocs(collection(db, "proveedores"));
-      setProveedores(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      // OPTIMIZADO: Actualizar solo el proveedor editado en la lista local
+      setProveedores(prev => prev.map(p => p.id === editProveedor.id ? { ...editProveedor } : p));
       setSelectedProveedor({ ...editProveedor });
       setTimeout(() => setEditMsg(""), 1200);
     } catch (e) {

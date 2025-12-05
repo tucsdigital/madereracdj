@@ -68,28 +68,35 @@ const ClientesPage = () => {
     fetchClientes();
   }, []);
 
+  // OPTIMIZADO: Cargar datos solo cuando se abre el modal y no están cargados
   const handleVerDetalle = async (cliente) => {
     setSelectedCliente(cliente);
     setEditCliente({ ...cliente, estado: "Activo" });
     setEditMsg("");
     setDetalleOpen(true);
-    // Consultar ventas asociadas por clienteId
-    const ventasSnap = await getDocs(query(collection(db, "ventas"), where("clienteId", "==", cliente.id)));
-    setVentas(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    // Consultar presupuestos asociados por cliente.cuit
-    const presupuestosSnap = await getDocs(query(collection(db, "presupuestos"), where("cliente.cuit", "==", cliente.cuit)));
-    setPresupuestos(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    
+    // Cargar datos en paralelo solo si no están ya cargados para este cliente
+    if (selectedCliente?.id !== cliente.id) {
+      // Consultar ventas y presupuestos en paralelo
+      const [ventasSnap, presupuestosSnap] = await Promise.all([
+        getDocs(query(collection(db, "ventas"), where("clienteId", "==", cliente.id))),
+        getDocs(query(collection(db, "presupuestos"), where("cliente.cuit", "==", cliente.cuit)))
+      ]);
+      
+      setVentas(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setPresupuestos(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }
   };
 
   const handleGuardar = async () => {
     if (!form.nombre || !form.direccion || !form.telefono) return;
     setSaving(true);
-    await addDoc(collection(db, "clientes"), form);
+    // OPTIMIZADO: Agregar directamente a la lista local en lugar de recargar todo
+    const docRef = await addDoc(collection(db, "clientes"), form);
+    const nuevoCliente = { id: docRef.id, ...form };
+    setClientes(prev => [nuevoCliente, ...prev]);
     setForm({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "", esClienteViejo: false });
     setOpen(false);
-    // Refrescar lista
-    const snap = await getDocs(collection(db, "clientes"));
-    setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     setSaving(false);
   };
 
@@ -103,9 +110,8 @@ const ClientesPage = () => {
     try {
       await updateDoc(doc(db, "clientes", editCliente.id), editCliente);
       setEditMsg("Datos actualizados correctamente.");
-      // Refrescar lista
-      const snap = await getDocs(collection(db, "clientes"));
-      setClientes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      // OPTIMIZADO: Actualizar solo el cliente editado en la lista local
+      setClientes(prev => prev.map(c => c.id === editCliente.id ? { ...editCliente } : c));
       setSelectedCliente({ ...editCliente });
       setTimeout(() => setEditMsg(""), 1200);
     } catch (e) {
