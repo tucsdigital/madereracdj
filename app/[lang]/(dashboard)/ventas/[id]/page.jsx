@@ -1614,16 +1614,18 @@ const VentaDetalle = () => {
               <h3 className="font-semibold text-lg">
                 Información del Cliente
               </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSelectorCliente(true)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="w-4 h-4" />
-                <span className="hidden sm:inline">Cambiar Cliente</span>
-                <span className="sm:hidden">Cambiar</span>
-              </Button>
+              {editando && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSelectorCliente(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cambiar Cliente</span>
+                  <span className="sm:hidden">Cambiar</span>
+                </Button>
+              )}
             </div>
             <div className="space-y-2 text-sm">
               <div>
@@ -3288,18 +3290,18 @@ const VentaDetalle = () => {
           </div>
         </div>
       )}
-    </div>
 
-    {/* Selector de Cliente */}
-    <SelectorClienteObras
-      open={showSelectorCliente}
-      onClose={() => setShowSelectorCliente(false)}
-      clienteActual={venta?.cliente ? {
-        id: venta.clienteId,
-        ...(venta.cliente || {})
-      } : null}
-      onClienteSeleccionado={handleClienteSeleccionado}
-    />
+      {/* Selector de Cliente */}
+      <SelectorClienteObras
+        open={showSelectorCliente}
+        onClose={() => setShowSelectorCliente(false)}
+        clienteActual={venta?.cliente ? {
+          id: venta.clienteId,
+          ...(venta.cliente || {})
+        } : null}
+        onClienteSeleccionado={handleClienteSeleccionado}
+      />
+    </div>
   );
 };
 

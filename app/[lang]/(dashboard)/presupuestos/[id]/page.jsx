@@ -1426,16 +1426,18 @@ const PresupuestoDetalle = () => {
               <h3 className="font-semibold text-lg">
                 Información del Cliente
               </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSelectorCliente(true)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="w-4 h-4" />
-                <span className="hidden sm:inline">Cambiar Cliente</span>
-                <span className="sm:hidden">Cambiar</span>
-              </Button>
+              {(editando || convirtiendoVenta) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSelectorCliente(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cambiar Cliente</span>
+                  <span className="sm:hidden">Cambiar</span>
+                </Button>
+              )}
             </div>
             {/* Información del cliente: solo datos relevantes, sin repeticiones */}
             <div className="space-y-2 text-sm">
