@@ -34,6 +34,8 @@ import { Icon } from "@iconify/react";
 import FormularioVentaPresupuesto, {
   SelectorProductosPresupuesto,
 } from "../../ventas/page";
+import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
+import { User, Edit } from "lucide-react";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -137,6 +139,9 @@ const PresupuestoDetalle = () => {
     descripcion: "",
     esClienteViejo: false, // Nuevo campo para diferenciar
   });
+
+  // Estado para cambio de cliente
+  const [showSelectorCliente, setShowSelectorCliente] = useState(false);
 
   useEffect(() => {
     const fetchPresupuesto = async () => {
@@ -1079,6 +1084,36 @@ const PresupuestoDetalle = () => {
     // Redirigir a la venta creada o mostrar mensaje de éxito
   };
 
+  // Handler para cambiar cliente en presupuesto
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
+    try {
+      if (!presupuesto?.id) {
+        console.error("No se puede actualizar: presupuesto no disponible");
+        return;
+      }
+
+      // Actualizar el presupuesto en Firestore
+      await updateDoc(doc(db, "presupuestos", presupuesto.id), {
+        clienteId: clienteId,
+        cliente: clienteData,
+        fechaModificacion: new Date().toISOString(),
+      });
+
+      // Actualizar el estado local
+      const presupuestoActualizado = {
+        ...presupuesto,
+        clienteId: clienteId,
+        cliente: clienteData,
+      };
+      setPresupuesto(presupuestoActualizado);
+
+      setShowSelectorCliente(false);
+    } catch (error) {
+      console.error("Error al actualizar cliente:", error);
+      alert("Error al actualizar el cliente");
+    }
+  };
+
   // Modal para nuevo cliente en presupuestos
   const handleNuevoClienteSubmit = async (e) => {
     e.preventDefault();
@@ -1387,9 +1422,21 @@ const PresupuestoDetalle = () => {
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <div className="bg-card rounded-lg shadow-sm p-6 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-3 ">
-              Información del Cliente
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-lg">
+                Información del Cliente
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSelectorCliente(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                <span className="hidden sm:inline">Cambiar Cliente</span>
+                <span className="sm:hidden">Cambiar</span>
+              </Button>
+            </div>
             {/* Información del cliente: solo datos relevantes, sin repeticiones */}
             <div className="space-y-2 text-sm">
               <div>
@@ -3677,6 +3724,17 @@ const PresupuestoDetalle = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Selector de Cliente */}
+        <SelectorClienteObras
+          open={showSelectorCliente}
+          onClose={() => setShowSelectorCliente(false)}
+          clienteActual={presupuesto?.cliente ? {
+            id: presupuesto.clienteId,
+            ...(presupuesto.cliente || {})
+          } : null}
+          onClienteSeleccionado={handleClienteSeleccionado}
+        />
       </div>
     </div>
   );

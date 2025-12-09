@@ -19,6 +19,8 @@ import { Icon } from "@iconify/react";
 import { SelectorProductosPresupuesto } from "../page";
 import FormularioVentaPresupuesto from "../page";
 import { useAuth } from "@/provider/auth.provider";
+import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
+import { Edit } from "lucide-react";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -99,6 +101,9 @@ const VentaDetalle = () => {
   const [borrandoPago, setBorrandoPago] = useState(false);
   const [pagoABorrar, setPagoABorrar] = useState(null);
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
+
+  // Estado para cambio de cliente
+  const [showSelectorCliente, setShowSelectorCliente] = useState(false);
 
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
@@ -1605,9 +1610,21 @@ const VentaDetalle = () => {
         {/* 1. Información del cliente y venta */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
-            <h3 className="font-semibold text-lg mb-2 ">
-              Información del Cliente
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-lg">
+                Información del Cliente
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSelectorCliente(true)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                <span className="hidden sm:inline">Cambiar Cliente</span>
+                <span className="sm:hidden">Cambiar</span>
+              </Button>
+            </div>
             <div className="space-y-2 text-sm">
               <div>
                 <span className="font-medium">Nombre:</span>{" "}
@@ -3272,6 +3289,17 @@ const VentaDetalle = () => {
         </div>
       )}
     </div>
+
+    {/* Selector de Cliente */}
+    <SelectorClienteObras
+      open={showSelectorCliente}
+      onClose={() => setShowSelectorCliente(false)}
+      clienteActual={venta?.cliente ? {
+        id: venta.clienteId,
+        ...(venta.cliente || {})
+      } : null}
+      onClienteSeleccionado={handleClienteSeleccionado}
+    />
   );
 };
 
