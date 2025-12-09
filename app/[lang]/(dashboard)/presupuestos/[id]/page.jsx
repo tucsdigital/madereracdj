@@ -34,8 +34,8 @@ import { Icon } from "@iconify/react";
 import FormularioVentaPresupuesto, {
   SelectorProductosPresupuesto,
 } from "../../ventas/page";
-import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
-import { User, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
+import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -125,19 +125,21 @@ const PresupuestoDetalle = () => {
     setCategoriasState(Object.keys(agrupados));
   }, [productos]);
 
-  // Estado para nuevo cliente en presupuestos
+  // Estado para nuevo cliente en presupuestos (legacy - mantener por compatibilidad)
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: "",
     direccion: "",
     telefono: "",
     cuit: "",
+    email: "",
+    localidad: "",
     partido: "",
     barrio: "",
     area: "",
     lote: "",
     descripcion: "",
-    esClienteViejo: false, // Nuevo campo para diferenciar
+    esClienteViejo: false,
   });
 
   // Estado para cambio de cliente
@@ -1084,7 +1086,7 @@ const PresupuestoDetalle = () => {
     // Redirigir a la venta creada o mostrar mensaje de éxito
   };
 
-  // Handler para cambiar cliente en presupuesto
+  // Handler para cambiar cliente (usado por el componente ModalCambiarCliente)
   const handleClienteSeleccionado = async (clienteId, clienteData) => {
     try {
       if (!presupuesto?.id) {
@@ -1107,14 +1109,18 @@ const PresupuestoDetalle = () => {
       };
       setPresupuesto(presupuestoActualizado);
 
-      setShowSelectorCliente(false);
+      // Actualizar lista de clientes si es un cliente nuevo
+      const clienteExiste = clientes.find((c) => c.id === clienteId);
+      if (!clienteExiste) {
+        setClientes((prev) => [...prev, { id: clienteId, ...clienteData }]);
+      }
     } catch (error) {
       console.error("Error al actualizar cliente:", error);
       alert("Error al actualizar el cliente");
     }
   };
 
-  // Modal para nuevo cliente en presupuestos
+  // Modal para nuevo cliente en presupuestos (legacy - mantener por compatibilidad)
   const handleNuevoClienteSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -1129,6 +1135,8 @@ const PresupuestoDetalle = () => {
         direccion: "",
         telefono: "",
         cuit: "",
+        email: "",
+        localidad: "",
         partido: "",
         barrio: "",
         area: "",
@@ -3727,14 +3735,15 @@ const PresupuestoDetalle = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Selector de Cliente */}
-        <SelectorClienteObras
+        {/* Modal para cambiar cliente - Componente reutilizable */}
+        <ModalCambiarCliente
           open={showSelectorCliente}
           onClose={() => setShowSelectorCliente(false)}
           clienteActual={presupuesto?.cliente ? {
             id: presupuesto.clienteId,
             ...(presupuesto.cliente || {})
           } : null}
+          clientes={clientes}
           onClienteSeleccionado={handleClienteSeleccionado}
         />
       </div>

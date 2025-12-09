@@ -19,8 +19,8 @@ import { Icon } from "@iconify/react";
 import { SelectorProductosPresupuesto } from "../page";
 import FormularioVentaPresupuesto from "../page";
 import { useAuth } from "@/provider/auth.provider";
-import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 import { Edit } from "lucide-react";
+import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -265,6 +265,41 @@ const VentaDetalle = () => {
       );
     }
   }, [editando, venta]);
+
+  // Handler para cambiar cliente (usado por el componente ModalCambiarCliente)
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
+    try {
+      if (!venta?.id) {
+        console.error("No se puede actualizar: venta no disponible");
+        return;
+      }
+
+      // Actualizar la venta en Firestore
+      await updateDoc(doc(db, "ventas", venta.id), {
+        clienteId: clienteId,
+        cliente: clienteData,
+        actualizadoEn: new Date().toISOString(),
+      });
+
+      // Actualizar el estado local
+      const ventaActualizada = {
+        ...venta,
+        clienteId: clienteId,
+        cliente: clienteData,
+      };
+      setVenta(ventaActualizada);
+
+      // Actualizar lista de clientes si es un cliente nuevo
+      const clienteExiste = clientes.find((c) => c.id === clienteId);
+      if (!clienteExiste) {
+        setClientes((prev) => [...prev, { id: clienteId, ...clienteData }]);
+      }
+    } catch (error) {
+      console.error("Error al actualizar cliente:", error);
+      alert("Error al actualizar el cliente");
+    }
+  };
+
   // Función para actualizar precios
   const handleActualizarPrecios = async () => {
     setLoadingPrecios(true);
@@ -3291,14 +3326,15 @@ const VentaDetalle = () => {
         </div>
       )}
 
-      {/* Selector de Cliente */}
-      <SelectorClienteObras
+      {/* Modal para cambiar cliente - Componente reutilizable */}
+      <ModalCambiarCliente
         open={showSelectorCliente}
         onClose={() => setShowSelectorCliente(false)}
         clienteActual={venta?.cliente ? {
           id: venta.clienteId,
           ...(venta.cliente || {})
         } : null}
+        clientes={clientes}
         onClienteSeleccionado={handleClienteSeleccionado}
       />
     </div>
