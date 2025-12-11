@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnaps
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 
 function StockComprasPage() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState("inventario");
   const [openMov, setOpenMov] = useState(false);
   const [filtro, setFiltro] = useState("");
@@ -75,6 +77,21 @@ function StockComprasPage() {
     });
     return () => unsub();
   }, []);
+
+  // Filtrar automáticamente cuando hay parámetro producto en la URL
+  useEffect(() => {
+    const productoId = searchParams.get("producto");
+    if (productoId && productos.length > 0) {
+      // Buscar el producto por ID
+      const producto = productos.find(p => p.id === productoId);
+      if (producto) {
+        // Filtrar por nombre del producto
+        setFiltro(producto.nombre || "");
+        // Cambiar a la pestaña de inventario si no está ahí
+        setTab("inventario");
+      }
+    }
+  }, [searchParams, productos]);
 
   // Cargar movimientos en tiempo real
   useEffect(() => {
