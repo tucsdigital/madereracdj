@@ -85,11 +85,31 @@ function StockComprasPage() {
       // Buscar el producto por ID
       const producto = productos.find(p => p.id === productoId);
       if (producto) {
-        // Filtrar por nombre del producto
-        setFiltro(producto.nombre || "");
+        // Establecer el nombre del producto en el filtro para que se vea en el input
+        const nombreProducto = producto.nombre || "";
+        setFiltro(nombreProducto);
         // Cambiar a la pestaña de inventario si no está ahí
         setTab("inventario");
+        // Resetear página a la primera para asegurar que el producto sea visible
+        setPaginaActual(1);
+        // Limpiar otros filtros que puedan interferir
+        setCategoriaId("");
+        setFiltroTipoMadera("");
+        setFiltroSubCategoria("");
+        setFiltroEstado("");
+        
+        // Hacer scroll al input de búsqueda después de un pequeño delay para que se renderice
+        setTimeout(() => {
+          const inputElement = document.querySelector('input[placeholder="Buscar producto..."]');
+          if (inputElement) {
+            inputElement.focus();
+            inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 150);
       }
+    } else if (!productoId && filtro) {
+      // Si se elimina el parámetro producto de la URL, limpiar el filtro solo si fue establecido automáticamente
+      // Esto evita limpiar el filtro si el usuario está buscando manualmente
     }
   }, [searchParams, productos]);
 
@@ -205,7 +225,17 @@ function StockComprasPage() {
 
   // Inventario filtrado optimizado con useMemo
   const productosFiltrados = useMemo(() => {
+    // Obtener productoId de la URL para filtrado directo por ID
+    const productoIdFromUrl = searchParams.get("producto");
+    
     return productos.filter((p) => {
+      // Si hay un productoId en la URL, filtrar directamente por ID (prioridad máxima)
+      // Ignorar todos los demás filtros cuando hay productoId en URL
+      if (productoIdFromUrl) {
+        return p.id === productoIdFromUrl;
+      }
+      
+      // Si no hay productoId en URL, usar el filtro de búsqueda normal
       // Normalizar el término de búsqueda
       const filtroNormalizado = normalizarTexto(filtro || "");
       
@@ -267,6 +297,12 @@ function StockComprasPage() {
 
       return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleEstado;
     }).sort((a, b) => {
+      // Si hay un productoId en la URL, poner ese producto primero
+      if (productoIdFromUrl) {
+        if (a.id === productoIdFromUrl) return -1;
+        if (b.id === productoIdFromUrl) return 1;
+      }
+      
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
       const stockB = Number(b.stock) || 0;
@@ -277,7 +313,7 @@ function StockComprasPage() {
       // Si ambos tienen stock o ambos no tienen stock, mantener orden original
       return 0;
     });
-  }, [productos, categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado, normalizarTexto]);
+  }, [productos, categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado, normalizarTexto, searchParams]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
