@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useStockNotifications } from "@/hooks/useStockNotifications";
 import shortImage from "@/public/images/all-img/short-image-2.png";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 const NotificationMessage = () => {
@@ -25,25 +25,34 @@ const NotificationMessage = () => {
   const [showAll, setShowAll] = useState(false);
   const router = useRouter();
 
-  // Mostrar máximo 6 productos inicialmente
+  // Mostrar máximo 6 productos inicialmente - memoizado
   const PRODUCTOS_VISIBLES = 6;
-  const productosVisibles = showAll 
-    ? notifications 
-    : notifications.slice(0, PRODUCTOS_VISIBLES);
-  const hayMasProductos = notifications.length > PRODUCTOS_VISIBLES;
+  const productosVisibles = useMemo(
+    () => (showAll ? notifications : notifications.slice(0, PRODUCTOS_VISIBLES)),
+    [notifications, showAll]
+  );
+  const hayMasProductos = useMemo(
+    () => notifications.length > PRODUCTOS_VISIBLES,
+    [notifications.length]
+  );
 
-  // Formatear fecha relativa
-  const formatearFecha = () => {
-    return new Date().toLocaleTimeString("es-AR", { 
-      hour: "2-digit", 
-      minute: "2-digit" 
-    });
-  };
+  // Formatear fecha relativa - memoizado
+  const horaActual = useMemo(
+    () =>
+      new Date().toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    [] // Solo se calcula una vez al montar
+  );
 
-  // Navegar a la página de stock
-  const handleVerProducto = (productoId) => {
-    router.push(`/stock-compras?producto=${productoId}`);
-  };
+  // Navegar a la página de stock - memoizado con useCallback
+  const handleVerProducto = useCallback(
+    (productoId) => {
+      router.push(`/stock-compras?producto=${productoId}`);
+    },
+    [router]
+  );
 
   return (
     <DropdownMenu>
@@ -53,12 +62,19 @@ const NotificationMessage = () => {
           size="icon"
           className="relative md:h-9 md:w-9 h-8 w-8 hover:bg-default-100 dark:hover:bg-default-200 
           data-[state=open]:bg-default-100  dark:data-[state=open]:bg-default-200 
-           hover:text-primary text-default-500 dark:text-default-800  rounded-full  "
+           hover:text-primary text-default-500 dark:text-default-800  rounded-full transition-all duration-200"
         >
-          <Bell className="h-5 w-5 " />
+          <Bell className="h-5 w-5 transition-transform duration-200 data-[state=open]:scale-110" />
           {notifications.length > 0 && (
-            <Badge className=" w-4 h-4 p-0 text-xs  font-medium  items-center justify-center absolute left-[calc(100%-18px)] bottom-[calc(100%-16px)] ring-2 ring-primary-foreground bg-red-500 text-white">
-              {notifications.length > 99 ? "99+" : notifications.length}
+            <Badge className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold leading-none bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-background shadow-lg rounded-full animate-pulse hover:animate-none transition-all duration-200 hover:scale-110">
+              {notifications.length > 99 ? (
+                <span className="flex items-baseline gap-0.5">
+                  <span>99</span>
+                  <span className="text-[9px] leading-none">+</span>
+                </span>
+              ) : (
+                <span>{notifications.length}</span>
+              )}
             </Badge>
           )}
         </Button>
@@ -166,7 +182,7 @@ const NotificationMessage = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <div className="text-xs font-medium text-default-500 whitespace-nowrap">
-                      {formatearFecha()}
+                      {horaActual}
                     </div>
                     <div
                       className={cn("w-2 h-2 rounded-full", {
