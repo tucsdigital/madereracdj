@@ -33,17 +33,6 @@ let clientesCache = null;
 let clientesCacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
-/**
- * Selector de Cliente para Obras y Presupuestos
- * 
- * Permite:
- * 1. Buscar y seleccionar entre clientes existentes
- * 2. Crear un cliente nuevo (se selecciona automáticamente)
- * 
- * No importa si los clientes tienen el formato nuevo o viejo, todos se muestran.
- * 
- * OPTIMIZADO: Usa caché para evitar recargas innecesarias de Firestore
- */
 const SelectorClienteObras = ({
   open,
   onClose,
