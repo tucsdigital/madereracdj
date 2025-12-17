@@ -1344,6 +1344,7 @@ const ProductosPage = () => {
   const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
   const [filtroTienda, setFiltroTienda] = useState("");
   const [filtroStock, setFiltroStock] = useState(""); // "" = todos, "conStock" = con stock, "sinStock" = sin stock
+  const [filtroImagenes, setFiltroImagenes] = useState(""); // "" = todos, "conImagenes" = con imágenes, "sinImagenes" = sin imágenes
 
   const [reload, setReload] = useState(false);
   const [productos, setProductos] = useState([]);
@@ -1647,7 +1648,14 @@ const ProductosPage = () => {
         (filtroStock === "conStock" && stockProducto > 0) ||
         (filtroStock === "sinStock" && stockProducto <= 0);
 
-      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda && cumpleStock;
+      // Filtro por imágenes
+      const tieneImagenes = p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0;
+      const cumpleImagenes =
+        filtroImagenes === "" ||
+        (filtroImagenes === "conImagenes" && tieneImagenes) ||
+        (filtroImagenes === "sinImagenes" && !tieneImagenes);
+
+      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda && cumpleStock && cumpleImagenes;
     }).sort((a, b) => {
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
@@ -1659,7 +1667,7 @@ const ProductosPage = () => {
       // Si ambos tienen stock o ambos no tienen stock, mantener orden original
       return 0;
     });
-  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
 
   // Productos paginados optimizados
   const productosPaginados = useMemo(() => {
@@ -1688,7 +1696,7 @@ const ProductosPage = () => {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
+  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
 
   // Obtener tipos de madera únicos
   const tiposMaderaUnicos = [
@@ -3359,7 +3367,7 @@ const ProductosPage = () => {
   useEffect(() => {
     setSelectedProducts([]);
     setSelectAll(false);
-  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock]);
+  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
 
   // Efecto para cerrar dropdowns cuando se hace clic fuera
   useEffect(() => {
@@ -3986,11 +3994,82 @@ const ProductosPage = () => {
                 </button>
               </div>
             </div>
+
+            {/* Filtro de imágenes - siempre visible */}
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === ""
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroImagenes("")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Todos</span>
+                  <span className="sm:hidden">Todos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "" ? "bg-white/20" : "bg-purple-100 text-purple-700"
+                  }`}>
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === "conImagenes"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroImagenes("conImagenes")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Con imágenes</span>
+                  <span className="sm:hidden">Con imágenes</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "conImagenes"
+                      ? "bg-white/20"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}>
+                    {productos.filter(p => p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0).length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === "sinImagenes"
+                      ? "bg-amber-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setFiltroImagenes("sinImagenes")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="hidden sm:inline">Sin imágenes</span>
+                  <span className="sm:hidden">Sin imágenes</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "sinImagenes"
+                      ? "bg-white/20"
+                      : "bg-amber-100 text-amber-700"
+                  }`}>
+                    {productos.filter(p => !p.imagenes || !Array.isArray(p.imagenes) || p.imagenes.length === 0).length}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Indicador de productos filtrados y banner de ayuda drag & drop */}
           <div className="flex flex-col gap-3">
-            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda || filtroStock) && (
+            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda || filtroStock || filtroImagenes) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -4001,6 +4080,7 @@ const ProductosPage = () => {
                   setFiltroSubCategoria("");
                   setFiltroTienda("");
                   setFiltroStock("");
+                  setFiltroImagenes("");
                 }}
                 className="text-xs w-fit"
               >
