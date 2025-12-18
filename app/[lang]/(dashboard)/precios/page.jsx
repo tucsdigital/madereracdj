@@ -475,11 +475,34 @@ const PreciosPage = () => {
     // Normalizar la categoría
     const categoriaNormalizada = normalizarTexto(p.categoria);
 
+    // Búsqueda por precios (adaptada para maderas y ferretería)
+    // Maderas usan precioPorPie, Ferretería y otros usan valorVenta
+    const precioVenta = p.valorVenta ? redondearDecimal(p.valorVenta) : null;
+    const precioPorPie = p.precioPorPie ? redondearDecimal(p.precioPorPie) : null;
+    const costo = p.costo ? redondearDecimal(p.costo) : null;
+    
+    // Convertir precios a string para búsqueda (sin decimales para búsqueda más flexible)
+    const precioVentaStr = precioVenta ? precioVenta.toString() : "";
+    const precioPorPieStr = precioPorPie ? precioPorPie.toString() : "";
+    const costoStr = costo ? costo.toString() : "";
+    
+    // Normalizar el filtro: remover caracteres no numéricos excepto números
+    const filtroNumerico = filtroNormalizado.replace(/[^\d]/g, '');
+    
+    // Verificar si el filtro contiene números y buscar en precios
+    const esBusquedaNumerica = filtroNumerico.length > 0;
+    const cumpleBusquedaPrecios = esBusquedaNumerica && (
+      precioVentaStr.includes(filtroNumerico) ||
+      precioPorPieStr.includes(filtroNumerico) ||
+      costoStr.includes(filtroNumerico)
+    );
+
     // Filtro por búsqueda de texto (ahora más flexible)
     const cumpleBusqueda =
       filtroNormalizado === "" ||
       nombreNormalizado.includes(filtroNormalizado) ||
-      categoriaNormalizada.includes(filtroNormalizado);
+      categoriaNormalizada.includes(filtroNormalizado) ||
+      cumpleBusquedaPrecios;
 
     // Filtro por categoría principal
     const cumpleCategoria =
@@ -679,7 +702,7 @@ const PreciosPage = () => {
                   ))}
                 </select>
                 <Input
-                  placeholder="Buscar producto..."
+                  placeholder="Buscar por nombre, categoría o precio..."
                   value={filtro}
                   onChange={(e) => setFiltro(e.target.value)}
                   className="w-full md:w-64"
