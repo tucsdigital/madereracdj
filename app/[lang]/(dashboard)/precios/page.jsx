@@ -51,6 +51,7 @@ const PreciosPage = () => {
   const [porcentajeAumento, setPorcentajeAumento] = useState("");
   const [tipoMaderaSeleccionado, setTipoMaderaSeleccionado] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+  const [tipoOperacion, setTipoOperacion] = useState("aumentar"); // "aumentar" o "disminuir"
   
   // Nuevos estados para selección múltiple
   const [productosSeleccionados, setProductosSeleccionados] = useState(new Set());
@@ -298,6 +299,7 @@ const PreciosPage = () => {
     setPorcentajeAumento("");
     setTipoMaderaSeleccionado("");
     setProveedorSeleccionado("");
+    setTipoOperacion("aumentar");
     setMsg("");
     setModalOpen(true);
   };
@@ -376,11 +378,15 @@ const PreciosPage = () => {
       return;
     }
 
-    const porcentaje = validarPorcentaje(porcentajeAumento);
-    if (porcentaje === null) {
-      setMsg("Por favor ingresa un porcentaje válido entre -100 y 100.");
+    // Validar que el porcentaje sea positivo (0-100)
+    const porcentajePositivo = validarNumero(porcentajeAumento);
+    if (porcentajePositivo === null || porcentajePositivo < 0 || porcentajePositivo > 100) {
+      setMsg("Por favor ingresa un porcentaje válido entre 0 y 100.");
       return;
     }
+
+    // Aplicar signo según el tipo de operación
+    const porcentaje = tipoOperacion === "disminuir" ? -porcentajePositivo : porcentajePositivo;
 
     setSaving(true);
     setMsg("");
@@ -1387,15 +1393,53 @@ const PreciosPage = () => {
                 </div>
                 <div className="text-sm text-gray-600">
                   {modalTipo === "maderas"
-                    ? "Selecciona el tipo de madera y el porcentaje de aumento para actualizar todos los productos de ese tipo."
-                    : "Selecciona el proveedor y el porcentaje de aumento para actualizar todos los productos de ese proveedor."}
+                    ? "Elige la operación, el tipo de madera y el porcentaje para actualizar los precios."
+                    : "Elige la operación, el proveedor y el porcentaje para actualizar los precios."}
                 </div>
               </div>
 
+              {/* Paso 1: Selector de tipo de operación */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  1️⃣ ¿Qué operación deseas realizar?
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoOperacion("aumentar")}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all font-medium ${
+                      tipoOperacion === "aumentar"
+                        ? "bg-green-600 text-white border-green-600 shadow-md"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Aumentar Precios</span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoOperacion("disminuir")}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all font-medium ${
+                      tipoOperacion === "disminuir"
+                        ? "bg-red-600 text-white border-red-600 shadow-md"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Icon icon="mdi:trending-down" className="w-5 h-5" />
+                      <span>Disminuir Precios</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Paso 2: Selector de tipo de madera o proveedor */}
               {modalTipo === "maderas" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
-                    Tipo de Madera
+                    2️⃣ Selecciona el Tipo de Madera
                   </label>
                   <select
                     value={tipoMaderaSeleccionado}
@@ -1420,7 +1464,7 @@ const PreciosPage = () => {
               {modalTipo === "proveedor" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
-                    Proveedor
+                    2️⃣ Selecciona el Proveedor
                   </label>
                   <select
                     value={proveedorSeleccionado}
@@ -1442,53 +1486,90 @@ const PreciosPage = () => {
                 </div>
               )}
 
-              <Input
-                type="number"
-                min={-100}
-                max={100}
-                step={0.1}
-                placeholder="Porcentaje de aumento (ej: 15 para 15%)"
-                value={porcentajeAumento}
-                onChange={(e) => {
-                  const valor = e.target.value;
-                  // Solo permitir números, punto decimal, signo negativo y backspace
-                  if (valor === "" || /^-?\d*\.?\d{0,1}$/.test(valor)) {
-                    setPorcentajeAumento(valor);
-                  }
-                }}
-              />
-              <div className="text-xs text-gray-500">
-                💡 Para calcular el porcentaje correcto: 
-                <br />
-                • De 825 a 1000 = 21.21% (no 45.45%)
-                <br />
-                • Fórmula: ((valor objetivo - valor actual) / valor actual) × 100
+              {/* Paso 3: Ingreso de porcentaje */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  3️⃣ Ingresa el Porcentaje {tipoOperacion === "aumentar" ? "de Aumento" : "de Disminución"}
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  placeholder={`Porcentaje ${tipoOperacion === "aumentar" ? "de aumento" : "de disminución"} (ej: 15 para 15%)`}
+                  value={porcentajeAumento}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    // Solo permitir números positivos, punto decimal y backspace
+                    if (valor === "" || /^\d*\.?\d{0,1}$/.test(valor)) {
+                      const num = parseFloat(valor);
+                      if (valor === "" || (num >= 0 && num <= 100)) {
+                        setPorcentajeAumento(valor);
+                      }
+                    }
+                  }}
+                />
+                <div className="text-xs text-gray-500">
+                  💡 Ingresa un porcentaje entre 0 y 100.
+                  <br />
+                  {tipoOperacion === "aumentar" ? (
+                    <>
+                      • Ejemplo: 15% aumentará el precio en un 15%
+                      <br />
+                      • De 1000 a 1150 = 15% de aumento
+                    </>
+                  ) : (
+                    <>
+                      • Ejemplo: 15% disminuirá el precio en un 15%
+                      <br />
+                      • De 1000 a 850 = 15% de disminución
+                    </>
+                  )}
+                </div>
               </div>
 
               {porcentajeAumento &&
                 (tipoMaderaSeleccionado || proveedorSeleccionado) && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="font-medium text-blue-800 mb-2">
+                  <div className={`p-4 rounded-lg ${
+                    tipoOperacion === "aumentar" 
+                      ? "bg-green-50 border border-green-200" 
+                      : "bg-red-50 border border-red-200"
+                  }`}>
+                    <div className={`font-medium mb-2 ${
+                      tipoOperacion === "aumentar" 
+                        ? "text-green-800" 
+                        : "text-red-800"
+                    }`}>
                       Resumen de la operación:
                     </div>
-                    <div className="text-sm text-blue-700">
+                    <div className={`text-sm ${
+                      tipoOperacion === "aumentar" 
+                        ? "text-green-700" 
+                        : "text-red-700"
+                    }`}>
                       <div>
                         • Tipo:{" "}
                         {modalTipo === "maderas"
                           ? tipoMaderaSeleccionado
                           : proveedorSeleccionado}
                       </div>
-                      <div>• Aumento: {porcentajeAumento}%</div>
+                      <div>
+                        • Operación: <span className="font-semibold">
+                          {tipoOperacion === "aumentar" ? "Aumentar" : "Disminuir"} {porcentajeAumento}%
+                        </span>
+                      </div>
                       <div>
                         • Productos afectados:{" "}
-                        {
-                          productos.filter((p) =>
-                            modalTipo === "maderas"
-                              ? p.categoria === "Maderas" &&
-                                p.tipoMadera === tipoMaderaSeleccionado
-                              : p.proveedor === proveedorSeleccionado
-                          ).length
-                        }
+                        <span className="font-semibold">
+                          {
+                            productos.filter((p) =>
+                              modalTipo === "maderas"
+                                ? p.categoria === "Maderas" &&
+                                  p.tipoMadera === tipoMaderaSeleccionado
+                                : p.proveedor === proveedorSeleccionado
+                            ).length
+                          }
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1518,7 +1599,11 @@ const PreciosPage = () => {
                   !porcentajeAumento ||
                   (!tipoMaderaSeleccionado && !proveedorSeleccionado)
                 }
-                className="bg-orange-600 hover:bg-orange-700"
+                className={
+                  tipoOperacion === "aumentar"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
+                }
               >
                 {saving ? (
                   <>
@@ -1526,7 +1611,19 @@ const PreciosPage = () => {
                     Actualizando...
                   </>
                 ) : (
-                  "Aplicar Actualización Global"
+                  <>
+                    {tipoOperacion === "aumentar" ? (
+                      <>
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Aplicar Aumento del {porcentajeAumento}%
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="mdi:trending-down" className="w-4 h-4 mr-2" />
+                        Aplicar Disminución del {porcentajeAumento}%
+                      </>
+                    )}
+                  </>
                 )}
               </Button>
             </DialogFooter>
