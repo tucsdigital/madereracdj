@@ -29,8 +29,14 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
-import { Loader2, Pencil, TrendingUp, Package, Settings, CheckSquare, Square } from "lucide-react";
+import { Loader2, Pencil, TrendingUp, Package, Settings, CheckSquare, Square, Info } from "lucide-react";
 import { Icon } from "@iconify/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const PreciosPage = () => {
   const [productos, setProductos] = useState([]);
@@ -1400,8 +1406,9 @@ const PreciosPage = () => {
 
               {/* Paso 1: Selector de tipo de operación */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  1️⃣ ¿Qué operación deseas realizar?
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Icon icon="mdi:numeric-1-circle" className="w-5 h-5 text-blue-600" />
+                  ¿Qué operación deseas realizar?
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -1438,8 +1445,9 @@ const PreciosPage = () => {
               {/* Paso 2: Selector de tipo de madera o proveedor */}
               {modalTipo === "maderas" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    2️⃣ Selecciona el Tipo de Madera
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Icon icon="mdi:numeric-2-circle" className="w-5 h-5 text-blue-600" />
+                    Selecciona el Tipo de Madera
                   </label>
                   <select
                     value={tipoMaderaSeleccionado}
@@ -1463,8 +1471,9 @@ const PreciosPage = () => {
 
               {modalTipo === "proveedor" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    2️⃣ Selecciona el Proveedor
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Icon icon="mdi:numeric-2-circle" className="w-5 h-5 text-blue-600" />
+                    Selecciona el Proveedor
                   </label>
                   <select
                     value={proveedorSeleccionado}
@@ -1488,8 +1497,38 @@ const PreciosPage = () => {
 
               {/* Paso 3: Ingreso de porcentaje */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  3️⃣ Ingresa el Porcentaje {tipoOperacion === "aumentar" ? "de Aumento" : "de Disminución"}
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Icon icon="mdi:numeric-3-circle" className="w-5 h-5 text-blue-600" />
+                  Ingresa el Porcentaje {tipoOperacion === "aumentar" ? "de Aumento" : "de Disminución"}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-full w-4 h-4 text-gray-500 hover:text-gray-700 focus:outline-none"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="text-sm space-y-1">
+                          <p className="font-medium mb-2">💡 Información sobre porcentajes</p>
+                          <p>Ingresa un porcentaje entre 0 y 100.</p>
+                          {tipoOperacion === "aumentar" ? (
+                            <>
+                              <p>• Ejemplo: 15% aumentará el precio en un 15%</p>
+                              <p>• De 1000 a 1150 = 15% de aumento</p>
+                            </>
+                          ) : (
+                            <>
+                              <p>• Ejemplo: 15% disminuirá el precio en un 15%</p>
+                              <p>• De 1000 a 850 = 15% de disminución</p>
+                            </>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </label>
                 <Input
                   type="number"
@@ -1509,23 +1548,6 @@ const PreciosPage = () => {
                     }
                   }}
                 />
-                <div className="text-xs text-gray-500">
-                  💡 Ingresa un porcentaje entre 0 y 100.
-                  <br />
-                  {tipoOperacion === "aumentar" ? (
-                    <>
-                      • Ejemplo: 15% aumentará el precio en un 15%
-                      <br />
-                      • De 1000 a 1150 = 15% de aumento
-                    </>
-                  ) : (
-                    <>
-                      • Ejemplo: 15% disminuirá el precio en un 15%
-                      <br />
-                      • De 1000 a 850 = 15% de disminución
-                    </>
-                  )}
-                </div>
               </div>
 
               {porcentajeAumento &&
