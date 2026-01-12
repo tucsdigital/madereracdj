@@ -66,6 +66,45 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Cursor pointer para elementos interactivos */
+  button,
+  a,
+  [role="button"],
+  [role="tab"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  label[for],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  
+  /* Cursor not-allowed para elementos deshabilitados */
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [aria-disabled="true"],
+  .cursor-not-allowed {
+    cursor: not-allowed;
+  }
+  
+  /* Cursor default para inputs de texto */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  select {
+    cursor: text;
+  }
 }
 
 /* Estilos personalizados para la tabla */

@@ -77,7 +77,6 @@ export default function CreateVentaPage() {
           direccionEnvio: cleanVenta.direccionEnvio,
           localidadEnvio: cleanVenta.localidadEnvio,
           tipoEnvio: cleanVenta.tipoEnvio,
-          transportista: cleanVenta.transportista,
           costoEnvio: parseFloat(cleanVenta.costoEnvio) || 0,
           numeroFactura: cleanVenta.numeroFactura,
           numeroRemito: cleanVenta.numeroRemito,

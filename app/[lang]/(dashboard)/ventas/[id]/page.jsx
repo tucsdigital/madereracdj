@@ -1186,7 +1186,6 @@ const VentaDetalle = () => {
             ? ventaEdit.cliente?.localidad
             : ventaEdit.localidadEnvio,
         tipoEnvio: ventaEdit.tipoEnvio,
-        transportista: ventaEdit.transportista,
         costoEnvio: costoEnvioNuevo,
         numeroPedido: ventaEdit.numeroPedido,
         totalVenta: total,
@@ -1261,7 +1260,6 @@ const VentaDetalle = () => {
         costoEnvio: 0,
         direccionEnvio: "",
         localidadEnvio: "",
-        transportista: "",
         rangoHorario: "",
       }),
     };
@@ -1737,10 +1735,6 @@ const VentaDetalle = () => {
                       : venta.tipoEnvio}
                   </div>
                   <div>
-                    <span className="font-medium">Transportista:</span>{" "}
-                    {venta.transportista || "-"}
-                  </div>
-                  <div>
                     <span className="font-medium">Dirección:</span>{" "}
                     {venta.usarDireccionCliente === false
                       ? (venta.direccionEnvio || "-")
@@ -2133,7 +2127,6 @@ const VentaDetalle = () => {
                           updated.costoEnvio = "";
                           updated.direccionEnvio = "";
                           updated.localidadEnvio = "";
-                          updated.transportista = "";
                           updated.rangoHorario = "";
                         }
 
@@ -2215,21 +2208,6 @@ const VentaDetalle = () => {
                           />
                         </>
                       )}
-                      <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        value={ventaEdit.transportista || ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            transportista: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Transportista...</option>
-                        <option value="camion">camion</option>
-                        <option value="camioneta 1">camioneta 1</option>
-                        <option value="camioneta 2">camioneta 2</option>
-                      </select>
                       <input
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         value={ventaEdit.costoEnvio || ""}

@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText } from "lucide-react";
+import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
@@ -18,16 +18,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useAuth } from "@/provider/auth.provider";
 import { Label } from "@/components/ui/label";
-
-// Categorías de gastos internos
-const categoriasGastoInterno = {
-  varios: { label: "Gastos Varios", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  empleados: { label: "Empleados", color: "bg-green-100 text-green-800 border-green-200" },
-  operativos: { label: "Gastos Operativos", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  viaticos: { label: "Viáticos", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  ventaMarketing: { label: "Venta y Marketing", color: "bg-pink-100 text-pink-800 border-pink-200" },
-  generales: { label: "Gastos Generales", color: "bg-gray-100 text-gray-800 border-gray-200" },
-};
+import { useCategoriasGastos } from "@/hooks/useCategoriasGastos";
+import GestionCategorias from "@/components/gastos/GestionCategorias";
+import EstadisticasCategorias from "@/components/gastos/EstadisticasCategorias";
 
 // Estados de pago para proveedores
 const estadosPago = {
@@ -38,7 +31,7 @@ const estadosPago = {
 
 // Schema para gastos internos
 const schemaInterno = yup.object().shape({
-  concepto: yup.string().required("El concepto es obligatorio"),
+  concepto: yup.string().optional(),
   monto: yup.number().positive("El monto debe ser positivo").required("El monto es obligatorio"),
   categoria: yup.string().required("La categoría es obligatoria"),
   fecha: yup.string().required("La fecha es obligatoria"),
@@ -47,7 +40,7 @@ const schemaInterno = yup.object().shape({
 
 // Schema para cuentas por pagar
 const schemaProveedor = yup.object().shape({
-  concepto: yup.string().required("El concepto es obligatorio"),
+  concepto: yup.string().optional(),
   monto: yup.number().positive("El monto debe ser positivo").required("El monto es obligatorio"),
   proveedorId: yup.string().required("El proveedor es obligatorio"),
   fecha: yup.string().required("La fecha es obligatoria"),
@@ -76,6 +69,14 @@ const GastosPage = () => {
   const { user } = useAuth();
   const [vistaActiva, setVistaActiva] = useState("internos"); // internos | proveedores
   
+  // Hook para categorías dinámicas
+  const {
+    categoriasActivas,
+    loading: loadingCategorias,
+    crearCategoria,
+    obtenerCategoriaPorId
+  } = useCategoriasGastos();
+  
   // Estados para segmentación de fechas
   const hoyISO = new Date().toISOString().split("T")[0];
   const now = new Date();
@@ -97,9 +98,14 @@ const GastosPage = () => {
   const [openProveedor, setOpenProveedor] = useState(false);
   const [openPago, setOpenPago] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
+  const [openGestionCategorias, setOpenGestionCategorias] = useState(false);
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  
+  // Estado para crear categoría rápida desde el formulario
+  const [creandoCategoriaRapida, setCreandoCategoriaRapida] = useState(false);
+  const [nuevaCategoriaNombre, setNuevaCategoriaNombre] = useState("");
   
   // Filtros
   const [filtroInterno, setFiltroInterno] = useState("");
@@ -223,14 +229,6 @@ const GastosPage = () => {
       from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
-    } else if (rangoRapido === "30d") {
-      from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (rangoRapido === "90d") {
-      from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
     } else if (rangoRapido === "ytd") {
       const y = new Date().getFullYear();
       from = new Date(y, 0, 1).toISOString().split("T")[0];
@@ -288,15 +286,74 @@ const GastosPage = () => {
     cargarDatos();
   }, []);
 
+  // Exponer función de migración globalmente para uso en consola
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.migrarCategoriasGastos = async () => {
+        try {
+          // Verificar si ya existen categorías
+          const snapshot = await getDocs(collection(db, "categoriasGastos"));
+          
+          if (!snapshot.empty) {
+            console.log("⚠️ Ya existen categorías en la base de datos. No se realizará la migración.");
+            console.log("Categorías existentes:", snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+            return;
+          }
+
+          console.log("🚀 Iniciando migración de categorías...");
+          
+          const categoriasIniciales = [
+            { nombre: "Gastos Varios", color: "bg-blue-100 text-blue-800 border-blue-200", orden: 0 },
+            { nombre: "Empleados", color: "bg-green-100 text-green-800 border-green-200", orden: 1 },
+            { nombre: "Gastos Operativos", color: "bg-orange-100 text-orange-800 border-orange-200", orden: 2 },
+            { nombre: "Viáticos", color: "bg-purple-100 text-purple-800 border-purple-200", orden: 3 },
+            { nombre: "Venta y Marketing", color: "bg-pink-100 text-pink-800 border-pink-200", orden: 4 },
+            { nombre: "Gastos Generales", color: "bg-gray-100 text-gray-800 border-gray-200", orden: 5 }
+          ];
+          
+          // Crear cada categoría
+          for (const categoria of categoriasIniciales) {
+            const categoriaData = {
+              ...categoria,
+              activo: true,
+              fechaCreacion: serverTimestamp(),
+              fechaActualizacion: serverTimestamp(),
+              creadoPor: "Sistema (Migración)"
+            };
+            
+            const docRef = await addDoc(collection(db, "categoriasGastos"), categoriaData);
+            console.log(`✅ Categoría creada: ${categoria.nombre} (ID: ${docRef.id})`);
+          }
+          
+          console.log("✅ Migración completada exitosamente!");
+          console.log("💡 Recarga la página para ver las nuevas categorías.");
+        } catch (error) {
+          console.error("❌ Error durante la migración:", error);
+          throw error;
+        }
+      };
+      
+      console.log("💡 Función de migración disponible. Ejecuta: migrarCategoriasGastos()");
+    }
+  }, []);
+
   // Guardar gasto interno
   const onSubmitInterno = async (data) => {
     setGuardando(true);
     try {
+      // Validar que la categoría existe
+      const categoria = obtenerCategoriaPorId(data.categoria);
+      if (!categoria) {
+        alert("La categoría seleccionada no es válida");
+        return;
+      }
+
       const gastoData = {
         tipo: "interno",
-        concepto: data.concepto,
+        concepto: data.concepto || "", // Permite concepto vacío
         monto: Number(data.monto),
-        categoria: data.categoria,
+        categoria: data.categoria, // Ahora es el ID de la categoría
+        categoriaNombre: categoria.nombre, // Guardamos también el nombre para consultas rápidas
         fecha: data.fecha,
         observaciones: data.observaciones || "",
         responsable: user?.email || "Usuario no identificado",
@@ -327,6 +384,28 @@ const GastosPage = () => {
       setGuardando(false);
     }
   };
+  
+  // Crear categoría rápida desde el formulario
+  const handleCrearCategoriaRapida = async () => {
+    if (!nuevaCategoriaNombre.trim()) {
+      alert("El nombre de la categoría es obligatorio");
+      return;
+    }
+
+    try {
+      const nuevaCategoria = await crearCategoria({
+        nombre: nuevaCategoriaNombre.trim(),
+        color: "bg-gray-100 text-gray-800 border-gray-200" // Color por defecto
+      });
+      
+      // Seleccionar la nueva categoría en el formulario
+      setValueInterno("categoria", nuevaCategoria.id);
+      setNuevaCategoriaNombre("");
+      setCreandoCategoriaRapida(false);
+    } catch (error) {
+      alert("Error al crear categoría: " + error.message);
+    }
+  };
 
   // Guardar cuenta por pagar
   const onSubmitProveedor = async (data) => {
@@ -336,7 +415,7 @@ const GastosPage = () => {
       
       const cuentaData = {
         tipo: "proveedor",
-        concepto: data.concepto,
+        concepto: data.concepto || "", // Permite concepto vacío
         monto: Number(data.monto),
         montoPagado: 0,
         estadoPago: "pendiente",
@@ -451,7 +530,20 @@ const GastosPage = () => {
     setEditando(gasto);
     setValueInterno("concepto", gasto.concepto);
     setValueInterno("monto", gasto.monto);
-    setValueInterno("categoria", gasto.categoria || "varios");
+    // Si el gasto tiene categoria como ID, usarlo; si es string antiguo, buscar por nombre
+    if (gasto.categoria) {
+      // Verificar si es un ID válido o un nombre antiguo
+      const categoria = obtenerCategoriaPorId(gasto.categoria);
+      if (categoria) {
+        setValueInterno("categoria", gasto.categoria);
+      } else {
+        // Es un nombre antiguo, buscar por nombre
+        const catPorNombre = categoriasActivas.find(c => c.nombre === gasto.categoria || c.nombre === gasto.categoriaNombre);
+        setValueInterno("categoria", catPorNombre?.id || categoriasActivas[0]?.id || "");
+      }
+    } else {
+      setValueInterno("categoria", categoriasActivas[0]?.id || "");
+    }
     setValueInterno("fecha", gasto.fecha);
     setValueInterno("observaciones", gasto.observaciones || "");
     setOpenInterno(true);
@@ -536,18 +628,18 @@ const GastosPage = () => {
     resetProveedor();
   };
 
-  // Filtrar gastos internos por fecha
+  // Filtrar gastos internos por fecha (usar fecha del gasto, no fechaCreacion)
   const gastosInternosFiltradosPorFecha = useMemo(() => {
     return gastosInternos.filter(g => {
-      const fechaGasto = g.fechaCreacion || g.fecha;
+      const fechaGasto = g.fecha; // Usar la fecha del gasto, no la fecha de creación
       return isInRange(fechaGasto);
     });
   }, [gastosInternos, isInRange]);
 
-  // Filtrar cuentas por pagar por fecha
+  // Filtrar cuentas por pagar por fecha (usar fecha de la cuenta, no fechaCreacion)
   const cuentasPorPagarFiltradasPorFecha = useMemo(() => {
     return cuentasPorPagar.filter(c => {
-      const fechaCuenta = c.fechaCreacion || c.fecha;
+      const fechaCuenta = c.fecha; // Usar la fecha de la cuenta, no la fecha de creación
       return isInRange(fechaCuenta);
     });
   }, [cuentasPorPagar, isInRange]);
@@ -556,13 +648,16 @@ const GastosPage = () => {
   const totalesInternos = useMemo(() => {
     const total = gastosInternosFiltradosPorFecha.reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
     const porCategoria = {};
-    Object.keys(categoriasGastoInterno).forEach(key => {
-      porCategoria[key] = gastosInternosFiltradosPorFecha
-        .filter(g => g.categoria === key)
+    
+    // Agrupar por categoría (puede ser ID o nombre antiguo)
+    categoriasActivas.forEach(cat => {
+      porCategoria[cat.id] = gastosInternosFiltradosPorFecha
+        .filter(g => g.categoria === cat.id || g.categoriaNombre === cat.nombre || g.categoria === cat.nombre)
         .reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
     });
+    
     return { total, porCategoria };
-  }, [gastosInternosFiltradosPorFecha]);
+  }, [gastosInternosFiltradosPorFecha, categoriasActivas]);
 
   const totalesProveedores = useMemo(() => {
     const total = cuentasPorPagarFiltradasPorFecha.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
@@ -742,14 +837,8 @@ const GastosPage = () => {
                 />
                 <QuickRangeButton value="7d" label="7d" icon="heroicons:bolt" />
                 <QuickRangeButton
-                  value="30d"
-                  label="30d"
-                  icon="heroicons:calendar-days"
-                />
-                <QuickRangeButton value="90d" label="90d" icon="heroicons:clock" />
-                <QuickRangeButton
                   value="ytd"
-                  label="YTD"
+                  label="Año actual"
                   icon="heroicons:chart-pie"
                 />
                 <QuickRangeButton
@@ -793,8 +882,8 @@ const GastosPage = () => {
         <TabsContent value="internos" className="space-y-6">
           {/* Dashboard de gastos internos */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Total */}
-            <Card className="md:col-span-2 lg:col-span-3">
+            {/* Total principal */}
+            <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -812,22 +901,40 @@ const GastosPage = () => {
             </Card>
             
             {/* Por categoría */}
-            {Object.entries(categoriasGastoInterno).map(([key, cat]) => (
-              <Card key={key}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-gray-500">{cat.label}</div>
-                      <div className="text-2xl font-bold">${totalesInternos.porCategoria[key]?.toLocaleString("es-AR") || "0"}</div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {gastosInternosFiltradosPorFecha.filter(g => g.categoria === key).length} gastos
+            {categoriasActivas.map((cat) => {
+              const totalCategoria = totalesInternos.porCategoria[cat.id] || 0;
+              const cantidadGastos = gastosInternosFiltradosPorFecha.filter(
+                g => g.categoria === cat.id || g.categoriaNombre === cat.nombre || g.categoria === cat.nombre
+              ).length;
+              
+              // Solo mostrar categorías que tienen gastos en el período
+              if (cantidadGastos === 0) return null;
+              
+              return (
+                <Card key={cat.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-gray-500">{cat.nombre}</div>
+                        <div className="text-2xl font-bold">${totalCategoria.toLocaleString("es-AR")}</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {cantidadGastos} gasto{cantidadGastos !== 1 ? 's' : ''}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+
+          {/* Estadísticas y gráficos por categoría */}
+          <EstadisticasCategorias
+            gastosInternos={gastosInternosFiltradosPorFecha}
+            categoriasActivas={categoriasActivas}
+            fechaDesde={fechaDesde}
+            fechaHasta={fechaHasta}
+          />
 
           {/* Tabla gastos internos */}
           <Card>
@@ -840,6 +947,14 @@ const GastosPage = () => {
                   onChange={e => setFiltroInterno(e.target.value)} 
                   className="w-56" 
                 />
+                <Button 
+                  variant="outline" 
+                  onClick={() => setOpenGestionCategorias(true)}
+                  title="Gestionar categorías"
+                >
+                  <Settings className="w-4 h-4 mr-1" />
+                  Categorías
+                </Button>
                 <Button onClick={() => setOpenInterno(true)}>
                   <Plus className="w-4 h-4 mr-1" />
                   Nuevo Gasto
@@ -864,9 +979,20 @@ const GastosPage = () => {
                       <TableCell>{g.fecha}</TableCell>
                       <TableCell className="font-medium">{g.concepto}</TableCell>
                       <TableCell>
-                        <Badge className={categoriasGastoInterno[g.categoria]?.color || 'bg-gray-100'}>
-                          {categoriasGastoInterno[g.categoria]?.label || g.categoria}
-                        </Badge>
+                        {(() => {
+                          // Buscar categoría por ID o nombre
+                          const categoria = obtenerCategoriaPorId(g.categoria) || 
+                                          categoriasActivas.find(c => c.nombre === g.categoriaNombre || c.nombre === g.categoria);
+                          return categoria ? (
+                            <Badge className={categoria.color || 'bg-gray-100'}>
+                              {categoria.nombre}
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-gray-100">
+                              {g.categoriaNombre || g.categoria || "Sin categoría"}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="font-bold text-red-600">
                         ${Number(g.monto).toLocaleString("es-AR")}
@@ -1174,7 +1300,7 @@ const GastosPage = () => {
           <form onSubmit={handleSubmitInterno(onSubmitInterno)} className="flex flex-col gap-3 py-2">
             <div>
               <Input 
-                placeholder="Concepto *" 
+                placeholder="Concepto (opcional)" 
                 {...registerInterno("concepto")}
                 className={errorsInterno.concepto ? "border-red-500" : ""}
               />
@@ -1197,16 +1323,71 @@ const GastosPage = () => {
             </div>
             
             <div>
-              <select 
-                value={watchInterno("categoria")} 
-                onChange={(e) => setValueInterno("categoria", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Seleccionar categoría *</option>
-                {Object.entries(categoriasGastoInterno).map(([key, value]) => (
-                  <option key={key} value={key}>{value.label}</option>
-                ))}
-              </select>
+              <Label>Categoría *</Label>
+              {!creandoCategoriaRapida ? (
+                <div className="space-y-2">
+                  <select 
+                    value={watchInterno("categoria") || ""} 
+                    onChange={(e) => setValueInterno("categoria", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Seleccionar categoría *</option>
+                    {categoriasActivas.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                    ))}
+                  </select>
+                  {errorsInterno.categoria && (
+                    <span className="text-red-500 text-xs">{errorsInterno.categoria.message}</span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCreandoCategoriaRapida(true)}
+                    className="w-full text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Crear nueva categoría
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 border border-blue-200 bg-blue-50 p-3 rounded-md">
+                  <Label className="text-sm font-semibold">Nueva Categoría</Label>
+                  <Input
+                    placeholder="Nombre de la categoría"
+                    value={nuevaCategoriaNombre}
+                    onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCrearCategoriaRapida();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCrearCategoriaRapida}
+                      disabled={!nuevaCategoriaNombre.trim() || guardando}
+                    >
+                      Crear
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCreandoCategoriaRapida(false);
+                        setNuevaCategoriaNombre("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div>
@@ -1327,7 +1508,7 @@ const GastosPage = () => {
             
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Concepto *</Label>
+                <Label>Concepto (opcional)</Label>
                 <Input 
                   placeholder="Ej: Compra de madera" 
                   {...registerProveedor("concepto")}
@@ -1620,6 +1801,12 @@ const GastosPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de gestión de categorías */}
+      <GestionCategorias 
+        open={openGestionCategorias} 
+        onOpenChange={setOpenGestionCategorias} 
+      />
     </div>
   );
 };

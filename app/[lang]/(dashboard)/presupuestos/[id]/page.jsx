@@ -1032,7 +1032,6 @@ const PresupuestoDetalle = () => {
           costoEnvio: 0,
           direccionEnvio: "",
           localidadEnvio: "",
-          transportista: "",
           rangoHorario: "",
           fechaEntrega: "",
         }),
@@ -1061,7 +1060,6 @@ const PresupuestoDetalle = () => {
           costoEnvio: 0,
           direccionEnvio: "",
           localidadEnvio: "",
-          transportista: "",
           rangoHorario: "",
           fechaEntrega: "",
         }),
@@ -1580,7 +1578,6 @@ const PresupuestoDetalle = () => {
                           updated.fechaEntrega = "";
                           updated.direccionEnvio = "";
                           updated.localidadEnvio = "";
-                          updated.transportista = "";
                           updated.rangoHorario = "";
                         }
 
@@ -1685,27 +1682,6 @@ const PresupuestoDetalle = () => {
                           </div>
                         </>
                       )}
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Transportista
-                        </label>
-                        <select
-                          value={presupuestoEdit.transportista || ""}
-                          onChange={(e) =>
-                            setPresupuestoEdit({
-                              ...presupuestoEdit,
-                              transportista: e.target.value,
-                            })
-                          }
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                        >
-                          <option value="">Seleccionar transportista...</option>
-                          <option value="camion">camion</option>
-                          <option value="camioneta 1">camioneta 1</option>
-                          <option value="camioneta 2">camioneta 2</option>
-                        </select>
-                      </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3478,7 +3454,6 @@ const PresupuestoDetalle = () => {
                     tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
                     fechaEntrega: ventaCampos.fechaEntrega,
                     rangoHorario: ventaCampos.rangoHorario,
-                    transportista: ventaCampos.transportista,
                     costoEnvio: ventaCampos.costoEnvio
                       ? Number(ventaCampos.costoEnvio)
                       : presupuesto.costoEnvio, // Usar el valor del formulario si existe
@@ -3561,7 +3536,6 @@ const PresupuestoDetalle = () => {
                       direccionEnvio: cleanVentaData.direccionEnvio,
                       localidadEnvio: cleanVentaData.localidadEnvio,
                       tipoEnvio: cleanVentaData.tipoEnvio,
-                      transportista: cleanVentaData.transportista,
                       costoEnvio: parseFloat(cleanVentaData.costoEnvio) || 0,
                       numeroPedido: cleanVentaData.numeroPedido,
                       totalVenta: cleanVentaData.total,
@@ -3820,11 +3794,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
         otherwise: (s) => s.notRequired().nullable(true),
       }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
-    transportista: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("Selecciona el transportista"),
-      otherwise: (s) => s.notRequired(),
-    }),
     costoEnvio: yup
       .number()
       .transform((value, originalValue) =>
@@ -3897,7 +3866,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
     defaultValues: getDefaultValues(),
   });
 
-  const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
@@ -3915,7 +3883,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       setValue("costoEnvio", "");
       setValue("fechaEntrega", "");
       setValue("rangoHorario", "");
-      setValue("transportista", "");
     }
   }, [watch("tipoEnvio"), setValue]);
 
@@ -4009,30 +3976,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                     </div>
                   </>
                 )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Transportista *
-                  </label>
-                  <select
-                    {...register("transportista")}
-                    className={`w-full border rounded-md px-3 py-2 ${
-                      errors.transportista
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Seleccionar transportista...</option>
-                    {transportistas.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                  {errors.transportista && (
-                    <span className="text-red-500 text-xs">
-                      {errors.transportista.message}
-                    </span>
-                  )}
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -144,11 +144,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       then: (s) => s.required("El rango horario es obligatorio"),
       otherwise: (s) => s.notRequired(),
     }),
-    transportista: yup.string().when("tipoEnvio", {
-      is: (val) => val && val !== "retiro_local",
-      then: (s) => s.required("Selecciona el transportista"),
-      otherwise: (s) => s.notRequired(),
-    }),
     costoEnvio: yup
       .number()
       .transform((value, originalValue) =>
@@ -1026,7 +1021,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       if (cleanData.tipoEnvio === "retiro_local") {
         cleanData.fechaEntrega = undefined;
         cleanData.rangoHorario = undefined;
-        cleanData.transportista = undefined;
         cleanData.direccionEnvio = undefined;
         cleanData.localidadEnvio = undefined;
         cleanData.costoEnvio = undefined;
@@ -1245,7 +1239,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
   const [esConFactura, setEsConFactura] = useState(false);
-  const transportistas = ["camion", "camioneta 1", "camioneta 2"];
   const vendedores = ["coco", "damian", "lauti", "jose"];
 
   function calcularPrecioCorteMadera({
@@ -1330,7 +1323,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     if (watch("tipoEnvio") === "retiro_local") {
       setValue("fechaEntrega", "");
       setValue("rangoHorario", "");
-      setValue("transportista", "");
       setValue("direccionEnvio", "");
       setValue("localidadEnvio", "");
       setValue("costoEnvio", "");
@@ -2809,21 +2801,6 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               className="w-full"
                             />
                           </>
-                        )}
-                        <select
-                          {...register("transportista")}
-                          className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Transportista...</option>
-                          {transportistas.map((t) => (
-                            <option key={t}>{t}</option>
-                          ))}
-                        </select>
-                        {errors.transportista && (
-                          <span className="text-red-500 dark:text-red-400 text-xs">
-                            {errors.transportista.message}
-                          </span>
                         )}
                         {tipoEnvioSeleccionado !== "retiro_local" && (
                           <Input
