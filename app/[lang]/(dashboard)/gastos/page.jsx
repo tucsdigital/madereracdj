@@ -244,47 +244,61 @@ const GastosPage = () => {
     setFechaHasta(to);
   }, [rangoRapido]);
 
-  // Cargar datos desde Firebase
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setLoading(true);
-        
-        // Cargar proveedores
-        const proveedoresSnap = await getDocs(collection(db, "proveedores"));
-        const proveedoresData = proveedoresSnap.docs.map(doc => ({
+  // Función para cargar datos desde Firebase (reutilizable)
+  const cargarDatos = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Cargar proveedores
+      const proveedoresSnap = await getDocs(collection(db, "proveedores"));
+      const proveedoresData = proveedoresSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setProveedores(proveedoresData);
+      
+      // Cargar gastos
+      const gastosSnap = await getDocs(collection(db, "gastos"));
+      const gastosData = gastosSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
           id: doc.id,
-          ...doc.data()
-        }));
-        setProveedores(proveedoresData);
-        
-        // Cargar gastos
-        const gastosSnap = await getDocs(collection(db, "gastos"));
-        const gastosData = gastosSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            fecha: formatFechaSegura(data.fecha),
-            fechaVencimiento: formatFechaSegura(data.fechaVencimiento),
-          };
-        });
-        
-        // Separar gastos internos y cuentas por pagar
-        const internos = gastosData.filter(g => g.tipo !== "proveedor");
-        const proveedoresGastos = gastosData.filter(g => g.tipo === "proveedor");
-        
-        setGastosInternos(internos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
-        setCuentasPorPagar(proveedoresGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
-      } catch (error) {
-        console.error("Error al cargar datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    cargarDatos();
+          ...data,
+          fecha: formatFechaSegura(data.fecha),
+          fechaVencimiento: formatFechaSegura(data.fechaVencimiento),
+        };
+      });
+      
+      // Separar gastos internos y cuentas por pagar
+      const internos = gastosData.filter(g => g.tipo !== "proveedor");
+      const proveedoresGastos = gastosData.filter(g => g.tipo === "proveedor");
+      
+      setGastosInternos(internos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+      setCuentasPorPagar(proveedoresGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+    } catch (error) {
+      console.error("Error al cargar datos:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
+
+  // Recargar datos cuando se cierra el modal de gestión de categorías
+  // Esto asegura que los cambios en categorías se reflejen dinámicamente
+  useEffect(() => {
+    if (!openGestionCategorias) {
+      // Cuando se cierra el modal, recargar datos para reflejar cambios en categorías
+      // Usar un pequeño delay para asegurar que los cambios en Firebase se hayan propagado
+      const timer = setTimeout(() => {
+        cargarDatos();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [openGestionCategorias, cargarDatos]);
 
   // Exponer función de migración globalmente para uso en consola
   useEffect(() => {
@@ -366,13 +380,12 @@ const GastosPage = () => {
           ...gastoData,
           fechaActualizacion: serverTimestamp(),
         });
-        setGastosInternos(prev => prev.map(g => 
-          g.id === editando.id ? { ...g, ...gastoData, id: g.id } : g
-        ));
       } else {
-        const docRef = await addDoc(collection(db, "gastos"), gastoData);
-        setGastosInternos(prev => [{ id: docRef.id, ...gastoData, fechaCreacion: new Date().toISOString() }, ...prev]);
+        await addDoc(collection(db, "gastos"), gastoData);
       }
+
+      // Recargar datos para reflejar cambios dinámicamente
+      await cargarDatos();
 
       resetInterno();
       setOpenInterno(false);
@@ -444,13 +457,12 @@ const GastosPage = () => {
           pagos: editando.pagos || [],
           fechaActualizacion: serverTimestamp(),
         });
-        setCuentasPorPagar(prev => prev.map(c => 
-          c.id === editando.id ? { ...c, ...cuentaData, id: c.id, montoPagado: editando.montoPagado, estadoPago: editando.estadoPago, pagos: editando.pagos } : c
-        ));
       } else {
-        const docRef = await addDoc(collection(db, "gastos"), cuentaData);
-        setCuentasPorPagar(prev => [{ id: docRef.id, ...cuentaData, fechaCreacion: new Date().toISOString() }, ...prev]);
+        await addDoc(collection(db, "gastos"), cuentaData);
       }
+
+      // Recargar datos para reflejar cambios dinámicamente
+      await cargarDatos();
 
       resetProveedor();
       setOpenProveedor(false);
@@ -505,11 +517,8 @@ const GastosPage = () => {
         fechaActualizacion: serverTimestamp(),
       });
       
-      setCuentasPorPagar(prev => prev.map(c => 
-        c.id === cuentaSeleccionada.id 
-          ? { ...c, montoPagado: nuevoMontoPagado, estadoPago: nuevoEstado, pagos: pagosActualizados }
-          : c
-      ));
+      // Recargar datos para reflejar cambios dinámicamente
+      await cargarDatos();
       
       setOpenPago(false);
       setCuentaSeleccionada(null);
@@ -575,11 +584,8 @@ const GastosPage = () => {
     
     try {
       await deleteDoc(doc(db, "gastos", id));
-      if (tipo === "interno") {
-        setGastosInternos(prev => prev.filter(g => g.id !== id));
-      } else {
-        setCuentasPorPagar(prev => prev.filter(c => c.id !== id));
-      }
+      // Recargar datos para reflejar cambios dinámicamente
+      await cargarDatos();
     } catch (error) {
       console.error("Error al eliminar:", error);
       alert("Error al eliminar: " + error.message);
