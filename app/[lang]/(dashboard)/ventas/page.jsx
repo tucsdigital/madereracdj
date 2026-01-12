@@ -344,6 +344,12 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         }
       }
 
+      // Determinar si es machimbre para marcar cepillado automáticamente
+      const esMachimbre = (real.unidad === "M2" || real.unidadMedida === "M2") && 
+                         (real.subcategoria?.toLowerCase() === "machimbre" || 
+                          !real.subcategoria || 
+                          real.subcategoria === "");
+      
       setProductosSeleccionados([
         ...productosSeleccionados,
         {
@@ -365,7 +371,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-          cepilladoAplicado: false, // Por defecto sin cepillado
+          cepilladoAplicado: esMachimbre, // Machimbre se marca automáticamente como cepillado
           tipoMadera: real.tipoMadera || "",
           subcategoria: real.subcategoria || "",
         },
@@ -403,7 +409,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               precioPorPie: p.precioPorPie,
             });
 
-            const precioFinal = p.cepilladoAplicado
+            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
               ? precioBase * 1.066
               : precioBase;
 
@@ -551,7 +559,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             });
           }
 
-          const precioFinal = aplicarCepillado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (aplicarCepillado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -593,7 +603,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             });
           }
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -629,7 +641,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -664,7 +678,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -699,7 +715,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 

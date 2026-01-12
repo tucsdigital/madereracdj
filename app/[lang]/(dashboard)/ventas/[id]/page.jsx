@@ -386,8 +386,9 @@ const VentaDetalle = () => {
             precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
           }
 
-          // Aplicar cepillado si está habilitado
-          const precioFinal = aplicarCepillado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (aplicarCepillado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -426,8 +427,9 @@ const VentaDetalle = () => {
             precioBase = 0.2734 * p.alto * p.ancho * p.largo * Number(nuevoPrecioPorPie);
           }
 
-          // Aplicar cepillado si está habilitado para este producto específico
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -578,7 +580,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            const precioFinal = p.cepilladoAplicado
+            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
               ? precioBase * 1.066
               : precioBase;
 
@@ -614,7 +618,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            const precioFinal = p.cepilladoAplicado
+            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
               ? precioBase * 1.066
               : precioBase;
 
@@ -648,7 +654,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            const precioFinal = p.cepilladoAplicado
+            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
               ? precioBase * 1.066
               : precioBase;
 
@@ -712,7 +720,7 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" && p.unidad !== "M2"
+          p.categoria === "Maderas" && p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: Number(nuevoAlto),
@@ -721,7 +729,9 @@ const VentaDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -745,16 +755,18 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" && p.unidad !== "M2"
+          p.categoria === "Maderas" && p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
-            alto: Number(nuevoAncho),
+            alto: p.alto,
             largo: p.largo,
             cantidad: p.cantidad || 1,
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
@@ -778,7 +790,7 @@ const VentaDetalle = () => {
       productos: (prev.productos || []).map((p) => {
         if (
           p.id === id &&
-          p.categoria === "Maderas" && p.unidad !== "M2"
+          p.categoria === "Maderas" && p.unidad === "M2"
         ) {
           const precioBase = calcularPrecioMachimbre({
             alto: p.alto,
@@ -787,7 +799,9 @@ const VentaDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
+          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
+          const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
             ? precioBase * 1.066
             : precioBase;
 
