@@ -386,9 +386,9 @@ const VentaDetalle = () => {
             precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
           }
 
-          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (aplicarCepillado && !esMachimbre)
+          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+          const esMachimbreODeck = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (aplicarCepillado && !esMachimbreODeck)
             ? precioBase * 1.066
             : precioBase;
 
@@ -580,9 +580,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
+            // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+            const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
               ? precioBase * 1.066
               : precioBase;
 
@@ -618,9 +618,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
+            // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+            const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
               ? precioBase * 1.066
               : precioBase;
 
@@ -654,9 +654,9 @@ const VentaDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
+            // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+            const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
               ? precioBase * 1.066
               : precioBase;
 

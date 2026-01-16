@@ -344,11 +344,12 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         }
       }
 
-      // Determinar si es machimbre para marcar cepillado automáticamente
-      const esMachimbre = (real.unidad === "M2" || real.unidadMedida === "M2") && 
-                         (real.subcategoria?.toLowerCase() === "machimbre" || 
-                          !real.subcategoria || 
-                          real.subcategoria === "");
+      // Determinar si es machimbre o deck para marcar cepillado automáticamente
+      const esMachimbreODeck = (real.unidad === "M2" || real.unidadMedida === "M2") && 
+                               (real.subcategoria?.toLowerCase() === "machimbre" || 
+                                real.subcategoria?.toLowerCase() === "deck" ||
+                                !real.subcategoria || 
+                                real.subcategoria === "");
       
       setProductosSeleccionados([
         ...productosSeleccionados,
@@ -371,7 +372,7 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: Number(real.largo) || 0,
           precioPorPie: Number(real.precioPorPie) || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-          cepilladoAplicado: esMachimbre, // Machimbre se marca automáticamente como cepillado
+          cepilladoAplicado: esMachimbreODeck, // Machimbre y deck se marcan automáticamente como cepillado
           tipoMadera: real.tipoMadera || "",
           subcategoria: real.subcategoria || "",
         },
@@ -409,9 +410,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
+            // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+            const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+            const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
               ? precioBase * 1.066
               : precioBase;
 
@@ -559,9 +560,9 @@ export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             });
           }
 
-          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (aplicarCepillado && !esMachimbre)
+          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
+          const esMachimbreODeck = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
+          const precioFinal = (aplicarCepillado && !esMachimbreODeck)
             ? precioBase * 1.066
             : precioBase;
 
