@@ -5,7 +5,13 @@ const withNextra = require("nextra")({
   themeConfig: "./theme.config.jsx",
 });
 const nextConfig = {
-  webpack(config) {
+  webpack(config, { isServer }) {
+    // Resolver paths para @/*
+    if (!config.resolve.alias) {
+      config.resolve.alias = {};
+    }
+    config.resolve.alias["@"] = require("path").resolve(__dirname, ".");
+
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) =>
       rule.test?.test?.(".svg")
