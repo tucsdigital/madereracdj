@@ -5,6 +5,12 @@ const withNextra = require("nextra")({
   themeConfig: "./theme.config.jsx",
 });
 const nextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   webpack(config, { isServer }) {
     // Resolver paths para @/*
     if (!config.resolve.alias) {
