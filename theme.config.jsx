@@ -1,4 +1,4 @@
-import { SiteLogo } from "@/components/svg";
+import { SiteLogo } from "./components/svg";
 export default {
   logo: (
     <span className=" inline-flex gap-2.5 items-center">

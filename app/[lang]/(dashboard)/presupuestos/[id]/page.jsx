@@ -16,7 +16,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Download } from "lucide-react";
+import { ArrowLeft, Printer, Download, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -1237,6 +1237,41 @@ const PresupuestoDetalle = () => {
     window.print();
   };
 
+  // Función para descargar PDF
+  const handleDownloadPDF = async (paraEmpleado = false) => {
+    if (!presupuesto?.id) return;
+    try {
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "presupuesto",
+          id: presupuesto.id,
+          empleado: paraEmpleado,
+        }),
+      });
+      if (!res.ok) {
+        console.error("Error generando remito PDF", await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const numero = presupuesto.numeroPedido || presupuesto.id?.slice(-8) || "documento";
+      const suffix = paraEmpleado ? "-empleado" : "";
+      a.download = `${numero}${suffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Error descargando remito PDF", e);
+    }
+  };
+
   // Utilidades para asegurar arrays y números seguros
   function safeArray(val) {
     return Array.isArray(val) ? val : [];
@@ -1409,6 +1444,24 @@ const PresupuestoDetalle = () => {
               >
                 <span className="hidden sm:inline">Imprimir</span>
                 <span className="sm:hidden">🖨️</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(false)}
+                variant="outline"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
+                <Download className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Descargar</span>
+                <span className="sm:hidden">📥</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(true)}
+                variant="outline"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
+                <User className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Descargar Empleado</span>
+                <span className="sm:hidden">👤</span>
               </Button>
               {!editando && !convirtiendoVenta && (
                 <Button

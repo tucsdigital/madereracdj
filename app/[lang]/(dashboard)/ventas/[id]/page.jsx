@@ -1368,6 +1368,41 @@ const VentaDetalle = () => {
     }, 1000);
   };
 
+  // Función para descargar PDF
+  const handleDownloadPDF = async (paraEmpleado = false) => {
+    if (!venta?.id) return;
+    try {
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: paraEmpleado,
+        }),
+      });
+      if (!res.ok) {
+        console.error("Error generando remito PDF", await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const numero = venta.numeroPedido || venta.id?.slice(-8) || "documento";
+      const suffix = paraEmpleado ? "-empleado" : "";
+      a.download = `${numero}${suffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Error descargando remito PDF", e);
+    }
+  };
+
   // Función para obtener el estado del pago
   const getEstadoPagoColor = (estado) => {
     switch (estado) {
@@ -1641,6 +1676,24 @@ const VentaDetalle = () => {
               >
                 <span className="hidden sm:inline">Imprimir Empleado</span>
                 <span className="sm:hidden">👷</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(false)}
+                variant="outline"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
+                <Download className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Descargar</span>
+                <span className="sm:hidden">📥</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(true)}
+                variant="outline"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
+                <User className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Descargar Empleado</span>
+                <span className="sm:hidden">👤</span>
               </Button>
               {!editando && (
                 <Button
