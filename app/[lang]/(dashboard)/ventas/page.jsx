@@ -42,7 +42,7 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { computeTotals } from "@/lib/pricing";
 
-export function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);

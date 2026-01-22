@@ -31,9 +31,8 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Icon } from "@iconify/react";
-import FormularioVentaPresupuesto, {
-  SelectorProductosPresupuesto,
-} from "../../ventas/page";
+// FormularioVentaPresupuesto removido - usar componente separado si es necesario
+// import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 

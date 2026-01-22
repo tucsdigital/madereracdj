@@ -16,8 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Download, Trash2 } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { SelectorProductosPresupuesto } from "../page";
-import FormularioVentaPresupuesto from "../page";
+// SelectorProductosPresupuesto removido - usar componente separado si es necesario
+// FormularioVentaPresupuesto removido - usar componente separado si es necesario
 import { useAuth } from "@/provider/auth.provider";
 import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
