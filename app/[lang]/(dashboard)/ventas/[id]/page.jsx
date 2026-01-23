@@ -14,12 +14,11 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Printer, Download, Trash2, User, Edit } from "lucide-react";
 import { Icon } from "@iconify/react";
 // SelectorProductosPresupuesto removido - usar componente separado si es necesario
 // FormularioVentaPresupuesto removido - usar componente separado si es necesario
 import { useAuth } from "@/provider/auth.provider";
-import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 
 // Agregar función utilitaria para fechas

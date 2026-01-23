@@ -9,7 +9,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
 /**
- * Genera el HTML completo del remito replicando el diseño actual
+ * Genera el HTML completo del remito replicando el diseño del PDF de referencia
  */
 function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): string {
   const {
@@ -47,402 +47,543 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     console.error("Error al cargar el logo:", error?.message);
   }
 
-  // Tipo de documento
-  const tipoDocumento = tipo === "venta" ? "Venta / Comprobante" : "Presupuesto / Cotización";
-  const tituloDocumento = tipo === "venta" ? "Maderas Caballero" : "Maderera Caballero";
-
-  // Helper para valores seguros
+  // Helper para valores seguros y uppercase
   const safe = (val: string | undefined | null, fallback = "-") =>
-    val && val.trim() ? escapeHtml(val.trim()) : fallback;
+    val && val.trim() ? escapeHtml(val.trim().toUpperCase()) : fallback;
 
-  // Generar HTML de items
+  // Generar HTML de items de productos
   const itemsHtml = items.length > 0
     ? items
         .map(
           (item) => `
-          <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 12px; font-weight: 500;">${safe(item.nombre)}</td>
-            <td style="padding: 12px; text-align: center;">${item.cantidad}</td>
-            <td style="padding: 12px; text-align: center;">
-              ${
-                item.cepillado
-                  ? '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 9999px; background: #dcfce7; color: #15803d; font-size: 12px; font-weight: 500;">✓ Sí</span>'
-                  : item.categoria === "Maderas"
-                  ? '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 9999px; background: #f3f4f6; color: #4b5563; font-size: 12px; font-weight: 500;">✗ No</span>'
-                  : '<span style="color: #9ca3af; font-size: 12px;">-</span>'
-              }
-            </td>
-            ${
-              !paraEmpleado
-                ? `
-            <td style="padding: 12px; text-align: right;" class="precio-empleado">${formatCurrency(item.precioUnitario)}</td>
-            <td style="padding: 12px; text-align: right;" class="descuento-empleado">${item.descuento ? `${item.descuento.toFixed(2)}%` : "-"}</td>
-            <td style="padding: 12px; text-align: right; font-weight: 500;" class="subtotal-empleado">${formatCurrency(item.subtotal)}</td>
-            `
-                : ""
-            }
+          <tr>
+            <td style="padding: 10px 8px; text-align: center; font-weight: 600; color: #111827; font-size: 10px;">${item.cantidad}</td>
+            <td style="padding: 10px 8px; font-weight: 500; color: #1f2937; font-size: 9.5px;">${safe(item.nombre)}</td>
+            <td style="padding: 10px 8px; text-align: center; color: #6b7280; font-size: 9px; font-weight: 500;">${item.cepillado ? "✓ Sí" : "No"}</td>
+            ${!paraEmpleado ? `
+            <td style="padding: 10px 8px; text-align: right; color: #374151; font-size: 9.5px; font-weight: 500;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #111827; font-size: 10px;">${formatCurrency(item.subtotal || 0)}</td>
+            ` : `
+            <td style="padding: 10px 8px; text-align: right;" class="precio-empleado"></td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 600;" class="total-empleado"></td>
+            `}
           </tr>
         `
         )
         .join("")
     : `
       <tr>
-        <td colspan="${paraEmpleado ? 3 : 6}" style="padding: 12px; text-align: center; color: #6b7280;">
+        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 12px; text-align: center; color: #6b7280;">
           Sin productos
         </td>
       </tr>
     `;
 
-  // Generar HTML de totales
-  const totalesHtml = !paraEmpleado
+  // Agregar solo 2-3 filas vacías si hay pocos items (solo para llenar un poco el espacio)
+  // No agregar si hay muchos items (Puppeteer manejará el overflow automáticamente)
+  let filasVacias = "";
+  if (items.length > 0 && items.length < 8) {
+    const numFilasVacias = Math.min(3, 8 - items.length);
+    filasVacias = Array.from({ length: numFilasVacias }, () => `
+      <tr style="border-bottom: 1px solid #f3f4f6;">
+        <td style="padding: 8px 6px; height: 32px;"></td>
+        <td style="padding: 8px 6px;"></td>
+        <td style="padding: 8px 6px;"></td>
+        ${!paraEmpleado ? `
+        <td style="padding: 8px 6px;"></td>
+        <td style="padding: 8px 6px;"></td>
+        ` : `
+        <td style="padding: 8px 6px;" class="precio-empleado"></td>
+        <td style="padding: 8px 6px;" class="total-empleado"></td>
+        `}
+      </tr>
+    `).join("");
+  }
+
+  // Generar filas de totales en el footer de la tabla (alineados como en el PDF)
+  const totalesRowsHtml = !paraEmpleado
     ? `
-      <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
-        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; min-width: 300px;">
-          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
-            <div style="display: flex; justify-content: space-between;" class="subtotal-empleado">
-              <span>Subtotal:</span>
-              <span>${formatCurrency(totales.subtotal)}</span>
-            </div>
-            ${totales.descuentoTotal > 0 ? `
-            <div style="display: flex; justify-content: space-between;" class="descuento-empleado">
-              <span>Descuento total:</span>
-              <span>${formatCurrency(totales.descuentoTotal)}</span>
-            </div>
-            ` : ""}
-            ${totales.descuentoEfectivo && totales.descuentoEfectivo > 0 ? `
-            <div style="display: flex; justify-content: space-between;" class="descuento-empleado">
-              <span>Descuento (Efectivo 10%):</span>
-              <span style="color: #16a34a;">${formatCurrency(totales.descuentoEfectivo)}</span>
-            </div>
-            ` : ""}
-            ${totales.costoEnvio > 0 ? `
-            <div style="display: flex; justify-content: space-between;" class="costo-envio-empleado">
-              <span>${tipo === "venta" ? "Costo de envío:" : "Cotización de envío:"}</span>
-              <span>${formatCurrency(totales.costoEnvio)}</span>
-            </div>
-            ` : ""}
-            <div style="border-top: 2px solid #e5e7eb; padding-top: 12px; display: flex; justify-content: space-between; font-weight: 700; font-size: 18px;" class="total-empleado">
-              <span>Total:</span>
-              <span style="color: #2563eb;">${formatCurrency(totales.total)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 600; color: #4b5563;">DESCUENTO</td>
+        <td style="padding: 6px; text-align: right; font-weight: 600; color: #1f2937;">${formatCurrency(totales.descuentoTotal || 0)}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 600; color: #4b5563;">SUBTOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 600; color: #1f2937;">${formatCurrency(totales.subtotal)}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 700; font-size: 11px; color: #111827;">TOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 700; font-size: 11px; color: #111827;">${formatCurrency(totales.total)}</td>
+      </tr>
     `
     : "";
 
-  // Generar HTML de pagos (solo para ventas y si no es empleado)
-  const pagosHtml =
-    !paraEmpleado && tipo === "venta" && pagos
-      ? `
-      <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-        <h3 style="font-weight: 600; font-size: 18px; margin-bottom: 16px;">Información de Pagos</h3>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between;" class="total-empleado">
-            <span>Total de la venta:</span>
-            <span style="font-weight: 600;">${formatCurrency(pagos.total)}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;" class="monto-abonado-empleado">
-            <span>Monto abonado:</span>
-            <span style="font-weight: 600; color: #16a34a;">${formatCurrency(pagos.montoAbonado)}</span>
-          </div>
-          ${pagos.saldoPendiente && pagos.saldoPendiente > 0 ? `
-          <div style="display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 8px;" class="saldo-pendiente-empleado">
-            <span>Saldo pendiente:</span>
-            <span style="font-weight: 600; color: #dc2626;">${formatCurrency(pagos.saldoPendiente)}</span>
-          </div>
-          ` : ""}
-        </div>
-        ${pagos.pagos && pagos.pagos.length > 0 ? `
-        <div class="historial-pagos-empleado">
-          <h4 style="font-weight: 500; margin-bottom: 8px;">Historial de pagos:</h4>
-          <table style="width: 100%; font-size: 14px; background: #fff; border-radius: 8px; padding: 12px;">
-            <thead>
-              <tr style="border-bottom: 1px solid #e5e7eb;">
-                <th style="text-align: left; padding: 8px 4px; font-weight: 600;">Fecha</th>
-                <th style="text-align: left; padding: 8px 4px; font-weight: 600;">Método</th>
-                <th style="text-align: right; padding: 8px 4px; font-weight: 600;">Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${pagos.pagos
-                .map(
-                  (p) => `
-              <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 8px 4px;">${safe(p.fecha)}</td>
-                <td style="padding: 8px 4px;">${safe(p.metodo)}</td>
-                <td style="padding: 8px 4px; text-align: right;">${formatCurrency(p.monto)}</td>
-              </tr>
-            `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </div>
-        ` : ""}
-      </div>
-    `
-      : "";
+  // Información de envío
+  const tipoEnvio = envio && envio.tipoEnvio && envio.tipoEnvio !== "retiro_local" 
+    ? "DOMICILIO" 
+    : "RETIRO EN LOCAL";
+  const fechaEntrega = envio?.fechaEntrega || "-";
+  const lugarEntrega = envio?.direccion || cliente.direccion || "-";
+  const entreCalles = "-"; // No está en el modelo actual
+  const telEnvio = cliente.telefono || "-";
 
-  // Generar HTML completo
+  // Combinar localidad y provincia
+  const provinciaCompleta = cliente.localidad && cliente.partido
+    ? `${safe(cliente.localidad)} - ${safe(cliente.partido)}`
+    : cliente.localidad
+    ? safe(cliente.localidad)
+    : cliente.partido
+    ? safe(cliente.partido)
+    : "-";
+
+  // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${tipoDocumento} - ${numero}</title>
+  <title>REMITO - ${numero}</title>
   <style>
+    @page {
+      margin: 0;
+      size: A4;
+    }
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      line-height: 1.4;
       color: #1f2937;
       background: #fff;
-      padding: 20px;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 8mm 10mm;
+      display: flex;
+      flex-direction: column;
     }
-    .container {
-      max-width: 100%;
-      margin: 0 auto;
+    .page {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     .header {
       display: flex;
-      align-items: center;
-      gap: 16px;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
       border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 16px;
-      margin-bottom: 32px;
+    }
+    .header-left {
+      flex: 0 0 52%;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .header-logo-container {
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
     .header-logo {
-      height: 60px;
-      width: auto;
-    }
-    .header-info h1 {
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-    .header-info .tipo {
-      font-size: 14px;
-      color: #4b5563;
-      margin-bottom: 4px;
-    }
-    .header-info .web {
-      font-size: 12px;
-      color: #6b7280;
-    }
-    .header-meta {
-      margin-left: auto;
-      text-align: right;
-    }
-    .header-meta div {
-      font-size: 12px;
-      color: #6b7280;
-      margin-bottom: 4px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 16px;
-    }
-    .card {
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .card h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 12px;
-    }
-    .card .info-row {
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-    .card .info-row .label {
-      font-weight: 500;
-    }
-    .table-container {
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .table-container h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-    table {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
+      height: 100%;
+      object-fit: contain;
     }
-    thead tr {
+    .header-empresa {
+      flex: 1;
+    }
+    .header-empresa h1 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      letter-spacing: 0.2px;
+      line-height: 1.3;
+      color: #111827;
+    }
+    .header-empresa .direccion {
+      font-size: 9px;
+      color: #6b7280;
+      margin-bottom: 2px;
+      line-height: 1.3;
+    }
+    .header-empresa .telefono {
+      font-size: 9px;
+      color: #6b7280;
+      line-height: 1.3;
+    }
+    .header-center {
+      flex: 0 0 14%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 6px;
+    }
+    .x-box {
+      width: 48px;
+      height: 48px;
+      border: 1.5px solid #fecaca;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #db2525;
+      background: #fee2e2;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    .documento-invalido {
+      font-size: 7px;
+      text-align: center;
+      line-height: 1.2;
+      font-weight: 600;
+      color: #6b7280;
+    }
+    .header-right {
+      flex: 0 0 34%;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
       background: #f9fafb;
-      border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
-    th {
-      padding: 12px;
-      text-align: left;
+    .header-right .remito-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      color: #111827;
+    }
+    .header-right .remito-numero {
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: #374151;
+    }
+    .header-right .remito-fecha {
+      font-size: 9px;
       font-weight: 500;
+      color: #6b7280;
     }
-    th.text-center {
+    .client-section {
+      margin-bottom: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .client-grid {
+      display: flex;
+      gap: 20px;
+    }
+    .client-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .client-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      line-height: 1.5;
+    }
+    .client-label {
+      font-weight: 600;
+      font-size: 9px;
+      color: #374151;
+      min-width: 80px;
+    }
+    .client-value {
+      font-size: 9px;
+      color: #111827;
+      font-weight: 500;
+      flex: 1;
+    }
+    .products-section {
+      flex: 1;
+      margin-bottom: 10px;
+      min-height: 0;
+    }
+    .products-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 9px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+      background: #fff;
+    }
+    .products-table thead {
+      background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+    }
+    .products-table th {
+      padding: 10px 8px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 2px solid #e5e7eb;
+      font-size: 10px;
+      color: #111827;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .products-table th.text-center {
       text-align: center;
     }
-    th.text-right {
+    .products-table th.text-right {
       text-align: right;
     }
-    tbody tr:hover {
+    .products-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #f3f4f6;
+      line-height: 1.5;
+      color: #1f2937;
+      vertical-align: middle;
+    }
+    .products-table tbody tr {
+      transition: background-color 0.2s;
+    }
+    .products-table tbody tr:not(:last-child) {
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .products-table tbody tr:hover {
+      background: #fafafa;
+    }
+    .products-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .products-table tfoot {
       background: #f9fafb;
     }
-    .observaciones {
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
+    .products-table tfoot td {
+      padding: 8px;
+      border-top: 2px solid #e5e7eb;
+      background: #f9fafb;
     }
-    .observaciones h3 {
-      font-size: 18px;
-      font-weight: 600;
+    .products-table tfoot tr:last-child td {
+      border-top: 2px solid #d1d5db;
+      background: #f3f4f6;
+      font-weight: 700;
+    }
+    .bottom {
+      margin-top: 20px;
+      padding-top: 12px;
+    }
+    .disclaimer {
+      font-size: 8px;
+      color: #6b7280;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      text-align: justify;
+      padding: 8px 10px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .firmas {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
       margin-bottom: 8px;
     }
-    .observaciones p {
+    .firma-col {
+      flex: 1;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 600;
       color: #374151;
-      white-space: pre-wrap;
+      padding: 8px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .envio-info {
+      font-size: 8px;
+      color: #374151;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      padding: 8px 10px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .envio-info strong {
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .footer-bottom {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      font-size: 8px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    .page-continuation {
+      font-size: 8px;
+      color: #9ca3af;
+      text-align: center;
+      padding: 8px;
+      margin-bottom: 8px;
+      font-style: italic;
     }
     ${paraEmpleado ? `
     .precio-empleado,
-    .descuento-empleado,
-    .subtotal-empleado,
-    .total-empleado,
-    .costo-envio-empleado,
-    .monto-abonado-empleado,
-    .saldo-pendiente-empleado,
-    .estado-pago-empleado,
-    .forma-pago-empleado,
-    .historial-pagos-empleado {
+    .total-empleado {
       display: none !important;
     }
     ` : ""}
-    @media print {
-      body {
-        padding: 0;
-      }
-      .container {
-        max-width: 100%;
-      }
-    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="header-logo" />` : '<div class="header-logo" style="width: 60px; height: 60px; background: #e5e7eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700;">LOGO</div>'}
-      <div class="header-info">
-        <h1>${safe(empresa.nombre, tituloDocumento)}</h1>
-        <div class="tipo">${tipoDocumento}</div>
-        <div class="web">${safe(empresa.web, "www.caballeromaderas.com")}</div>
-      </div>
-      <div class="header-meta">
-        <div>Fecha: ${safe(fecha)}</div>
-        ${tipo === "presupuesto" && fechaVencimiento ? `<div>Válido hasta: ${safe(fechaVencimiento)}</div>` : ""}
-        <div>N°: ${safe(numero)}</div>
-      </div>
-    </div>
-
-    <!-- Información del Cliente y Envío -->
-    <div class="grid">
-      <div class="card">
-        <h3>Información del Cliente</h3>
-        <div class="info-row"><span class="label">Nombre:</span> ${safe(cliente.nombre)}</div>
-        <div class="info-row"><span class="label">CUIT / DNI:</span> ${safe(cliente.cuit)}</div>
-        <div class="info-row"><span class="label">Dirección:</span> ${safe(cliente.direccion)}</div>
-        ${cliente.localidad ? `<div class="info-row"><span class="label">Localidad:</span> ${safe(cliente.localidad)}</div>` : ""}
-        <div class="info-row"><span class="label">Teléfono:</span> ${safe(cliente.telefono)}</div>
-        ${cliente.email ? `<div class="info-row"><span class="label">Email:</span> ${safe(cliente.email)}</div>` : ""}
-        ${cliente.partido ? `<div class="info-row"><span class="label">Partido:</span> ${safe(cliente.partido)}</div>` : ""}
-        ${cliente.barrio ? `<div class="info-row"><span class="label">Barrio:</span> ${safe(cliente.barrio)}</div>` : ""}
-      </div>
-
-      <div class="card">
-        <h3>${envio && envio.tipoEnvio !== "retiro_local" ? "Información de Envío y Pago" : "Información de Envío y Pago"}</h3>
-        ${envio && envio.tipoEnvio !== "retiro_local" ? `
-          <div class="info-row"><span class="label">Tipo de envío:</span> Envío a Domicilio</div>
-          <div class="info-row"><span class="label">Dirección:</span> ${safe(envio.direccion)}</div>
-          ${envio.localidad ? `<div class="info-row"><span class="label">Localidad:</span> ${safe(envio.localidad)}</div>` : ""}
-          ${envio.fechaEntrega ? `<div class="info-row"><span class="label">Fecha de envío:</span> ${safe(envio.fechaEntrega)}</div>` : ""}
-          ${envio.rangoHorario ? `<div class="info-row"><span class="label">Rango horario:</span> ${safe(envio.rangoHorario)}</div>` : ""}
-        ` : `
-          <div class="info-row"><span class="label">Tipo de entrega:</span> Retiro en local</div>
-          ${envio && envio.fechaEntrega ? `<div class="info-row"><span class="label">Fecha de retiro:</span> ${safe(envio.fechaEntrega)}</div>` : ""}
-        `}
-        ${vendedor ? `<div class="info-row"><span class="label">Vendedor:</span> ${safe(vendedor)}</div>` : ""}
-        ${formaPago ? `<div class="info-row forma-pago-empleado"><span class="label">Forma de pago:</span> ${safe(formaPago)}</div>` : ""}
-        ${tipo === "venta" && pagos && pagos.estadoPago ? `
-          <div class="info-row estado-pago-empleado">
-            <span class="label">Estado de la venta:</span>
-            <span style="font-weight: 700; margin-left: 8px; color: ${
-              pagos.estadoPago === "pagado" ? "#15803d" :
-              pagos.estadoPago === "parcial" ? "#b45309" : "#dc2626"
-            };">
-              ${pagos.estadoPago === "pagado" ? "Pagado" :
-                pagos.estadoPago === "parcial" ? "Parcial" : "Pendiente"}
-            </span>
+  <div class="page">
+    <div class="main">
+      <!-- Header con 3 zonas -->
+      <div class="header">
+        <div class="header-left">
+          ${logoBase64 ? `<div class="header-logo-container"><img src="${logoBase64}" alt="Logo" class="header-logo" /></div>` : ""}
+          <div class="header-empresa">
+            <h1>${safe(empresa.nombre, "MADERAS CABALLERO")}</h1>
+            <div class="direccion">${safe(empresa.direccion, "AV. DR. HONORIO PUEYRREDÓN 4625, VILLA ROSA, BUENOS AIRES")}</div>
+            <div class="telefono">Tel: ${safe(empresa.telefono, "11-3497-6239")}</div>
+            <div class="telefono">${safe(empresa.web, "WWW.CABALLEROMADERAS.COM")}</div>
           </div>
-        ` : ""}
+        </div>
+        <div class="header-center">
+          <div class="x-box">X</div>
+          <div class="documento-invalido">
+            DOCUMENTO<br/>
+            NO VALIDO<br/>
+            COMO FACTURA
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="remito-title">REMITO</div>
+          <div class="remito-numero">N° ${safe(numero)}</div>
+          <div class="remito-fecha">FECHA ${safe(fecha)}</div>
+        </div>
+      </div>
+
+      <!-- Información del Cliente -->
+      <div class="client-section">
+        <div class="client-grid">
+          <div class="client-col">
+            <div class="client-row">
+              <span class="client-label">Cliente:</span>
+              <span class="client-value">${safe(cliente.nombre)}</span>
+            </div>
+            <div class="client-row">
+              <span class="client-label">CUIT:</span>
+              <span class="client-value">${safe(cliente.cuit)}</span>
+            </div>
+            <div class="client-row">
+              <span class="client-label">Forma Pago:</span>
+              <span class="client-value">${safe(formaPago)}</span>
+            </div>
+          </div>
+          <div class="client-col">
+            <div class="client-row">
+              <span class="client-label">Dirección:</span>
+              <span class="client-value">${safe(cliente.direccion)}</span>
+            </div>
+            <div class="client-row">
+              <span class="client-label">CP:</span>
+              <span class="client-value">-</span>
+            </div>
+            <div class="client-row">
+              <span class="client-label">Provincia:</span>
+              <span class="client-value">${provinciaCompleta}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de Productos -->
+      <div class="products-section">
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 10%;">CANTIDAD</th>
+              <th style="width: 40%;">DETALLE</th>
+              <th class="text-center" style="width: 15%;">CEPILLADO</th>
+              ${!paraEmpleado ? `
+              <th class="text-right" style="width: 17.5%;">PRECIO UNIT.</th>
+              <th class="text-right" style="width: 17.5%;">TOTAL</th>
+              ` : `
+              <th class="text-right precio-empleado" style="width: 17.5%;"></th>
+              <th class="text-right total-empleado" style="width: 17.5%;"></th>
+              `}
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            ${filasVacias}
+          </tbody>
+          ${!paraEmpleado ? `
+          <tfoot>
+            ${totalesRowsHtml}
+          </tfoot>
+          ` : ""}
+        </table>
       </div>
     </div>
 
-    <!-- Información de Pagos (solo ventas) -->
-    ${pagosHtml}
+    <!-- Footer -->
+    <div class="bottom">
+      <div class="disclaimer">
+        ESTE REMITO NO ES VÁLIDO COMO FACTURA. VERIFIQUE LA MERCADERÍA AL RECIBIRLA. RECLAMOS DENTRO DE LAS 48 HS DE ENTREGADA LA MISMA. TODA LA MERCADERÍA SERÁ DESCARGADA SIN EXCEPCIÓN ALGUNA AL PIE DEL CAMIÓN.
+      </div>
+      
+      <div class="firmas">
+        <div class="firma-col">Firma</div>
+        <div class="firma-col">Aclaración</div>
+        <div class="firma-col">Documento N°</div>
+      </div>
 
-    <!-- Productos y Servicios -->
-    ${items.length > 0 ? `
-    <div class="table-container">
-      <h3>Productos y Servicios</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th class="text-center">Cantidad</th>
-            <th class="text-center">Cepillado</th>
-            ${!paraEmpleado ? `
-            <th class="text-right precio-empleado">Precio Unit.</th>
-            <th class="text-right descuento-empleado">Descuento</th>
-            <th class="text-right subtotal-empleado">Subtotal</th>
-            ` : ""}
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-      </table>
-      ${totalesHtml}
-    </div>
-    ` : ""}
+      <div class="envio-info">
+        <strong>Tipo de envío:</strong> ${tipoEnvio} <strong>Fecha entrega:</strong> ${safe(fechaEntrega)} <strong>Lugar entrega:</strong> ${safe(lugarEntrega)} <strong>Entre calles:</strong> ${safe(entreCalles)} <strong>Tel:</strong> ${safe(telEnvio)}
+      </div>
 
-    <!-- Observaciones -->
-    ${observaciones ? `
-    <div class="observaciones">
-      <h3>Observaciones</h3>
-      <p>${escapeHtml(observaciones)}</p>
+      <div class="footer-bottom">
+        <div>ORIGINAL BLANCO / DUPLICADO COLOR</div>
+        <div>1/1</div>
+      </div>
     </div>
-    ` : ""}
   </div>
 </body>
-</html>
+  </html>
   `;
 }
 
@@ -453,53 +594,75 @@ export async function generateRemitoPDFBuffer(
   remito: RemitoModel,
   paraEmpleado: boolean = false
 ): Promise<Buffer> {
+  // Verificar que estamos en Node.js
+  if (typeof window !== "undefined") {
+    throw new Error("Este código solo puede ejecutarse en el servidor Node.js");
+  }
+
   const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
   
   let browser;
   
-  if (isProduction) {
-    // Producción: usar @sparticuz/chromium
-    const loadModule = new Function("moduleName", "return require(moduleName)");
-    const chromium = loadModule("@sparticuz/chromium");
-    const puppeteerCore = loadModule("puppeteer-core");
-    chromium.setGraphicsMode = false;
+  try {
+    // Cargar módulos usando un archivo .js separado que webpack no procesa
+    // @ts-ignore - El archivo .js se carga dinámicamente
+    const { loadPuppeteerModule } = require("./load-puppeteer.js");
     
-    browser = await puppeteerCore.launch({
-      args: chromium.args,
-      defaultViewport: {
-        deviceScaleFactor: 1,
-        hasTouch: false,
-        height: 1080,
-        isLandscape: true,
-        isMobile: false,
-        width: 1920,
-      },
-      executablePath: await chromium.executablePath(),
-      headless: "shell",
-    });
-  } else {
-    // Desarrollo: usar puppeteer normal
-    const loadModule = new Function("moduleName", "return require(moduleName)");
-    const puppeteer = loadModule("puppeteer");
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    const loadModule = (moduleName: string): any => {
+      return loadPuppeteerModule(moduleName);
+    };
+    
+    if (isProduction) {
+      // Producción: usar @sparticuz/chromium
+      const chromium: any = loadModule("@sparticuz/chromium");
+      const puppeteerCore: any = loadModule("puppeteer-core");
+      
+      // setGraphicsMode puede no estar disponible en todas las versiones
+      if (typeof chromium.setGraphicsMode === "function") {
+        chromium.setGraphicsMode(false);
+      }
+      
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: {
+          deviceScaleFactor: 1,
+          hasTouch: false,
+          height: 1080,
+          isLandscape: true,
+          isMobile: false,
+          width: 1920,
+        },
+        executablePath: await chromium.executablePath(),
+        headless: "shell",
+      });
+    } else {
+      // Desarrollo: usar puppeteer normal
+      const puppeteer: any = loadModule("puppeteer");
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
+    }
+  } catch (importError: any) {
+    console.error("Error importando módulos de Puppeteer:", importError);
+    throw new Error(`Error al cargar Puppeteer: ${importError?.message || "Unknown error"}`);
   }
 
   const page = await browser.newPage();
   const html = buildRemitoHtml(remito, paraEmpleado);
   await page.setContent(html, { waitUntil: "networkidle0" });
 
+  // Generar PDF - Puppeteer manejará automáticamente el overflow a nuevas páginas
   const pdfBuffer = await page.pdf({
     format: "A4",
     printBackground: true,
     margin: {
-      top: "20mm",
-      bottom: "20mm",
-      left: "20mm",
-      right: "20mm",
+      top: "2mm",
+      bottom: "2mm",
+      left: "2mm",
+      right: "2mm",
     },
+    preferCSSPageSize: true,
   });
 
   await browser.close();
