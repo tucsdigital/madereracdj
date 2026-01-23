@@ -604,25 +604,17 @@ export async function generateRemitoPDFBuffer(
   let browser;
   
   try {
-    // Cargar módulos usando un archivo .js separado que webpack no procesa
-    // @ts-ignore - El archivo .js se carga dinámicamente
-    const { loadPuppeteerModule } = require("./load-puppeteer.js");
-    
-    const loadModule = (moduleName: string): any => {
-      return loadPuppeteerModule(moduleName);
-    };
-    
     if (isProduction) {
-      // Producción: usar @sparticuz/chromium
-      const chromium: any = loadModule("@sparticuz/chromium");
-      const puppeteerCore: any = loadModule("puppeteer-core");
+      // Producción (Vercel): usar import dinámico para @sparticuz/chromium y puppeteer-core
+      const chromium: any = await import("@sparticuz/chromium");
+      const puppeteerCore: any = await import("puppeteer-core");
       
       // setGraphicsMode puede no estar disponible en todas las versiones
       if (typeof chromium.setGraphicsMode === "function") {
         chromium.setGraphicsMode(false);
       }
       
-      browser = await puppeteerCore.launch({
+      browser = await puppeteerCore.default.launch({
         args: chromium.args,
         defaultViewport: {
           deviceScaleFactor: 1,
@@ -633,12 +625,12 @@ export async function generateRemitoPDFBuffer(
           width: 1920,
         },
         executablePath: await chromium.executablePath(),
-        headless: "shell",
+        headless: chromium.headless || "shell",
       });
     } else {
-      // Desarrollo: usar puppeteer normal
-      const puppeteer: any = loadModule("puppeteer");
-      browser = await puppeteer.launch({
+      // Desarrollo: usar puppeteer normal con import dinámico
+      const puppeteer: any = await import("puppeteer");
+      browser = await puppeteer.default.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
