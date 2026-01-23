@@ -14,7 +14,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Trash2, User, Edit, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer } from "lucide-react";
 import { Icon } from "@iconify/react";
 // SelectorProductosPresupuesto removido - usar componente separado si es necesario
 // FormularioVentaPresupuesto removido - usar componente separado si es necesario
@@ -90,6 +90,8 @@ const VentaDetalle = () => {
   const [errorForm, setErrorForm] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
+  const [printingPDF, setPrintingPDF] = useState(false);
+  const [printingPDFEmpleado, setPrintingPDFEmpleado] = useState(false);
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -1403,6 +1405,77 @@ const VentaDetalle = () => {
     }
   };
 
+  // Función para imprimir PDF
+  const handlePrintPDF = async (paraEmpleado = false) => {
+    if (!venta?.id) return;
+    
+    if (paraEmpleado) {
+      setPrintingPDFEmpleado(true);
+    } else {
+      setPrintingPDF(true);
+    }
+    
+    try {
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: paraEmpleado,
+        }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Error generando remito PDF", errorText);
+        alert("Error al generar el PDF para imprimir");
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      // Crear un iframe oculto para imprimir
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.src = url;
+      
+      document.body.appendChild(iframe);
+      
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+          // Limpiar después de un tiempo
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            window.URL.revokeObjectURL(url);
+          }, 1000);
+        } catch (e) {
+          console.error("Error al imprimir", e);
+          // Fallback: abrir en nueva ventana
+          window.open(url, "_blank");
+          document.body.removeChild(iframe);
+          setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        }
+      };
+    } catch (e) {
+      console.error("Error imprimiendo remito PDF", e);
+      alert("Error al generar el PDF para imprimir");
+    } finally {
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
+    }
+  };
+
   // Función para obtener el estado del pago
   const getEstadoPagoColor = (estado) => {
     switch (estado) {
@@ -1664,7 +1737,7 @@ const VentaDetalle = () => {
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(false)}
-                disabled={downloadingPDF || downloadingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -1678,7 +1751,7 @@ const VentaDetalle = () => {
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(true)}
-                disabled={downloadingPDF || downloadingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -1689,6 +1762,34 @@ const VentaDetalle = () => {
                 )}
                 <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
                 <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
+              </Button>
+              <Button
+                onClick={() => handlePrintPDF(false)}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDF ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
+                ) : (
+                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir</span>
+                <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
+              </Button>
+              <Button
+                onClick={() => handlePrintPDF(true)}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDFEmpleado ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
+                ) : (
+                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
+                <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
               </Button>
               {!editando && (
                 <Button
