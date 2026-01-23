@@ -57,12 +57,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         .map(
           (item) => `
           <tr>
-            <td style="padding: 10px 8px; text-align: center; font-weight: 600; color: #111827; font-size: 10px;">${item.cantidad}</td>
-            <td style="padding: 10px 8px; font-weight: 500; color: #1f2937; font-size: 9.5px;">${safe(item.nombre)}</td>
-            <td style="padding: 10px 8px; text-align: center; color: #6b7280; font-size: 9px; font-weight: 500;">${item.cepillado ? "✓ Sí" : "No"}</td>
+            <td style="padding: 10px 8px; text-align: center; font-weight: 800; color: #000000; font-size: 10px;">${item.cantidad}</td>
+            <td style="padding: 10px 8px; font-weight: 700; color: #000000; font-size: 9.5px;">${safe(item.nombre)}</td>
+            <td style="padding: 10px 8px; text-align: center; color: #000000; font-size: 9px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
             ${!paraEmpleado ? `
-            <td style="padding: 10px 8px; text-align: right; color: #374151; font-size: 9.5px; font-weight: 500;">${formatCurrency(item.precioUnitario || 0)}</td>
-            <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #111827; font-size: 10px;">${formatCurrency(item.subtotal || 0)}</td>
+            <td style="padding: 10px 8px; text-align: right; color: #000000; font-size: 9.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(item.subtotal || 0)}</td>
             ` : `
             <td style="padding: 10px 8px; text-align: right;" class="precio-empleado"></td>
             <td style="padding: 10px 8px; text-align: right; font-weight: 600;" class="total-empleado"></td>
@@ -73,7 +73,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         .join("")
     : `
       <tr>
-        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 12px; text-align: center; color: #6b7280;">
+        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 12px; text-align: center; color: #000000; font-weight: 700;">
           Sin productos
         </td>
       </tr>
@@ -85,7 +85,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
   if (items.length > 0 && items.length < 8) {
     const numFilasVacias = Math.min(3, 8 - items.length);
     filasVacias = Array.from({ length: numFilasVacias }, () => `
-      <tr style="border-bottom: 1px solid #f3f4f6;">
+      <tr style="border-bottom: 1px solid #000000;">
         <td style="padding: 8px 6px; height: 32px;"></td>
         <td style="padding: 8px 6px;"></td>
         <td style="padding: 8px 6px;"></td>
@@ -106,20 +106,20 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 600; color: #4b5563;">DESCUENTO</td>
-        <td style="padding: 6px; text-align: right; font-weight: 600; color: #1f2937;">${formatCurrency(totales.descuentoTotal || 0)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">DESCUENTO</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">${formatCurrency(totales.descuentoTotal || 0)}</td>
       </tr>
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 600; color: #4b5563;">SUBTOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 600; color: #1f2937;">${formatCurrency(totales.subtotal)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">SUBTOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">${formatCurrency(totales.subtotal)}</td>
       </tr>
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 700; font-size: 11px; color: #111827;">TOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 700; font-size: 11px; color: #111827;">${formatCurrency(totales.total)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 12px; color: #000000;">TOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 12px; color: #000000;">${formatCurrency(totales.total)}</td>
       </tr>
     `
     : "";
@@ -364,35 +364,29 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table td {
       padding: 10px 8px;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid #000000;
       line-height: 1.5;
-      color: #1f2937;
+      color: #000000;
       vertical-align: middle;
     }
-    .products-table tbody tr {
-      transition: background-color 0.2s;
-    }
     .products-table tbody tr:not(:last-child) {
-      border-bottom: 1px solid #f3f4f6;
-    }
-    .products-table tbody tr:hover {
-      background: #fafafa;
+      border-bottom: 1px solid #000000;
     }
     .products-table tbody tr:last-child td {
       border-bottom: none;
     }
     .products-table tfoot {
-      background: #f9fafb;
+      background: #fff;
     }
     .products-table tfoot td {
       padding: 8px;
-      border-top: 2px solid #e5e7eb;
-      background: #f9fafb;
+      border-top: 3px solid #000000;
+      background: #fff;
     }
     .products-table tfoot tr:last-child td {
-      border-top: 2px solid #d1d5db;
-      background: #f3f4f6;
-      font-weight: 700;
+      border-top: 3px solid #000000;
+      background: #fff;
+      font-weight: 900;
     }
     .bottom {
       margin-top: 20px;
@@ -400,14 +394,15 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .disclaimer {
       font-size: 8px;
-      color: #6b7280;
+      color: #000000;
       line-height: 1.4;
       margin-bottom: 8px;
       text-align: justify;
       padding: 8px 10px;
-      background: #f3f4f6;
+      background: #fff;
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
+      font-weight: 700;
     }
     .firmas {
       display: flex;
@@ -419,34 +414,36 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       flex: 1;
       text-align: center;
       font-size: 9px;
-      font-weight: 600;
-      color: #374151;
+      font-weight: 800;
+      color: #000000;
       padding: 8px;
-      background: #f3f4f6;
+      background: #fff;
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
     }
     .envio-info {
       font-size: 8px;
-      color: #374151;
+      color: #000000;
       margin-bottom: 6px;
       line-height: 1.4;
       padding: 8px 10px;
-      background: #f3f4f6;
+      background: #fff;
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
+      font-weight: 700;
     }
     .envio-info strong {
-      font-weight: 600;
-      color: #1f2937;
+      font-weight: 900;
+      color: #000000;
     }
     .footer-bottom {
       display: flex;
       justify-content: flex-end;
       align-items: center;
       font-size: 8px;
-      color: #9ca3af;
+      color: #000000;
       margin-top: 4px;
+      font-weight: 700;
     }
     .page-continuation {
       font-size: 8px;
