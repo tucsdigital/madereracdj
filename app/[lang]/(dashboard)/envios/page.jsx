@@ -63,7 +63,6 @@ function DetalleEnvio({ envio, onClose }) {
                 <div><strong>Localidad:</strong> {envio.localidadEnvio}</div>
                 <div><strong>CP:</strong> {envio.codigoPostal}</div>
                 <div><strong>Tipo:</strong> {envio.tipoEnvio}</div>
-                <div><strong>Transportista:</strong> {envio.transportista}</div>
               </div>
             </div>
           </div>
@@ -137,14 +136,13 @@ function DetalleEnvio({ envio, onClose }) {
 }
 
 // Modal de edición de envío
-function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
-  const [nuevoTransportista, setNuevoTransportista] = useState(envio.transportista || "");
+function EditarEnvioModal({ envio, onClose, onUpdate }) {
   const [nuevoEstado, setNuevoEstado] = useState(envio.estado);
   const [comentario, setComentario] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleGuardar = async () => {
-    if (!nuevoTransportista || !nuevoEstado) return;
+    if (!nuevoEstado) return;
     setIsSubmitting(true);
     try {
       const envioRef = doc(db, "envios", envio.id);
@@ -161,7 +159,6 @@ function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
         ];
       }
       await updateDoc(envioRef, {
-        transportista: nuevoTransportista,
         estado: nuevoEstado,
         historialEstados: nuevoHistorial,
         fechaActualizacion: new Date().toISOString(),
@@ -183,13 +180,6 @@ function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Transportista</label>
-            <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoTransportista} onChange={e => setNuevoTransportista(e.target.value)}>
-              <option value="">Seleccionar transportista</option>
-              {transportistas.map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="text-sm font-medium">Estado</label>
             <select className="border rounded px-2 py-2 w-full mt-1" value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value)}>
               {Object.entries(estadosEnvio).map(([key, value]) => (
@@ -204,7 +194,7 @@ function EditarEnvioModal({ envio, onClose, onUpdate, transportistas }) {
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleGuardar} disabled={isSubmitting || !nuevoTransportista || !nuevoEstado}>
+          <Button onClick={handleGuardar} disabled={isSubmitting || !nuevoEstado}>
             {isSubmitting ? "Guardando..." : "Guardar cambios"}
           </Button>
         </div>
@@ -223,7 +213,6 @@ const EnviosPage = () => {
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [mostrarEditar, setMostrarEditar] = useState(false);
   const [envioEdit, setEnvioEdit] = useState(null);
-  const transportistas = ["camion", "camioneta 1", "camioneta 2", "otro"];
 
   // Filtro predeterminado a 'pendiente' al cargar
   useEffect(() => {
@@ -331,14 +320,6 @@ const EnviosPage = () => {
       },
     },
     {
-      accessorKey: "transportista",
-      header: "Transportista",
-      cell: ({ row }) => {
-        const transportista = row.getValue("transportista");
-        return transportista || <span className="text-gray-400">Sin asignar</span>;
-      },
-    },
-    {
       accessorKey: "totalVenta",
       header: "Total",
       cell: ({ row }) => {
@@ -413,8 +394,7 @@ const EnviosPage = () => {
     const cumpleBusqueda = !busqueda || 
       envio.numeroPedido?.toLowerCase().includes(busqueda.toLowerCase()) ||
       envio.cliente?.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      envio.vendedor?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      envio.transportista?.toLowerCase().includes(busqueda.toLowerCase());
+      envio.vendedor?.toLowerCase().includes(busqueda.toLowerCase());
     
     return cumpleEstado && cumpleBusqueda;
   });
@@ -567,7 +547,6 @@ const EnviosPage = () => {
           envio={envioEdit}
           onClose={() => { setMostrarEditar(false); setEnvioEdit(null); }}
           onUpdate={handleActualizarEnvio}
-          transportistas={transportistas}
         />
       )}
     </div>
