@@ -605,17 +605,23 @@ export async function generateRemitoPDFBuffer(
   
   try {
     if (isProduction) {
-      // Producción (Vercel): usar import dinámico para @sparticuz/chromium y puppeteer-core
-      const chromium: any = await import("@sparticuz/chromium");
-      const puppeteerCore: any = await import("puppeteer-core");
+      // Producción (Vercel): usar require dinámico para @sparticuz/chromium y puppeteer-core
+      // Usar Function constructor para evitar que webpack procese el require
+      const loadModule = new Function("moduleName", "return require(moduleName)");
+      
+      const chromium: any = loadModule("@sparticuz/chromium");
+      const puppeteerCore: any = loadModule("puppeteer-core");
       
       // setGraphicsMode puede no estar disponible en todas las versiones
-      if (typeof chromium.setGraphicsMode === "function") {
+      if (chromium && typeof chromium.setGraphicsMode === "function") {
         chromium.setGraphicsMode(false);
       }
       
-      browser = await puppeteerCore.default.launch({
-        args: chromium.args,
+      // executablePath es una función async en @sparticuz/chromium
+      const executablePath = await chromium.executablePath();
+      
+      browser = await puppeteerCore.launch({
+        args: chromium.args || [],
         defaultViewport: {
           deviceScaleFactor: 1,
           hasTouch: false,
@@ -624,13 +630,14 @@ export async function generateRemitoPDFBuffer(
           isMobile: false,
           width: 1920,
         },
-        executablePath: await chromium.executablePath(),
+        executablePath: executablePath,
         headless: chromium.headless || "shell",
       });
     } else {
-      // Desarrollo: usar puppeteer normal con import dinámico
-      const puppeteer: any = await import("puppeteer");
-      browser = await puppeteer.default.launch({
+      // Desarrollo: usar puppeteer normal
+      const loadModule = new Function("moduleName", "return require(moduleName)");
+      const puppeteer: any = loadModule("puppeteer");
+      browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
       });
