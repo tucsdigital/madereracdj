@@ -758,11 +758,18 @@ export async function generateRemitoPDFBuffer(
     timeout: 10000,
   });
 
-  // Cerrar página y navegador rápidamente
-  await Promise.all([
-    page.close(),
-    browser.close(),
-  ]);
+  // Cerrar página primero, luego navegador
+  try {
+    await page.close();
+  } catch (e) {
+    // Ignorar errores al cerrar página
+  }
+  
+  try {
+    await browser.close();
+  } catch (e) {
+    // Ignorar errores al cerrar navegador
+  }
   
   return pdfBuffer as Buffer;
 }
