@@ -16,7 +16,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Download, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, User, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -1233,11 +1233,6 @@ const PresupuestoDetalle = () => {
 
   // Eliminar el cálculo de fecha de vencimiento automática
 
-  // Función para imprimir
-  const handlePrint = () => {
-    window.print();
-  };
-
   // Función para descargar PDF
   const handleDownloadPDF = async (paraEmpleado = false) => {
     if (!presupuesto?.id) return;
@@ -1455,39 +1450,32 @@ const PresupuestoDetalle = () => {
                 <span className="hidden sm:inline">Volver</span>
               </Button>
               <Button
-                onClick={handlePrint}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
-              >
-                <span className="hidden sm:inline">Imprimir</span>
-                <span className="sm:hidden">🖨️</span>
-              </Button>
-              <Button
                 onClick={() => handleDownloadPDF(false)}
-                variant="outline"
                 disabled={downloadingPDF || downloadingPDFEmpleado}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {downloadingPDF ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
                 ) : (
-                  <Download className="w-4 h-4 mr-1 lg:mr-2" />
+                  <Download className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
                 )}
-                <span className="hidden sm:inline">Descargar</span>
-                <span className="sm:hidden">{downloadingPDF ? "⏳" : "📥"}</span>
+                <span className="hidden sm:inline relative z-10 font-medium">Descargar</span>
+                <span className="sm:hidden relative z-10">{downloadingPDF ? "⏳" : "📥"}</span>
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(true)}
-                variant="outline"
                 disabled={downloadingPDF || downloadingPDFEmpleado}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {downloadingPDFEmpleado ? (
-                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
                 ) : (
-                  <User className="w-4 h-4 mr-1 lg:mr-2" />
+                  <User className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
                 )}
-                <span className="hidden sm:inline">Descargar Empleado</span>
-                <span className="sm:hidden">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
+                <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
+                <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
               </Button>
               {!editando && !convirtiendoVenta && (
                 <Button
