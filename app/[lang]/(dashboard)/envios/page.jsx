@@ -118,23 +118,45 @@ function DetalleEnvio({ envio, onClose }) {
         }),
       });
       if (!res.ok) {
-        console.error("Error generando remito PDF", await res.text());
+        const errorText = await res.text();
+        console.error("Error generando remito PDF", errorText);
+        alert("Error al generar el PDF para imprimir");
         return;
       }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const printWindow = window.open(url);
-      if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.print();
-        };
-      }
-      // Limpiar URL después de un tiempo
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
+      
+      // Crear un iframe oculto para imprimir
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.src = url;
+      
+      document.body.appendChild(iframe);
+      
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+          // Limpiar después de un tiempo
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            window.URL.revokeObjectURL(url);
+          }, 1000);
+        } catch (e) {
+          console.error("Error al imprimir", e);
+          // Fallback: abrir en nueva ventana
+          window.open(url, "_blank");
+          document.body.removeChild(iframe);
+          setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        }
+      };
     } catch (e) {
       console.error("Error imprimiendo remito PDF", e);
+      alert("Error al generar el PDF para imprimir");
     } finally {
       if (paraEmpleado) {
         setPrintingPDFEmpleado(false);

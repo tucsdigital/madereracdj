@@ -124,14 +124,13 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     `
     : "";
 
-  // Información de envío
-  const tipoEnvio = envio && envio.tipoEnvio && envio.tipoEnvio !== "retiro_local" 
-    ? "DOMICILIO" 
-    : "RETIRO EN LOCAL";
-  const fechaEntrega = envio?.fechaEntrega || "-";
-  const lugarEntrega = envio?.direccion || cliente.direccion || "-";
-  const entreCalles = "-"; // No está en el modelo actual
-  const telEnvio = cliente.telefono || "-";
+  // Información de envío - Solo si NO es retiro local
+  const esRetiroLocal = !envio || !envio.tipoEnvio || envio.tipoEnvio === "retiro_local";
+  const tipoEnvio = esRetiroLocal ? "RETIRO EN LOCAL" : "DOMICILIO";
+  const fechaEntrega = esRetiroLocal ? null : (envio?.fechaEntrega || null);
+  const lugarEntrega = esRetiroLocal ? null : (envio?.direccion || cliente.direccion || null);
+  const entreCalles = esRetiroLocal ? null : "-"; // No está en el modelo actual
+  const telEnvio = esRetiroLocal ? null : (cliente.telefono || null);
 
   // Combinar localidad y provincia
   const provinciaCompleta = cliente.localidad && cliente.partido
@@ -187,8 +186,8 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
       border-bottom: 2px solid #000000;
     }
     .header-left {
@@ -294,10 +293,10 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       color: #000000;
     }
     .client-section {
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       border: 2px solid #000000;
       border-radius: 10px;
-      padding: 12px;
+      padding: 14px;
       background: #fff;
     }
     .client-grid {
@@ -330,7 +329,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-section {
       flex: 1;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
       min-height: 0;
     }
     .products-table {
@@ -389,16 +388,16 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       font-weight: 900;
     }
     .bottom {
-      margin-top: 20px;
-      padding-top: 12px;
+      margin-top: 24px;
+      padding-top: 16px;
     }
     .disclaimer {
       font-size: 8px;
       color: #000000;
-      line-height: 1.4;
-      margin-bottom: 8px;
+      line-height: 1.5;
+      margin-bottom: 12px;
       text-align: justify;
-      padding: 8px 10px;
+      padding: 12px 14px;
       background: #fff;
       border-radius: 8px;
       border: 2px solid #000000;
@@ -407,8 +406,8 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     .firmas {
       display: flex;
       justify-content: space-between;
-      gap: 6px;
-      margin-bottom: 8px;
+      gap: 10px;
+      margin-bottom: 12px;
     }
     .firma-col {
       flex: 1;
@@ -416,17 +415,21 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       font-size: 9px;
       font-weight: 800;
       color: #000000;
-      padding: 8px;
+      padding: 12px 8px;
       background: #fff;
       border-radius: 8px;
       border: 2px solid #000000;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .envio-info {
       font-size: 8px;
       color: #000000;
-      margin-bottom: 6px;
-      line-height: 1.4;
-      padding: 8px 10px;
+      margin-bottom: 10px;
+      line-height: 1.6;
+      padding: 12px 14px;
       background: #fff;
       border-radius: 8px;
       border: 2px solid #000000;
@@ -435,6 +438,13 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     .envio-info strong {
       font-weight: 900;
       color: #000000;
+      margin-right: 4px;
+    }
+    .envio-info-item {
+      margin-bottom: 4px;
+    }
+    .envio-info-item:last-child {
+      margin-bottom: 0;
     }
     .footer-bottom {
       display: flex;
@@ -447,11 +457,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .page-continuation {
       font-size: 8px;
-      color: #9ca3af;
+      color: #000000;
       text-align: center;
       padding: 8px;
       margin-bottom: 8px;
       font-style: italic;
+      font-weight: 700;
     }
     ${paraEmpleado ? `
     .precio-empleado,
@@ -566,9 +577,15 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         <div class="firma-col">Documento N°</div>
       </div>
 
+      ${!esRetiroLocal ? `
       <div class="envio-info">
-        <strong>Tipo de envío:</strong> ${tipoEnvio} <strong>Fecha entrega:</strong> ${safe(fechaEntrega)} <strong>Lugar entrega:</strong> ${safe(lugarEntrega)} <strong>Entre calles:</strong> ${safe(entreCalles)} <strong>Tel:</strong> ${safe(telEnvio)}
+        <div class="envio-info-item"><strong>Tipo de envío:</strong> ${tipoEnvio}</div>
+        ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> ${safe(fechaEntrega)}</div>` : ""}
+        ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> ${safe(lugarEntrega)}</div>` : ""}
+        ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
+        ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
       </div>
+      ` : ""}
 
       <div class="footer-bottom">
         <div>ORIGINAL BLANCO / DUPLICADO COLOR</div>
