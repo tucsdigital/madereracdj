@@ -634,14 +634,22 @@ export async function generateRemitoPDFBuffer(
       const executablePath = await chromium.executablePath();
       
       browser = await puppeteerCore.launch({
-        args: chromium.args || [],
+        args: [
+          ...(chromium.args || []),
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+          "--disable-software-rasterizer",
+          "--disable-extensions",
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+        ],
         defaultViewport: {
           deviceScaleFactor: 1,
           hasTouch: false,
           height: 1080,
-          isLandscape: true,
+          isLandscape: false,
           isMobile: false,
-          width: 1920,
+          width: 794, // A4 width in pixels at 96 DPI
         },
         executablePath: executablePath,
         headless: chromium.headless || "shell",
@@ -652,7 +660,14 @@ export async function generateRemitoPDFBuffer(
       const puppeteer: any = (puppeteerModule as any).default || puppeteerModule;
       browser = await puppeteer.launch({
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+          "--disable-software-rasterizer",
+          "--disable-extensions",
+        ],
       });
     }
   } catch (importError: any) {
@@ -661,8 +676,25 @@ export async function generateRemitoPDFBuffer(
   }
 
   const page = await browser.newPage();
+  
+  // Deshabilitar recursos innecesarios para mayor velocidad
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    const resourceType = req.resourceType();
+    const url = req.url();
+    // Permitir data URLs (imágenes base64 inline) y bloquear solo recursos externos
+    if (url.startsWith("data:")) {
+      req.continue();
+    } else if (["image", "font", "stylesheet"].includes(resourceType)) {
+      req.abort();
+    } else {
+      req.continue();
+    }
+  });
+  
   const html = buildRemitoHtml(remito, paraEmpleado);
-  await page.setContent(html, { waitUntil: "networkidle0" });
+  // Usar 'load' en lugar de 'networkidle0' - mucho más rápido para HTML estático
+  await page.setContent(html, { waitUntil: "load", timeout: 5000 });
 
   // Generar PDF - Puppeteer manejará automáticamente el overflow a nuevas páginas
   const pdfBuffer = await page.pdf({
@@ -675,6 +707,7 @@ export async function generateRemitoPDFBuffer(
       right: "2mm",
     },
     preferCSSPageSize: true,
+    displayHeaderFooter: false,
   });
 
   await browser.close();
