@@ -1235,11 +1235,11 @@ const PresupuestoDetalle = () => {
 
   // Eliminar el cálculo de fecha de vencimiento automática
 
-  // Función para descargar PDF
+  // Función para descargar PDF - Optimizada
   const handleDownloadPDF = async (paraEmpleado = false) => {
     if (!presupuesto?.id) return;
     
-    // Activar loading según el tipo
+    // Activar loading inmediatamente
     if (paraEmpleado) {
       setDownloadingPDFEmpleado(true);
     } else {
@@ -1247,6 +1247,10 @@ const PresupuestoDetalle = () => {
     }
     
     try {
+      // Usar AbortController para poder cancelar si es necesario
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
         headers: {
@@ -1257,24 +1261,40 @@ const PresupuestoDetalle = () => {
           id: presupuesto.id,
           empleado: paraEmpleado,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) {
-        console.error("Error generando remito PDF", await res.text());
+        const errorText = await res.text();
+        console.error("Error generando remito PDF", errorText);
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
         return;
       }
+      
+      // Convertir a blob y descargar inmediatamente
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const numero = presupuesto.numeroPedido || presupuesto.id?.slice(-8) || "documento";
-      const suffix = paraEmpleado ? "-empleado" : "";
-      a.download = `${numero}${suffix}.pdf`;
+      a.download = `${presupuesto.numeroPedido || presupuesto.id?.slice(-8) || "documento"}${paraEmpleado ? "-empleado" : ""}.pdf`;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Error descargando PDF:", e);
+      
+      // Limpiar inmediatamente después del click
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (e: any) {
+      if (e.name === "AbortError") {
+        alert("La descarga tardó demasiado. Por favor, intenta nuevamente.");
+      } else {
+        console.error("Error descargando PDF:", e);
+        alert("Error al descargar el PDF. Por favor, intenta nuevamente.");
+      }
     } finally {
       // Desactivar loading
       if (paraEmpleado) {
@@ -1285,7 +1305,7 @@ const PresupuestoDetalle = () => {
     }
   };
 
-  // Función para imprimir PDF
+  // Función para imprimir PDF - Optimizada
   const handlePrintPDF = async (paraEmpleado = false) => {
     if (!presupuesto?.id) return;
     
@@ -1296,6 +1316,10 @@ const PresupuestoDetalle = () => {
     }
     
     try {
+      // Usar AbortController para timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
         headers: {
@@ -1306,53 +1330,83 @@ const PresupuestoDetalle = () => {
           id: presupuesto.id,
           empleado: paraEmpleado,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Error generando remito PDF", errorText);
-        alert("Error al generar el PDF para imprimir");
+        alert("Error al generar el PDF para imprimir. Por favor, intenta nuevamente.");
         return;
       }
+      
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Crear un iframe oculto para imprimir
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      iframe.src = url;
+      // Abrir directamente en nueva ventana y imprimir - más rápido que iframe
+      const printWindow = window.open(url, "_blank");
       
-      document.body.appendChild(iframe);
-      
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow?.print();
-          // Limpiar después de un tiempo
+      if (printWindow) {
+        // Esperar a que cargue y luego imprimir
+        printWindow.onload = () => {
           setTimeout(() => {
-            document.body.removeChild(iframe);
-            window.URL.revokeObjectURL(url);
-          }, 1000);
-        } catch (e) {
-          console.error("Error al imprimir", e);
-          // Fallback: abrir en nueva ventana
-          window.open(url, "_blank");
-          document.body.removeChild(iframe);
-          setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-        }
-      };
-    } catch (e) {
-      console.error("Error imprimiendo remito PDF", e);
-      alert("Error al generar el PDF para imprimir");
-    } finally {
-      if (paraEmpleado) {
-        setPrintingPDFEmpleado(false);
+            printWindow.print();
+            // Limpiar URL después de un tiempo
+            setTimeout(() => {
+              window.URL.revokeObjectURL(url);
+            }, 2000);
+          }, 500);
+        };
+        
+        // Fallback: si onload no funciona, intentar después de un delay
+        setTimeout(() => {
+          if (printWindow && !printWindow.closed) {
+            try {
+              printWindow.print();
+            } catch (e) {
+              console.error("Error al imprimir", e);
+            }
+          }
+        }, 1000);
       } else {
-        setPrintingPDF(false);
+        // Si el popup está bloqueado, usar iframe como fallback
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              iframe.contentWindow?.print();
+            } catch (e) {
+              console.error("Error al imprimir", e);
+            }
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+              window.URL.revokeObjectURL(url);
+            }, 2000);
+          }, 500);
+        };
       }
+    } catch (e: any) {
+      if (e.name === "AbortError") {
+        alert("La generación del PDF tardó demasiado. Por favor, intenta nuevamente.");
+      } else {
+        console.error("Error imprimiendo remito PDF", e);
+        alert("Error al generar el PDF para imprimir. Por favor, intenta nuevamente.");
+      }
+    } finally {
+      // Desactivar loading después de un breve delay para que se vea el feedback
+      setTimeout(() => {
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+      }, 500);
     }
   };
 
