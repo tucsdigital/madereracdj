@@ -7,6 +7,7 @@ import { RemitoModel } from "./models";
 import { formatCurrency, formatNumber, formatFechaLocal, escapeHtml, safeText } from "./formatters";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { createRequire } from "module";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
@@ -604,13 +605,15 @@ export async function generateRemitoPDFBuffer(
   let browser;
   
   try {
+    // Crear require usando createRequire para compatibilidad con ESM
+    // Usar una ruta absoluta al package.json como referencia
+    const packageJsonPath = join(process.cwd(), "package.json");
+    const require = createRequire(packageJsonPath);
+    
     if (isProduction) {
-      // Producción (Vercel): usar require dinámico para @sparticuz/chromium y puppeteer-core
-      // Usar Function constructor para evitar que webpack procese el require
-      const loadModule = new Function("moduleName", "return require(moduleName)");
-      
-      const chromium: any = loadModule("@sparticuz/chromium");
-      const puppeteerCore: any = loadModule("puppeteer-core");
+      // Producción (Vercel): usar @sparticuz/chromium y puppeteer-core
+      const chromium: any = require("@sparticuz/chromium");
+      const puppeteerCore: any = require("puppeteer-core");
       
       // setGraphicsMode puede no estar disponible en todas las versiones
       if (chromium && typeof chromium.setGraphicsMode === "function") {
@@ -635,8 +638,7 @@ export async function generateRemitoPDFBuffer(
       });
     } else {
       // Desarrollo: usar puppeteer normal
-      const loadModule = new Function("moduleName", "return require(moduleName)");
-      const puppeteer: any = loadModule("puppeteer");
+      const puppeteer: any = require("puppeteer");
       browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
