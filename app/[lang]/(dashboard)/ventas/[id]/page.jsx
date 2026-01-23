@@ -14,7 +14,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Download, Trash2, User, Edit } from "lucide-react";
+import { ArrowLeft, Printer, Download, Trash2, User, Edit, Loader2 } from "lucide-react";
 import { Icon } from "@iconify/react";
 // SelectorProductosPresupuesto removido - usar componente separado si es necesario
 // FormularioVentaPresupuesto removido - usar componente separado si es necesario
@@ -88,6 +88,8 @@ const VentaDetalle = () => {
   const [productos, setProductos] = useState([]);
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -1370,6 +1372,14 @@ const VentaDetalle = () => {
   // Función para descargar PDF
   const handleDownloadPDF = async (paraEmpleado = false) => {
     if (!venta?.id) return;
+    
+    // Activar loading según el tipo
+    if (paraEmpleado) {
+      setDownloadingPDFEmpleado(true);
+    } else {
+      setDownloadingPDF(true);
+    }
+    
     try {
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
@@ -1399,6 +1409,13 @@ const VentaDetalle = () => {
       window.URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Error descargando remito PDF", e);
+    } finally {
+      // Desactivar loading
+      if (paraEmpleado) {
+        setDownloadingPDFEmpleado(false);
+      } else {
+        setDownloadingPDF(false);
+      }
     }
   };
 
@@ -1679,20 +1696,30 @@ const VentaDetalle = () => {
               <Button
                 onClick={() => handleDownloadPDF(false)}
                 variant="outline"
+                disabled={downloadingPDF || downloadingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base"
               >
-                <Download className="w-4 h-4 mr-1 lg:mr-2" />
+                {downloadingPDF ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-1 lg:mr-2" />
+                )}
                 <span className="hidden sm:inline">Descargar</span>
-                <span className="sm:hidden">📥</span>
+                <span className="sm:hidden">{downloadingPDF ? "⏳" : "📥"}</span>
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(true)}
                 variant="outline"
+                disabled={downloadingPDF || downloadingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base"
               >
-                <User className="w-4 h-4 mr-1 lg:mr-2" />
+                {downloadingPDFEmpleado ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin" />
+                ) : (
+                  <User className="w-4 h-4 mr-1 lg:mr-2" />
+                )}
                 <span className="hidden sm:inline">Descargar Empleado</span>
-                <span className="sm:hidden">👤</span>
+                <span className="sm:hidden">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
               </Button>
               {!editando && (
                 <Button

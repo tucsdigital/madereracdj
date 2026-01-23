@@ -53,7 +53,9 @@ export async function POST(req: NextRequest) {
     const buffer = await generateRemitoPDFBuffer(remito, empleado || false);
 
     const suffix = empleado ? "-empleado" : "";
-    const filename = `${remito.numero}${suffix}.pdf`;
+    // Eliminar prefijo "REMITO-" o "remito-" si existe
+    const numeroSinPrefijo = remito.numero.replace(/^(REMITO-|remito-)/i, "");
+    const filename = `${numeroSinPrefijo}${suffix}.pdf`;
 
     return new Response(buffer, {
       status: 200,
