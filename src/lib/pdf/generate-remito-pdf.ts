@@ -604,25 +604,15 @@ export async function generateRemitoPDFBuffer(
   let browser;
   
   try {
-    // Función helper para cargar módulos de forma compatible con Vercel
-    const loadModule = (moduleName: string): any => {
-      // @ts-ignore - __non_webpack_require__ está disponible en Next.js runtime
-      const nonWebpackRequire = (globalThis as any).__non_webpack_require__;
-      if (typeof nonWebpackRequire !== "undefined") {
-        return nonWebpackRequire(moduleName);
-      }
-      // Fallback: usar require normal si está disponible
-      const nodeRequire = (globalThis as any).require;
-      if (typeof nodeRequire !== "undefined") {
-        return nodeRequire(moduleName);
-      }
-      throw new Error("No se pudo cargar el módulo: require no está disponible");
-    };
-    
     if (isProduction) {
-      // Producción (Vercel): usar @sparticuz/chromium y puppeteer-core
-      const chromium: any = loadModule("@sparticuz/chromium");
-      const puppeteerCore: any = loadModule("puppeteer-core");
+      // Producción (Vercel): usar import dinámico para @sparticuz/chromium y puppeteer-core
+      // Estos módulos están marcados como externals en next.config.js
+      const chromiumModule = await import("@sparticuz/chromium");
+      const puppeteerCoreModule = await import("puppeteer-core");
+      
+      // Manejar exports default y named exports
+      const chromium: any = (chromiumModule as any).default || chromiumModule;
+      const puppeteerCore: any = (puppeteerCoreModule as any).default || puppeteerCoreModule;
       
       // setGraphicsMode puede no estar disponible en todas las versiones
       if (chromium && typeof chromium.setGraphicsMode === "function") {
@@ -646,8 +636,9 @@ export async function generateRemitoPDFBuffer(
         headless: chromium.headless || "shell",
       });
     } else {
-      // Desarrollo: usar puppeteer normal
-      const puppeteer: any = loadModule("puppeteer");
+      // Desarrollo: usar puppeteer normal con import dinámico
+      const puppeteerModule = await import("puppeteer");
+      const puppeteer: any = (puppeteerModule as any).default || puppeteerModule;
       browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
