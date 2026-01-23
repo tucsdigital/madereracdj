@@ -1288,8 +1288,8 @@ const PresupuestoDetalle = () => {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       }, 100);
-    } catch (e: any) {
-      if (e.name === "AbortError") {
+    } catch (e) {
+      if (e?.name === "AbortError") {
         alert("La descarga tardó demasiado. Por favor, intenta nuevamente.");
       } else {
         console.error("Error descargando PDF:", e);
@@ -1391,8 +1391,8 @@ const PresupuestoDetalle = () => {
           }, 500);
         };
       }
-    } catch (e: any) {
-      if (e.name === "AbortError") {
+    } catch (e) {
+      if (e?.name === "AbortError") {
         alert("La generación del PDF tardó demasiado. Por favor, intenta nuevamente.");
       } else {
         console.error("Error imprimiendo remito PDF", e);
