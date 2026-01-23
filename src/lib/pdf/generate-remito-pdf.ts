@@ -388,38 +388,39 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       font-weight: 900;
     }
     .bottom {
-      margin-top: 24px;
-      padding-top: 16px;
+      margin-top: 20px;
+      padding-top: 12px;
+      padding-bottom: 15mm;
     }
     .disclaimer {
       font-size: 8px;
       color: #000000;
-      line-height: 1.5;
-      margin-bottom: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
       text-align: justify;
-      padding: 12px 14px;
+      padding: 10px 12px;
       background: #fff;
-      border-radius: 8px;
-      border: 2px solid #000000;
-      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid #000000;
+      font-weight: 600;
     }
     .firmas {
       display: flex;
       justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .firma-col {
       flex: 1;
       text-align: center;
       font-size: 9px;
-      font-weight: 800;
+      font-weight: 700;
       color: #000000;
-      padding: 12px 8px;
+      padding: 10px 6px;
       background: #fff;
-      border-radius: 8px;
-      border: 2px solid #000000;
-      min-height: 50px;
+      border-radius: 6px;
+      border: 1px solid #000000;
+      min-height: 45px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -427,21 +428,21 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     .envio-info {
       font-size: 8px;
       color: #000000;
-      margin-bottom: 10px;
-      line-height: 1.6;
-      padding: 12px 14px;
+      margin-bottom: 8px;
+      line-height: 1.5;
+      padding: 10px 12px;
       background: #fff;
-      border-radius: 8px;
-      border: 2px solid #000000;
-      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid #000000;
+      font-weight: 600;
     }
     .envio-info strong {
-      font-weight: 900;
+      font-weight: 800;
       color: #000000;
       margin-right: 4px;
     }
     .envio-info-item {
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .envio-info-item:last-child {
       margin-bottom: 0;
@@ -450,10 +451,11 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      font-size: 8px;
+      gap: 8px;
+      font-size: 7px;
       color: #000000;
-      margin-top: 4px;
-      font-weight: 700;
+      margin-top: 6px;
+      font-weight: 600;
     }
     .page-continuation {
       font-size: 8px;
@@ -746,7 +748,7 @@ export async function generateRemitoPDFBuffer(
     printBackground: true,
     margin: {
       top: "2mm",
-      bottom: "2mm",
+      bottom: "8mm",
       left: "2mm",
       right: "2mm",
     },
