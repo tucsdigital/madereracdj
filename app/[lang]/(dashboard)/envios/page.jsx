@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
-import { Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw, Download, Printer, User, Loader2 } from "lucide-react";
 
 // Estados de envío con colores y descripciones
 const estadosEnvio = {
@@ -36,12 +36,182 @@ const estadosEnvio = {
 
 // Componente para ver detalles del envío
 function DetalleEnvio({ envio, onClose }) {
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
+  const [printingPDF, setPrintingPDF] = useState(false);
+  const [printingPDFEmpleado, setPrintingPDFEmpleado] = useState(false);
+
+  // Función para descargar PDF
+  const handleDownloadPDF = async (paraEmpleado = false) => {
+    if (!envio?.ventaId) {
+      alert("Este envío no está asociado a una venta");
+      return;
+    }
+    
+    if (paraEmpleado) {
+      setDownloadingPDFEmpleado(true);
+    } else {
+      setDownloadingPDF(true);
+    }
+    
+    try {
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "venta",
+          id: envio.ventaId,
+          empleado: paraEmpleado,
+        }),
+      });
+      if (!res.ok) {
+        console.error("Error generando remito PDF", await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const numero = envio.numeroPedido || envio.id?.slice(-8) || "documento";
+      const suffix = paraEmpleado ? "-empleado" : "";
+      a.download = `${numero}${suffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Error descargando remito PDF", e);
+    } finally {
+      if (paraEmpleado) {
+        setDownloadingPDFEmpleado(false);
+      } else {
+        setDownloadingPDF(false);
+      }
+    }
+  };
+
+  // Función para imprimir PDF
+  const handlePrintPDF = async (paraEmpleado = false) => {
+    if (!envio?.ventaId) {
+      alert("Este envío no está asociado a una venta");
+      return;
+    }
+    
+    if (paraEmpleado) {
+      setPrintingPDFEmpleado(true);
+    } else {
+      setPrintingPDF(true);
+    }
+    
+    try {
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "venta",
+          id: envio.ventaId,
+          empleado: paraEmpleado,
+        }),
+      });
+      if (!res.ok) {
+        console.error("Error generando remito PDF", await res.text());
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const printWindow = window.open(url);
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+      // Limpiar URL después de un tiempo
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (e) {
+      console.error("Error imprimiendo remito PDF", e);
+    } finally {
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
+    }
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-[800px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalle de Envío - N° {envio.numeroPedido}</DialogTitle>
         </DialogHeader>
+        
+        {/* Botones de descarga e impresión */}
+        {envio.ventaId && (
+          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b">
+            <Button
+              onClick={() => handleDownloadPDF(false)}
+              disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              {downloadingPDF ? (
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
+              ) : (
+                <Download className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
+              )}
+              <span className="hidden sm:inline relative z-10 font-medium">Descargar</span>
+              <span className="sm:hidden relative z-10">{downloadingPDF ? "⏳" : "📥"}</span>
+            </Button>
+            <Button
+              onClick={() => handleDownloadPDF(true)}
+              disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              {downloadingPDFEmpleado ? (
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
+              ) : (
+                <User className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
+              )}
+              <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
+              <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
+            </Button>
+            <Button
+              onClick={() => handlePrintPDF(false)}
+              disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              {printingPDF ? (
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
+              ) : (
+                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
+              )}
+              <span className="hidden sm:inline relative z-10 font-medium">Imprimir</span>
+              <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
+            </Button>
+            <Button
+              onClick={() => handlePrintPDF(true)}
+              disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              {printingPDFEmpleado ? (
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
+              ) : (
+                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
+              )}
+              <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
+              <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
+            </Button>
+          </div>
+        )}
         
         <div className="space-y-6">
           {/* Información básica */}

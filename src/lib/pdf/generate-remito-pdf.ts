@@ -164,7 +164,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif;
       font-size: 10px;
       line-height: 1.4;
-      color: #1f2937;
+      color: #000000;
       background: #fff;
       width: 210mm;
       min-height: 297mm;
@@ -189,7 +189,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       align-items: flex-start;
       margin-bottom: 10px;
       padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 2px solid #000000;
     }
     .header-left {
       flex: 0 0 52%;
@@ -202,13 +202,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       height: 60px;
       flex-shrink: 0;
       background: #fff;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
       border-radius: 8px;
       padding: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
     .header-logo {
       width: 100%;
@@ -220,22 +219,24 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .header-empresa h1 {
       font-size: 15px;
-      font-weight: 700;
+      font-weight: 900;
       margin-bottom: 3px;
       letter-spacing: 0.2px;
       line-height: 1.3;
-      color: #111827;
+      color: #000000;
     }
     .header-empresa .direccion {
       font-size: 9px;
-      color: #6b7280;
+      color: #000000;
       margin-bottom: 2px;
       line-height: 1.3;
+      font-weight: 600;
     }
     .header-empresa .telefono {
       font-size: 9px;
-      color: #6b7280;
+      color: #000000;
       line-height: 1.3;
+      font-weight: 600;
     }
     .header-center {
       flex: 0 0 14%;
@@ -246,61 +247,58 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       padding: 0 6px;
     }
     .x-box {
-      width: 48px;
-      height: 48px;
-      border: 1.5px solid #fecaca;
+      width: 70px;
+      height: 70px;
+      border: 3px solid #000000;
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 26px;
-      font-weight: 700;
+      font-size: 42px;
+      font-weight: 900;
       margin-bottom: 6px;
-      color: #db2525;
-      background: #fee2e2;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      color: #000000;
+      background: #fff;
     }
     .documento-invalido {
-      font-size: 7px;
+      font-size: 8px;
       text-align: center;
       line-height: 1.2;
-      font-weight: 600;
-      color: #6b7280;
+      font-weight: 800;
+      color: #000000;
     }
     .header-right {
       flex: 0 0 34%;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
       border-radius: 8px;
       padding: 10px;
       text-align: center;
-      background: #f9fafb;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      background: #fff;
     }
     .header-right .remito-title {
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 900;
       margin-bottom: 6px;
       letter-spacing: 0.5px;
-      color: #111827;
+      color: #000000;
     }
     .header-right .remito-numero {
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 800;
       margin-bottom: 3px;
-      color: #374151;
+      color: #000000;
     }
     .header-right .remito-fecha {
       font-size: 9px;
-      font-weight: 500;
-      color: #6b7280;
+      font-weight: 700;
+      color: #000000;
     }
     .client-section {
       margin-bottom: 12px;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
       border-radius: 10px;
       padding: 12px;
       background: #fff;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
     .client-grid {
       display: flex;
@@ -319,15 +317,15 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       line-height: 1.5;
     }
     .client-label {
-      font-weight: 600;
+      font-weight: 800;
       font-size: 9px;
-      color: #374151;
+      color: #000000;
       min-width: 80px;
     }
     .client-value {
       font-size: 9px;
-      color: #111827;
-      font-weight: 500;
+      color: #000000;
+      font-weight: 700;
       flex: 1;
     }
     .products-section {
@@ -339,23 +337,22 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      border: 1px solid #e5e7eb;
+      border: 2px solid #000000;
       border-radius: 10px;
       font-size: 9px;
       overflow: hidden;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
       background: #fff;
     }
     .products-table thead {
-      background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+      background: #fff;
     }
     .products-table th {
       padding: 10px 8px;
       text-align: left;
-      font-weight: 700;
-      border-bottom: 2px solid #e5e7eb;
+      font-weight: 900;
+      border-bottom: 3px solid #000000;
       font-size: 10px;
-      color: #111827;
+      color: #000000;
       letter-spacing: 0.3px;
       text-transform: uppercase;
     }
