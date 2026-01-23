@@ -7,7 +7,6 @@ import { RemitoModel } from "./models";
 import { formatCurrency, formatNumber, formatFechaLocal, escapeHtml, safeText } from "./formatters";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { createRequire } from "module";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
@@ -605,15 +604,25 @@ export async function generateRemitoPDFBuffer(
   let browser;
   
   try {
-    // Crear require usando createRequire para compatibilidad con ESM
-    // Usar una ruta absoluta al package.json como referencia
-    const packageJsonPath = join(process.cwd(), "package.json");
-    const require = createRequire(packageJsonPath);
+    // Función helper para cargar módulos de forma compatible con Vercel
+    const loadModule = (moduleName: string): any => {
+      // @ts-ignore - __non_webpack_require__ está disponible en Next.js runtime
+      const nonWebpackRequire = (globalThis as any).__non_webpack_require__;
+      if (typeof nonWebpackRequire !== "undefined") {
+        return nonWebpackRequire(moduleName);
+      }
+      // Fallback: usar require normal si está disponible
+      const nodeRequire = (globalThis as any).require;
+      if (typeof nodeRequire !== "undefined") {
+        return nodeRequire(moduleName);
+      }
+      throw new Error("No se pudo cargar el módulo: require no está disponible");
+    };
     
     if (isProduction) {
       // Producción (Vercel): usar @sparticuz/chromium y puppeteer-core
-      const chromium: any = require("@sparticuz/chromium");
-      const puppeteerCore: any = require("puppeteer-core");
+      const chromium: any = loadModule("@sparticuz/chromium");
+      const puppeteerCore: any = loadModule("puppeteer-core");
       
       // setGraphicsMode puede no estar disponible en todas las versiones
       if (chromium && typeof chromium.setGraphicsMode === "function") {
@@ -638,7 +647,7 @@ export async function generateRemitoPDFBuffer(
       });
     } else {
       // Desarrollo: usar puppeteer normal
-      const puppeteer: any = require("puppeteer");
+      const puppeteer: any = loadModule("puppeteer");
       browser = await puppeteer.launch({
         headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"],

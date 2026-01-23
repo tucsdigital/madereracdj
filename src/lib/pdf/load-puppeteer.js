@@ -2,24 +2,39 @@
  * Cargador de módulos Puppeteer
  * Este archivo .js se ejecuta directamente en Node.js sin ser procesado por webpack
  * 
- * IMPORTANTE: Usar Function constructor para evitar que webpack analice el require
+ * IMPORTANTE: Usar múltiples estrategias para compatibilidad con Vercel
  */
 
 function loadPuppeteerModule(moduleName) {
-  // Usar Function constructor para construir el require dinámicamente
-  // Esto evita que webpack analice estáticamente el código y cree webpackEmptyContext
   try {
-    // Intentar usar __non_webpack_require__ primero (si está disponible)
+    // Estrategia 1: Usar __non_webpack_require__ si está disponible (Next.js)
     if (typeof __non_webpack_require__ !== "undefined") {
       return __non_webpack_require__(moduleName);
     }
     
-    // Si no está disponible, construir el require usando Function constructor
-    // Esto fuerza a webpack a no procesar el require como un contexto dinámico
+    // Estrategia 2: Usar require global si está disponible
+    if (typeof require !== "undefined") {
+      return require(moduleName);
+    }
+    
+    // Estrategia 3: Usar createRequire si estamos en ESM
+    try {
+      const { createRequire } = require("module");
+      const requireFunc = createRequire(process.cwd() + "/package.json");
+      return requireFunc(moduleName);
+    } catch (e) {
+      // Si createRequire falla, continuar con la siguiente estrategia
+    }
+    
+    // Estrategia 4: Usar Function constructor como último recurso
     const requireFunc = new Function('moduleName', `
       const r = typeof require !== "undefined" ? require : (() => {
-        const { createRequire } = require("module");
-        return createRequire(process.cwd() + "/package.json");
+        try {
+          const { createRequire } = require("module");
+          return createRequire(process.cwd() + "/package.json");
+        } catch (e) {
+          throw new Error("No se pudo crear require");
+        }
       })();
       return r(moduleName);
     `);
