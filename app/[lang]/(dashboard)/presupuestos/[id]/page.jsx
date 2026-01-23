@@ -1286,8 +1286,6 @@ const PresupuestoDetalle = () => {
         setDownloadingPDF(false);
       }
     }
-      console.error("Error descargando remito PDF", e);
-    }
   };
 
   // Utilidades para asegurar arrays y números seguros
