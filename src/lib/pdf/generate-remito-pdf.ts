@@ -642,11 +642,31 @@ export async function generateRemitoPDFBuffer(
           "--disable-extensions",
           "--no-sandbox",
           "--disable-setuid-sandbox",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-breakpad",
+          "--disable-client-side-phishing-detection",
+          "--disable-default-apps",
+          "--disable-features=TranslateUI",
+          "--disable-hang-monitor",
+          "--disable-ipc-flooding-protection",
+          "--disable-popup-blocking",
+          "--disable-prompt-on-repost",
+          "--disable-renderer-backgrounding",
+          "--disable-sync",
+          "--disable-translate",
+          "--metrics-recording-only",
+          "--no-first-run",
+          "--safebrowsing-disable-auto-update",
+          "--enable-automation",
+          "--password-store=basic",
+          "--use-mock-keychain",
         ],
         defaultViewport: {
           deviceScaleFactor: 1,
           hasTouch: false,
-          height: 1080,
+          height: 1123, // A4 height in pixels at 96 DPI
           isLandscape: false,
           isMobile: false,
           width: 794, // A4 width in pixels at 96 DPI
@@ -667,6 +687,25 @@ export async function generateRemitoPDFBuffer(
           "--disable-dev-shm-usage",
           "--disable-software-rasterizer",
           "--disable-extensions",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-breakpad",
+          "--disable-client-side-phishing-detection",
+          "--disable-default-apps",
+          "--disable-features=TranslateUI",
+          "--disable-hang-monitor",
+          "--disable-ipc-flooding-protection",
+          "--disable-popup-blocking",
+          "--disable-prompt-on-repost",
+          "--disable-renderer-backgrounding",
+          "--disable-sync",
+          "--disable-translate",
+          "--metrics-recording-only",
+          "--no-first-run",
+          "--safebrowsing-disable-auto-update",
+          "--enable-automation",
+          "--password-store=basic",
         ],
       });
     }
@@ -677,6 +716,9 @@ export async function generateRemitoPDFBuffer(
 
   const page = await browser.newPage();
   
+  // Deshabilitar JavaScript completamente - no lo necesitamos para HTML estático
+  await page.setJavaScriptEnabled(false);
+  
   // Deshabilitar recursos innecesarios para mayor velocidad
   await page.setRequestInterception(true);
   page.on("request", (req) => {
@@ -685,7 +727,7 @@ export async function generateRemitoPDFBuffer(
     // Permitir data URLs (imágenes base64 inline) y bloquear solo recursos externos
     if (url.startsWith("data:")) {
       req.continue();
-    } else if (["image", "font", "stylesheet"].includes(resourceType)) {
+    } else if (["image", "font", "stylesheet", "script", "websocket", "manifest", "xhr", "fetch"].includes(resourceType)) {
       req.abort();
     } else {
       req.continue();
@@ -693,10 +735,12 @@ export async function generateRemitoPDFBuffer(
   });
   
   const html = buildRemitoHtml(remito, paraEmpleado);
-  // Usar 'load' en lugar de 'networkidle0' - mucho más rápido para HTML estático
-  await page.setContent(html, { waitUntil: "load", timeout: 5000 });
+  // Usar 'domcontentloaded' - el más rápido, solo espera el DOM sin recursos
+  // Timeout reducido a 2 segundos
+  await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 2000 });
 
   // Generar PDF - Puppeteer manejará automáticamente el overflow a nuevas páginas
+  // Optimizaciones adicionales para velocidad
   const pdfBuffer = await page.pdf({
     format: "A4",
     printBackground: true,
@@ -708,8 +752,17 @@ export async function generateRemitoPDFBuffer(
     },
     preferCSSPageSize: true,
     displayHeaderFooter: false,
+    // Deshabilitar outline para mayor velocidad
+    outline: false,
+    // Timeout para la generación del PDF
+    timeout: 10000,
   });
 
-  await browser.close();
+  // Cerrar página y navegador rápidamente
+  await Promise.all([
+    page.close(),
+    browser.close(),
+  ]);
+  
   return pdfBuffer as Buffer;
 }
