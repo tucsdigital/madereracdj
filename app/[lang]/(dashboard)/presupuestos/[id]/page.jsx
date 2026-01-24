@@ -1332,7 +1332,7 @@ const PresupuestoDetalle = () => {
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reducido a 15s
       
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
@@ -1390,8 +1390,17 @@ const PresupuestoDetalle = () => {
         }
       };
       
-      // Función para limpiar recursos
+      // Función para limpiar recursos (optimizada para mayor velocidad)
       const cleanup = () => {
+        // Limpiar inmediatamente el estado de loading
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+        
+        // Limpiar recursos después de un delay más corto
         setTimeout(() => {
           try {
             if (iframe && document.body.contains(iframe)) {
@@ -1402,15 +1411,8 @@ const PresupuestoDetalle = () => {
             }
           } catch (e) {
             // Ignorar errores de limpieza
-          } finally {
-            currentRef.current = false;
-            if (paraEmpleado) {
-              setPrintingPDFEmpleado(false);
-            } else {
-              setPrintingPDF(false);
-            }
           }
-        }, 1000);
+        }, 500); // Reducido de 1000ms a 500ms
       };
       
       // Intentar imprimir cuando el iframe esté listo
@@ -1419,13 +1421,13 @@ const PresupuestoDetalle = () => {
         cleanup();
       };
       
-      // Fallback: intentar imprimir después de un delay
+      // Fallback: intentar imprimir después de un delay reducido
       const fallbackTimeout = setTimeout(() => {
         if (!printed && iframe?.contentWindow && iframe.contentDocument?.readyState === "complete") {
           doPrint();
           cleanup();
         }
-      }, 500);
+      }, 200);
       
       // Limpiar timeout si ya se imprimió
       if (printed) {

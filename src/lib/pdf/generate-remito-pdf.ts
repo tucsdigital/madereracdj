@@ -57,12 +57,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         .map(
           (item) => `
           <tr>
-            <td style="padding: 10px 8px; text-align: center; font-weight: 800; color: #000000; font-size: 10px;">${item.cantidad}</td>
-            <td style="padding: 10px 8px; font-weight: 700; color: #000000; font-size: 9.5px;">${safe(item.nombre)}</td>
-            <td style="padding: 10px 8px; text-align: center; color: #000000; font-size: 9px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
+            <td style="padding: 10px 8px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">${item.cantidad}</td>
+            <td style="padding: 10px 8px; font-weight: 700; color: #000000; font-size: 11.5px;">${safe(item.nombre)}</td>
+            <td style="padding: 10px 8px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
             ${!paraEmpleado ? `
-            <td style="padding: 10px 8px; text-align: right; color: #000000; font-size: 9.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
-            <td style="padding: 10px 8px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(item.subtotal || 0)}</td>
+            <td style="padding: 10px 8px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 10px 8px; text-align: right; font-weight: 800; color: #000000; font-size: 12px;">${formatCurrency(item.subtotal || 0)}</td>
             ` : `
             <td style="padding: 10px 8px; text-align: right;" class="precio-empleado"></td>
             <td style="padding: 10px 8px; text-align: right; font-weight: 600;" class="total-empleado"></td>
@@ -106,20 +106,20 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">DESCUENTO</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">${formatCurrency(totales.descuentoTotal || 0)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.descuentoTotal || 0)}</td>
       </tr>
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">SUBTOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000;">${formatCurrency(totales.subtotal)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">SUBTOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.subtotal)}</td>
       </tr>
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 12px; color: #000000;">TOTAL</td>
-        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 12px; color: #000000;">${formatCurrency(totales.total)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">TOTAL</td>
+        <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">${formatCurrency(totales.total)}</td>
       </tr>
     `
     : "";
@@ -161,7 +161,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif;
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.4;
       color: #000000;
       background: #fff;
@@ -216,7 +216,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       flex: 1;
     }
     .header-empresa h1 {
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 900;
       margin-bottom: 3px;
       letter-spacing: 0.2px;
@@ -224,14 +224,14 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       color: #000000;
     }
     .header-empresa .direccion {
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
       margin-bottom: 2px;
       line-height: 1.3;
       font-weight: 600;
     }
     .header-empresa .telefono {
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
       line-height: 1.3;
       font-weight: 600;
@@ -252,14 +252,14 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 42px;
+      font-size: 50px;
       font-weight: 900;
       margin-bottom: 6px;
       color: #000000;
       background: #fff;
     }
     .documento-invalido {
-      font-size: 8px;
+      font-size: 10px;
       text-align: center;
       line-height: 1.2;
       font-weight: 800;
@@ -274,20 +274,20 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       background: #fff;
     }
     .header-right .remito-title {
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 900;
       margin-bottom: 6px;
       letter-spacing: 0.5px;
       color: #000000;
     }
     .header-right .remito-numero {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 800;
       margin-bottom: 3px;
       color: #000000;
     }
     .header-right .remito-fecha {
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       color: #000000;
     }
@@ -316,12 +316,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .client-label {
       font-weight: 800;
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
       min-width: 80px;
     }
     .client-value {
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
       font-weight: 700;
       flex: 1;
@@ -336,7 +336,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       border-collapse: collapse;
       border-spacing: 0;
       border: 1px solid #000000;
-      font-size: 9px;
+      font-size: 11px;
       background: #fff;
     }
     .products-table thead {
@@ -347,7 +347,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       text-align: left;
       font-weight: 900;
       border-bottom: 1px solid #000000;
-      font-size: 10px;
+      font-size: 12px;
       color: #000000;
       letter-spacing: 0.3px;
       text-transform: uppercase;
@@ -389,7 +389,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       padding-bottom: 15mm;
     }
     .disclaimer {
-      font-size: 8px;
+      font-size: 10px;
       color: #000000;
       line-height: 1.4;
       margin-bottom: 10px;
@@ -409,7 +409,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     .firma-col {
       flex: 1;
       text-align: center;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       color: #000000;
       padding: 10px 6px;
@@ -422,7 +422,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       justify-content: center;
     }
     .envio-info {
-      font-size: 8px;
+      font-size: 10px;
       color: #000000;
       margin-bottom: 8px;
       line-height: 1.5;
@@ -565,6 +565,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
 
     <!-- Footer -->
     <div class="bottom">
+      ${tipo === "venta" ? `
       <div class="disclaimer">
         ESTE REMITO NO ES VÁLIDO COMO FACTURA. VERIFIQUE LA MERCADERÍA AL RECIBIRLA. RECLAMOS DENTRO DE LAS 48 HS DE ENTREGADA LA MISMA. TODA LA MERCADERÍA SERÁ DESCARGADA SIN EXCEPCIÓN ALGUNA AL PIE DEL CAMIÓN.
       </div>
@@ -574,6 +575,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         <div class="firma-col">Aclaración</div>
         <div class="firma-col">Documento N°</div>
       </div>
+      ` : ""}
 
       ${!esRetiroLocal ? `
       <div class="envio-info">
@@ -725,17 +727,20 @@ export async function generateRemitoPDFBuffer(
     // Permitir data URLs (imágenes base64 inline) y bloquear solo recursos externos
     if (url.startsWith("data:")) {
       req.continue();
-    } else if (["image", "font", "stylesheet", "script", "websocket", "manifest", "xhr", "fetch"].includes(resourceType)) {
+    } else if (["image", "font", "stylesheet", "script", "websocket", "manifest", "xhr", "fetch", "media"].includes(resourceType)) {
       req.abort();
     } else {
       req.continue();
     }
   });
   
+  // Deshabilitar cache para evitar esperas innecesarias
+  await page.setCacheEnabled(false);
+  
   const html = buildRemitoHtml(remito, paraEmpleado);
   // Usar 'domcontentloaded' - el más rápido, solo espera el DOM sin recursos
-  // Timeout reducido a 2 segundos
-  await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 2000 });
+  // Timeout reducido a 1 segundo para mayor velocidad
+  await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 1000 });
 
   // Generar PDF - Puppeteer manejará automáticamente el overflow a nuevas páginas
   // Optimizaciones adicionales para velocidad
@@ -752,8 +757,8 @@ export async function generateRemitoPDFBuffer(
     displayHeaderFooter: false,
     // Deshabilitar outline para mayor velocidad
     outline: false,
-    // Timeout para la generación del PDF
-    timeout: 10000,
+    // Timeout reducido a 5 segundos para mayor velocidad
+    timeout: 5000,
   });
 
   // Cerrar página primero, luego navegador
