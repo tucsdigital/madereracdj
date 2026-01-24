@@ -1,37 +1,50 @@
 "use client";
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
 import Link from "next/link";
+import { useDashboardData } from "../context/dashboard-data-context";
+
+// Helper para filtrar por mes actual
+const isCurrentMonth = (dateValue) => {
+  if (!dateValue) return false;
+  try {
+    let date;
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return false;
+    }
+    
+    if (isNaN(date.getTime())) return false;
+    
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && 
+           date.getFullYear() === now.getFullYear();
+  } catch {
+    return false;
+  }
+};
 
 const Opportunities = () => {
-  const [data, setData] = useState({ productos: [], clientes: [], ventas: [] });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const productosSnap = await getDocs(collection(db, "productos"));
-        const clientesSnap = await getDocs(collection(db, "clientes"));
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-
-        setData({
-          productos: productosSnap.docs.map((d) => d.data()),
-          clientes: clientesSnap.docs.map((d) => d.data()),
-          ventas: ventasSnap.docs.map((d) => d.data()),
-        });
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const { productos, clientes, allVentas = [], loading } = useDashboardData();
+  
+  // Filtrar ventas del mes actual
+  const ventasMesActual = useMemo(() => {
+    if (!allVentas || allVentas.length === 0) return [];
+    return allVentas.filter((v) => isCurrentMonth(v.fechaCreacion || v.fecha));
+  }, [allVentas]);
+  
+  const data = {
+    productos: productos.map((p) => p),
+    clientes: Object.values(clientes),
+    ventas: ventasMesActual,
+  };
 
   const opportunities = useMemo(() => {
     if (loading) return [];
@@ -86,21 +99,12 @@ const Opportunities = () => {
       });
     }
 
-    // Sin ventas recientes
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const ventasRecientes = data.ventas.filter((v) => {
-      const fecha = v.fechaCreacion || v.fecha;
-      if (!fecha) return false;
-      const fechaVenta = fecha.toDate ? fecha.toDate() : new Date(fecha);
-      return fechaVenta >= hoy;
-    });
-
-    if (ventasRecientes.length === 0 && data.ventas.length > 0) {
+    // Sin ventas en el mes actual
+    if (data.ventas.length === 0) {
       ops.push({
         id: "nuevas_ventas",
         titulo: "Generar nuevas ventas",
-        descripcion: "No hay ventas hoy",
+        descripcion: `No hay ventas este mes`,
         beneficio: "Mantén el flujo activo",
         icon: "heroicons:shopping-cart",
         color: "text-orange-600",

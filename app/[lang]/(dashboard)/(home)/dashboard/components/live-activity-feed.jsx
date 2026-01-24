@@ -1,108 +1,79 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { useDashboardData } from "../context/dashboard-data-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
 
 const LiveActivityFeed = () => {
+  const { ventas, presupuestos, productos, loading: dataLoading } = useDashboardData();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Obtener las últimas ventas, presupuestos y productos recientes
-    const activities = [];
+    if (dataLoading) {
+      setLoading(true);
+      return;
+    }
 
-    // Ventas recientes
-    const ventasQuery = query(
-      collection(db, "ventas"),
-      orderBy("fechaCreacion", "desc"),
-      limit(5)
-    );
-
-    const unsubscribeVentas = onSnapshot(ventasQuery, (snapshot) => {
-      const ventas = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        type: "venta",
-      }));
-
-      // Presupuestos recientes
-      const presupuestosQuery = query(
-        collection(db, "presupuestos"),
-        orderBy("fechaCreacion", "desc"),
-        limit(5)
-      );
-
-      const unsubscribePresupuestos = onSnapshot(presupuestosQuery, (snapshot) => {
-        const presupuestos = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+    try {
+      // Combinar y ordenar por fecha
+      const allActivities = [
+        ...ventas.map((v) => ({
+          ...v,
+          type: "venta",
+          timestamp: v.fechaCreacion || v.fecha,
+          message: `Nueva venta #${v.numeroPedido || v.id.slice(-6)}`,
+          icon: "heroicons:shopping-cart",
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
+        })),
+        ...presupuestos.map((p) => ({
+          ...p,
           type: "presupuesto",
-        }));
-
-        // Productos recientes (últimos agregados)
-        const productosQuery = query(
-          collection(db, "productos"),
-          orderBy("fechaCreacion", "desc"),
-          limit(3)
-        );
-
-        const unsubscribeProductos = onSnapshot(productosQuery, (snapshot) => {
-          const productos = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
+          timestamp: p.fechaCreacion || p.fecha,
+          message: `Nuevo presupuesto #${p.numeroPedido || p.id.slice(-6)}`,
+          icon: "heroicons:document-text",
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+        })),
+        // Productos recientes (últimos 3 agregados, sin filtrar por fecha)
+        ...productos
+          .slice(0, 3)
+          .map((pr) => ({
+            ...pr,
             type: "producto",
-          }));
+            timestamp: pr.fechaCreacion || new Date().toISOString(),
+            message: `Producto agregado: ${pr.nombre}`,
+            icon: "heroicons:cube",
+            color: "text-purple-600",
+            bgColor: "bg-purple-50",
+          })),
+      ]
+        .filter((a) => a.timestamp)
+        .sort((a, b) => {
+          const dateA = new Date(a.timestamp);
+          const dateB = new Date(b.timestamp);
+          return dateB - dateA;
+        })
+        .slice(0, 8);
 
-          // Combinar y ordenar por fecha
-          const allActivities = [
-            ...ventas.map((v) => ({
-              ...v,
-              timestamp: v.fechaCreacion || v.fecha,
-              message: `Nueva venta #${v.numeroPedido || v.id.slice(-6)}`,
-              icon: "heroicons:shopping-cart",
-              color: "text-emerald-600",
-              bgColor: "bg-emerald-50",
-            })),
-            ...presupuestos.map((p) => ({
-              ...p,
-              timestamp: p.fechaCreacion || p.fecha,
-              message: `Nuevo presupuesto #${p.numeroPedido || p.id.slice(-6)}`,
-              icon: "heroicons:document-text",
-              color: "text-blue-600",
-              bgColor: "bg-blue-50",
-            })),
-            ...productos.map((pr) => ({
-              ...pr,
-              timestamp: pr.fechaCreacion || new Date().toISOString(),
-              message: `Producto agregado: ${pr.nombre}`,
-              icon: "heroicons:cube",
-              color: "text-purple-600",
-              bgColor: "bg-purple-50",
-            })),
-          ]
-            .filter((a) => a.timestamp)
-            .sort((a, b) => {
-              const dateA = new Date(a.timestamp);
-              const dateB = new Date(b.timestamp);
-              return dateB - dateA;
-            })
-            .slice(0, 8);
-
-          setActivities(allActivities);
-          setLoading(false);
-        });
-      });
-    });
-
-    return () => {
-      unsubscribeVentas();
-    };
-  }, []);
+      setActivities(allActivities);
+    } catch (error) {
+      console.error("Error procesando actividades:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [ventas, presupuestos, productos, dataLoading]);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "hace un momento";
@@ -155,26 +126,143 @@ const LiveActivityFeed = () => {
             <p>No hay actividad reciente</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {activities.map((activity, idx) => (
-              <div
-                key={`${activity.type}-${activity.id}-${idx}`}
-                className="flex items-start gap-3 p-3 rounded-lg hover:bg-default-50 transition-colors border border-transparent hover:border-default-200"
-              >
-                <div
-                  className={`w-10 h-10 rounded-full ${activity.bgColor} flex items-center justify-center flex-shrink-0`}
-                >
-                  <Icon icon={activity.icon} className={`w-5 h-5 ${activity.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-default-900">{activity.message}</p>
-                  <p className="text-xs text-default-500 mt-1">
-                    {formatTime(activity.timestamp)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <TooltipProvider delayDuration={200}>
+            <div className="space-y-3">
+              {activities.map((activity, idx) => {
+                const linkHref =
+                  activity.type === "venta"
+                    ? `/ventas/${activity.id}`
+                    : activity.type === "presupuesto"
+                    ? `/presupuestos/${activity.id}`
+                    : null;
+
+                const tooltipContent = (
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    {activity.type === "venta" && (
+                      <>
+                        <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                          Venta #{activity.numeroPedido || activity.id.slice(-6)}
+                        </div>
+                        {activity.cliente?.nombre && (
+                          <div className="text-gray-700 dark:text-gray-300">
+                            <span className="font-medium">Cliente:</span> {activity.cliente.nombre}
+                          </div>
+                        )}
+                        {activity.total && (
+                          <div className="font-bold text-base sm:text-lg text-emerald-600 dark:text-emerald-400">
+                            ${new Intl.NumberFormat("es-AR").format(Number(activity.total) || 0)}
+                          </div>
+                        )}
+                        {activity.formaPago && (
+                          <div className="text-gray-600 dark:text-gray-400 text-xs">
+                            <span className="font-medium">Pago:</span> {activity.formaPago}
+                          </div>
+                        )}
+                        {linkHref && (
+                          <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium text-xs sm:text-sm">
+                              Click para ver detalles →
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {activity.type === "presupuesto" && (
+                      <>
+                        <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                          Presupuesto #{activity.numeroPedido || activity.id.slice(-6)}
+                        </div>
+                        {activity.cliente?.nombre && (
+                          <div className="text-gray-700 dark:text-gray-300">
+                            <span className="font-medium">Cliente:</span> {activity.cliente.nombre}
+                          </div>
+                        )}
+                        {activity.total && (
+                          <div className="font-bold text-base sm:text-lg text-blue-600 dark:text-blue-400">
+                            ${new Intl.NumberFormat("es-AR").format(Number(activity.total) || 0)}
+                          </div>
+                        )}
+                        {linkHref && (
+                          <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                            <span className="text-blue-600 dark:text-blue-400 font-medium text-xs sm:text-sm">
+                              Click para ver detalles →
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {activity.type === "producto" && (
+                      <>
+                        <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                          {activity.nombre}
+                        </div>
+                        {activity.categoria && (
+                          <div className="text-gray-700 dark:text-gray-300">
+                            <span className="font-medium">Categoría:</span> {activity.categoria}
+                          </div>
+                        )}
+                        {activity.precio && (
+                          <div className="font-bold text-base sm:text-lg text-purple-600 dark:text-purple-400">
+                            ${new Intl.NumberFormat("es-AR").format(Number(activity.precio) || 0)}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+
+                const content = (
+                  <div
+                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors border border-transparent ${
+                      linkHref
+                        ? "hover:bg-default-50 hover:border-default-200 cursor-pointer"
+                        : "hover:bg-default-50"
+                    }`}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full ${activity.bgColor} flex items-center justify-center flex-shrink-0`}
+                    >
+                      <Icon icon={activity.icon} className={`w-5 h-5 ${activity.color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-default-900">{activity.message}</p>
+                      <p className="text-xs text-default-500 mt-1">
+                        {formatTime(activity.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <Tooltip key={`${activity.type}-${activity.id}-${idx}`}>
+                    <TooltipTrigger asChild>
+                      {linkHref ? (
+                        <Link href={linkHref} className="block">
+                          {content}
+                        </Link>
+                      ) : (
+                        <div>{content}</div>
+                      )}
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="top" 
+                      align="start"
+                      sideOffset={8}
+                      color="secondary"
+                      style={{
+                        maxWidth: 'calc(100vw - 4rem)',
+                        width: 'auto',
+                        minWidth: '200px',
+                      }}
+                      className="sm:max-w-[320px] md:max-w-[360px]"
+                    >
+                      {tooltipContent}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>

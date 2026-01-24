@@ -3,72 +3,30 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useDashboardData } from "../context/dashboard-data-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
 
 const BusinessStatus = () => {
-  const [data, setData] = useState({ ventas: [], presupuestos: [], productos: [] });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const hoyISO = hoy.toISOString().split("T")[0];
-
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-        const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-        const productosSnap = await getDocs(collection(db, "productos"));
-
-        const ventas = ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-        const presupuestos = presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-        const productos = productosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-
-        setData({ ventas, presupuestos, productos });
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const { ventas, presupuestos, productos, loading } = useDashboardData();
+  const data = { ventas, presupuestos, productos };
 
   const status = useMemo(() => {
     if (loading) return null;
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // Ventas del rango seleccionado (ya están filtradas por isInRange)
+    const ventasHoy = data.ventas;
 
-    // Ventas de hoy
-    const ventasHoy = data.ventas.filter((v) => {
-      const fecha = v.fechaCreacion || v.fecha;
-      if (!fecha) return false;
-      const fechaVenta = fecha.toDate ? fecha.toDate() : new Date(fecha);
-      return fechaVenta >= hoy;
-    });
+    // Presupuestos del rango seleccionado (ya están filtrados por isInRange)
+    const presupuestosHoy = data.presupuestos;
 
-    // Presupuestos de hoy
-    const presupuestosHoy = data.presupuestos.filter((p) => {
-      const fecha = p.fechaCreacion || p.fecha;
-      if (!fecha) return false;
-      const fechaPres = fecha.toDate ? fecha.toDate() : new Date(fecha);
-      return fechaPres >= hoy;
-    });
-
-    // Calcular totales
-    const totalVentasHoy = ventasHoy.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
-    const totalVentasMes = data.ventas
-      .filter((v) => {
-        const fecha = v.fechaCreacion || v.fecha;
-        if (!fecha) return false;
-        const fechaVenta = fecha.toDate ? fecha.toDate() : new Date(fecha);
-        return fechaVenta.getMonth() === hoy.getMonth() && fechaVenta.getFullYear() === hoy.getFullYear();
-      })
-      .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+    // Calcular totales (las ventas ya están filtradas por el rango seleccionado)
+    const totalVentasRango = ventasHoy.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
     // Determinar estado del negocio
     let nivel = "Inactivo";
@@ -81,27 +39,27 @@ const BusinessStatus = () => {
       nivelColor = "text-emerald-600";
       nivelBg = "bg-emerald-50";
       nivelIcon = "heroicons:fire";
-    } else if (totalVentasMes > 0) {
+    } else if (totalVentasRango > 0) {
       nivel = "Estable";
       nivelColor = "text-blue-600";
       nivelBg = "bg-blue-50";
       nivelIcon = "heroicons:chart-bar";
     }
 
-    // Flujo (basado en ventas del mes)
+    // Flujo (basado en ventas del rango seleccionado)
     let flujo = "Bajo";
     let flujoColor = "text-orange-600";
     let flujoIcon = "heroicons:arrow-trending-down";
 
-    if (totalVentasMes > 100000) {
+    if (totalVentasRango > 100000) {
       flujo = "Excelente";
       flujoColor = "text-emerald-600";
       flujoIcon = "heroicons:arrow-trending-up";
-    } else if (totalVentasMes > 50000) {
+    } else if (totalVentasRango > 50000) {
       flujo = "Bueno";
       flujoColor = "text-blue-600";
       flujoIcon = "heroicons:arrow-trending-up";
-    } else if (totalVentasMes > 20000) {
+    } else if (totalVentasRango > 20000) {
       flujo = "Regular";
       flujoColor = "text-yellow-600";
       flujoIcon = "heroicons:minus";
@@ -132,13 +90,10 @@ const BusinessStatus = () => {
     let ingresosColor = "text-gray-600";
     let ingresosIcon = "heroicons:banknotes";
 
-    if (totalVentasHoy > 0) {
+    if (totalVentasRango > 0) {
       ingresos = "En movimiento";
       ingresosColor = "text-emerald-600";
       ingresosIcon = "heroicons:currency-dollar";
-    } else if (totalVentasMes > 0) {
-      ingresos = "Estable";
-      ingresosColor = "text-blue-600";
     }
 
     return {
@@ -175,43 +130,123 @@ const BusinessStatus = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        <div className="grid grid-cols-2 gap-3">
-          {/* Nivel */}
-          <div className={`p-4 rounded-lg ${status.nivel.bg} border border-default-200`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon={status.nivel.icon} className={`w-5 h-5 ${status.nivel.color}`} />
-              <span className="text-xs font-medium text-default-600">Nivel</span>
-            </div>
-            <p className={`text-lg font-bold ${status.nivel.color}`}>{status.nivel.label}</p>
-          </div>
+        <TooltipProvider delayDuration={200}>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Nivel */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-4 rounded-lg ${status.nivel.bg} border border-default-200 cursor-help`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon={status.nivel.icon} className={`w-5 h-5 ${status.nivel.color}`} />
+                    <span className="text-xs font-medium text-default-600">Nivel</span>
+                  </div>
+                  <p className={`text-lg font-bold ${status.nivel.color}`}>{status.nivel.label}</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" color="secondary">
+                <div className="space-y-2 text-xs sm:text-sm">
+                  <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                    Estado del negocio
+                  </div>
+                  <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {data.ventas.length > 0 || data.presupuestos.length > 0
+                      ? `Tienes ${data.ventas.length} ventas y ${data.presupuestos.length} presupuestos en el período seleccionado`
+                      : "No hay actividad en el período seleccionado"}
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Flujo */}
-          <div className="p-4 rounded-lg bg-card border border-default-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon={status.flujo.icon} className={`w-5 h-5 ${status.flujo.color}`} />
-              <span className="text-xs font-medium text-default-600">Flujo</span>
-            </div>
-            <p className={`text-lg font-bold ${status.flujo.color}`}>{status.flujo.label}</p>
-          </div>
+            {/* Flujo */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon={status.flujo.icon} className={`w-5 h-5 ${status.flujo.color}`} />
+                    <span className="text-xs font-medium text-default-600">Flujo</span>
+                  </div>
+                  <p className={`text-lg font-bold ${status.flujo.color}`}>{status.flujo.label}</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" color="secondary">
+                <div className="space-y-2 text-xs sm:text-sm">
+                  <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                    Flujo de ingresos
+                  </div>
+                  <div className="font-bold text-base sm:text-lg text-emerald-600 dark:text-emerald-400">
+                    ${new Intl.NumberFormat("es-AR").format(
+                      data.ventas.reduce((acc, v) => acc + (Number(v.total) || 0), 0)
+                    )}
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">
+                    Basado en las ventas del rango seleccionado
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Stock */}
-          <div className="p-4 rounded-lg bg-card border border-default-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon={status.stock.icon} className={`w-5 h-5 ${status.stock.color}`} />
-              <span className="text-xs font-medium text-default-600">Stock</span>
-            </div>
-            <p className={`text-lg font-bold ${status.stock.color}`}>{status.stock.label}</p>
-          </div>
+            {/* Stock */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon={status.stock.icon} className={`w-5 h-5 ${status.stock.color}`} />
+                    <span className="text-xs font-medium text-default-600">Stock</span>
+                  </div>
+                  <p className={`text-lg font-bold ${status.stock.color}`}>{status.stock.label}</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" color="secondary">
+                <div className="space-y-2 text-xs sm:text-sm">
+                  <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                    Catálogo de productos
+                  </div>
+                  <div className="font-bold text-base sm:text-lg text-gray-900 dark:text-gray-100">
+                    {data.productos.length} productos
+                  </div>
+                  <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <Link href="/productos" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
+                      Ver productos →
+                    </Link>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Ingresos */}
-          <div className="p-4 rounded-lg bg-card border border-default-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon icon={status.ingresos.icon} className={`w-5 h-5 ${status.ingresos.color}`} />
-              <span className="text-xs font-medium text-default-600">Ingresos</span>
-            </div>
-            <p className={`text-lg font-bold ${status.ingresos.color}`}>{status.ingresos.label}</p>
+            {/* Ingresos */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon={status.ingresos.icon} className={`w-5 h-5 ${status.ingresos.color}`} />
+                    <span className="text-xs font-medium text-default-600">Ingresos</span>
+                  </div>
+                  <p className={`text-lg font-bold ${status.ingresos.color}`}>{status.ingresos.label}</p>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" color="secondary">
+                <div className="space-y-2 text-xs sm:text-sm">
+                  <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                    Movimiento de ingresos
+                  </div>
+                  <div className="font-bold text-base sm:text-lg text-emerald-600 dark:text-emerald-400">
+                    {(() => {
+                      const total = data.ventas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+                      return total > 0
+                        ? `$${new Intl.NumberFormat("es-AR").format(total)}`
+                        : "Sin ingresos en el período";
+                    })()}
+                  </div>
+                  <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                    <Link href="/ventas" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
+                      Ver ventas →
+                    </Link>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </div>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

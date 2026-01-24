@@ -7,20 +7,18 @@ import { Icon } from "@iconify/react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { useAuth } from "@/provider/auth.provider";
+import { useDateRange } from "../context/date-range-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
 
 const SalesStats = () => {
   const { user } = useAuth();
-  const hoyISO = new Date().toISOString().split("T")[0];
-  const hace30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-  const now = new Date();
-  const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
-  const [fechaDesde, setFechaDesde] = useState(inicioMesISO);
-  const [fechaHasta, setFechaHasta] = useState(hoyISO);
-  const [rangoRapido, setRangoRapido] = useState("month");
+  const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange, toDateSafe } = useDateRange();
 
   const [ventasData, setVentasData] = useState([]);
   const [presupuestosData, setPresupuestosData] = useState([]);
@@ -29,66 +27,6 @@ const SalesStats = () => {
   const [clientesData, setClientesData] = useState({});
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
-
-  const toDateSafe = useCallback((value) => {
-    if (!value) return null;
-    try {
-      // Si es un Timestamp de Firebase
-      if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
-        const d = new Date(value.seconds * 1000);
-        return isNaN(d.getTime()) ? null : d;
-      }
-      // Si es una instancia de Date
-      if (value instanceof Date) return value;
-      // Si es un string con formato ISO (incluye T)
-      if (typeof value === "string" && value.includes("T")) {
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
-      }
-      // Si es un string en formato YYYY-MM-DD
-      if (typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [y, m, d] = value.split("-").map(Number);
-        if (!y || !m || !d) return null;
-        const dt = new Date(y, m - 1, d);
-        return isNaN(dt.getTime()) ? null : dt;
-      }
-      // Si es un string con otro formato de fecha, intentar parsearlo
-      if (typeof value === "string") {
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
-      }
-      // Si es un número (timestamp en milisegundos)
-      if (typeof value === "number") {
-        const d = new Date(value);
-        return isNaN(d.getTime()) ? null : d;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const isInRange = useCallback(
-    (dateValue) => {
-      const d = toDateSafe(dateValue);
-      if (!d) return false;
-      const from = toDateSafe(fechaDesde);
-      const to = toDateSafe(fechaHasta);
-      if (!from || !to) return true;
-      const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const f0 = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-      const t0 = new Date(
-        to.getFullYear(),
-        to.getMonth(),
-        to.getDate(),
-        23,
-        59,
-        59
-      );
-      return d0 >= f0 && d0 <= t0;
-    },
-    [fechaDesde, fechaHasta, toDateSafe]
-  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,37 +59,7 @@ const SalesStats = () => {
     fetchData();
   }, []);
 
-  // Rango rápido
-  useEffect(() => {
-    const today = new Date();
-    const to = today.toISOString().split("T")[0];
-    let from = hace30;
-    if (rangoRapido === "7d") {
-      from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (rangoRapido === "30d") {
-      from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (rangoRapido === "90d") {
-      from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (rangoRapido === "ytd") {
-      const y = new Date().getFullYear();
-      from = new Date(y, 0, 1).toISOString().split("T")[0];
-    } else if (rangoRapido === "month") {
-      const y = today.getFullYear();
-      const m = today.getMonth();
-      from = new Date(y, m, 1).toISOString().split("T")[0];
-    } else if (rangoRapido === "custom") {
-      // no cambia fechas
-      return;
-    }
-    setFechaDesde(from);
-    setFechaHasta(to);
-  }, [rangoRapido]);
+  // El rango rápido ahora se maneja en el contexto
 
   const ventasFiltradas = useMemo(() => {
     const filtradas = (ventasData || []).filter((v) => {
@@ -687,13 +595,16 @@ const SalesStats = () => {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="p-4 rounded-lg border bg-card h-28" />
         ))}
       </div>
-      <div className="p-4 rounded-lg border bg-card h-24" />
-      <div className="p-4 rounded-lg border bg-card h-64" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="p-4 rounded-lg border bg-card h-64" />
+        ))}
+      </div>
     </div>
   );
 
@@ -767,76 +678,158 @@ const SalesStats = () => {
           <Skeleton />
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              {/* Ventas */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-default-700">
-                    Ventas
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-                    <Icon
-                      icon="heroicons:shopping-cart"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-xl md:text-3xl font-extrabold tracking-tight">
-                  {kpis.ventasCount}
-                </div>
+            <TooltipProvider delayDuration={200}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                {/* Ventas */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/ventas" className="block">
+                      <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs md:text-sm text-default-700">
+                            Ventas
+                          </div>
+                          <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-primary/15 text-primary">
+                            <Icon
+                              icon="heroicons:shopping-cart"
+                              className="w-3 h-3 md:w-4 md:h-4"
+                            />
+                          </span>
+                        </div>
+                        <div className="text-xl md:text-3xl font-extrabold tracking-tight">
+                          {kpis.ventasCount}
+                        </div>
+                      </div>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" color="secondary">
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                        Total de ventas
+                      </div>
+                      <div className="text-gray-700 dark:text-gray-300">
+                        En el período seleccionado
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
+                          Click para ver todas las ventas →
+                        </span>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Monto */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-900/10 shadow-sm cursor-help">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
+                          Monto
+                        </div>
+                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          <Icon
+                            icon="heroicons:banknotes"
+                            className="w-3 h-3 md:w-4 md:h-4"
+                          />
+                        </span>
+                      </div>
+                      <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
+                        ${nf.format(Math.round(kpis.ventasMonto))}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" color="secondary">
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                        Total acumulado
+                      </div>
+                      <div className="text-gray-700 dark:text-gray-300">
+                        Suma de todas las ventas del período
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <div className="text-gray-600 dark:text-gray-400 text-xs">
+                          <span className="font-medium">Ticket promedio:</span> ${nf.format(Math.round(kpis.ticketPromedio))}
+                        </div>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Ticket */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-indigo-50 to-indigo-100/40 dark:from-indigo-900/20 dark:to-indigo-900/10 shadow-sm cursor-help">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
+                          Ticket
+                        </div>
+                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                          <Icon
+                            icon="heroicons:chart-bar-square"
+                            className="w-3 h-3 md:w-4 md:h-4"
+                          />
+                        </span>
+                      </div>
+                      <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
+                        ${nf.format(Math.round(kpis.ticketPromedio))}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" color="secondary">
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                        Ticket promedio
+                      </div>
+                      <div className="text-gray-700 dark:text-gray-300">
+                        Monto promedio por venta
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <div className="text-gray-600 dark:text-gray-400 text-xs">
+                          <span className="font-medium">Calculado:</span> Total ÷ Cantidad de ventas
+                        </div>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Presupuestos */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="/presupuestos" className="block">
+                      <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-900/20 dark:to-amber-900/10 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
+                            Presup.
+                          </div>
+                          <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                            <Icon
+                              icon="heroicons:document-text"
+                              className="w-3 h-3 md:w-4 md:h-4"
+                            />
+                          </span>
+                        </div>
+                        <div className="text-xl md:text-3xl font-extrabold tracking-tight">
+                          {kpis.presupuestosCount}
+                        </div>
+                      </div>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" color="secondary">
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                        Presupuestos generados
+                      </div>
+                      <div className="text-gray-700 dark:text-gray-300">
+                        En el período seleccionado
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                        <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
+                          Click para ver todos los presupuestos →
+                        </span>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              {/* Monto */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-900/10 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
-                    Monto
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                    <Icon
-                      icon="heroicons:banknotes"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.ventasMonto))}
-                </div>
-              </div>
-              {/* Ticket */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-indigo-50 to-indigo-100/40 dark:from-indigo-900/20 dark:to-indigo-900/10 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
-                    Ticket
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
-                    <Icon
-                      icon="heroicons:chart-bar-square"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(kpis.ticketPromedio))}
-                </div>
-              </div>
-              {/* Presupuestos */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-900/20 dark:to-amber-900/10 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
-                    Presup.
-                  </div>
-                  <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                    <Icon
-                      icon="heroicons:document-text"
-                      className="w-3 h-3 md:w-4 md:h-4"
-                    />
-                  </span>
-                </div>
-                <div className="text-xl md:text-3xl font-extrabold tracking-tight">
-                  {kpis.presupuestosCount}
-                </div>
-              </div>
-            </div>
+            </TooltipProvider>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {/* Comisión por ventas */}
@@ -902,14 +895,14 @@ const SalesStats = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
               {/* Estado de pago (donut) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
                 <div className="text-xs md:text-sm font-semibold mb-3">
                   Estado de pago
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <div className="shrink-0 w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
                     {typeof window !== "undefined" && (
                       <Chart
                         options={estadosOptions}
@@ -948,12 +941,12 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Tipo de envío (donut) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
                 <div className="text-xs md:text-sm font-semibold mb-3">
                   Tipo de envío
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <div className="shrink-0 w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
                     {typeof window !== "undefined" && (
                       <Chart
                         options={enviosOptions}
@@ -992,7 +985,7 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Formas de pago - donut segmentado (ubicado al lado de Tipo de envío) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
                 <div className="text-xs md:text-sm font-semibold mb-3">
                   Formas de pago
                 </div>
@@ -1001,8 +994,8 @@ const SalesStats = () => {
                     Sin datos
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="shrink-0 w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
                       {typeof window !== "undefined" && (
                         <Chart
                           options={formasPagoOptions}
@@ -1043,7 +1036,7 @@ const SalesStats = () => {
                 )}
               </div>
               {/* Clientes nuevos vs viejos */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm">
+              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
                 <div className="text-xs md:text-sm font-semibold mb-3">
                   Clientes (nuevos vs viejos)
                 </div>
@@ -1052,8 +1045,8 @@ const SalesStats = () => {
                     Sin datos
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="shrink-0 w-[140px] h-[140px] sm:w-[160px] sm:h-[160px]">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="shrink-0 w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px]">
                       {typeof window !== "undefined" && (
                         <Chart
                           options={clientesOptions}

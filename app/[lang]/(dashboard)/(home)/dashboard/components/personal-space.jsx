@@ -3,36 +3,87 @@
 import { useAuth } from "@/provider/auth.provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { useEffect, useState, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { useMemo } from "react";
+import { useDashboardData } from "../context/dashboard-data-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
+
+// Helper para filtrar por mes actual
+const isCurrentMonth = (dateValue) => {
+  if (!dateValue) return false;
+  try {
+    let date;
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return false;
+    }
+    
+    if (isNaN(date.getTime())) return false;
+    
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && 
+           date.getFullYear() === now.getFullYear();
+  } catch {
+    return false;
+  }
+};
 
 const PersonalSpace = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ ventas: 0, productos: 0, clientes: 0 });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-        const productosSnap = await getDocs(collection(db, "productos"));
-        const clientesSnap = await getDocs(collection(db, "clientes"));
-
-        setStats({
-          ventas: ventasSnap.docs.length,
-          productos: productosSnap.docs.length,
-          clientes: clientesSnap.docs.length,
-        });
-      } catch (error) {
-        console.error("Error cargando estadísticas:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const { allVentas = [], loading } = useDashboardData();
+  
+  // Filtrar ventas del usuario actual del mes actual
+  const ventasMesActual = useMemo(() => {
+    if (!allVentas || allVentas.length === 0 || !user?.email) return [];
+    return allVentas.filter((v) => {
+      // Filtrar por usuario (vendedor)
+      const esDelUsuario = v.vendedor === user.email;
+      if (!esDelUsuario) return false;
+      
+      // Filtrar por mes actual
+      return isCurrentMonth(v.fechaCreacion || v.fecha);
+    });
+  }, [allVentas, user?.email]);
+  
+  // Obtener productos y clientes únicos de las ventas del usuario del mes actual
+  const productosDelUsuario = useMemo(() => {
+    if (!ventasMesActual || ventasMesActual.length === 0) return [];
+    const productosIds = new Set();
+    ventasMesActual.forEach((v) => {
+      const productosVenta = v.productos || v.items || [];
+      productosVenta.forEach((p) => {
+        if (p.id) productosIds.add(p.id);
+      });
+    });
+    return Array.from(productosIds);
+  }, [ventasMesActual]);
+  
+  const clientesDelUsuario = useMemo(() => {
+    if (!ventasMesActual || ventasMesActual.length === 0) return [];
+    const clientesIds = new Set();
+    ventasMesActual.forEach((v) => {
+      if (v.clienteId) clientesIds.add(v.clienteId);
+      if (v.cliente?.id) clientesIds.add(v.cliente.id);
+      if (v.cliente?.email) clientesIds.add(v.cliente.email);
+    });
+    return Array.from(clientesIds);
+  }, [ventasMesActual]);
+  
+  const stats = {
+    ventas: ventasMesActual.length,
+    productos: productosDelUsuario.length,
+    clientes: clientesDelUsuario.length,
+  };
 
   // Determinar estado del negocio
   const estado = useMemo(() => {
@@ -85,20 +136,79 @@ const PersonalSpace = () => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-default-600 mb-1">Ventas</p>
-              <p className="text-2xl font-bold text-default-900">{stats.ventas}</p>
+          <TooltipProvider delayDuration={200}>
+            <div className="grid grid-cols-3 gap-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/ventas" className="block text-center cursor-pointer hover:opacity-80 transition-opacity">
+                    <p className="text-xs text-default-600 mb-1">Ventas</p>
+                    <p className="text-2xl font-bold text-default-900">{stats.ventas}</p>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" color="secondary">
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                      Ventas de este mes
+                    </div>
+                    <div className="text-gray-700 dark:text-gray-300">
+                      Total de ventas realizadas este mes
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                      <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
+                        Click para ver ventas →
+                      </span>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/productos" className="block text-center cursor-pointer hover:opacity-80 transition-opacity">
+                    <p className="text-xs text-default-600 mb-1">Productos</p>
+                    <p className="text-2xl font-bold text-default-900">{stats.productos}</p>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" color="secondary">
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                      Productos en ventas
+                    </div>
+                    <div className="text-gray-700 dark:text-gray-300">
+                      Productos únicos usados en tus ventas de este mes
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                      <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
+                        Click para ver productos →
+                      </span>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/clientes" className="block text-center cursor-pointer hover:opacity-80 transition-opacity">
+                    <p className="text-xs text-default-600 mb-1">Clientes</p>
+                    <p className="text-2xl font-bold text-default-900">{stats.clientes}</p>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" color="secondary">
+                  <div className="space-y-2 text-xs sm:text-sm">
+                    <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                      Clientes atendidos
+                    </div>
+                    <div className="text-gray-700 dark:text-gray-300">
+                      Clientes únicos atendidos en tus ventas de este mes
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+                      <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
+                        Click para ver clientes →
+                      </span>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <div className="text-center">
-              <p className="text-xs text-default-600 mb-1">Productos</p>
-              <p className="text-2xl font-bold text-default-900">{stats.productos}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-default-600 mb-1">Clientes</p>
-              <p className="text-2xl font-bold text-default-900">{stats.clientes}</p>
-            </div>
-          </div>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>

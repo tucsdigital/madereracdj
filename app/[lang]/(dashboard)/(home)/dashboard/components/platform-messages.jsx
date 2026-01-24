@@ -3,33 +3,43 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { useDashboardData } from "../context/dashboard-data-context";
+
+// Helper para filtrar por mes actual
+const isCurrentMonth = (dateValue) => {
+  if (!dateValue) return false;
+  try {
+    let date;
+    if (dateValue && typeof dateValue === 'object' && 'seconds' in dateValue && 'nanoseconds' in dateValue) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return false;
+    }
+    
+    if (isNaN(date.getTime())) return false;
+    
+    const now = new Date();
+    return date.getMonth() === now.getMonth() && 
+           date.getFullYear() === now.getFullYear();
+  } catch {
+    return false;
+  }
+};
 
 const PlatformMessages = () => {
-  const [data, setData] = useState({ ventas: [], productos: [] });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-        const productosSnap = await getDocs(collection(db, "productos"));
-
-        setData({
-          ventas: ventasSnap.docs.map((d) => d.data()),
-          productos: productosSnap.docs.map((d) => d.data()),
-        });
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const { allVentas = [], productos, loading } = useDashboardData();
+  
+  // Filtrar ventas del mes actual
+  const ventasMesActual = useMemo(() => {
+    if (!allVentas || allVentas.length === 0) return [];
+    return allVentas.filter((v) => isCurrentMonth(v.fechaCreacion || v.fecha));
+  }, [allVentas]);
+  
+  const data = { ventas: ventasMesActual, productos };
 
   const messages = useMemo(() => {
     if (loading) return [];

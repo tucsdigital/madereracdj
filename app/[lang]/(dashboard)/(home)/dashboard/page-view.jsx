@@ -7,46 +7,37 @@ import CommunityStats from "./components/community-stats";
 import PlatformMessages from "./components/platform-messages";
 import Opportunities from "./components/opportunities";
 import SalesStats from "./components/sales-stats";
+import { DateRangeProvider } from "./context/date-range-context";
+import { DashboardDataProvider } from "./context/dashboard-data-context";
 
 const DashboardPageView = ({ trans }) => {
   return (
-    <div className="space-y-6">
-      {/* 8️⃣ Espacio Personal - Header del negocio */}
-      <PersonalSpace />
-
-      {/* Grid principal con los bloques principales */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna izquierda */}
-        <div className="space-y-6">
-          {/* 1️⃣ Bloque: ¿Qué está pasando ahora? */}
-          <LiveActivityFeed />
-
-          {/* 3️⃣ Bloque: Progreso del usuario */}
-          <UserProgress />
-        </div>
-
-        {/* Columna central */}
-        <div className="space-y-6">
-          {/* 2️⃣ Bloque: Tu negocio hoy */}
-          <BusinessStatus />
-
-          {/* 4️⃣ Bloque: Comunidad */}
-          <CommunityStats />
-
-          {/* 6️⃣ Bloque: Oportunidades */}
-          <Opportunities />
-        </div>
-
-        {/* Columna derecha */}
-        <div className="space-y-6">
-          {/* 5️⃣ Bloque: Mensajes de la plataforma */}
-          <PlatformMessages />
-
-          {/* Estadísticas detalladas (mantener el componente original) */}
+    <DateRangeProvider>
+      <DashboardDataProvider>
+        <div className="space-y-6 pb-6">
+          {/* Estadísticas de Ventas - Sección Principal */}
           <SalesStats />
+
+          {/* Grid principal con mejor distribución - 2 columnas principales */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Columna izquierda */}
+            <div className="space-y-6">
+              <LiveActivityFeed />
+              <BusinessStatus />
+              <CommunityStats />
+            </div>
+
+            {/* Columna derecha */}
+            <div className="space-y-6">
+              <PersonalSpace />
+              <UserProgress />
+              <Opportunities />
+              <PlatformMessages />
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </DashboardDataProvider>
+    </DateRangeProvider>
   );
 };
 
