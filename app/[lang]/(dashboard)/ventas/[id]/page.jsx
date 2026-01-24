@@ -1425,10 +1425,11 @@ const VentaDetalle = () => {
     }
   };
 
-  // Función para imprimir PDF - Optimizada y sin _blank
+  // Función para imprimir PDF - Ultra optimizada
   const handlePrintPDF = async (paraEmpleado = false) => {
     if (!venta?.id) return;
     
+    // Activar loading inmediatamente
     if (paraEmpleado) {
       setPrintingPDFEmpleado(true);
     } else {
@@ -1436,15 +1437,12 @@ const VentaDetalle = () => {
     }
     
     try {
-      // Usar AbortController para timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // Reducido a 20s
       
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "venta",
           id: venta.id,
@@ -1458,77 +1456,85 @@ const VentaDetalle = () => {
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Error generando remito PDF", errorText);
-        alert("Error al generar el PDF para imprimir. Por favor, intenta nuevamente.");
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
         return;
       }
       
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Usar iframe oculto directamente - más rápido y no requiere nueva ventana
+      // Crear iframe y preparar impresión de forma más eficiente
       const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.top = "0";
-      iframe.style.left = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      iframe.style.opacity = "0";
-      iframe.style.pointerEvents = "none";
+      Object.assign(iframe.style, {
+        position: "fixed",
+        top: "0",
+        left: "0",
+        width: "0",
+        height: "0",
+        border: "none",
+        opacity: "0",
+        pointerEvents: "none",
+      });
       iframe.src = url;
+      
+      // Desactivar loading inmediatamente después de crear el iframe
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
       
       document.body.appendChild(iframe);
       
-      // Imprimir tan pronto como el iframe esté listo
-      iframe.onload = () => {
-        try {
-          // Imprimir inmediatamente sin delay
-          iframe.contentWindow?.print();
-          
-          // Limpiar después de un breve tiempo
-          setTimeout(() => {
+      // Función para limpiar recursos
+      const cleanup = () => {
+        setTimeout(() => {
+          try {
             if (document.body.contains(iframe)) {
               document.body.removeChild(iframe);
             }
             window.URL.revokeObjectURL(url);
-          }, 1000);
+          } catch (e) {
+            // Ignorar errores de limpieza
+          }
+        }, 500);
+      };
+      
+      // Intentar imprimir tan pronto como sea posible
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+          cleanup();
         } catch (e) {
           console.error("Error al imprimir", e);
-          // Limpiar en caso de error
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-          window.URL.revokeObjectURL(url);
+          cleanup();
         }
       };
       
-      // Fallback: si onload no se dispara, intentar después de un tiempo
+      // Fallback rápido: intentar imprimir después de 200ms
       setTimeout(() => {
-        if (iframe.contentWindow) {
-          try {
+        try {
+          if (iframe.contentWindow && iframe.contentDocument?.readyState === "complete") {
             iframe.contentWindow.print();
-          } catch (e) {
-            console.error("Error al imprimir (fallback)", e);
+            cleanup();
           }
+        } catch (e) {
+          // Continuar con el onload
         }
-      }, 500);
+      }, 200);
       
     } catch (e) {
       if (e?.name === "AbortError") {
-        alert("La generación del PDF tardó demasiado. Por favor, intenta nuevamente.");
+        alert("La generación tardó demasiado. Por favor, intenta nuevamente.");
       } else {
         console.error("Error imprimiendo remito PDF", e);
-        alert("Error al generar el PDF para imprimir. Por favor, intenta nuevamente.");
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
       }
-    } finally {
-      // Desactivar loading inmediatamente después de iniciar la impresión
-      setTimeout(() => {
-        if (paraEmpleado) {
-          setPrintingPDFEmpleado(false);
-        } else {
-          setPrintingPDF(false);
-        }
-      }, 300);
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
     }
   };
 

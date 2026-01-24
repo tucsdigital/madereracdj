@@ -333,12 +333,10 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table {
       width: 100%;
-      border-collapse: separate;
+      border-collapse: collapse;
       border-spacing: 0;
       border: 1px solid #000000;
-      border-radius: 10px;
       font-size: 9px;
-      overflow: hidden;
       background: #fff;
     }
     .products-table thead {
@@ -367,9 +365,6 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       color: #000000;
       vertical-align: middle;
     }
-    .products-table tbody tr:not(:last-child) {
-      border-bottom: 1px solid #000000;
-    }
     .products-table tbody tr:last-child td {
       border-bottom: none;
     }
@@ -378,8 +373,10 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table tfoot td {
       padding: 8px;
-      border-top: 1px solid #000000;
       background: #fff;
+    }
+    .products-table tfoot tr:first-child td {
+      border-top: 1px solid #000000;
     }
     .products-table tfoot tr:last-child td {
       border-top: 1px solid #000000;

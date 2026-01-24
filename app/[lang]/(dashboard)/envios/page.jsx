@@ -92,13 +92,14 @@ function DetalleEnvio({ envio, onClose }) {
     }
   };
 
-  // Función para imprimir PDF
+  // Función para imprimir PDF - Ultra optimizada
   const handlePrintPDF = async (paraEmpleado = false) => {
     if (!envio?.ventaId) {
       alert("Este envío no está asociado a una venta");
       return;
     }
     
+    // Activar loading inmediatamente
     if (paraEmpleado) {
       setPrintingPDFEmpleado(true);
     } else {
@@ -106,58 +107,99 @@ function DetalleEnvio({ envio, onClose }) {
     }
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // Reducido a 20s
+      
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "venta",
           id: envio.ventaId,
           empleado: paraEmpleado,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Error generando remito PDF", errorText);
-        alert("Error al generar el PDF para imprimir");
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
         return;
       }
+      
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Crear un iframe oculto para imprimir
+      // Crear iframe y preparar impresión de forma más eficiente
       const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
+      Object.assign(iframe.style, {
+        position: "fixed",
+        top: "0",
+        left: "0",
+        width: "0",
+        height: "0",
+        border: "none",
+        opacity: "0",
+        pointerEvents: "none",
+      });
       iframe.src = url;
+      
+      // Desactivar loading inmediatamente después de crear el iframe
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
       
       document.body.appendChild(iframe);
       
+      // Función para limpiar recursos
+      const cleanup = () => {
+        setTimeout(() => {
+          try {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+            window.URL.revokeObjectURL(url);
+          } catch (e) {
+            // Ignorar errores de limpieza
+          }
+        }, 500);
+      };
+      
+      // Intentar imprimir tan pronto como sea posible
       iframe.onload = () => {
         try {
           iframe.contentWindow?.print();
-          // Limpiar después de un tiempo
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            window.URL.revokeObjectURL(url);
-          }, 1000);
+          cleanup();
         } catch (e) {
           console.error("Error al imprimir", e);
-          // Fallback: abrir en nueva ventana
-          window.open(url, "_blank");
-          document.body.removeChild(iframe);
-          setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+          cleanup();
         }
       };
+      
+      // Fallback rápido: intentar imprimir después de 200ms
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow && iframe.contentDocument?.readyState === "complete") {
+            iframe.contentWindow.print();
+            cleanup();
+          }
+        } catch (e) {
+          // Continuar con el onload
+        }
+      }, 200);
+      
     } catch (e) {
-      console.error("Error imprimiendo remito PDF", e);
-      alert("Error al generar el PDF para imprimir");
-    } finally {
+      if (e?.name === "AbortError") {
+        alert("La generación tardó demasiado. Por favor, intenta nuevamente.");
+      } else {
+        console.error("Error imprimiendo remito PDF", e);
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
+      }
       if (paraEmpleado) {
         setPrintingPDFEmpleado(false);
       } else {
