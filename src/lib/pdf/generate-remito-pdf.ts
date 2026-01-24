@@ -7,6 +7,7 @@ import { RemitoModel } from "./models";
 import { formatCurrency, formatNumber, formatFechaLocal, escapeHtml, safeText } from "./formatters";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { getBrowser } from "./browser-pool";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
@@ -610,110 +611,8 @@ export async function generateRemitoPDFBuffer(
     throw new Error("Este código solo puede ejecutarse en el servidor Node.js");
   }
 
-  const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL;
-  
-  let browser;
-  
-  try {
-    if (isProduction) {
-      // Producción (Vercel): usar import dinámico para @sparticuz/chromium y puppeteer-core
-      // Estos módulos están marcados como externals en next.config.js
-      const chromiumModule = await import("@sparticuz/chromium");
-      const puppeteerCoreModule = await import("puppeteer-core");
-      
-      // Manejar exports default y named exports
-      const chromium: any = (chromiumModule as any).default || chromiumModule;
-      const puppeteerCore: any = (puppeteerCoreModule as any).default || puppeteerCoreModule;
-      
-      // setGraphicsMode puede no estar disponible en todas las versiones
-      if (chromium && typeof chromium.setGraphicsMode === "function") {
-        chromium.setGraphicsMode(false);
-      }
-      
-      // executablePath es una función async en @sparticuz/chromium
-      const executablePath = await chromium.executablePath();
-      
-      browser = await puppeteerCore.launch({
-        args: [
-          ...(chromium.args || []),
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
-          "--disable-software-rasterizer",
-          "--disable-extensions",
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-background-networking",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-breakpad",
-          "--disable-client-side-phishing-detection",
-          "--disable-default-apps",
-          "--disable-features=TranslateUI",
-          "--disable-hang-monitor",
-          "--disable-ipc-flooding-protection",
-          "--disable-popup-blocking",
-          "--disable-prompt-on-repost",
-          "--disable-renderer-backgrounding",
-          "--disable-sync",
-          "--disable-translate",
-          "--metrics-recording-only",
-          "--no-first-run",
-          "--safebrowsing-disable-auto-update",
-          "--enable-automation",
-          "--password-store=basic",
-          "--use-mock-keychain",
-        ],
-        defaultViewport: {
-          deviceScaleFactor: 1,
-          hasTouch: false,
-          height: 1123, // A4 height in pixels at 96 DPI
-          isLandscape: false,
-          isMobile: false,
-          width: 794, // A4 width in pixels at 96 DPI
-        },
-        executablePath: executablePath,
-        headless: chromium.headless || "shell",
-      });
-    } else {
-      // Desarrollo: usar puppeteer normal con import dinámico
-      const puppeteerModule = await import("puppeteer");
-      const puppeteer: any = (puppeteerModule as any).default || puppeteerModule;
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
-          "--disable-software-rasterizer",
-          "--disable-extensions",
-          "--disable-background-networking",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-breakpad",
-          "--disable-client-side-phishing-detection",
-          "--disable-default-apps",
-          "--disable-features=TranslateUI",
-          "--disable-hang-monitor",
-          "--disable-ipc-flooding-protection",
-          "--disable-popup-blocking",
-          "--disable-prompt-on-repost",
-          "--disable-renderer-backgrounding",
-          "--disable-sync",
-          "--disable-translate",
-          "--metrics-recording-only",
-          "--no-first-run",
-          "--safebrowsing-disable-auto-update",
-          "--enable-automation",
-          "--password-store=basic",
-        ],
-      });
-    }
-  } catch (importError: any) {
-    console.error("Error importando módulos de Puppeteer:", importError);
-    throw new Error(`Error al cargar Puppeteer: ${importError?.message || "Unknown error"}`);
-  }
-
+  // Obtener navegador del pool (reutiliza instancia existente)
+  const browser = await getBrowser();
   const page = await browser.newPage();
   
   // Deshabilitar JavaScript completamente - no lo necesitamos para HTML estático
@@ -761,18 +660,15 @@ export async function generateRemitoPDFBuffer(
     timeout: 5000,
   });
 
-  // Cerrar página primero, luego navegador
+  // Cerrar solo la página, mantener el navegador para reutilización
   try {
     await page.close();
   } catch (e) {
     // Ignorar errores al cerrar página
   }
   
-  try {
-    await browser.close();
-  } catch (e) {
-    // Ignorar errores al cerrar navegador
-  }
+  // NO cerramos el navegador aquí - se mantiene en el pool para reutilización
+  // El navegador se cerrará automáticamente después de 30 segundos de inactividad
   
   return pdfBuffer as Buffer;
 }
