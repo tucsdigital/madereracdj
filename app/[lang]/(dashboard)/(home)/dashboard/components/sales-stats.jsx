@@ -585,24 +585,80 @@ const SalesStats = () => {
   );
 
   const Skeleton = () => (
-    <div className="animate-pulse space-y-4">
-      <div className="h-9 w-64 bg-white/60 rounded-2xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg">
-            <div className="h-4 w-24 bg-white/80 rounded mb-3" />
-            <div className="h-7 w-20 bg-white/80 rounded" />
+    <div className="space-y-4">
+      {/* Skeletons para KPI Cards (Ventas, Monto, Ticket, Presup.) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {[
+          { gradient: "from-primary/20 via-primary/10 to-primary/5", iconBg: "bg-primary/15" },
+          { gradient: "from-emerald-100/80 via-emerald-50/60 to-green-50/80", iconBg: "bg-emerald-500/15" },
+          { gradient: "from-indigo-100/80 via-indigo-50/60 to-purple-50/80", iconBg: "bg-indigo-500/15" },
+          { gradient: "from-amber-100/80 via-amber-50/60 to-yellow-50/80", iconBg: "bg-amber-500/15" },
+        ].map((style, i) => (
+          <div
+            key={i}
+            className={`relative p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br ${style.gradient} shadow-lg backdrop-blur-sm overflow-hidden animate-pulse`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
+            <div className="relative flex items-center justify-between mb-2">
+              <div className="h-3 md:h-3.5 w-16 md:w-20 bg-white/60 rounded-lg" />
+              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-md ${style.iconBg} bg-white/40`} />
+            </div>
+            <div className="relative h-6 md:h-8 lg:h-9 w-20 md:w-24 bg-white/50 rounded-xl mt-2" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg h-28" />
+
+      {/* Skeletons para Comisiones Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        {[
+          { gradient: "from-fuchsia-100/80 via-fuchsia-50/60 to-pink-50/80", iconBg: "bg-fuchsia-500/15" },
+          { gradient: "from-blue-100/80 via-blue-50/60 to-cyan-50/80", iconBg: "bg-blue-500/15" },
+          { gradient: "from-orange-100/80 via-orange-50/60 to-amber-50/80", iconBg: "bg-orange-500/15" },
+        ].map((style, i) => (
+          <div
+            key={i}
+            className={`relative p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br ${style.gradient} shadow-lg backdrop-blur-sm overflow-hidden animate-pulse`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
+            <div className="relative flex items-center justify-between mb-2">
+              <div className="h-3 md:h-3.5 w-24 md:w-28 bg-white/60 rounded-lg" />
+              <div className={`w-6 h-6 md:w-8 md:h-8 rounded-md ${style.iconBg} bg-white/40`} />
+            </div>
+            <div className="relative h-6 md:h-7 lg:h-8 w-28 md:w-32 bg-white/50 rounded-xl mt-2" />
+            <div className="relative h-2.5 md:h-3 w-32 md:w-36 bg-white/40 rounded-lg mt-2" />
+          </div>
         ))}
       </div>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+      {/* Skeletons para Donut Charts */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg h-64" />
+          <div
+            key={i}
+            className="relative p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm overflow-hidden animate-pulse"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+            {/* Título */}
+            <div className="relative h-3.5 md:h-4 w-28 md:w-32 bg-white/60 rounded-lg mb-3" />
+            {/* Gráfico circular */}
+            <div className="relative flex flex-col items-center gap-3">
+              <div className="w-full max-w-[120px] h-[120px] sm:max-w-[140px] sm:h-[140px] rounded-full bg-gradient-to-br from-white/50 to-white/30 border-4 border-white/40 flex items-center justify-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/40" />
+              </div>
+              {/* Leyenda */}
+              <div className="flex-1 w-full grid grid-cols-1 gap-2">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-white/50" />
+                      <div className="h-3 md:h-3.5 w-16 md:w-20 bg-white/50 rounded" />
+                    </div>
+                    <div className="h-3 md:h-3.5 w-12 md:w-16 bg-white/50 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

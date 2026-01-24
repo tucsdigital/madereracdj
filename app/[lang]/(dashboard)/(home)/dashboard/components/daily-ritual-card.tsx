@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
 import { getTierLabel, getTierColor, getTierColor as getTierColorHex, getTierInfo, getRewardInfo } from "@/lib/game/roulette";
 import { useAuth } from "@/provider/auth.provider";
+import { getUserAlias } from "@/lib/daily/userAliases";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,9 @@ interface DailyRitualCardProps {
   } | null;
   onSpin: () => Promise<void>;
   spinning: boolean;
+  userPosition?: number | null;
+  totalPlayers?: number;
+  percentile?: number | null;
 }
 
 // Componente de Ruleta Visual
@@ -80,7 +84,7 @@ function RouletteWheel({ spinning, finalRotation = 0 }: { spinning: boolean; fin
       </div>
 
       {/* Ruleta */}
-      <div className="relative w-[140px] h-[140px] md:w-[200px] md:h-[200px]">
+      <div className="relative w-[140px] h-[140px] md:w-[200px] md:h-[200px] lg:w-[160px] lg:h-[160px]">
         <svg
           width="100%"
           height="100%"
@@ -275,8 +279,13 @@ export default function DailyRitualCard({
   userResult,
   onSpin,
   spinning,
+  userPosition,
+  totalPlayers,
+  percentile,
 }: DailyRitualCardProps) {
   const { user } = useAuth();
+  const currentUserEmail = (user as any)?.email || null;
+  const currentUserAlias = getUserAlias(currentUserEmail);
   
   // Debug: loguear el estado recibido
   console.log("[DailyRitualCard] Props recibidas:", { hasPlayed, userResult: userResult ? { score: userResult.score, tier: userResult.tier } : null });
@@ -412,40 +421,44 @@ export default function DailyRitualCard({
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
       {/* @ts-ignore */}
-      <CardHeader className="relative pb-2 md:pb-4 pt-3 md:pt-6 px-4 md:px-6 border-0 bg-transparent">
+      <CardHeader className="relative pb-2 md:pb-3 lg:pb-2 pt-3 md:pt-4 lg:pt-3 px-4 md:px-5 lg:px-4 border-0 bg-transparent">
         {/* @ts-ignore */}
-        <CardTitle className="text-xl md:text-2xl font-bold flex items-center gap-2 md:gap-3 text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
-          <div className="p-1.5 md:p-2 rounded-xl md:rounded-2xl bg-gradient-to-br from-pink-200/50 to-purple-200/50 shadow-md md:shadow-lg">
-            <Icon icon="heroicons:sparkles" className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
+        <CardTitle className="text-xl md:text-2xl lg:text-xl font-bold flex items-center gap-2 md:gap-3 lg:gap-2 text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
+          <div className="p-1.5 md:p-2 lg:p-1.5 rounded-xl md:rounded-2xl lg:rounded-xl bg-gradient-to-br from-pink-200/50 to-purple-200/50 shadow-md md:shadow-lg lg:shadow-md">
+            <Icon icon="heroicons:sparkles" className="w-5 h-5 md:w-6 md:h-6 lg:w-5 lg:h-5 text-purple-600" />
           </div>
           Ritual Diario
         </CardTitle>
       </CardHeader>
       {/* @ts-ignore */}
-      <CardContent className="relative pt-1 md:pt-2 px-4 md:px-6 pb-4 md:pb-6">
+      <CardContent className="relative pt-1 md:pt-2 lg:pt-1 px-4 md:px-5 lg:px-4 pb-4 md:pb-5 lg:pb-4">
         {(spinning || isAnimating) ? (
-          <div className="flex flex-col items-center justify-center py-3 md:py-6">
+          <div className="flex flex-col items-center justify-center py-3 md:py-6 lg:py-3">
             <RouletteWheel spinning={spinning || isAnimating} finalRotation={finalRotation} />
-            <p className="text-xs md:text-sm font-medium text-default-700 mt-2 md:mt-4 animate-pulse">
+            <p className="text-xs md:text-sm lg:text-xs font-medium text-default-700 mt-2 md:mt-4 lg:mt-2 animate-pulse">
               {spinning ? "Girando la ruleta..." : userResult ? "Deteniendo ruleta..." : "Calculando resultado..."}
             </p>
           </div>
         ) : hasPlayed ? (
-          <div className="space-y-2 md:space-y-4">
-            <div className="text-center">
-              {userResult && showResult ? (
-                <>
-                  <p className="text-xs md:text-sm text-default-600 mb-1.5 md:mb-2">
-                    Ya jugaste hoy
-                  </p>
-                  <div className="space-y-2 md:space-y-3">
+          <div className="space-y-2 md:space-y-4 lg:space-y-2">
+            <p className="text-xs md:text-sm lg:text-xs text-default-600 text-center mb-1.5 md:mb-2 lg:mb-1.5">
+              Ya jugaste hoy
+            </p>
+            {userResult && showResult ? (
+              <div className="grid grid-cols-2 gap-2.5 md:gap-3 lg:gap-2.5">
+                {/* Columna izquierda: Puntuación */}
+                <div className="relative p-3 md:p-4 lg:p-3 rounded-xl md:rounded-2xl lg:rounded-xl bg-gradient-to-br from-purple-50/90 via-pink-50/70 to-blue-50/90 shadow-md md:shadow-lg lg:shadow-md border-0 backdrop-blur-sm overflow-hidden">
+                  {/* Efecto de brillo sutil */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent pointer-events-none" />
+                  
+                  <div className="relative space-y-2 md:space-y-2.5 lg:space-y-2">
                     {/* @ts-ignore */}
                     <TooltipProvider delayDuration={0}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className={`inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2.5 rounded-xl md:rounded-2xl shadow-md md:shadow-lg ${getTierColor(userResult.tier as any)} backdrop-blur-sm cursor-help`}>
-                            <Icon icon="heroicons:trophy" className="w-4 h-4 md:w-5 md:h-5" />
-                            <span className="text-xs md:text-sm font-bold">{getTierLabel(userResult.tier as any)}</span>
+                          <div className={`inline-flex items-center gap-1.5 md:gap-2 lg:gap-1.5 px-2.5 md:px-3 lg:px-2.5 py-1.5 md:py-2 lg:py-1.5 rounded-lg md:rounded-xl lg:rounded-lg shadow-sm md:shadow-md lg:shadow-sm ${getTierColor(userResult.tier as any)} backdrop-blur-sm cursor-help w-full justify-center transition-all hover:scale-105`}>
+                            <Icon icon="heroicons:trophy" className="w-3.5 h-3.5 md:w-4 md:h-4 lg:w-3.5 lg:h-3.5" />
+                            <span className="text-[11px] md:text-xs lg:text-[11px] font-bold">{getTierLabel(userResult.tier as any)}</span>
                           </div>
                         </TooltipTrigger>
                         {/* @ts-ignore */}
@@ -468,20 +481,25 @@ export default function DailyRitualCard({
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="mt-1 md:mt-2">
-                      <p className="text-3xl md:text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{userResult.score}</p>
-                      <p className="text-[10px] md:text-xs text-purple-500/70 font-medium mt-0.5 md:mt-1">Puntos</p>
+                    
+                    <div className="text-center pt-1">
+                      <p className="text-3xl md:text-4xl lg:text-3xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent leading-none">{userResult.score}</p>
+                      <p className="text-[10px] md:text-xs lg:text-[10px] text-purple-600/80 font-semibold mt-1">Puntos</p>
                     </div>
+                    
                     {userResult.rewardType !== "none" && (
                       // @ts-ignore
                       <TooltipProvider delayDuration={0}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="mt-2 md:mt-4 p-3 md:p-4 rounded-xl md:rounded-2xl bg-gradient-to-br from-emerald-100/80 to-green-100/80 shadow-lg md:shadow-xl border-0 backdrop-blur-sm cursor-help">
-                              <p className="text-xs md:text-sm font-bold text-emerald-800">
-                                ¡Ganaste un premio! 🎉
-                              </p>
-                              <p className="text-[10px] md:text-xs text-emerald-700/80 mt-1 md:mt-1.5 font-medium">
+                            <div className="p-2 md:p-2.5 lg:p-2 rounded-lg md:rounded-xl lg:rounded-lg bg-gradient-to-br from-emerald-100/90 via-green-100/80 to-teal-100/90 shadow-sm md:shadow-md lg:shadow-sm border-0 backdrop-blur-sm cursor-help transition-all hover:scale-105">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-lg">🎉</span>
+                                <p className="text-[10px] md:text-[11px] lg:text-[10px] font-bold text-emerald-800">
+                                  ¡Premio!
+                                </p>
+                              </div>
+                              <p className="text-[9px] md:text-[10px] lg:text-[9px] text-emerald-700/90 mt-0.5 font-medium text-center">
                                 {(() => {
                                   const rewardInfo = getRewardInfo(userResult.rewardType as any, userResult.tier as any);
                                   return rewardInfo.name;
@@ -509,41 +527,83 @@ export default function DailyRitualCard({
                       </TooltipProvider>
                     )}
                   </div>
-                </>
-              ) : (
-                <div className="space-y-2 md:space-y-3">
-                  <div className="p-3 md:p-5 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-50/90 via-purple-50/70 to-pink-50/90 shadow-lg md:shadow-xl border-0 backdrop-blur-sm">
-                    <Icon icon="heroicons:clock" className="w-7 h-7 md:w-10 md:h-10 mx-auto mb-2 md:mb-3 text-purple-500/70" />
-                    <p className="text-xs md:text-sm font-bold text-purple-800 mb-1 md:mb-1.5">
-                      Ya jugaste hoy
-                    </p>
-                    <p className="text-[10px] md:text-xs text-purple-600/80 font-medium">
-                      {timeUntilMidnight.formatted}
-                    </p>
-                    <div className="mt-2 md:mt-3 flex items-center justify-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-purple-500/70 font-medium">
-                      <Icon icon="heroicons:arrow-path" className="w-3 h-3 md:w-3.5 md:h-3.5 animate-spin" />
-                      <span>Próximo juego disponible en {timeUntilMidnight.hours}h {timeUntilMidnight.minutes}m</span>
+                </div>
+
+                {/* Columna derecha: Tu posición */}
+                {userPosition ? (
+                  <div className="relative p-3 md:p-4 lg:p-3 rounded-xl md:rounded-2xl lg:rounded-xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/90 shadow-md md:shadow-lg lg:shadow-md border-0 backdrop-blur-sm overflow-hidden">
+                    {/* Efecto de brillo sutil */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/50 via-transparent to-transparent pointer-events-none" />
+                    
+                    <div className="relative flex flex-col justify-center h-full text-center space-y-1.5 md:space-y-2 lg:space-y-1.5">
+                      <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <Icon icon="heroicons:chart-bar" className="w-3.5 h-3.5 md:w-4 md:h-4 lg:w-3.5 lg:h-3.5 text-purple-600" />
+                        <p className="text-[10px] md:text-[11px] lg:text-[10px] font-semibold text-purple-700">
+                          Tu posición
+                        </p>
+                      </div>
+                      
+                      <div className="py-1.5 md:py-2 lg:py-1.5">
+                        <p className="text-2xl md:text-3xl lg:text-2xl font-black bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent leading-none">#{userPosition}</p>
+                        {totalPlayers && (
+                          <p className="text-[10px] md:text-[11px] lg:text-[10px] text-default-600 font-medium mt-0.5">de {totalPlayers}</p>
+                        )}
+                      </div>
+                      
+                      {percentile !== null && (
+                        <div className="px-2 py-1 rounded-lg bg-gradient-to-r from-purple-100/80 to-pink-100/80 backdrop-blur-sm">
+                          <p className="text-[9px] md:text-[10px] lg:text-[9px] text-purple-700 font-semibold">
+                            Mejor que el {percentile}%
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="pt-1 border-t border-purple-200/50">
+                        <p className="text-[10px] md:text-[11px] lg:text-[10px] text-default-700 font-medium truncate">
+                          {currentUserAlias}
+                        </p>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="flex items-center justify-center p-3 rounded-xl bg-gradient-to-br from-gray-50/90 to-gray-100/90 backdrop-blur-sm">
+                    <p className="text-[10px] text-default-500">Sin posición</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2 md:space-y-3">
+                <div className="p-3 md:p-5 rounded-xl md:rounded-2xl bg-gradient-to-br from-blue-50/90 via-purple-50/70 to-pink-50/90 shadow-lg md:shadow-xl border-0 backdrop-blur-sm">
+                  <Icon icon="heroicons:clock" className="w-7 h-7 md:w-10 md:h-10 mx-auto mb-2 md:mb-3 text-purple-500/70" />
+                  <p className="text-xs md:text-sm font-bold text-purple-800 mb-1 md:mb-1.5">
+                    Ya jugaste hoy
+                  </p>
+                  <p className="text-[10px] md:text-xs lg:text-[10px] text-purple-600/80 font-medium">
+                    {timeUntilMidnight.formatted}
+                  </p>
+                  <div className="mt-2 md:mt-3 lg:mt-2 flex items-center justify-center gap-1 md:gap-1.5 lg:gap-1 text-[10px] md:text-xs lg:text-[10px] text-purple-500/70 font-medium">
+                    <Icon icon="heroicons:arrow-path" className="w-3 h-3 md:w-3.5 md:h-3.5 lg:w-3 lg:h-3 animate-spin" />
+                    <span>Próximo juego disponible en {timeUntilMidnight.hours}h {timeUntilMidnight.minutes}m</span>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="space-y-3 md:space-y-4">
+          <div className="space-y-3 md:space-y-4 lg:space-y-2.5">
             <div className="text-center">
-              <p className="text-xs md:text-sm text-default-600 mb-3 md:mb-4">
+              <p className="text-xs md:text-sm lg:text-xs text-default-600 mb-3 md:mb-4 lg:mb-2.5">
                 Tu oportunidad diaria de ganar premios
               </p>
               <button
                 onClick={handleSpin}
                 disabled={spinning || hasPlayed}
-                className="group relative w-full py-3 md:py-4 px-4 md:px-6 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white rounded-xl md:rounded-2xl font-bold text-sm md:text-base shadow-xl md:shadow-2xl hover:shadow-2xl md:hover:shadow-3xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden"
+                className="group relative w-full py-3 md:py-4 lg:py-2.5 px-4 md:px-6 lg:px-4 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white rounded-xl md:rounded-2xl lg:rounded-xl font-bold text-sm md:text-base lg:text-sm shadow-xl md:shadow-2xl lg:shadow-xl hover:shadow-2xl md:hover:shadow-3xl lg:hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none overflow-hidden"
               >
                 {/* Efecto de brillo animado */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                <div className="relative flex items-center justify-center gap-1.5 md:gap-2">
-                  <Icon icon="heroicons:sparkles" className="w-5 h-5 md:w-6 md:h-6" />
+                <div className="relative flex items-center justify-center gap-1.5 md:gap-2 lg:gap-1.5">
+                  <Icon icon="heroicons:sparkles" className="w-5 h-5 md:w-6 md:h-6 lg:w-5 lg:h-5" />
                   <span>Jugar Ahora</span>
                 </div>
               </button>

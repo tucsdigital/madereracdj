@@ -1307,34 +1307,47 @@ const PresupuestoDetalle = () => {
     }
   };
 
-  // Función para imprimir PDF - Ultra optimizada
+  // Singleton global para prevenir múltiples impresiones simultáneas
+  if (!window.__printLock) {
+    window.__printLock = { active: false, iframe: null };
+  }
+
+  // Función para imprimir - Ultra rápida usando HTML directo
   const handlePrintPDF = async (paraEmpleado = false) => {
-    if (!presupuesto?.id) return;
+    console.log("[PRINT DEBUG] handlePrintPDF llamado", { paraEmpleado, presupuestoId: presupuesto?.id });
     
-    // Prevenir múltiples llamadas simultáneas
-    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
-    if (currentRef.current) {
-      console.warn("Ya hay una impresión en proceso");
+    if (!presupuesto?.id) {
+      console.log("[PRINT DEBUG] No hay presupuesto.id, retornando");
       return;
     }
     
-    // Activar loading y flag de procesamiento
+    // Prevenir múltiples llamadas simultáneas - verificar ref local Y singleton global
+    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
+    if (currentRef.current) {
+      console.warn("[PRINT DEBUG] Ya hay una impresión en proceso (ref local)");
+      return;
+    }
+    
+    if (window.__printLock.active) {
+      console.warn("[PRINT DEBUG] Ya hay una impresión en proceso (singleton global)");
+      return;
+    }
+    
+    // Activar locks
     currentRef.current = true;
+    window.__printLock.active = true;
     if (paraEmpleado) {
       setPrintingPDFEmpleado(true);
     } else {
       setPrintingPDF(true);
     }
     
-    let iframe = null;
-    let url = null;
-    let printed = false;
-    
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reducido a 15s
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s es suficiente para HTML
       
-      const res = await fetch("/api/pdf/remito", {
+      // Obtener HTML directamente (mucho más rápido que PDF)
+      const res = await fetch("/api/pdf/remito-html", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1349,9 +1362,10 @@ const PresupuestoDetalle = () => {
       
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Error generando remito PDF", errorText);
-        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
+        console.error("[PRINT DEBUG] Error en respuesta:", errorText);
+        alert("Error al generar el remito. Por favor, intenta nuevamente.");
         currentRef.current = false;
+        window.__printLock.active = false;
         if (paraEmpleado) {
           setPrintingPDFEmpleado(false);
         } else {
@@ -1360,90 +1374,105 @@ const PresupuestoDetalle = () => {
         return;
       }
       
-      const blob = await res.blob();
-      url = window.URL.createObjectURL(blob);
+      // Obtener HTML como texto
+      const html = await res.text();
+      console.log("[PRINT DEBUG] HTML obtenido, creando iframe");
       
-      // Crear iframe y preparar impresión
-      iframe = document.createElement("iframe");
-      Object.assign(iframe.style, {
-        position: "fixed",
-        top: "0",
-        left: "0",
-        width: "0",
-        height: "0",
-        border: "none",
-        opacity: "0",
-        pointerEvents: "none",
-      });
-      iframe.src = url;
+      // Limpiar iframe anterior si existe
+      if (window.__printLock.iframe && window.__printLock.iframe.parentNode) {
+        console.log("[PRINT DEBUG] Removiendo iframe anterior");
+        document.body.removeChild(window.__printLock.iframe);
+      }
       
+      // Crear iframe oculto para imprimir
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
       document.body.appendChild(iframe);
+      window.__printLock.iframe = iframe;
       
-      // Función para imprimir (solo una vez)
-      const doPrint = () => {
-        if (printed || !iframe?.contentWindow) return;
-        try {
-          iframe.contentWindow.print();
-          printed = true;
-        } catch (e) {
-          console.error("Error al imprimir", e);
-        }
-      };
+      // Bandera local para esta impresión
+      let hasPrinted = false;
       
-      // Función para limpiar recursos (optimizada para mayor velocidad)
       const cleanup = () => {
-        // Limpiar inmediatamente el estado de loading
+        console.log("[PRINT DEBUG] Cleanup ejecutado");
+        hasPrinted = true;
         currentRef.current = false;
+        window.__printLock.active = false;
+        window.__printLock.iframe = null;
+        
         if (paraEmpleado) {
           setPrintingPDFEmpleado(false);
         } else {
           setPrintingPDF(false);
         }
         
-        // Limpiar recursos después de un delay más corto
+        // Remover iframe después de un tiempo
         setTimeout(() => {
           try {
-            if (iframe && document.body.contains(iframe)) {
+            if (iframe.parentNode) {
               document.body.removeChild(iframe);
             }
-            if (url) {
-              window.URL.revokeObjectURL(url);
-            }
           } catch (e) {
-            // Ignorar errores de limpieza
+            console.error("[PRINT DEBUG] Error removiendo iframe:", e);
           }
-        }, 500); // Reducido de 1000ms a 500ms
+        }, 2000);
       };
       
-      // Intentar imprimir cuando el iframe esté listo
-      iframe.onload = () => {
-        doPrint();
-        cleanup();
-      };
-      
-      // Fallback: intentar imprimir después de un delay reducido
-      const fallbackTimeout = setTimeout(() => {
-        if (!printed && iframe?.contentWindow && iframe.contentDocument?.readyState === "complete") {
-          doPrint();
-          cleanup();
+      const doPrint = () => {
+        if (hasPrinted) {
+          console.warn("[PRINT DEBUG] doPrint llamado pero ya se imprimió, ignorando");
+          return;
         }
-      }, 200);
+        
+        console.log("[PRINT DEBUG] doPrint ejecutándose");
+        hasPrinted = true;
+        
+        setTimeout(() => {
+          try {
+            console.log("[PRINT DEBUG] Llamando a print()");
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            cleanup();
+          } catch (e) {
+            console.error("[PRINT DEBUG] Error al imprimir:", e);
+            cleanup();
+          }
+        }, 500);
+      };
       
-      // Limpiar timeout si ya se imprimió
-      if (printed) {
-        clearTimeout(fallbackTimeout);
-      }
+      // Escribir HTML en el iframe
+      console.log("[PRINT DEBUG] Escribiendo HTML en iframe");
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(html);
+      iframe.contentDocument?.close();
+      
+      // Esperar un tiempo fijo y luego imprimir (más confiable que onload)
+      console.log("[PRINT DEBUG] Configurando timeout para imprimir");
+      setTimeout(() => {
+        if (!hasPrinted) {
+          console.log("[PRINT DEBUG] Timeout ejecutado, imprimiendo");
+          doPrint();
+        }
+      }, 800);
       
     } catch (e) {
+      console.error("[PRINT DEBUG] Error en catch:", e);
       if (e?.name === "AbortError") {
         alert("La generación tardó demasiado. Por favor, intenta nuevamente.");
       } else {
-        console.error("Error imprimiendo remito PDF", e);
-        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
+        console.error("Error imprimiendo remito", e);
+        alert("Error al generar el remito. Por favor, intenta nuevamente.");
       }
       
       // Asegurar limpieza en caso de error
       currentRef.current = false;
+      window.__printLock.active = false;
+      window.__printLock.iframe = null;
       if (paraEmpleado) {
         setPrintingPDFEmpleado(false);
       } else {

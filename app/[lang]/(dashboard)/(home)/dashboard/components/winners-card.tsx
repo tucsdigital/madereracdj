@@ -23,22 +23,22 @@ export default function WinnersCard({ yesterdayWinners }: WinnersCardProps) {
   if (!yesterdayWinners || yesterdayWinners.length === 0) {
     return (
       // @ts-ignore - Card components are in .jsx without types
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 backdrop-blur-xl">
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 backdrop-blur-xl h-full flex flex-col">
         {/* Efecto de brillo sutil */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
         
         {/* @ts-ignore */}
-        <CardHeader className="relative pb-3 pt-4 px-4 border-0 bg-transparent">
+        <CardHeader className="relative pb-3 lg:pb-2 pt-4 lg:pt-3 px-4 lg:px-4 border-0 bg-transparent">
           {/* @ts-ignore */}
-          <CardTitle className="text-xl md:text-2xl font-bold flex items-center gap-2 md:gap-3 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
-            <div className="p-1.5 md:p-2 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-200/50 to-purple-200/50 shadow-md md:shadow-lg">
-              <Icon icon="heroicons:star" className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
+          <CardTitle className="text-xl md:text-2xl lg:text-xl font-bold flex items-center gap-2 md:gap-3 lg:gap-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            <div className="p-1.5 md:p-2 lg:p-1.5 rounded-xl md:rounded-2xl lg:rounded-xl bg-gradient-to-br from-indigo-200/50 to-purple-200/50 shadow-md md:shadow-lg lg:shadow-md">
+              <Icon icon="heroicons:star" className="w-5 h-5 md:w-6 md:h-6 lg:w-5 lg:h-5 text-purple-600" />
             </div>
             Ganadores de Ayer
           </CardTitle>
         </CardHeader>
         {/* @ts-ignore */}
-        <CardContent className="relative pt-1 px-4 pb-4">
+        <CardContent className="relative pt-1 lg:pt-0.5 px-4 lg:px-4 pb-4 lg:pb-3 flex-1 flex items-center justify-center">
           <p className="text-xs text-default-500 text-center py-3">
             Aún no hay ganadores de ayer
           </p>
@@ -52,7 +52,7 @@ export default function WinnersCard({ yesterdayWinners }: WinnersCardProps) {
 
   return (
     // @ts-ignore - Card components are in .jsx without types
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 backdrop-blur-xl h-full flex flex-col">
       {/* Efecto de brillo sutil */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
@@ -67,7 +67,7 @@ export default function WinnersCard({ yesterdayWinners }: WinnersCardProps) {
         </CardTitle>
       </CardHeader>
       {/* @ts-ignore */}
-      <CardContent className="relative pt-1 px-4 pb-4">
+      <CardContent className="relative pt-1 px-4 pb-4 flex-1">
         <div className="space-y-2.5">
           {top3.length > 0 && (
             <div>

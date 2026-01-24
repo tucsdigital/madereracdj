@@ -12,7 +12,7 @@ import { getBrowser } from "./browser-pool";
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
  */
-function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): string {
+export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): string {
   const {
     numero,
     fecha,
@@ -82,11 +82,11 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
 
   // Agregar solo 2-3 filas vacías si hay pocos items (solo para llenar un poco el espacio)
   // No agregar si hay muchos items (Puppeteer manejará el overflow automáticamente)
-  let filasVacias = "";
-  if (items.length > 0 && items.length < 8) {
-    const numFilasVacias = Math.min(3, 8 - items.length);
-    filasVacias = Array.from({ length: numFilasVacias }, () => `
-      <tr style="border-bottom: 1px solid #000000;">
+    let filasVacias = "";
+    if (items.length > 0 && items.length < 8) {
+      const numFilasVacias = Math.min(3, 8 - items.length);
+      filasVacias = Array.from({ length: numFilasVacias }, () => `
+      <tr>
         <td style="padding: 8px 6px; height: 32px;"></td>
         <td style="padding: 8px 6px;"></td>
         <td style="padding: 8px 6px;"></td>
@@ -99,7 +99,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
         `}
       </tr>
     `).join("");
-  }
+    }
 
   // Generar filas de totales en el footer de la tabla (alineados como en el PDF)
   const totalesRowsHtml = !paraEmpleado
@@ -154,6 +154,15 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     @page {
       margin: 0;
       size: A4;
+    }
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .no-print {
+        display: none !important;
+      }
     }
     * {
       margin: 0;
@@ -334,11 +343,13 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
       border-spacing: 0;
       border: 1px solid #000000;
+      border-radius: 10px;
       font-size: 11px;
       background: #fff;
+      overflow: hidden;
     }
     .products-table thead {
       background: #fff;
@@ -353,6 +364,9 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       letter-spacing: 0.3px;
       text-transform: uppercase;
     }
+    .products-table th:not(:last-child) {
+      border-right: 1px solid #000000;
+    }
     .products-table th.text-center {
       text-align: center;
     }
@@ -361,10 +375,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table td {
       padding: 10px 8px;
-      border-bottom: 1px solid #000000;
       line-height: 1.5;
       color: #000000;
       vertical-align: middle;
+    }
+    .products-table td:not(:last-child) {
+      border-right: 1px solid #000000;
     }
     .products-table tbody tr:last-child td {
       border-bottom: none;
@@ -375,6 +391,9 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     .products-table tfoot td {
       padding: 8px;
       background: #fff;
+    }
+    .products-table tfoot td:not(:last-child) {
+      border-right: 1px solid #000000;
     }
     .products-table tfoot tr:first-child td {
       border-top: 1px solid #000000;
@@ -594,8 +613,29 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       </div>
     </div>
   </div>
+  <script>
+    // Imprimir automáticamente cuando la página se carga
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 100);
+    };
+    
+    // Fallback: si onload no funciona, intentar cuando el DOM esté listo
+    if (document.readyState === 'complete') {
+      setTimeout(function() {
+        window.print();
+      }, 100);
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          window.print();
+        }, 100);
+      });
+    }
+  </script>
 </body>
-  </html>
+</html>
   `;
 }
 

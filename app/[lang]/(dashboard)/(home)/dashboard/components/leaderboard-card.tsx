@@ -35,22 +35,22 @@ export default function LeaderboardCard({
   
   return (
     // @ts-ignore - Card components are in .jsx without types
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80 backdrop-blur-xl h-full flex flex-col">
       {/* Efecto de brillo sutil */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       
       {/* @ts-ignore */}
-      <CardHeader className="relative pb-3 pt-4 px-4 border-0 bg-transparent">
+      <CardHeader className="relative pb-3 lg:pb-2 pt-4 lg:pt-3 px-4 lg:px-4 border-0 bg-transparent">
         {/* @ts-ignore */}
-        <CardTitle className="text-xl md:text-2xl font-bold flex items-center gap-2 md:gap-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 via-orange-600 to-amber-600">
-          <div className="p-1.5 md:p-2 rounded-xl md:rounded-2xl bg-gradient-to-br from-yellow-200/50 to-orange-200/50 shadow-md md:shadow-lg">
-            <Icon icon="heroicons:trophy" className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
+        <CardTitle className="text-xl md:text-2xl lg:text-xl font-bold flex items-center gap-2 md:gap-3 lg:gap-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 via-orange-600 to-amber-600">
+          <div className="p-1.5 md:p-2 lg:p-1.5 rounded-xl md:rounded-2xl lg:rounded-xl bg-gradient-to-br from-yellow-200/50 to-orange-200/50 shadow-md md:shadow-lg lg:shadow-md">
+            <Icon icon="heroicons:trophy" className="w-5 h-5 md:w-6 md:h-6 lg:w-5 lg:h-5 text-orange-600" />
           </div>
           Ranking del Día
         </CardTitle>
       </CardHeader>
       {/* @ts-ignore */}
-      <CardContent className="relative pt-1 px-4 pb-4">
+      <CardContent className="relative pt-1 lg:pt-0.5 px-4 lg:px-4 pb-4 lg:pb-3 flex-1">
         <div className="space-y-1.5">
           {top10.length === 0 ? (
             <p className="text-xs text-default-500 text-center py-3">
@@ -58,28 +58,28 @@ export default function LeaderboardCard({
             </p>
           ) : (
             <>
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {top10.map((entry, index) => (
                   <div
                     key={entry.userId}
-                    className={`flex items-center justify-between p-2 rounded-xl shadow-md backdrop-blur-sm transition-all hover:scale-[1.01] ${
+                    className={`flex items-center justify-between p-1.5 rounded-lg shadow-sm backdrop-blur-sm transition-all hover:scale-[1.01] ${
                       index < 3 
                         ? "bg-gradient-to-r from-yellow-100/80 via-orange-100/60 to-amber-100/80" 
                         : "bg-white/60"
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-sm font-bold text-default-600 w-5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="text-xs font-bold text-default-600 w-4 flex-shrink-0">
                         {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${entry.position}`}
                       </span>
-                      <span className="text-xs font-medium text-default-900 truncate">
+                      <span className="text-[10px] font-medium text-default-900 truncate">
                         {entry.alias || (entry.email ? getUserAlias(entry.email, entry.userId) : getUserAlias(null, entry.userId))}
                       </span>
                       {/* @ts-ignore */}
                       <TooltipProvider delayDuration={0}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-lg cursor-help flex-shrink-0 ${getTierColor(entry.tier as any)}`}>
+                            <span className={`text-[9px] px-1 py-0.5 rounded-md cursor-help flex-shrink-0 ${getTierColor(entry.tier as any)}`}>
                               {getTierLabel(entry.tier as any)}
                             </span>
                           </TooltipTrigger>
@@ -104,29 +104,10 @@ export default function LeaderboardCard({
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-xs font-bold text-default-900 flex-shrink-0 ml-2">{entry.score}</span>
+                    <span className="text-[10px] font-bold text-default-900 flex-shrink-0 ml-1">{entry.score}</span>
                   </div>
                 ))}
               </div>
-
-              {userPosition && (
-                <div className="mt-3 pt-3 border-t border-yellow-200/50">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-purple-100/80 via-pink-100/60 to-blue-100/80 shadow-lg border-0 backdrop-blur-sm">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-default-900 truncate">
-                        Tu posición: <span className="font-bold text-primary">{currentUserAlias}</span>
-                      </p>
-                      <p className="text-[10px] text-default-600">
-                        {percentile !== null && `Mejor que el ${percentile}%`}
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="text-base font-bold text-primary">#{userPosition}</p>
-                      <p className="text-[10px] text-default-500">de {totalPlayers}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
