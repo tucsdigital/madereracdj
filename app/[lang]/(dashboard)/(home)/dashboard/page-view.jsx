@@ -7,6 +7,7 @@ import CommunityStats from "./components/community-stats";
 import PlatformMessages from "./components/platform-messages";
 import Opportunities from "./components/opportunities";
 import SalesStats from "./components/sales-stats";
+import DailyRitualSection from "./components/daily-ritual-section";
 import { DateRangeProvider } from "./context/date-range-context";
 import { DashboardDataProvider } from "./context/dashboard-data-context";
 
@@ -15,6 +16,9 @@ const DashboardPageView = ({ trans }) => {
     <DateRangeProvider>
       <DashboardDataProvider>
         <div className="space-y-6 pb-6">
+          {/* Ritual Diario - Sección destacada */}
+          <DailyRitualSection />
+
           {/* Estadísticas de Ventas - Sección Principal */}
           <SalesStats />
 
