@@ -11,8 +11,11 @@ import { getBrowser } from "./browser-pool";
 
 /**
  * Genera el HTML completo del remito replicando el diseño del PDF de referencia
+ * @param remito - Datos del remito
+ * @param paraEmpleado - Si es true, oculta precios
+ * @param autoPrint - Si es true, incluye scripts para imprimir automáticamente (solo para PDF, no para impresión directa)
  */
-export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): string {
+export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false, autoPrint: boolean = false): string {
   const {
     numero,
     fecha,
@@ -613,8 +616,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       </div>
     </div>
   </div>
+  ${autoPrint ? `
   <script>
-    // Imprimir automáticamente cuando la página se carga
+    // Imprimir automáticamente cuando la página se carga (solo para PDF)
     window.onload = function() {
       setTimeout(function() {
         window.print();
@@ -634,6 +638,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       });
     }
   </script>
+  ` : ''}
 </body>
 </html>
   `;

@@ -53,8 +53,9 @@ export async function POST(req: NextRequest) {
         ? mapVentaToRemito(data)
         : mapPresupuestoToRemito(data);
 
-    // Generar HTML directamente (sin PDF)
-    const html = buildRemitoHtml(remito, empleado || false);
+    // Generar HTML directamente (sin PDF) - sin scripts de auto-impresión
+    // autoPrint=false porque nosotros controlamos la impresión desde el cliente
+    const html = buildRemitoHtml(remito, empleado || false, false);
 
     return new Response(html, {
       status: 200,

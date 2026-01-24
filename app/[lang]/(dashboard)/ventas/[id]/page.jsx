@@ -95,6 +95,137 @@ const VentaDetalle = () => {
   const printingRef = useRef(false);
   const printingEmpleadoRef = useRef(false);
 
+  // Inicializar singleton global usando useEffect para evitar problemas con las reglas de hooks
+  // DEBE estar antes de cualquier return temprano
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.__printLock) {
+      window.__printLock = { active: false, iframe: null, lastPrintTime: 0 };
+    }
+  }, []);
+
+  // Función para imprimir - Solución simple y básica
+  // DEBE estar antes de cualquier return temprano (es un hook useCallback)
+  const handlePrintPDF = useCallback(async (paraEmpleado = false, event = null) => {
+    // Prevenir propagación del evento
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    if (!venta?.id) return;
+    
+    // Verificar si ya hay una impresión en proceso
+    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
+    if (currentRef.current) return;
+    
+    // Activar flag INMEDIATAMENTE
+    currentRef.current = true;
+    
+    if (paraEmpleado) {
+      setPrintingPDFEmpleado(true);
+    } else {
+      setPrintingPDF(true);
+    }
+    
+    try {
+      // Obtener HTML
+      const res = await fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: paraEmpleado,
+        }),
+      });
+      
+      if (!res.ok) {
+        alert("Error al generar el remito. Por favor, intenta nuevamente.");
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+        return;
+      }
+      
+      const html = await res.text();
+      
+      // Crear iframe
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+      
+      // Flag simple para asegurar que solo se imprima una vez
+      let printed = false;
+      let timeoutId = null;
+      
+      const printOnce = () => {
+        if (printed) return;
+        printed = true;
+        
+        // Cancelar timeout si existe
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Error al imprimir:", e);
+        }
+        
+        // Limpiar después de imprimir
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+        
+        // Remover iframe después de un tiempo
+        setTimeout(() => {
+          try {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          } catch (e) {
+            // Ignorar errores
+          }
+        }, 2000);
+      };
+      
+      // Escribir HTML
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(html);
+      iframe.contentDocument?.close();
+      
+      // SOLO usar timeout - NO usar onload para evitar múltiples disparos
+      // Esperar 500ms para que el HTML se cargue completamente
+      timeoutId = setTimeout(() => {
+        printOnce();
+      }, 500);
+      
+    } catch (e) {
+      console.error("Error imprimiendo remito", e);
+      alert("Error al generar el remito. Por favor, intenta nuevamente.");
+      currentRef.current = false;
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
+    }
+  }, [venta?.id]);
+
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
 
@@ -1427,183 +1558,6 @@ const VentaDetalle = () => {
     }
   };
 
-  // Singleton global para prevenir múltiples impresiones simultáneas
-  if (!window.__printLock) {
-    window.__printLock = { active: false, iframe: null };
-  }
-
-  // Función para imprimir - Ultra rápida usando HTML directo
-  const handlePrintPDF = async (paraEmpleado = false) => {
-    console.log("[PRINT DEBUG] handlePrintPDF llamado", { paraEmpleado, ventaId: venta?.id });
-    
-    if (!venta?.id) {
-      console.log("[PRINT DEBUG] No hay venta.id, retornando");
-      return;
-    }
-    
-    // Prevenir múltiples llamadas simultáneas - verificar ref local Y singleton global
-    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
-    if (currentRef.current) {
-      console.warn("[PRINT DEBUG] Ya hay una impresión en proceso (ref local)");
-      return;
-    }
-    
-    if (window.__printLock.active) {
-      console.warn("[PRINT DEBUG] Ya hay una impresión en proceso (singleton global)");
-      return;
-    }
-    
-    // Activar locks
-    currentRef.current = true;
-    window.__printLock.active = true;
-    
-    if (paraEmpleado) {
-      setPrintingPDFEmpleado(true);
-    } else {
-      setPrintingPDF(true);
-    }
-    
-    console.log("[PRINT DEBUG] Locks activados, iniciando fetch");
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      // Obtener HTML directamente (mucho más rápido que PDF)
-      const res = await fetch("/api/pdf/remito-html", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "venta",
-          id: venta.id,
-          empleado: paraEmpleado,
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("[PRINT DEBUG] Error en respuesta:", errorText);
-        alert("Error al generar el remito. Por favor, intenta nuevamente.");
-        currentRef.current = false;
-        window.__printLock.active = false;
-        if (paraEmpleado) {
-          setPrintingPDFEmpleado(false);
-        } else {
-          setPrintingPDF(false);
-        }
-        return;
-      }
-      
-      // Obtener HTML como texto
-      const html = await res.text();
-      console.log("[PRINT DEBUG] HTML obtenido, creando iframe");
-      
-      // Limpiar iframe anterior si existe
-      if (window.__printLock.iframe && window.__printLock.iframe.parentNode) {
-        console.log("[PRINT DEBUG] Removiendo iframe anterior");
-        document.body.removeChild(window.__printLock.iframe);
-      }
-      
-      // Crear iframe oculto para imprimir
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      document.body.appendChild(iframe);
-      window.__printLock.iframe = iframe;
-      
-      // Bandera local para esta impresión
-      let hasPrinted = false;
-      
-      const cleanup = () => {
-        console.log("[PRINT DEBUG] Cleanup ejecutado");
-        hasPrinted = true;
-        currentRef.current = false;
-        window.__printLock.active = false;
-        window.__printLock.iframe = null;
-        
-        if (paraEmpleado) {
-          setPrintingPDFEmpleado(false);
-        } else {
-          setPrintingPDF(false);
-        }
-        
-        // Remover iframe después de un tiempo
-        setTimeout(() => {
-          try {
-            if (iframe.parentNode) {
-              document.body.removeChild(iframe);
-            }
-          } catch (e) {
-            console.error("[PRINT DEBUG] Error removiendo iframe:", e);
-          }
-        }, 2000);
-      };
-      
-      const doPrint = () => {
-        if (hasPrinted) {
-          console.warn("[PRINT DEBUG] doPrint llamado pero ya se imprimió, ignorando");
-          return;
-        }
-        
-        console.log("[PRINT DEBUG] doPrint ejecutándose");
-        hasPrinted = true;
-        
-        setTimeout(() => {
-          try {
-            console.log("[PRINT DEBUG] Llamando a print()");
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-            cleanup();
-          } catch (e) {
-            console.error("[PRINT DEBUG] Error al imprimir:", e);
-            cleanup();
-          }
-        }, 500);
-      };
-      
-      // Escribir HTML en el iframe
-      console.log("[PRINT DEBUG] Escribiendo HTML en iframe");
-      iframe.contentDocument?.open();
-      iframe.contentDocument?.write(html);
-      iframe.contentDocument?.close();
-      
-      // Esperar un tiempo fijo y luego imprimir (más confiable que onload)
-      console.log("[PRINT DEBUG] Configurando timeout para imprimir");
-      setTimeout(() => {
-        if (!hasPrinted) {
-          console.log("[PRINT DEBUG] Timeout ejecutado, imprimiendo");
-          doPrint();
-        }
-      }, 800);
-      
-    } catch (e) {
-      console.error("[PRINT DEBUG] Error en catch:", e);
-      if (e?.name === "AbortError") {
-        alert("La generación tardó demasiado. Por favor, intenta nuevamente.");
-      } else {
-        console.error("Error imprimiendo remito", e);
-        alert("Error al generar el remito. Por favor, intenta nuevamente.");
-      }
-      
-      // Asegurar limpieza en caso de error
-      currentRef.current = false;
-      window.__printLock.active = false;
-      window.__printLock.iframe = null;
-      if (paraEmpleado) {
-        setPrintingPDFEmpleado(false);
-      } else {
-        setPrintingPDF(false);
-      }
-    }
-  };
-
   // Función para obtener el estado del pago
   const getEstadoPagoColor = (estado) => {
     switch (estado) {
@@ -1866,7 +1820,7 @@ const VentaDetalle = () => {
               <Button
                 onClick={() => handleDownloadPDF(false)}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {downloadingPDF ? (
@@ -1880,7 +1834,7 @@ const VentaDetalle = () => {
               <Button
                 onClick={() => handleDownloadPDF(true)}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 {downloadingPDFEmpleado ? (
@@ -1892,7 +1846,13 @@ const VentaDetalle = () => {
                 <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
               </Button>
               <Button
-                onClick={() => handlePrintPDF(false)}
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                  handlePrintPDF(false, e);
+                }}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
@@ -1906,7 +1866,13 @@ const VentaDetalle = () => {
                 <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
               </Button>
               <Button
-                onClick={() => handlePrintPDF(true)}
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                  handlePrintPDF(true, e);
+                }}
                 disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
