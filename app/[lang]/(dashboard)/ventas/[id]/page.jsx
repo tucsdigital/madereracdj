@@ -1425,7 +1425,7 @@ const VentaDetalle = () => {
     }
   };
 
-  // Función para imprimir PDF - Optimizada
+  // Función para imprimir PDF - Optimizada y sin _blank
   const handlePrintPDF = async (paraEmpleado = false) => {
     if (!venta?.id) return;
     
@@ -1438,7 +1438,7 @@ const VentaDetalle = () => {
     try {
       // Usar AbortController para timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
@@ -1465,52 +1465,54 @@ const VentaDetalle = () => {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Abrir directamente en nueva ventana y imprimir - más rápido que iframe
-      const printWindow = window.open(url, "_blank");
+      // Usar iframe oculto directamente - más rápido y no requiere nueva ventana
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.top = "0";
+      iframe.style.left = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.src = url;
       
-      if (printWindow) {
-        // Esperar a que cargue y luego imprimir
-        printWindow.onload = () => {
+      document.body.appendChild(iframe);
+      
+      // Imprimir tan pronto como el iframe esté listo
+      iframe.onload = () => {
+        try {
+          // Imprimir inmediatamente sin delay
+          iframe.contentWindow?.print();
+          
+          // Limpiar después de un breve tiempo
           setTimeout(() => {
-            printWindow.print();
-            // Limpiar URL después de un tiempo
-            setTimeout(() => {
-              window.URL.revokeObjectURL(url);
-            }, 2000);
-          }, 500);
-        };
-        
-        // Fallback: si onload no funciona, intentar después de un delay
-        setTimeout(() => {
-          if (printWindow && !printWindow.closed) {
-            try {
-              printWindow.print();
-            } catch (e) {
-              console.error("Error al imprimir", e);
-            }
-          }
-        }, 1000);
-      } else {
-        // Si el popup está bloqueado, usar iframe como fallback
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        
-        iframe.onload = () => {
-          setTimeout(() => {
-            try {
-              iframe.contentWindow?.print();
-            } catch (e) {
-              console.error("Error al imprimir", e);
-            }
-            setTimeout(() => {
+            if (document.body.contains(iframe)) {
               document.body.removeChild(iframe);
-              window.URL.revokeObjectURL(url);
-            }, 2000);
-          }, 500);
-        };
-      }
+            }
+            window.URL.revokeObjectURL(url);
+          }, 1000);
+        } catch (e) {
+          console.error("Error al imprimir", e);
+          // Limpiar en caso de error
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          window.URL.revokeObjectURL(url);
+        }
+      };
+      
+      // Fallback: si onload no se dispara, intentar después de un tiempo
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          try {
+            iframe.contentWindow.print();
+          } catch (e) {
+            console.error("Error al imprimir (fallback)", e);
+          }
+        }
+      }, 500);
+      
     } catch (e) {
       if (e?.name === "AbortError") {
         alert("La generación del PDF tardó demasiado. Por favor, intenta nuevamente.");
@@ -1519,14 +1521,14 @@ const VentaDetalle = () => {
         alert("Error al generar el PDF para imprimir. Por favor, intenta nuevamente.");
       }
     } finally {
-      // Desactivar loading después de un breve delay para que se vea el feedback
+      // Desactivar loading inmediatamente después de iniciar la impresión
       setTimeout(() => {
         if (paraEmpleado) {
           setPrintingPDFEmpleado(false);
         } else {
           setPrintingPDF(false);
         }
-      }, 500);
+      }, 300);
     }
   };
 
