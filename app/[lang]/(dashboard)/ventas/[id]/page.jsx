@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
@@ -92,6 +92,8 @@ const VentaDetalle = () => {
   const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
   const [printingPDF, setPrintingPDF] = useState(false);
   const [printingPDFEmpleado, setPrintingPDFEmpleado] = useState(false);
+  const printingRef = useRef(false);
+  const printingEmpleadoRef = useRef(false);
 
   // Hook para pagosSimples si no hay array pagos
   const [pagosSimples, setPagosSimples] = useState([]);
@@ -1429,16 +1431,28 @@ const VentaDetalle = () => {
   const handlePrintPDF = async (paraEmpleado = false) => {
     if (!venta?.id) return;
     
-    // Activar loading inmediatamente
+    // Prevenir múltiples llamadas simultáneas
+    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
+    if (currentRef.current) {
+      console.warn("Ya hay una impresión en proceso");
+      return;
+    }
+    
+    // Activar loading y flag de procesamiento
+    currentRef.current = true;
     if (paraEmpleado) {
       setPrintingPDFEmpleado(true);
     } else {
       setPrintingPDF(true);
     }
     
+    let iframe = null;
+    let url = null;
+    let printed = false;
+    
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // Reducido a 20s
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       
       const res = await fetch("/api/pdf/remito", {
         method: "POST",
@@ -1457,14 +1471,20 @@ const VentaDetalle = () => {
         const errorText = await res.text();
         console.error("Error generando remito PDF", errorText);
         alert("Error al generar el PDF. Por favor, intenta nuevamente.");
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
         return;
       }
       
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      url = window.URL.createObjectURL(blob);
       
-      // Crear iframe y preparar impresión de forma más eficiente
-      const iframe = document.createElement("iframe");
+      // Crear iframe y preparar impresión
+      iframe = document.createElement("iframe");
       Object.assign(iframe.style, {
         position: "fixed",
         top: "0",
@@ -1477,51 +1497,60 @@ const VentaDetalle = () => {
       });
       iframe.src = url;
       
-      // Desactivar loading inmediatamente después de crear el iframe
-      if (paraEmpleado) {
-        setPrintingPDFEmpleado(false);
-      } else {
-        setPrintingPDF(false);
-      }
-      
       document.body.appendChild(iframe);
+      
+      // Función para imprimir (solo una vez)
+      const doPrint = () => {
+        if (printed || !iframe?.contentWindow) return;
+        try {
+          iframe.contentWindow.print();
+          printed = true;
+        } catch (e) {
+          console.error("Error al imprimir", e);
+        }
+      };
       
       // Función para limpiar recursos
       const cleanup = () => {
         setTimeout(() => {
           try {
-            if (document.body.contains(iframe)) {
+            if (iframe && document.body.contains(iframe)) {
               document.body.removeChild(iframe);
             }
-            window.URL.revokeObjectURL(url);
+            if (url) {
+              window.URL.revokeObjectURL(url);
+            }
           } catch (e) {
             // Ignorar errores de limpieza
+          } finally {
+            currentRef.current = false;
+            if (paraEmpleado) {
+              setPrintingPDFEmpleado(false);
+            } else {
+              setPrintingPDF(false);
+            }
           }
-        }, 500);
+        }, 1000);
       };
       
-      // Intentar imprimir tan pronto como sea posible
+      // Intentar imprimir cuando el iframe esté listo
       iframe.onload = () => {
-        try {
-          iframe.contentWindow?.print();
-          cleanup();
-        } catch (e) {
-          console.error("Error al imprimir", e);
-          cleanup();
-        }
+        doPrint();
+        cleanup();
       };
       
-      // Fallback rápido: intentar imprimir después de 200ms
-      setTimeout(() => {
-        try {
-          if (iframe.contentWindow && iframe.contentDocument?.readyState === "complete") {
-            iframe.contentWindow.print();
-            cleanup();
-          }
-        } catch (e) {
-          // Continuar con el onload
+      // Fallback: intentar imprimir después de un delay
+      const fallbackTimeout = setTimeout(() => {
+        if (!printed && iframe?.contentWindow && iframe.contentDocument?.readyState === "complete") {
+          doPrint();
+          cleanup();
         }
-      }, 200);
+      }, 500);
+      
+      // Limpiar timeout si ya se imprimió
+      if (printed) {
+        clearTimeout(fallbackTimeout);
+      }
       
     } catch (e) {
       if (e?.name === "AbortError") {
@@ -1530,6 +1559,9 @@ const VentaDetalle = () => {
         console.error("Error imprimiendo remito PDF", e);
         alert("Error al generar el PDF. Por favor, intenta nuevamente.");
       }
+      
+      // Asegurar limpieza en caso de error
+      currentRef.current = false;
       if (paraEmpleado) {
         setPrintingPDFEmpleado(false);
       } else {
