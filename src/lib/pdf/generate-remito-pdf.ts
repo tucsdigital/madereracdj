@@ -188,7 +188,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       align-items: flex-start;
       margin-bottom: 14px;
       padding-bottom: 12px;
-      border-bottom: 2px solid #000000;
+      border-bottom: 1px solid #000000;
     }
     .header-left {
       flex: 0 0 52%;
@@ -197,13 +197,12 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       gap: 10px;
     }
     .header-logo-container {
-      width: 60px;
-      height: 60px;
+      width: 90px;
+      height: 90px;
       flex-shrink: 0;
-      background: #fff;
-      border: 2px solid #000000;
-      border-radius: 8px;
-      padding: 6px;
+      background: transparent;
+      border: none;
+      padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -268,7 +267,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .header-right {
       flex: 0 0 34%;
-      border: 2px solid #000000;
+      border: 1px solid #000000;
       border-radius: 8px;
       padding: 10px;
       text-align: center;
@@ -294,7 +293,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .client-section {
       margin-bottom: 14px;
-      border: 2px solid #000000;
+      border: 1px solid #000000;
       border-radius: 10px;
       padding: 14px;
       background: #fff;
@@ -336,7 +335,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      border: 2px solid #000000;
+      border: 1px solid #000000;
       border-radius: 10px;
       font-size: 9px;
       overflow: hidden;
@@ -349,7 +348,7 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
       padding: 10px 8px;
       text-align: left;
       font-weight: 900;
-      border-bottom: 3px solid #000000;
+      border-bottom: 1px solid #000000;
       font-size: 10px;
       color: #000000;
       letter-spacing: 0.3px;
@@ -379,11 +378,11 @@ function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false): st
     }
     .products-table tfoot td {
       padding: 8px;
-      border-top: 3px solid #000000;
+      border-top: 1px solid #000000;
       background: #fff;
     }
     .products-table tfoot tr:last-child td {
-      border-top: 3px solid #000000;
+      border-top: 1px solid #000000;
       background: #fff;
       font-weight: 900;
     }
