@@ -105,13 +105,19 @@ const PlatformMessages = () => {
 
   if (loading) {
     return (
-      <Card className="rounded-xl shadow-md border border-default-200/70">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Mensajes</CardTitle>
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+          <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
+            <div className="p-2 rounded-2xl bg-gradient-to-br from-lime-200/50 to-green-200/50 shadow-lg">
+              <Icon icon="heroicons:chat-bubble-left-right" className="w-6 h-6 text-green-600" />
+            </div>
+            Mensajes de la plataforma
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative pt-2 px-6 pb-6">
           <div className="animate-pulse space-y-3">
-            <div className="h-20 bg-default-200 rounded-lg" />
+            <div className="h-20 bg-white/60 rounded-2xl" />
           </div>
         </CardContent>
       </Card>
@@ -123,19 +129,22 @@ const PlatformMessages = () => {
   }
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70">
-      <CardHeader className="pb-3 border-b border-default-100/80">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Icon icon="heroicons:chat-bubble-left-right" className="w-5 h-5 text-primary" />
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+        <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
+          <div className="p-2 rounded-2xl bg-gradient-to-br from-lime-200/50 to-green-200/50 shadow-lg">
+            <Icon icon="heroicons:chat-bubble-left-right" className="w-6 h-6 text-green-600" />
+          </div>
           Mensajes de la plataforma
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
+      <CardContent className="relative pt-2 px-6 pb-6">
+        <div className="space-y-4">
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`p-4 rounded-lg border border-default-200 ${msg.bgColor}`}
+              className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border-0 transition-all hover:scale-[1.01] ${msg.bgColor}`}
             >
               <div className="flex items-start gap-3">
                 <Icon icon={msg.icon} className={`w-5 h-5 ${msg.color} flex-shrink-0 mt-0.5`} />

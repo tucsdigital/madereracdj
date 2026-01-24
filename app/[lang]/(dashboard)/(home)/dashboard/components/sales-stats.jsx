@@ -572,10 +572,10 @@ const SalesStats = () => {
     <button
       type="button"
       onClick={() => setRangoRapido(value)}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md backdrop-blur-sm ${
         rangoRapido === value
-          ? "bg-primary text-white border-primary shadow-sm"
-          : "bg-card border-default-300 text-default-700 hover:bg-default-100"
+          ? "bg-gradient-to-r from-slate-600 to-gray-600 text-white border-0 shadow-lg scale-105"
+          : "bg-white/60 border-0 text-default-700 hover:bg-white/80 hover:shadow-lg hover:scale-105"
       }`}
       aria-pressed={rangoRapido === value}
     >
@@ -586,39 +586,40 @@ const SalesStats = () => {
 
   const Skeleton = () => (
     <div className="animate-pulse space-y-4">
-      <div className="h-9 w-64 bg-default-200 rounded" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="h-9 w-64 bg-white/60 rounded-2xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 rounded-lg border bg-card">
-            <div className="h-4 w-24 bg-default-200 rounded mb-3" />
-            <div className="h-7 w-20 bg-default-200 rounded" />
+          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg">
+            <div className="h-4 w-24 bg-white/80 rounded mb-3" />
+            <div className="h-7 w-20 bg-white/80 rounded" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-4 rounded-lg border bg-card h-28" />
+          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg h-28" />
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 rounded-lg border bg-card h-64" />
+          <div key={i} className="p-5 rounded-2xl border-0 bg-white/60 shadow-lg h-64" />
         ))}
       </div>
     </div>
   );
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70">
-      <CardHeader className="pb-3 border-b border-default-100/80 bg-gradient-to-r from-default-50 to-default-100 rounded-t-xl">
-        <div className="flex flex-col gap-3">
-          <CardTitle className="text-xl md:text-2xl font-bold text-default-900 flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-lg bg-primary/10 text-primary">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-slate-50/80 via-gray-50/60 to-zinc-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+        <div className="flex flex-col gap-4">
+          <CardTitle className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-600 via-gray-600 to-zinc-600 flex items-center gap-3">
+            <div className="p-2 rounded-2xl bg-gradient-to-br from-slate-200/50 to-gray-200/50 shadow-lg">
               <Icon
                 icon="heroicons:chart-bar"
-                className="w-4 h-4 md:w-5 md:h-5"
+                className="w-5 h-5 md:w-6 md:h-6 text-slate-600"
               />
-            </span>
+            </div>
             Estadísticas de Ventas
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
@@ -647,44 +648,44 @@ const SalesStats = () => {
           </div>
         </div>
         {rangoRapido === "custom" && (
-          <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-default-600 whitespace-nowrap">
+              <span className="text-sm text-default-600 whitespace-nowrap font-medium">
                 Desde
               </span>
               <input
                 type="date"
                 value={fechaDesde}
                 onChange={(e) => setFechaDesde(e.target.value)}
-                className="border rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                className="border-0 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-auto bg-white/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400/50"
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-default-600 whitespace-nowrap">
+              <span className="text-sm text-default-600 whitespace-nowrap font-medium">
                 Hasta
               </span>
               <input
                 type="date"
                 value={fechaHasta}
                 onChange={(e) => setFechaHasta(e.target.value)}
-                className="border rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                className="border-0 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-auto bg-white/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400/50"
               />
             </div>
           </div>
         )}
       </CardHeader>
-      <CardContent className="pt-4 space-y-4">
+      <CardContent className="relative pt-2 px-6 pb-6 space-y-4">
         {loading ? (
           <Skeleton />
         ) : (
           <>
             <TooltipProvider delayDuration={200}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {/* Ventas */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link href="/ventas" className="block">
-                      <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.02]">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs md:text-sm text-default-700">
                             Ventas
@@ -721,7 +722,7 @@ const SalesStats = () => {
                 {/* Monto */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-emerald-50 to-emerald-100/40 dark:from-emerald-900/20 dark:to-emerald-900/10 shadow-sm cursor-help">
+                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-green-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
                           Monto
@@ -757,7 +758,7 @@ const SalesStats = () => {
                 {/* Ticket */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-indigo-50 to-indigo-100/40 dark:from-indigo-900/20 dark:to-indigo-900/10 shadow-sm cursor-help">
+                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-indigo-100/80 via-indigo-50/60 to-purple-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
                           Ticket
@@ -794,7 +795,7 @@ const SalesStats = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link href="/presupuestos" className="block">
-                      <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-amber-50 to-amber-100/40 dark:from-amber-900/20 dark:to-amber-900/10 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-amber-100/80 via-amber-50/60 to-yellow-50/80 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.02]">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
                             Presup.
@@ -831,9 +832,9 @@ const SalesStats = () => {
               </div>
             </TooltipProvider>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {/* Comisión por ventas */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-fuchsia-50 to-fuchsia-100/40 dark:from-fuchsia-900/20 dark:to-fuchsia-900/10 shadow-sm">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-fuchsia-100/80 via-fuchsia-50/60 to-pink-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-fuchsia-700 dark:text-fuchsia-300">
                     Comisión Ventas
@@ -854,7 +855,7 @@ const SalesStats = () => {
               </div>
 
               {/* Total Obras */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-blue-50 to-blue-100/40 dark:from-blue-900/20 dark:to-blue-900/10 shadow-sm">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-blue-100/80 via-blue-50/60 to-cyan-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-blue-700 dark:text-blue-300">
                     Total Obras
@@ -874,7 +875,7 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Comisión por Obras */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-gradient-to-br from-orange-50 to-orange-100/40 dark:from-orange-900/20 dark:to-orange-900/10 shadow-sm">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-orange-100/80 via-orange-50/60 to-amber-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-orange-700 dark:text-orange-300">
                     Comisión Obras
@@ -895,10 +896,10 @@ const SalesStats = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
               {/* Estado de pago (donut) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
-                <div className="text-xs md:text-sm font-semibold mb-3">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
+                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
                   Estado de pago
                 </div>
                 <div className="flex flex-col items-center gap-3">
@@ -941,8 +942,8 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Tipo de envío (donut) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
-                <div className="text-xs md:text-sm font-semibold mb-3">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
+                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
                   Tipo de envío
                 </div>
                 <div className="flex flex-col items-center gap-3">
@@ -985,8 +986,8 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Formas de pago - donut segmentado (ubicado al lado de Tipo de envío) */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
-                <div className="text-xs md:text-sm font-semibold mb-3">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
+                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
                   Formas de pago
                 </div>
                 {totalFormasPago === 0 ? (
@@ -1036,8 +1037,8 @@ const SalesStats = () => {
                 )}
               </div>
               {/* Clientes nuevos vs viejos */}
-              <div className="p-3 md:p-4 rounded-xl border border-default-200 bg-card shadow-sm overflow-hidden">
-                <div className="text-xs md:text-sm font-semibold mb-3">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm overflow-hidden transition-all hover:scale-[1.01]">
+                <div className="text-xs md:text-sm font-bold mb-3 text-default-900">
                   Clientes (nuevos vs viejos)
                 </div>
                 {clientesTotal === 0 ? (

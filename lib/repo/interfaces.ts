@@ -8,6 +8,8 @@ import { RouletteResult, RewardType } from "@/lib/game/roulette";
 export interface DailySpin {
   id?: string;
   userId: string;
+  email?: string; // Email del usuario (guardado para evitar consultas)
+  alias?: string; // Alias del usuario (guardado para evitar consultas)
   dateKey: string;
   score: number;
   tier: string;
@@ -37,8 +39,11 @@ export interface DailyWinner {
   dateKey: string;
   winners: {
     userId: string;
+    email?: string; // Email del usuario (guardado)
+    alias?: string; // Alias del usuario (guardado)
     score: number;
     position: number;
+    tier?: string; // Tier del usuario (guardado)
     rewardType?: RewardType;
   }[];
   computedAt: string; // ISO date
@@ -49,6 +54,8 @@ export interface DailyLeaderboard {
   dateKey: string;
   entries: {
     userId: string;
+    email?: string; // Email del usuario (guardado)
+    alias?: string; // Alias del usuario (guardado)
     score: number;
     position: number;
     tier: string;

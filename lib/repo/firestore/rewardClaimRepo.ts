@@ -10,10 +10,38 @@ export class FirestoreRewardClaimRepository implements IRewardClaimRepository {
   private collectionName = "rewardClaims";
 
   async create(claim: RewardClaim): Promise<RewardClaim> {
-    const docRef = await addDoc(collection(db, this.collectionName), {
-      ...claim,
-      createdAt: new Date().toISOString(),
-    });
+    // Filtrar campos undefined ya que Firestore no los acepta
+    const dataToSave: any = {
+      userId: claim.userId,
+      dailySpinId: claim.dailySpinId,
+      dateKey: claim.dateKey,
+      rewardType: claim.rewardType,
+      status: claim.status,
+      createdAt: claim.createdAt || new Date().toISOString(),
+    };
+    
+    // Solo incluir campos opcionales si no son undefined
+    if (claim.rewardMetadata !== undefined) {
+      dataToSave.rewardMetadata = claim.rewardMetadata;
+    }
+    
+    if (claim.contentBlocks !== undefined) {
+      dataToSave.contentBlocks = claim.contentBlocks;
+    }
+    
+    if (claim.approvalStatus !== undefined) {
+      dataToSave.approvalStatus = claim.approvalStatus;
+    }
+    
+    if (claim.approvedAt !== undefined) {
+      dataToSave.approvedAt = claim.approvedAt;
+    }
+    
+    if (claim.expiresAt !== undefined) {
+      dataToSave.expiresAt = claim.expiresAt;
+    }
+    
+    const docRef = await addDoc(collection(db, this.collectionName), dataToSave);
     return { ...claim, id: docRef.id };
   }
 
@@ -44,7 +72,17 @@ export class FirestoreRewardClaimRepository implements IRewardClaimRepository {
 
   async update(id: string, updates: Partial<RewardClaim>): Promise<RewardClaim> {
     const docRef = doc(db, this.collectionName, id);
-    await updateDoc(docRef, updates);
+    
+    // Filtrar campos undefined antes de actualizar
+    const updatesToSave: any = {};
+    Object.keys(updates).forEach((key) => {
+      const value = (updates as any)[key];
+      if (value !== undefined) {
+        updatesToSave[key] = value;
+      }
+    });
+    
+    await updateDoc(docRef, updatesToSave);
     const updated = await getDoc(docRef);
     return { id: updated.id, ...updated.data() } as RewardClaim;
   }

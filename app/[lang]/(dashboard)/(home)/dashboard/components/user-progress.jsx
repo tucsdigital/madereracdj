@@ -167,14 +167,20 @@ const UserProgress = () => {
 
   if (loading || !progress) {
     return (
-      <Card className="rounded-xl shadow-md border border-default-200/70">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Tu progreso</CardTitle>
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+          <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">
+            <div className="p-2 rounded-2xl bg-gradient-to-br from-violet-200/50 to-purple-200/50 shadow-lg">
+              <Icon icon="heroicons:trophy" className="w-6 h-6 text-purple-600" />
+            </div>
+            Tu progreso
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative pt-2 px-6 pb-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-20 bg-default-200 rounded-lg" />
-            <div className="h-4 bg-default-200 rounded w-3/4" />
+            <div className="h-20 bg-white/60 rounded-2xl" />
+            <div className="h-4 bg-white/60 rounded w-3/4" />
           </div>
         </CardContent>
       </Card>
@@ -182,19 +188,22 @@ const UserProgress = () => {
   }
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70">
-      <CardHeader className="pb-3 border-b border-default-100/80">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Icon icon="heroicons:trophy" className="w-5 h-5 text-yellow-500" />
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+        <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">
+          <div className="p-2 rounded-2xl bg-gradient-to-br from-violet-200/50 to-purple-200/50 shadow-lg">
+            <Icon icon="heroicons:trophy" className="w-6 h-6 text-purple-600" />
+          </div>
           Tu progreso
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4 space-y-4">
+      <CardContent className="relative pt-2 px-6 pb-6 space-y-4">
         <TooltipProvider delayDuration={200}>
           {/* Nivel general */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={`p-4 rounded-lg ${progress.nivelBg} border border-default-200 cursor-help`}>
+              <div className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.01] ${progress.nivelBg}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-sm font-medium text-default-600 mb-1">Nivel actual</p>
@@ -248,7 +257,7 @@ const UserProgress = () => {
           {progress.proximoPaso && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-3 rounded-lg bg-card border border-default-200 cursor-help">
+                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.01]">
                   <p className="text-xs font-medium text-default-600 mb-2">Próximo paso:</p>
                   <div className="flex items-center gap-2">
                     <Icon icon={progress.proximoPaso.icon} className="w-4 h-4 text-primary" />
@@ -364,7 +373,7 @@ const UserProgress = () => {
               );
 
               const content = (
-                <div className="p-3 rounded-lg bg-card border border-default-200 hover:border-default-300 transition-colors">
+                <div className="p-4 rounded-2xl bg-white/60 shadow-md backdrop-blur-sm border-0 hover:shadow-lg transition-all hover:scale-[1.01]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Icon

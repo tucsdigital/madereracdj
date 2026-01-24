@@ -106,14 +106,20 @@ const BusinessStatus = () => {
 
   if (loading || !status) {
     return (
-      <Card className="rounded-xl shadow-md border border-default-200/70">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Tu negocio hoy</CardTitle>
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-emerald-50/80 via-teal-50/60 to-cyan-50/80 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+          <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">
+            <div className="p-2 rounded-2xl bg-gradient-to-br from-emerald-200/50 to-teal-200/50 shadow-lg">
+              <Icon icon="heroicons:building-storefront" className="w-6 h-6 text-emerald-600" />
+            </div>
+            Tu negocio hoy
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative pt-2 px-6 pb-6">
           <div className="grid grid-cols-2 gap-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse p-4 rounded-lg bg-default-100 h-20" />
+              <div key={i} className="animate-pulse p-4 rounded-2xl bg-white/60 h-20" />
             ))}
           </div>
         </CardContent>
@@ -122,20 +128,23 @@ const BusinessStatus = () => {
   }
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70">
-      <CardHeader className="pb-3 border-b border-default-100/80">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Icon icon="heroicons:building-storefront" className="w-5 h-5 text-primary" />
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-emerald-50/80 via-teal-50/60 to-cyan-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+        <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">
+          <div className="p-2 rounded-2xl bg-gradient-to-br from-emerald-200/50 to-teal-200/50 shadow-lg">
+            <Icon icon="heroicons:building-storefront" className="w-6 h-6 text-emerald-600" />
+          </div>
           Tu negocio hoy
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="relative pt-2 px-6 pb-6">
         <TooltipProvider delayDuration={200}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             {/* Nivel */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={`p-4 rounded-lg ${status.nivel.bg} border border-default-200 cursor-help`}>
+                <div className={`p-4 rounded-2xl shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02] ${status.nivel.bg} border-0`}>
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.nivel.icon} className={`w-5 h-5 ${status.nivel.color}`} />
                     <span className="text-xs font-medium text-default-600">Nivel</span>
@@ -160,7 +169,7 @@ const BusinessStatus = () => {
             {/* Flujo */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.flujo.icon} className={`w-5 h-5 ${status.flujo.color}`} />
                     <span className="text-xs font-medium text-default-600">Flujo</span>
@@ -188,7 +197,7 @@ const BusinessStatus = () => {
             {/* Stock */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.stock.icon} className={`w-5 h-5 ${status.stock.color}`} />
                     <span className="text-xs font-medium text-default-600">Stock</span>
@@ -216,7 +225,7 @@ const BusinessStatus = () => {
             {/* Ingresos */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-lg bg-card border border-default-200 cursor-help">
+                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.ingresos.icon} className={`w-5 h-5 ${status.ingresos.color}`} />
                     <span className="text-xs font-medium text-default-600">Ingresos</span>

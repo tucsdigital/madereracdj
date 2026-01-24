@@ -68,13 +68,16 @@ export async function POST(request: NextRequest) {
     const spotlightClaim = await rewardClaimRepo.getActiveSpotlight(dateKey);
     const spotlightUserId = spotlightClaim?.userId;
 
-    // Guardar winners
+    // Guardar winners (incluyendo email, alias y tier guardados)
     const dailyWinner = await dailyWinnerRepo.create({
       dateKey,
       winners: leaderboard.entries.map((entry, index) => ({
         userId: entry.userId,
+        email: entry.email,
+        alias: entry.alias,
         score: entry.score,
         position: index + 1,
+        tier: entry.tier,
         rewardType: index === 0 ? "spotlight" : index < 3 ? "badge" : index < 10 ? "perk" : undefined,
       })),
       spotlightUserId,

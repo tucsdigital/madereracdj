@@ -104,11 +104,12 @@ const PersonalSpace = () => {
   const inicial = nombreNegocio[0].toUpperCase();
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70 overflow-hidden">
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-rose-50/80 via-pink-50/60 to-orange-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <div className="relative bg-gradient-to-r from-rose-100/60 via-pink-100/40 to-orange-100/60 backdrop-blur-sm p-6">
         <div className="flex items-center gap-4">
           {/* Avatar/Logo */}
-          <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center text-primary text-2xl font-bold border-2 border-primary/30">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-300/50 to-pink-300/50 flex items-center justify-center text-rose-700 text-2xl font-bold shadow-xl border-0 backdrop-blur-sm">
             {inicial}
           </div>
 
@@ -116,16 +117,16 @@ const PersonalSpace = () => {
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-default-900 mb-1 truncate">{nombreNegocio}</h2>
             {!loading && (
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${estado.bg} border border-default-200`}>
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl shadow-lg backdrop-blur-sm border-0 ${estado.bg}`}>
                 <Icon icon={estado.icon} className={`w-4 h-4 ${estado.color}`} />
-                <span className={`text-xs font-semibold ${estado.color}`}>{estado.label} 🚀</span>
+                <span className={`text-xs font-bold ${estado.color}`}>{estado.label} 🚀</span>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <CardContent className="p-6 pt-4">
+      <CardContent className="relative p-6 pt-4">
         {loading ? (
           <div className="grid grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (

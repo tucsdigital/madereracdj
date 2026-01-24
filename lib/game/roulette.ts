@@ -163,3 +163,34 @@ export function getTierColor(tier: Tier): string {
   };
   return colors[tier];
 }
+
+/**
+ * Obtiene información detallada de un tier (rango de puntos, probabilidad)
+ */
+export function getTierInfo(tier: Tier): { minScore: number; maxScore: number; probability: number; description: string } {
+  const info = {
+    common: { minScore: 0, maxScore: 50, probability: 60, description: "El tier más común, obtenido por el 60% de los jugadores" },
+    rare: { minScore: 51, maxScore: 75, probability: 25, description: "Tier raro, obtenido por el 25% de los jugadores" },
+    epic: { minScore: 76, maxScore: 90, probability: 12, description: "Tier épico, obtenido solo por el 12% de los jugadores" },
+    legendary: { minScore: 91, maxScore: 100, probability: 3, description: "El tier más raro, obtenido solo por el 3% de los jugadores" },
+  };
+  return info[tier];
+}
+
+/**
+ * Obtiene información detallada de un premio
+ */
+export function getRewardInfo(rewardType: RewardType, tier: Tier): { name: string; description: string; probability: number } {
+  const probabilities = REWARD_PROBABILITIES[tier];
+  const rewardProb = probabilities[rewardType] || 0;
+  
+  const rewards = {
+    none: { name: "Sin premio", description: "No obtuviste un premio esta vez, pero sigue intentando", probability: rewardProb },
+    perk: { name: "Feature Premium", description: "Acceso a una función premium por 24 horas", probability: rewardProb },
+    spotlight: { name: "Mensaje Destacado", description: "Publica un mensaje destacado visible en el dashboard por 24 horas", probability: rewardProb },
+    badge: { name: "Insignia", description: "Una insignia coleccionable para tu perfil", probability: rewardProb },
+    editorSlot: { name: "Editor de Contenido", description: "Acceso al editor para crear contenido destacado (válido por 7 días)", probability: rewardProb },
+  };
+  
+  return rewards[rewardType];
+}

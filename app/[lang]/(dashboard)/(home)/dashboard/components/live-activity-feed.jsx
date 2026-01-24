@@ -87,21 +87,24 @@ const LiveActivityFeed = () => {
 
   if (loading) {
     return (
-      <Card className="rounded-xl shadow-md border border-default-200/70">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Icon icon="heroicons:bolt" className="w-5 h-5 text-yellow-500" />
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+          <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
+            <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-200/50 to-blue-200/50 shadow-lg">
+              <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600" />
+            </div>
             ¿Qué está pasando ahora?
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative pt-2 px-6 pb-6">
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-default-200" />
+                <div className="w-10 h-10 rounded-full bg-white/60" />
                 <div className="flex-1">
-                  <div className="h-4 w-3/4 bg-default-200 rounded mb-2" />
-                  <div className="h-3 w-1/2 bg-default-200 rounded" />
+                  <div className="h-4 w-3/4 bg-white/60 rounded mb-2" />
+                  <div className="h-3 w-1/2 bg-white/60 rounded" />
                 </div>
               </div>
             ))}
@@ -112,14 +115,17 @@ const LiveActivityFeed = () => {
   }
 
   return (
-    <Card className="rounded-xl shadow-md border border-default-200/70">
-      <CardHeader className="pb-3 border-b border-default-100/80">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Icon icon="heroicons:bolt" className="w-5 h-5 text-yellow-500 animate-pulse" />
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80 backdrop-blur-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
+        <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
+          <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-200/50 to-blue-200/50 shadow-lg">
+            <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600 animate-pulse" />
+          </div>
           ¿Qué está pasando ahora?
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent className="relative pt-2 px-6 pb-6">
         {activities.length === 0 ? (
           <div className="text-center py-8 text-default-500">
             <Icon icon="heroicons:inbox" className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -213,10 +219,10 @@ const LiveActivityFeed = () => {
 
                 const content = (
                   <div
-                    className={`flex items-start gap-3 p-3 rounded-lg transition-colors border border-transparent ${
+                    className={`flex items-start gap-3 p-3 rounded-2xl transition-all shadow-md backdrop-blur-sm ${
                       linkHref
-                        ? "hover:bg-default-50 hover:border-default-200 cursor-pointer"
-                        : "hover:bg-default-50"
+                        ? "bg-white/60 hover:bg-white/80 hover:shadow-lg cursor-pointer transform hover:scale-[1.01]"
+                        : "bg-white/60 hover:bg-white/80"
                     }`}
                   >
                     <div
