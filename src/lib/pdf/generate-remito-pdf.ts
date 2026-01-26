@@ -485,6 +485,29 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       font-style: italic;
       font-weight: 700;
     }
+    .observaciones-section {
+      margin-top: 14px;
+      margin-bottom: 14px;
+      border: 1px solid #000000;
+      border-radius: 10px;
+      padding: 14px;
+      background: #fff;
+    }
+    .observaciones-title {
+      font-size: 12px;
+      font-weight: 900;
+      color: #000000;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .observaciones-content {
+      font-size: 11px;
+      color: #000000;
+      line-height: 1.5;
+      font-weight: 600;
+      white-space: pre-wrap;
+    }
     ${paraEmpleado ? `
     .precio-empleado,
     .total-empleado {
@@ -584,6 +607,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           ` : ""}
         </table>
       </div>
+
+      ${observaciones && observaciones.trim() ? `
+      <!-- Observaciones -->
+      <div class="observaciones-section">
+        <div class="observaciones-title">Observaciones</div>
+        <div class="observaciones-content">${escapeHtml(observaciones.trim())}</div>
+      </div>
+      ` : ""}
     </div>
 
     <!-- Footer -->
