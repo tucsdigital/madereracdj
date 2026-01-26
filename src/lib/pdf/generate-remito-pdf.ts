@@ -144,6 +144,11 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     : cliente.partido
     ? safe(cliente.partido)
     : "-";
+  
+  // Combinar dirección con provincia
+  const direccionCompleta = provinciaCompleta && provinciaCompleta !== "-"
+    ? `${safe(cliente.direccion)} - ${provinciaCompleta}`
+    : safe(cliente.direccion);
 
   // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
@@ -568,12 +573,12 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               <span class="client-value">${safe(cliente.direccion)}</span>
             </div>
             <div class="client-row">
-              <span class="client-label">CP:</span>
-              <span class="client-value">-</span>
-            </div>
-            <div class="client-row">
               <span class="client-label">Provincia:</span>
               <span class="client-value">${provinciaCompleta}</span>
+            </div>
+            <div class="client-row">
+              <span class="client-label">Teléfono:</span>
+              <span class="client-value">${safe(cliente.telefono)}</span>
             </div>
           </div>
         </div>
