@@ -1168,28 +1168,29 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
     return fuente
       .filter((prod) => {
-        // Normalizar el nombre del producto
+        // Normalizar campos buscables (nombre, código, descripción, unidad)
         const nombreNormalizado = normalizarTexto(prod.nombre);
-
-        // Normalizar la unidad de medida
+        const codigoNormalizado = normalizarTexto(prod.codigo || "");
+        const descripcionNormalizada = normalizarTexto(prod.descripcion || "");
         const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
 
-        // Filtro por búsqueda de texto con lógica mejorada
+        // Filtro por búsqueda de texto: nombre, código, descripción y unidad
         let cumpleBusqueda = busquedaNormalizada === "";
 
         if (busquedaNormalizada !== "") {
-          // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
-          if (busquedaNormalizada.endsWith(".")) {
-            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
-            cumpleBusqueda =
-              nombreNormalizado.startsWith(busquedaSinPunto) ||
-              unidadNormalizada.startsWith(busquedaSinPunto);
-          } else {
-            // Búsqueda normal: incluye el texto en cualquier parte
-            cumpleBusqueda =
-              nombreNormalizado.includes(busquedaNormalizada) ||
-              unidadNormalizada.includes(busquedaNormalizada);
-          }
+          const busq = busquedaNormalizada.endsWith(".")
+            ? busquedaNormalizada.slice(0, -1)
+            : busquedaNormalizada;
+          const isStrict = busquedaNormalizada.endsWith(".");
+
+          const matchCampo = (norm) =>
+            isStrict ? norm.startsWith(busq) : norm.includes(busq);
+
+          cumpleBusqueda =
+            matchCampo(nombreNormalizado) ||
+            matchCampo(codigoNormalizado) ||
+            matchCampo(descripcionNormalizada) ||
+            matchCampo(unidadNormalizada);
         }
 
         // Filtro por categoría seleccionada (si existe)
@@ -1215,15 +1216,32 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         );
       })
       .sort((a, b) => {
-        // Ordenar por stock: primero los que tienen stock, luego los que no
+        // 1) Primero los con stock, después los sin stock
         const stockA = Number(a.stock) || 0;
         const stockB = Number(b.stock) || 0;
+        if (stockA > 0 && stockB === 0) return -1;
+        if (stockA === 0 && stockB > 0) return 1;
 
-        if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
-        if (stockA === 0 && stockB > 0) return 1; // b tiene stock, a no
+        // 2) Entre los que tienen stock: más stock primero (descendente)
+        if (stockA > 0 && stockB > 0 && stockA !== stockB) return stockB - stockA;
 
-        // Si ambos tienen stock o ambos no tienen stock, mantener orden original
-        return 0;
+        // 3) Si hay búsqueda: priorizar coincidencias al inicio (nombre/código)
+        if (busquedaNormalizada && !busquedaNormalizada.endsWith(".")) {
+          const busq = busquedaNormalizada;
+          const score = (p) => {
+            const n = normalizarTexto(p.nombre);
+            const c = normalizarTexto(p.codigo || "");
+            if (n.startsWith(busq) || c.startsWith(busq)) return 2;
+            if (n.includes(busq) || c.includes(busq)) return 1;
+            return 0;
+          };
+          const sa = score(a);
+          const sb = score(b);
+          if (sa !== sb) return sb - sa;
+        }
+
+        // 4) Orden estable por nombre
+        return (a.nombre || "").localeCompare(b.nombre || "", "es", { sensitivity: "base" });
       });
   }, [
     productosPorCategoria,

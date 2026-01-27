@@ -390,6 +390,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .products-table td:not(:last-child) {
       border-right: 1px solid #000000;
     }
+    .products-table tbody td {
+      border-bottom: 1px solid #e5e7eb;
+    }
     .products-table tbody tr:last-child td {
       border-bottom: none;
     }

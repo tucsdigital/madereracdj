@@ -38,14 +38,12 @@ const schemaInterno = yup.object().shape({
   observaciones: yup.string().optional(),
 });
 
-// Schema para cuentas por pagar
+// Schema para cuentas por pagar (sin concepto ni nº comprobante)
 const schemaProveedor = yup.object().shape({
-  concepto: yup.string().optional(),
   monto: yup.number().positive("El monto debe ser positivo").required("El monto es obligatorio"),
   proveedorId: yup.string().required("El proveedor es obligatorio"),
   fecha: yup.string().required("La fecha es obligatoria"),
   fechaVencimiento: yup.string().optional(),
-  numeroComprobante: yup.string().optional(),
   observaciones: yup.string().optional(),
 });
 
@@ -148,12 +146,10 @@ const GastosPage = () => {
   } = useForm({
     resolver: yupResolver(schemaProveedor),
     defaultValues: {
-      concepto: "",
       monto: "",
       proveedorId: "",
       fecha: new Date().toISOString().split("T")[0],
       fechaVencimiento: "",
-      numeroComprobante: "",
       observaciones: "",
     },
   });
@@ -442,7 +438,6 @@ const GastosPage = () => {
       
       const cuentaData = {
         tipo: "proveedor",
-        concepto: data.concepto || "", // Permite concepto vacío
         monto: Number(data.monto),
         montoPagado: 0,
         estadoPago: "pendiente",
@@ -455,7 +450,6 @@ const GastosPage = () => {
         } : null,
         fecha: data.fecha,
         fechaVencimiento: data.fechaVencimiento || null,
-        numeroComprobante: data.numeroComprobante || "",
         observaciones: data.observaciones || "",
         responsable: user?.email || "Usuario no identificado",
         pagos: [],
@@ -574,12 +568,10 @@ const GastosPage = () => {
 
   const handleEditarProveedor = (cuenta) => {
     setEditando(cuenta);
-    setValueProveedor("concepto", cuenta.concepto);
     setValueProveedor("monto", cuenta.monto);
     setValueProveedor("proveedorId", cuenta.proveedorId);
     setValueProveedor("fecha", cuenta.fecha);
     setValueProveedor("fechaVencimiento", cuenta.fechaVencimiento || "");
-    setValueProveedor("numeroComprobante", cuenta.numeroComprobante || "");
     setValueProveedor("observaciones", cuenta.observaciones || "");
     
     if (cuenta.proveedor) {
@@ -744,8 +736,7 @@ const GastosPage = () => {
   const cuentasPorPagarFiltradas = useMemo(() => {
     return cuentasPorPagarFiltradasPorFecha.filter(c => {
       const busqueda = filtroProveedor.toLowerCase();
-      const matchBusqueda = (c.concepto || "").toLowerCase().includes(busqueda) ||
-                           (c.proveedor?.nombre || "").toLowerCase().includes(busqueda);
+      const matchBusqueda = (c.proveedor?.nombre || "").toLowerCase().includes(busqueda);
       const matchEstado = !filtroEstadoPago || c.estadoPago === filtroEstadoPago;
       const matchProveedorId = !filtroProveedorId || c.proveedorId === filtroProveedorId;
       return matchBusqueda && matchEstado && matchProveedorId;
@@ -762,8 +753,6 @@ const GastosPage = () => {
     const datos = cuentasPorPagarFiltradas.map(c => ({
       Fecha: c.fecha,
       Proveedor: c.proveedor?.nombre || "",
-      Concepto: c.concepto,
-      "Nº Comprobante": c.numeroComprobante || "",
       Total: c.monto,
       Pagado: c.montoPagado || 0,
       Saldo: (Number(c.monto) || 0) - (Number(c.montoPagado) || 0),
@@ -1223,8 +1212,6 @@ const GastosPage = () => {
                   <TableRow>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Proveedor</TableHead>
-                    <TableHead>Concepto</TableHead>
-                    <TableHead>Nº Comprobante</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Pagado</TableHead>
                     <TableHead>Saldo</TableHead>
@@ -1242,8 +1229,6 @@ const GastosPage = () => {
                       <TableRow key={c.id} className={vencido && saldo > 0 ? "bg-red-50" : ""}>
                         <TableCell>{c.fecha}</TableCell>
                         <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
-                        <TableCell>{c.concepto}</TableCell>
-                        <TableCell className="text-sm">{c.numeroComprobante || "-"}</TableCell>
                         <TableCell className="font-bold">
                           ${Number(c.monto).toLocaleString("es-AR")}
                         </TableCell>
@@ -1526,28 +1511,6 @@ const GastosPage = () => {
               )}
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Concepto (opcional)</Label>
-                <Input 
-                  placeholder="Ej: Compra de madera" 
-                  {...registerProveedor("concepto")}
-                  className={errorsProveedor.concepto ? "border-red-500" : ""}
-                />
-                {errorsProveedor.concepto && (
-                  <span className="text-red-500 text-xs">{errorsProveedor.concepto.message}</span>
-                )}
-              </div>
-              
-              <div>
-                <Label>Nº Comprobante</Label>
-                <Input 
-                  placeholder="Nº Factura/Remito" 
-                  {...registerProveedor("numeroComprobante")}
-                />
-              </div>
-            </div>
-            
             <div>
               <Label>Monto Total *</Label>
               <Input 
@@ -1620,7 +1583,6 @@ const GastosPage = () => {
               {/* Info de la cuenta */}
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <div className="font-medium text-gray-900">{cuentaSeleccionada.proveedor?.nombre}</div>
-                <div className="text-sm text-gray-600">{cuentaSeleccionada.concepto}</div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-500">Total:</span>
@@ -1726,11 +1688,6 @@ const GastosPage = () => {
               {/* Info de la cuenta */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-200">
                 <div className="font-bold text-lg text-blue-900">{cuentaSeleccionada.proveedor?.nombre}</div>
-                <div className="text-sm text-blue-700 mt-1">{cuentaSeleccionada.concepto}</div>
-                {cuentaSeleccionada.numeroComprobante && (
-                  <div className="text-xs text-blue-600 mt-1">Comprobante: {cuentaSeleccionada.numeroComprobante}</div>
-                )}
-                
                 <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                   <div className="bg-white p-2 rounded-md">
                     <div className="text-xs text-gray-500">Total</div>
