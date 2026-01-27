@@ -248,16 +248,38 @@ const GastosPage = () => {
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Cargar proveedores
-      const proveedoresSnap = await getDocs(collection(db, "proveedores"));
+      const [proveedoresSnap, gastosSnap] = await Promise.all([
+        getDocs(collection(db, "proveedores")),
+        getDocs(collection(db, "gastos")),
+      ]);
       const proveedoresData = proveedoresSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setProveedores(proveedoresData);
-      
-      // Cargar gastos
+      const gastosData = gastosSnap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          fecha: formatFechaSegura(data.fecha),
+          fechaVencimiento: formatFechaSegura(data.fechaVencimiento),
+        };
+      });
+      const internos = gastosData.filter(g => g.tipo !== "proveedor");
+      const proveedoresGastos = gastosData.filter(g => g.tipo === "proveedor");
+      setGastosInternos(internos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+      setCuentasPorPagar(proveedoresGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+    } catch (error) {
+      console.error("Error al cargar datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Recargar solo gastos (sin proveedores) — útil al cerrar modal de categorías
+  const recargarSoloGastos = useCallback(async () => {
+    try {
       const gastosSnap = await getDocs(collection(db, "gastos"));
       const gastosData = gastosSnap.docs.map(doc => {
         const data = doc.data();
@@ -268,17 +290,12 @@ const GastosPage = () => {
           fechaVencimiento: formatFechaSegura(data.fechaVencimiento),
         };
       });
-      
-      // Separar gastos internos y cuentas por pagar
       const internos = gastosData.filter(g => g.tipo !== "proveedor");
       const proveedoresGastos = gastosData.filter(g => g.tipo === "proveedor");
-      
       setGastosInternos(internos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
       setCuentasPorPagar(proveedoresGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
-    } catch (error) {
-      console.error("Error al cargar datos:", error);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error("Error al recargar gastos:", err);
     }
   }, []);
 
@@ -287,18 +304,15 @@ const GastosPage = () => {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Recargar datos cuando se cierra el modal de gestión de categorías
-  // Esto asegura que los cambios en categorías se reflejen dinámicamente
+  // Recargar solo gastos cuando se cierra el modal de categorías (evita re-pedir proveedores)
+  const prevOpenCategorias = React.useRef(false);
   useEffect(() => {
-    if (!openGestionCategorias) {
-      // Cuando se cierra el modal, recargar datos para reflejar cambios en categorías
-      // Usar un pequeño delay para asegurar que los cambios en Firebase se hayan propagado
-      const timer = setTimeout(() => {
-        cargarDatos();
-      }, 300);
+    if (prevOpenCategorias.current && !openGestionCategorias) {
+      const timer = setTimeout(recargarSoloGastos, 300);
       return () => clearTimeout(timer);
     }
-  }, [openGestionCategorias, cargarDatos]);
+    prevOpenCategorias.current = openGestionCategorias;
+  }, [openGestionCategorias, recargarSoloGastos]);
 
   // Exponer función de migración globalmente para uso en consola
   useEffect(() => {

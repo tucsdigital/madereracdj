@@ -62,16 +62,12 @@ const VentasPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-        setVentasData(
-          ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        );
-
-        const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-        setPresupuestosData(
-          presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        );
+        const [ventasSnap, presupuestosSnap] = await Promise.all([
+          getDocs(collection(db, "ventas")),
+          getDocs(collection(db, "presupuestos")),
+        ]);
+        setVentasData(ventasSnap.docs.map((d) => ({ ...d.data(), id: d.id })));
+        setPresupuestosData(presupuestosSnap.docs.map((d) => ({ ...d.data(), id: d.id })));
       } catch (error) {
         console.error("Error al cargar datos:", error);
       } finally {
