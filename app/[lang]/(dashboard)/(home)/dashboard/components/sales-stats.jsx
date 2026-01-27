@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
-import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import { useAuth } from "@/provider/auth.provider";
 import { useDateRange } from "../context/date-range-context";
+import { useDashboardData } from "../context/dashboard-data-context";
 import {
   Tooltip,
   TooltipContent,
@@ -17,74 +15,16 @@ import {
 import Link from "next/link";
 
 const SalesStats = () => {
-  const { user } = useAuth();
-  const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange, toDateSafe } = useDateRange();
+  const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
+  const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, clientes: clientesData, loading } = useDashboardData();
 
-  const [ventasData, setVentasData] = useState([]);
-  const [presupuestosData, setPresupuestosData] = useState([]);
-  const [obrasData, setObrasData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [clientesData, setClientesData] = useState({});
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const ventasSnap = await getDocs(collection(db, "ventas"));
-        setVentasData(
-          ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        );
-        const presupuestosSnap = await getDocs(collection(db, "presupuestos"));
-        setPresupuestosData(
-          presupuestosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        );
-        const obrasSnap = await getDocs(collection(db, "obras"));
-        setObrasData(
-          obrasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
-        );
-        const clientesSnap = await getDocs(collection(db, "clientes"));
-        const map = {};
-        clientesSnap.docs.forEach((d) => {
-          map[d.id] = { id: d.id, ...d.data() };
-        });
-        setClientesData(map);
-      } catch (error) {
-        console.error("Error al cargar datos de estadísticas:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  // El rango rápido ahora se maneja en el contexto
-
-  const ventasFiltradas = useMemo(() => {
-    const filtradas = (ventasData || []).filter((v) => {
-      // IMPORTANTE: Usar fechaCreacion primero, ya que es la fecha real de creación de la venta
-      // El campo "fecha" puede ser una fecha manual/editable que no refleja cuando se hizo la venta
-      const fechaVenta = v.fechaCreacion || v.fecha;
-      const resultado = isInRange(fechaVenta);
-      
-      return resultado;
-    });
-    
-    return filtradas;
-  }, [ventasData, isInRange]);
-
-  const presupuestosFiltrados = useMemo(() => {
-    return (presupuestosData || []).filter((p) =>
-      isInRange(p.fechaCreacion || p.fecha)
-    );
-  }, [presupuestosData, isInRange]);
-
+  // Datos del contexto (ya filtrados por rango de fechas)
   const obrasFiltradas = useMemo(() => {
-    return (obrasData || [])
-      .filter((o) => o.tipo === "obra")
-      .filter((o) => isInRange(o.fechaCreacion));
-  }, [obrasData, isInRange]);
+    return (obrasFromContext || []).filter((o) => o.tipo === "obra");
+  }, [obrasFromContext]);
 
   // Obras confirmadas: solo en_ejecucion y completada (para cálculo de comisiones)
   const obrasConfirmadas = useMemo(() => {
@@ -575,7 +515,7 @@ const SalesStats = () => {
       className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md backdrop-blur-sm ${
         rangoRapido === value
           ? "bg-gradient-to-r from-slate-600 to-gray-600 text-white border-0 shadow-lg scale-105"
-          : "bg-white/60 border-0 text-default-700 hover:bg-white/80 hover:shadow-lg hover:scale-105"
+          : "bg-white/60 border-0 text-default-700 hover:bg-white/80 hover:shadow-lg hover:scale-[1.02]"
       }`}
       aria-pressed={rangoRapido === value}
     >
@@ -665,7 +605,7 @@ const SalesStats = () => {
   );
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-slate-50/80 via-gray-50/60 to-zinc-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-slate-50/80 via-gray-50/60 to-zinc-50/80">
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <div className="flex flex-col gap-4">
@@ -741,7 +681,7 @@ const SalesStats = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link href="/ventas" className="block">
-                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.02]">
+                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.01]">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs md:text-sm text-default-700">
                             Ventas
@@ -778,7 +718,7 @@ const SalesStats = () => {
                 {/* Monto */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-green-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
+                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-green-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
                           Monto
@@ -814,7 +754,7 @@ const SalesStats = () => {
                 {/* Ticket */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-indigo-100/80 via-indigo-50/60 to-purple-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
+                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-indigo-100/80 via-indigo-50/60 to-purple-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
                           Ticket
@@ -851,7 +791,7 @@ const SalesStats = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link href="/presupuestos" className="block">
-                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-amber-100/80 via-amber-50/60 to-yellow-50/80 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.02]">
+                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-amber-100/80 via-amber-50/60 to-yellow-50/80 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.01]">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
                             Presup.
@@ -890,7 +830,7 @@ const SalesStats = () => {
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {/* Comisión por ventas */}
-              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-fuchsia-100/80 via-fuchsia-50/60 to-pink-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-fuchsia-100/80 via-fuchsia-50/60 to-pink-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-fuchsia-700 dark:text-fuchsia-300">
                     Comisión Ventas
@@ -911,7 +851,7 @@ const SalesStats = () => {
               </div>
 
               {/* Total Obras */}
-              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-blue-100/80 via-blue-50/60 to-cyan-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-blue-100/80 via-blue-50/60 to-cyan-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-blue-700 dark:text-blue-300">
                     Total Obras
@@ -931,7 +871,7 @@ const SalesStats = () => {
                 </div>
               </div>
               {/* Comisión por Obras */}
-              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-orange-100/80 via-orange-50/60 to-amber-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.02]">
+              <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-orange-100/80 via-orange-50/60 to-amber-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs md:text-sm text-orange-700 dark:text-orange-300">
                     Comisión Obras

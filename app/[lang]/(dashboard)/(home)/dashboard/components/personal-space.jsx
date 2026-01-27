@@ -104,7 +104,7 @@ const PersonalSpace = () => {
   const inicial = nombreNegocio[0].toUpperCase();
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-rose-50/80 via-pink-50/60 to-orange-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-rose-50/80 via-pink-50/60 to-orange-50/80">
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       <div className="relative bg-gradient-to-r from-rose-100/60 via-pink-100/40 to-orange-100/60 backdrop-blur-sm p-6">
         <div className="flex items-center gap-4">

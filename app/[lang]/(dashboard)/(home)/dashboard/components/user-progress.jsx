@@ -167,7 +167,7 @@ const UserProgress = () => {
 
   if (loading || !progress) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80 backdrop-blur-xl">
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80">
         <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">
@@ -188,7 +188,7 @@ const UserProgress = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80">
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">

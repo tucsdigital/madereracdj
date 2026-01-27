@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { useDateRange } from "./date-range-context";
@@ -79,8 +79,13 @@ export const DashboardDataProvider = ({ children }) => {
     fetchData();
   }, [isInRange]);
 
+  const value = useMemo(
+    () => ({ ...data, loading }),
+    [data.ventas, data.allVentas, data.presupuestos, data.obras, data.productos, data.clientes, loading]
+  );
+
   return (
-    <DashboardDataContext.Provider value={{ ...data, loading }}>
+    <DashboardDataContext.Provider value={value}>
       {children}
     </DashboardDataContext.Provider>
   );

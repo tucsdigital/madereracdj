@@ -35,7 +35,7 @@ export default function LeaderboardCard({
   
   return (
     // @ts-ignore - Card components are in .jsx without types
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80 backdrop-blur-xl h-full flex flex-col">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80  h-full flex flex-col">
       {/* Efecto de brillo sutil */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       

@@ -17,7 +17,7 @@ export default function DailyRitualSection() {
       <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-4">
           {/* Skeleton para DailyRitualCard */}
-          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-pink-50/80 via-purple-50/60 to-blue-50/80 backdrop-blur-xl animate-pulse">
+          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-pink-50/80 via-purple-50/60 to-blue-50/80 animate-pulse">
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
             <div className="relative pb-1.5 md:pb-2 lg:pb-1.5 pt-2.5 md:pt-3 lg:pt-2.5 px-3 md:px-4 lg:px-3 border-0 bg-transparent">
               <div className="h-5 md:h-6 lg:h-5 w-28 md:w-36 lg:w-28 bg-white/60 rounded-xl md:rounded-2xl lg:rounded-xl mb-2 md:mb-4 lg:mb-2" />
@@ -32,7 +32,7 @@ export default function DailyRitualSection() {
           </div>
           
           {/* Skeleton para WinnersCard */}
-          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 backdrop-blur-xl animate-pulse h-full">
+          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-indigo-50/80 via-purple-50/60 to-pink-50/80 animate-pulse h-full">
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
             <div className="relative pb-1.5 md:pb-2 lg:pb-1.5 pt-2.5 md:pt-3 lg:pt-2.5 px-3 md:px-4 lg:px-3 border-0 bg-transparent">
               <div className="h-5 md:h-6 lg:h-5 w-32 md:w-40 lg:w-32 bg-white/60 rounded-xl md:rounded-2xl lg:rounded-xl mb-2 md:mb-4 lg:mb-2" />
@@ -47,7 +47,7 @@ export default function DailyRitualSection() {
           </div>
           
           {/* Skeleton para LeaderboardCard */}
-          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80 backdrop-blur-xl animate-pulse">
+          <div className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-yellow-50/80 via-orange-50/60 to-amber-50/80 animate-pulse">
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
             <div className="relative pb-1.5 md:pb-2 lg:pb-1.5 pt-2.5 md:pt-3 lg:pt-2.5 px-3 md:px-4 lg:px-3 border-0 bg-transparent">
               <div className="h-5 md:h-6 lg:h-5 w-28 md:w-36 lg:w-28 bg-white/60 rounded-xl md:rounded-2xl lg:rounded-xl mb-2 md:mb-4 lg:mb-2" />

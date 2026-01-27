@@ -87,7 +87,7 @@ const LiveActivityFeed = () => {
 
   if (loading) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80 backdrop-blur-xl">
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80">
         <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
@@ -115,12 +115,12 @@ const LiveActivityFeed = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80">
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
           <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-200/50 to-blue-200/50 shadow-lg">
-            <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600 animate-pulse" />
+            <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600" />
           </div>
           ¿Qué está pasando ahora?
         </CardTitle>

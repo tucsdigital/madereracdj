@@ -416,7 +416,7 @@ export default function DailyRitualCard({
 
   return (
     // @ts-ignore - Card components are in .jsx without types
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-pink-50/80 via-purple-50/60 to-blue-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-pink-50/80 via-purple-50/60 to-blue-50/80 ">
       {/* Efecto de brillo sutil */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       

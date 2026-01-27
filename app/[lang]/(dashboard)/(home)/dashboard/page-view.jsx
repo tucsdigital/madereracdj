@@ -1,4 +1,6 @@
 "use client";
+
+import dynamic from "next/dynamic";
 import PersonalSpace from "./components/personal-space";
 import LiveActivityFeed from "./components/live-activity-feed";
 import BusinessStatus from "./components/business-status";
@@ -6,10 +8,16 @@ import UserProgress from "./components/user-progress";
 import CommunityStats from "./components/community-stats";
 import PlatformMessages from "./components/platform-messages";
 import Opportunities from "./components/opportunities";
-import SalesStats from "./components/sales-stats";
 import DailyRitualSection from "./components/daily-ritual-section";
 import { DateRangeProvider } from "./context/date-range-context";
 import { DashboardDataProvider } from "./context/dashboard-data-context";
+
+const SalesStats = dynamic(() => import("./components/sales-stats"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 rounded-3xl bg-default-100/50 animate-pulse" aria-hidden />
+  ),
+});
 
 const DashboardPageView = ({ trans }) => {
   return (
@@ -19,7 +27,7 @@ const DashboardPageView = ({ trans }) => {
           {/* Ritual Diario - Sección destacada */}
           <DailyRitualSection />
 
-          {/* Estadísticas de Ventas - Sección Principal */}
+          {/* Estadísticas de Ventas - Carga diferida para priorizar el resto */}
           <SalesStats />
 
           {/* Grid principal con mejor distribución - 2 columnas principales */}

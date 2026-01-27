@@ -105,7 +105,7 @@ const PlatformMessages = () => {
 
   if (loading) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80 backdrop-blur-xl">
+      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80">
         <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
@@ -129,7 +129,7 @@ const PlatformMessages = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80 backdrop-blur-xl">
+    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80">
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
