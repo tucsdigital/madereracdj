@@ -6,8 +6,8 @@ import { collection, getDocs } from "firebase/firestore";
 import { useDateRange } from "./date-range-context";
 
 const DashboardDataContext = createContext({
-  ventas: [], // Ventas filtradas por rango de fechas
-  allVentas: [], // Todas las ventas sin filtrar
+  ventas: [],
+  allVentas: [],
   presupuestos: [],
   obras: [],
   productos: [],
@@ -17,71 +17,74 @@ const DashboardDataContext = createContext({
 
 export const useDashboardData = () => useContext(DashboardDataContext);
 
+const emptyData = {
+  ventas: [],
+  allVentas: [],
+  presupuestos: [],
+  obras: [],
+  productos: [],
+  clientes: {},
+};
+
 export const DashboardDataProvider = ({ children }) => {
   const { isInRange } = useDateRange();
-  const [data, setData] = useState({
-    ventas: [],
-    presupuestos: [],
-    obras: [],
-    productos: [],
-    clientes: {},
-  });
+  const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [ventasSnap, presupuestosSnap, obrasSnap, productosSnap, clientesSnap] = await Promise.all([
+
+        // Fase 1: ventas + presupuestos (prioridad para KPIs y widgets que solo usan ventas)
+        const [ventasSnap, presupuestosSnap] = await Promise.all([
           getDocs(collection(db, "ventas")),
           getDocs(collection(db, "presupuestos")),
-          getDocs(collection(db, "obras")),
-          getDocs(collection(db, "productos")),
-          getDocs(collection(db, "clientes")),
         ]);
+        if (cancelled) return;
 
-        // Todas las ventas sin filtrar
         const allVentas = ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-        
-        // Ventas filtradas por rango de fechas
         const ventas = allVentas.filter((v) => isInRange(v.fechaCreacion || v.fecha));
-
         const presupuestos = presupuestosSnap.docs
           .map((doc) => ({ ...doc.data(), id: doc.id }))
           .filter((p) => isInRange(p.fechaCreacion || p.fecha));
 
+        setData((prev) => ({ ...prev, ventas, allVentas, presupuestos }));
+
+        // Fase 2: obras, productos, clientes (en paralelo entre sí)
+        const [obrasSnap, productosSnap, clientesSnap] = await Promise.all([
+          getDocs(collection(db, "obras")),
+          getDocs(collection(db, "productos")),
+          getDocs(collection(db, "clientes")),
+        ]);
+        if (cancelled) return;
+
         const obras = obrasSnap.docs
           .map((doc) => ({ ...doc.data(), id: doc.id }))
           .filter((o) => isInRange(o.fechaCreacion));
-
         const productos = productosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-
         const clientesMap = {};
         clientesSnap.docs.forEach((d) => {
           clientesMap[d.id] = { id: d.id, ...d.data() };
         });
 
-        setData({
-          ventas,
-          allVentas,
-          presupuestos,
-          obras,
-          productos,
-          clientes: clientesMap,
-        });
+        setData((prev) => ({ ...prev, obras, productos, clientes: clientesMap }));
       } catch (error) {
-        console.error("Error cargando datos del dashboard:", error);
+        if (!cancelled) console.error("Error cargando datos del dashboard:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchData();
+    return () => { cancelled = true; };
   }, [isInRange]);
 
   const value = useMemo(
     () => ({ ...data, loading }),
-    [data.ventas, data.allVentas, data.presupuestos, data.obras, data.productos, data.clientes, loading]
+    [data, loading]
   );
 
   return (
