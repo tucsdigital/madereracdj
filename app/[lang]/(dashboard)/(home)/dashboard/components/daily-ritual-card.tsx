@@ -286,9 +286,7 @@ export default function DailyRitualCard({
   const { user } = useAuth();
   const currentUserEmail = (user as any)?.email || null;
   const currentUserAlias = getUserAlias(currentUserEmail);
-  
-  // Debug: loguear el estado recibido
-  console.log("[DailyRitualCard] Props recibidas:", { hasPlayed, userResult: userResult ? { score: userResult.score, tier: userResult.tier } : null });
+
   const [showResult, setShowResult] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [finalRotation, setFinalRotation] = useState(0);
@@ -394,19 +392,12 @@ export default function DailyRitualCard({
 
   const handleSpin = async () => {
     // Prevenir juego si ya jugó
-    if (hasPlayed) {
-      console.warn("[DailyRitualCard] Intento de jugar cuando ya se jugó hoy");
-      return;
-    }
-    
-    console.log("[DailyRitualCard] Iniciando spin...");
+    if (hasPlayed) return;
+
     setShowResult(false);
     setIsAnimating(true);
     try {
       await onSpin();
-      console.log("[DailyRitualCard] Spin completado, hasPlayed:", hasPlayed);
-      // El estado se actualizará automáticamente cuando fetchStatus se complete
-      // No necesitamos verificar hasPlayed aquí porque es una prop que viene del padre
     } catch (error) {
       console.error("[DailyRitualCard] Error en spin:", error);
       // Si hay error, asegurarse de limpiar el estado

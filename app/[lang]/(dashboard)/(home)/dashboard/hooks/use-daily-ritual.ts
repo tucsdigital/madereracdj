@@ -77,7 +77,6 @@ export function useDailyRitual() {
       const response = await fetch(`/api/daily-status?dateKey=${key}`, { headers });
       if (!response.ok) throw new Error("Error al cargar estado");
       const data = await response.json();
-      console.log("[useDailyRitual] Estado recibido:", { hasPlayed: data.hasPlayed, userResult: data.userResult });
       setStatus(data);
       setError(null);
     } catch (err) {
@@ -97,29 +96,18 @@ export function useDailyRitual() {
     try {
       setSpinning(true);
       setError(null);
-      
-      console.log("Obteniendo token para usuario:", (user as any)?.uid);
+
       const token = await getAuthToken();
-      
+
       if (!token) {
-        console.error("No se pudo obtener el token");
         setError("No se pudo obtener el token de autenticación. Por favor, inicia sesión nuevamente.");
         return;
       }
 
-      console.log("Token obtenido, enviando request...");
-      console.log("Token length:", token.length);
-      console.log("Token preview:", token.substring(0, 20) + "...");
-      
-      const headers: HeadersInit = { 
+      const headers: HeadersInit = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        "Authorization": `Bearer ${token}`,
       };
-      
-      console.log("Headers a enviar:", {
-        "Content-Type": headers["Content-Type"],
-        "Authorization": headers["Authorization"] ? `${headers["Authorization"].substring(0, 20)}...` : "missing"
-      });
       
       const response = await fetch("/api/daily-spin", {
         method: "POST",
@@ -129,26 +117,17 @@ export function useDailyRitual() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Error en respuesta:", data);
         throw new Error(data.error || "Error al jugar");
       }
 
-      // Si ya jugó hoy, actualizar estado y mostrar resultado
       if (data.alreadyPlayed) {
-        console.log("Usuario ya jugó hoy, actualizando estado...");
-        setSpinning(false); // No mostrar animación si ya jugó
+        setSpinning(false);
         await fetchStatus();
         return;
       }
 
-      // Mantener la animación visible por al menos 2 segundos para efecto dramático
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Esperar un momento para que Firestore propague el documento recién creado
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Actualizar estado después de jugar (forzar actualización)
-      console.log("[useDailyRitual] Actualizando estado después de jugar...");
       await fetchStatus();
       
       // Mantener spinning un poco más para que la transición sea suave

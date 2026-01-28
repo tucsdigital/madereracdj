@@ -30,19 +30,18 @@ Según `config/menus.js`:
 
 **Archivo:** `(home)/dashboard/page-view.jsx` + contexto + `SalesStats`, etc.
 
-**Estado:** Optimizado (carga progresiva + dynamic below-the-fold).
+**Estado:** Estable. Una sola carga con `Promise.all` de las 5 colecciones; solo `SalesStats` en `dynamic()`.
 
 **Resumen:**
 - **Contexto único** (`DashboardDataProvider`): una sola fuente de datos, valor memorizado.
-- **Carga progresiva:** fase 1 = ventas + presupuestos (pintado antes); fase 2 = obras + productos + clientes en paralelo. Cleanup con `cancelled` para evitar actualizaciones tras desmontaje.
+- **Una sola fase de carga:** `Promise.all([ventas, presupuestos, obras, productos, clientes])` y un único `setData`. (Se probó carga progresiva en dos fases y dynamic para LiveActivityFeed/Opportunities/PlatformMessages; se revirtió por problemas de carga en algunos entornos.)
 - **`SalesStats`** en `dynamic(..., { ssr: false })` con skeleton.
-- **Below-the-fold en dynamic:** `LiveActivityFeed`, `Opportunities`, `PlatformMessages` cargados con `dynamic()` y skeleton; reducen el JS inicial (date-fns, etc. van en chunks separados).
-- **Componentes estáticos en above-the-fold:** DailyRitualSection, PersonalSpace, UserProgress, BusinessStatus, CommunityStats se cargan con la página (prioridad visual).
+- **Resto de componentes** import estático (LiveActivityFeed, Opportunities, PlatformMessages, etc.).
 
-**Mejoras adicionales posibles (opcional):**
-- `DailyRitualSection` en `dynamic()` si su bundle (ritual, confetti, roulette) pesa mucho; mostrar skeleton mientras carga.
-- Dividir el contexto en `VentasContext` y `CatalogContext` si se quiere reducir re-renders de componentes que solo usan ventas o solo productos/clientes.
-- Cache en memoria o SWR para no refetch completo al cambiar solo el rango de fechas (reutilizar snapshots y filtrar en cliente).
+**Mejoras posibles (con cautela / A/B):**
+- Carga progresiva (ventas+presupuestos primero) si se valida bien en todos los navegadores.
+- `dynamic()` para below-the-fold solo si no afecta la carga inicial.
+- Cache o SWR al cambiar solo el rango de fechas.
 
 ---
 
