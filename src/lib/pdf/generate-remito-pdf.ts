@@ -32,6 +32,13 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     vendedor,
   } = remito;
 
+  const esVenta = tipo === "venta";
+  const esPresupuesto = tipo === "presupuesto";
+
+  // Información de pagos para ventas
+  const estadoPago = pagos?.estadoPago;
+  const tieneHistorialPagos = pagos?.pagos && pagos.pagos.length > 0;
+
   // Cargar logo como base64
   let logoBase64 = "";
   try {
@@ -150,6 +157,103 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     ? `${safe(cliente.direccion)} - ${provinciaCompleta}`
     : safe(cliente.direccion);
 
+  // Construir HTML de estado de pago (solo para ventas)
+  const paymentStatusHtml =
+    esVenta && estadoPago
+      ? (() => {
+          let estadoLabel = "";
+          let badgeBackground = "";
+          let badgeBorder = "";
+          let badgeColor = "";
+
+          if (estadoPago === "pagado") {
+            estadoLabel = "PAGADO";
+            badgeBackground = "#ecfdf3";
+            badgeBorder = "#22c55e";
+            badgeColor = "#166534";
+          } else if (estadoPago === "parcial") {
+            estadoLabel = "PAGO PARCIAL";
+            badgeBackground = "#fffbeb";
+            badgeBorder = "#facc15";
+            badgeColor = "#92400e";
+          } else {
+            estadoLabel = "PENDIENTE";
+            badgeBackground = "#fef2f2";
+            badgeBorder = "#ef4444";
+            badgeColor = "#991b1b";
+          }
+
+          const total = pagos?.total ?? totales.total;
+          const abonado = pagos?.montoAbonado ?? 0;
+          const saldo = pagos?.saldoPendiente ?? Math.max(total - abonado, 0);
+
+          const historyRows =
+            estadoPago === "parcial" && tieneHistorialPagos
+              ? pagos!.pagos!
+                  .map(
+                    (p) => `
+                <tr>
+                  <td>${safe(p.fecha)}</td>
+                  <td>${escapeHtml(p.metodo.toUpperCase())}</td>
+                  <td style="text-align: right;">${formatCurrency(p.monto)}</td>
+                </tr>
+              `
+                  )
+                  .join("")
+              : "";
+
+          return `
+        <div class="payment-section">
+          <div class="payment-header-row">
+            <div class="payment-title">Estado de pago</div>
+            <div class="payment-badge" style="
+              background: ${badgeBackground};
+              border-color: ${badgeBorder};
+              color: ${badgeColor};
+            ">
+              ${estadoLabel}
+            </div>
+          </div>
+          <div class="payment-summary">
+            <div class="payment-summary-item">
+              <span class="label">Total venta</span>
+              <span class="value">${formatCurrency(total)}</span>
+            </div>
+            <div class="payment-summary-item">
+              <span class="label">Monto abonado</span>
+              <span class="value">${formatCurrency(abonado)}</span>
+            </div>
+            <div class="payment-summary-item">
+              <span class="label">Saldo pendiente</span>
+              <span class="value">${formatCurrency(saldo)}</span>
+            </div>
+          </div>
+          ${
+            historyRows
+              ? `
+          <div class="payment-history">
+            <div class="payment-history-title">Historial de pagos</div>
+            <table class="payment-history-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Método</th>
+                  <th style="text-align: right;">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historyRows}
+              </tbody>
+            </table>
+          </div>
+          `
+              : ""
+          }
+        </div>
+      `;
+        })()
+      : "";
+
   // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
 <!DOCTYPE html>
@@ -157,7 +261,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>REMITO - ${numero}</title>
+  <title>${esVenta ? "REMITO" : "PRESUPUESTO / COTIZACIÓN"} - ${numero}</title>
   <style>
     @page {
       margin: 0;
@@ -474,6 +578,82 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .envio-info-item:last-child {
       margin-bottom: 0;
     }
+    .payment-section {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #000000;
+      font-size: 10px;
+      color: #000000;
+      font-weight: 600;
+    }
+    .payment-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .payment-title {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .payment-badge {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border-width: 1px;
+      border-style: solid;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .payment-summary {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .payment-summary-item {
+      display: flex;
+      flex-direction: column;
+      min-width: 110px;
+    }
+    .payment-summary-item .label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #4b5563;
+      margin-bottom: 2px;
+    }
+    .payment-summary-item .value {
+      font-size: 11px;
+      font-weight: 800;
+      color: #000000;
+    }
+    .payment-history {
+      margin-top: 4px;
+    }
+    .payment-history-title {
+      font-size: 10px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .payment-history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+    }
+    .payment-history-table th,
+    .payment-history-table td {
+      padding: 3px 4px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .payment-history-table th {
+      font-weight: 800;
+      text-align: left;
+    }
     .footer-bottom {
       display: flex;
       justify-content: flex-end;
@@ -547,7 +727,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           </div>
         </div>
         <div class="header-right">
-          <div class="remito-title">REMITO</div>
+          <div class="remito-title">
+            ${esVenta ? "REMITO" : "PRESUPUESTO / COTIZACIÓN"}
+          </div>
           <div class="remito-numero">N° ${safe(numero)}</div>
           <div class="remito-fecha">FECHA ${safe(fecha)}</div>
         </div>
@@ -638,6 +820,8 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         <div class="firma-col">Documento N°</div>
       </div>
       ` : ""}
+
+      ${paymentStatusHtml}
 
       ${!esRetiroLocal ? `
       <div class="envio-info">
