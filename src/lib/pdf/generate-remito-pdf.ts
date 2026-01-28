@@ -157,7 +157,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     ? `${safe(cliente.direccion)} - ${provinciaCompleta}`
     : safe(cliente.direccion);
 
-  // Construir HTML de estado de pago (solo para ventas)
+  // Construir HTML de estado de pago (solo para ventas, se incrusta dentro del bloque de envío)
   const paymentStatusHtml =
     esVenta && estadoPago
       ? (() => {
@@ -203,7 +203,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               : "";
 
           return `
-        <div class="payment-section">
+        <div class="payment-inline">
           <div class="payment-header-row">
             <div class="payment-title">Estado de pago</div>
             <div class="payment-badge" style="
@@ -578,21 +578,11 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .envio-info-item:last-child {
       margin-bottom: 0;
     }
-    .payment-section {
-      margin-bottom: 10px;
-      padding: 10px 12px;
-      background: #fff;
-      border-radius: 8px;
-      border: 1px solid #000000;
-      font-size: 10px;
-      color: #000000;
-      font-weight: 600;
-    }
     .payment-header-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .payment-title {
       font-size: 11px;
@@ -614,7 +604,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .payment-summary-item {
       display: flex;
@@ -820,11 +810,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         <div class="firma-col">Documento N°</div>
       </div>
       ` : ""}
-
-      ${paymentStatusHtml}
-
       ${!esRetiroLocal ? `
       <div class="envio-info">
+        ${paymentStatusHtml}
         <div class="envio-info-item"><strong>Tipo de envío:</strong> ${tipoEnvio}</div>
         ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> ${safe(fechaEntrega)}</div>` : ""}
         ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> ${safe(lugarEntrega)}</div>` : ""}
