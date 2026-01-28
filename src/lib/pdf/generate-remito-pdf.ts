@@ -189,24 +189,10 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
           return `
         <div class="payment-inline">
-          <div class="payment-header-row">
-            <div class="payment-title">Estado de pago</div>
-            <div class="payment-badge">${estadoLabel}</div>
-          </div>
-          <div class="payment-summary">
-            <div class="payment-summary-item">
-              <span class="label">Total venta</span>
-              <span class="value">${formatCurrency(total)}</span>
-            </div>
-            <div class="payment-summary-item">
-              <span class="label">Monto abonado</span>
-              <span class="value">${formatCurrency(abonado)}</span>
-            </div>
-            <div class="payment-summary-item">
-              <span class="label">Saldo pendiente</span>
-              <span class="value">${formatCurrency(saldo)}</span>
-            </div>
-          </div>
+          <div class="payment-row"><strong>Estado de pago:</strong> ${estadoLabel}</div>
+          <div class="payment-row"><strong>Total venta:</strong> ${formatCurrency(total)}</div>
+          <div class="payment-row"><strong>Monto abonado:</strong> ${formatCurrency(abonado)}</div>
+          <div class="payment-row"><strong>Saldo pendiente:</strong> ${formatCurrency(saldo)}</div>
           ${
             historyRows
               ? `
@@ -570,48 +556,12 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       border-left: 1px solid #000000;
       padding-left: 12px;
     }
-    .payment-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
+    .payment-inline {
+      font-size: 10px;
+      line-height: 1.5;
     }
-    .payment-title {
-      font-size: 11px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .payment-badge {
-      padding: 4px 10px;
-      border-radius: 9999px;
-      border: 1px solid #000000;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .payment-summary {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 4px;
-    }
-    .payment-summary-item {
-      display: flex;
-      flex-direction: column;
-      min-width: 110px;
-    }
-    .payment-summary-item .label {
-      font-size: 9px;
-      text-transform: uppercase;
-      color: #4b5563;
-      margin-bottom: 2px;
-    }
-    .payment-summary-item .value {
-      font-size: 11px;
-      font-weight: 800;
-      color: #000000;
+    .payment-row {
+      margin-bottom: 3px;
     }
     .payment-history {
       margin-top: 4px;
