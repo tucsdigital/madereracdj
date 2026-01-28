@@ -446,7 +446,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       background: #fff;
     }
     .products-table th {
-      padding: 10px 8px;
+      padding: 6px 6px;
       text-align: left;
       font-weight: 900;
       border-bottom: 1px solid #000000;
@@ -465,8 +465,8 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       text-align: right;
     }
     .products-table td {
-      padding: 10px 8px;
-      line-height: 1.5;
+      padding: 6px 6px;
+      line-height: 1.3;
       color: #000000;
       vertical-align: middle;
     }

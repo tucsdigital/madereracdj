@@ -81,18 +81,37 @@ export function mapVentaToRemito(venta: any): RemitoModel {
     venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio))
       ? Number(venta.costoEnvio)
       : 0;
-  const totalFinal = totalesCalculados.total + costoEnvio - descuentoEfectivo;
+  const totalCalculado = totalesCalculados.total + costoEnvio - descuentoEfectivo;
 
-  // Calcular pagos
-  const pagos = Array.isArray(venta.pagos) ? venta.pagos : [];
-  const montoAbonado = pagos.reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0);
-  const saldoPendiente = Math.max(0, totalFinal - montoAbonado);
-  const estadoPago =
-    montoAbonado >= totalFinal
-      ? "pagado"
-      : montoAbonado > 0
-      ? "parcial"
-      : "pendiente";
+  // Total "oficial" de la venta: priorizar el guardado en la colección
+  const totalVenta =
+    typeof venta.total === "number" && !isNaN(venta.total)
+      ? Number(venta.total)
+      : totalCalculado;
+
+  // Calcular pagos alineado con la pantalla de "Información de Pagos"
+  const pagosArray = Array.isArray(venta.pagos) ? venta.pagos : [];
+  const montoAbonado =
+    pagosArray.length > 0
+      ? pagosArray.reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0)
+      : Number(venta.montoAbonado || 0);
+  const saldoPendiente = Math.max(0, totalVenta - montoAbonado);
+
+  // Usar el estadoPago de la BD si existe; si no, recalcular igual que en la página de ventas
+  const estadoPago = venta.estadoPago
+    ? venta.estadoPago
+    : (() => {
+        const montoAbonadoReal =
+          pagosArray.length > 0
+            ? pagosArray.reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0)
+            : Number(venta.montoAbonado || 0);
+
+        return montoAbonadoReal >= (totalVenta || 0)
+          ? "pagado"
+          : montoAbonadoReal > 0
+          ? "parcial"
+          : "pendiente";
+      })();
 
   // Determinar envío
   const tieneEnvio = venta.tipoEnvio && venta.tipoEnvio !== "retiro_local";
@@ -144,14 +163,14 @@ export function mapVentaToRemito(venta: any): RemitoModel {
       descuentoTotal: totalesCalculados.descuentoTotal,
       descuentoEfectivo: descuentoEfectivo > 0 ? descuentoEfectivo : undefined,
       costoEnvio: costoEnvio > 0 ? costoEnvio : 0,
-      total: totalFinal,
+      total: totalVenta,
     },
     pagos: {
-      total: totalFinal,
+      total: totalVenta,
       montoAbonado,
       saldoPendiente,
       estadoPago,
-      pagos: pagos.map((p: any) => ({
+      pagos: pagosArray.map((p: any) => ({
         fecha: formatFechaLocal(p.fecha),
         metodo: p.metodo || "-",
         monto: Number(p.monto) || 0,
