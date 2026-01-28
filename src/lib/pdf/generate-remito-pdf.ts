@@ -161,27 +161,12 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
   const paymentStatusHtml =
     esVenta && estadoPago
       ? (() => {
-          let estadoLabel = "";
-          let badgeBackground = "";
-          let badgeBorder = "";
-          let badgeColor = "";
-
-          if (estadoPago === "pagado") {
-            estadoLabel = "PAGADO";
-            badgeBackground = "#ecfdf3";
-            badgeBorder = "#22c55e";
-            badgeColor = "#166534";
-          } else if (estadoPago === "parcial") {
-            estadoLabel = "PAGO PARCIAL";
-            badgeBackground = "#fffbeb";
-            badgeBorder = "#facc15";
-            badgeColor = "#92400e";
-          } else {
-            estadoLabel = "PENDIENTE";
-            badgeBackground = "#fef2f2";
-            badgeBorder = "#ef4444";
-            badgeColor = "#991b1b";
-          }
+          const estadoLabel =
+            estadoPago === "pagado"
+              ? "PAGADO"
+              : estadoPago === "parcial"
+              ? "PAGO PARCIAL"
+              : "PENDIENTE";
 
           const total = pagos?.total ?? totales.total;
           const abonado = pagos?.montoAbonado ?? 0;
@@ -206,13 +191,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         <div class="payment-inline">
           <div class="payment-header-row">
             <div class="payment-title">Estado de pago</div>
-            <div class="payment-badge" style="
-              background: ${badgeBackground};
-              border-color: ${badgeBorder};
-              color: ${badgeColor};
-            ">
-              ${estadoLabel}
-            </div>
+            <div class="payment-badge">${estadoLabel}</div>
           </div>
           <div class="payment-summary">
             <div class="payment-summary-item">
@@ -566,6 +545,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       border-radius: 6px;
       border: 1px solid #000000;
       font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
     }
     .envio-info strong {
       font-weight: 800;
@@ -577,6 +559,16 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     }
     .envio-info-item:last-child {
       margin-bottom: 0;
+    }
+    .envio-info-left {
+      flex: 1;
+      min-width: 0;
+    }
+    .envio-info-right {
+      flex: 1;
+      min-width: 0;
+      border-left: 1px solid #000000;
+      padding-left: 12px;
     }
     .payment-header-row {
       display: flex;
@@ -593,8 +585,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .payment-badge {
       padding: 4px 10px;
       border-radius: 9999px;
-      border-width: 1px;
-      border-style: solid;
+      border: 1px solid #000000;
       font-size: 9px;
       font-weight: 800;
       letter-spacing: 0.5px;
@@ -812,12 +803,18 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       ` : ""}
       ${!esRetiroLocal ? `
       <div class="envio-info">
-        ${paymentStatusHtml}
-        <div class="envio-info-item"><strong>Tipo de envío:</strong> ${tipoEnvio}</div>
-        ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> ${safe(fechaEntrega)}</div>` : ""}
-        ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> ${safe(lugarEntrega)}</div>` : ""}
-        ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
-        ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
+        <div class="envio-info-left">
+          <div class="envio-info-item"><strong>Tipo de envío:</strong> ${tipoEnvio}</div>
+          ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> ${safe(fechaEntrega)}</div>` : ""}
+          ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> ${safe(lugarEntrega)}</div>` : ""}
+          ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
+          ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
+        </div>
+        ${
+          paymentStatusHtml
+            ? `<div class="envio-info-right">${paymentStatusHtml}</div>`
+            : ""
+        }
       </div>
       ` : ""}
 
