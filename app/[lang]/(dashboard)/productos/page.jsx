@@ -2236,12 +2236,24 @@ const ProductosPage = () => {
           }
         }
 
+        // Respetar unidadMedida del CSV; normalizar y usar "pie" solo por defecto para maderas
+        const rawUnidad = (producto.unidadMedida ?? producto.unidad ?? "").toString().trim();
+        const unidadNormalizada =
+          rawUnidad.toLowerCase() === "m2"
+            ? "M2"
+            : rawUnidad.toLowerCase() === "pie"
+            ? "pie"
+            : rawUnidad.toLowerCase() === "unidad"
+            ? "Unidad"
+            : rawUnidad
+            ? rawUnidad
+            : "pie";
+
         productosValidos.push({
           ...producto,
           fechaCreacion: new Date().toISOString(),
           fechaActualizacion: new Date().toISOString(),
-          // Asegurar que unidadMedida sea "pie" para maderas
-          unidadMedida: "pie",
+          unidadMedida: unidadNormalizada,
         });
       }
 
