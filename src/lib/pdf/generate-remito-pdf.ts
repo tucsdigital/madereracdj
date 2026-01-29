@@ -240,6 +240,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       .no-print {
         display: none !important;
       }
+      .bottom {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .footer-bottom {
+        page-break-before: avoid;
+        break-before: avoid-page;
+      }
     }
     * {
       margin: 0;
@@ -488,7 +496,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .bottom {
       margin-top: auto;
       padding-top: 12px;
-      padding-bottom: 15mm;
+      padding-bottom: 8mm;
     }
     .disclaimer {
       font-size: 10px;
@@ -594,8 +602,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       gap: 8px;
       font-size: 7px;
       color: #000000;
-      margin-top: 6px;
+      margin-top: 4px;
       font-weight: 600;
+      page-break-before: avoid;
     }
     .page-continuation {
       font-size: 8px;
