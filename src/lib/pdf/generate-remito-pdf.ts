@@ -68,15 +68,15 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         .map(
           (item) => `
           <tr>
-            <td style="padding: 10px 8px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">${item.cantidad}</td>
-            <td style="padding: 10px 8px; font-weight: 700; color: #000000; font-size: 11.5px;">${safe(item.nombre)}</td>
-            <td style="padding: 10px 8px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
+            <td style="padding: 4px 6px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">${item.cantidad}</td>
+            <td style="padding: 4px 6px; font-weight: 700; color: #000000; font-size: 11.5px;">${safe(item.nombre)}</td>
+            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
             ${!paraEmpleado ? `
-            <td style="padding: 10px 8px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
-            <td style="padding: 10px 8px; text-align: right; font-weight: 800; color: #000000; font-size: 12px;">${formatCurrency(item.subtotal || 0)}</td>
+            <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
+            <td style="padding: 4px 6px; text-align: right; font-weight: 800; color: #000000; font-size: 12px;">${formatCurrency(item.subtotal || 0)}</td>
             ` : `
-            <td style="padding: 10px 8px; text-align: right;" class="precio-empleado"></td>
-            <td style="padding: 10px 8px; text-align: right; font-weight: 600;" class="total-empleado"></td>
+            <td style="padding: 4px 6px; text-align: right;" class="precio-empleado"></td>
+            <td style="padding: 4px 6px; text-align: right; font-weight: 600;" class="total-empleado"></td>
             `}
           </tr>
         `
@@ -84,7 +84,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         .join("")
     : `
       <tr>
-        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 12px; text-align: center; color: #000000; font-weight: 700;">
+        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 6px 8px; text-align: center; color: #000000; font-weight: 700;">
           Sin productos
         </td>
       </tr>
@@ -97,15 +97,15 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       const numFilasVacias = Math.min(3, 8 - items.length);
       filasVacias = Array.from({ length: numFilasVacias }, () => `
       <tr>
-        <td style="padding: 8px 6px; height: 32px;"></td>
-        <td style="padding: 8px 6px;"></td>
-        <td style="padding: 8px 6px;"></td>
+        <td style="padding: 4px 6px; height: 20px;"></td>
+        <td style="padding: 4px 6px;"></td>
+        <td style="padding: 4px 6px;"></td>
         ${!paraEmpleado ? `
-        <td style="padding: 8px 6px;"></td>
-        <td style="padding: 8px 6px;"></td>
+        <td style="padding: 4px 6px;"></td>
+        <td style="padding: 4px 6px;"></td>
         ` : `
-        <td style="padding: 8px 6px;" class="precio-empleado"></td>
-        <td style="padding: 8px 6px;" class="total-empleado"></td>
+        <td style="padding: 4px 6px;" class="precio-empleado"></td>
+        <td style="padding: 4px 6px;" class="total-empleado"></td>
         `}
       </tr>
     `).join("");
@@ -443,7 +443,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       background: #fff;
     }
     .products-table th {
-      padding: 6px 6px;
+      padding: 4px 6px;
       text-align: left;
       font-weight: 900;
       border-bottom: 1px solid #000000;
@@ -462,8 +462,8 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       text-align: right;
     }
     .products-table td {
-      padding: 6px 6px;
-      line-height: 1.3;
+      padding: 4px 6px;
+      line-height: 1.2;
       color: #000000;
       vertical-align: middle;
     }
@@ -480,7 +480,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       background: #fff;
     }
     .products-table tfoot td {
-      padding: 8px;
+      padding: 4px 6px;
       background: #fff;
     }
     .products-table tfoot td:not(:last-child) {
