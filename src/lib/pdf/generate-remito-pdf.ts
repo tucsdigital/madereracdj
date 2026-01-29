@@ -261,23 +261,18 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       color: #000000;
       background: #fff;
       width: 210mm;
-      min-height: 297mm;
       padding: 8mm 10mm;
       display: flex;
       flex-direction: column;
     }
     .page {
       width: 100%;
-      flex: 1;
-      min-height: 297mm;
       display: flex;
       flex-direction: column;
     }
     .main {
-      flex: 1;
       display: flex;
       flex-direction: column;
-      min-height: 0;
     }
     .header {
       display: flex;
@@ -494,7 +489,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       font-weight: 900;
     }
     .bottom {
-      margin-top: auto;
+      margin-top: 20px;
       padding-top: 12px;
       padding-bottom: 8mm;
     }
