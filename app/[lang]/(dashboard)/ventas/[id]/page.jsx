@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
@@ -16,10 +17,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer } from "lucide-react";
 import { Icon } from "@iconify/react";
-// SelectorProductosPresupuesto removido - usar componente separado si es necesario
-// FormularioVentaPresupuesto removido - usar componente separado si es necesario
 import { useAuth } from "@/provider/auth.provider";
-import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
+
+const ModalCambiarCliente = dynamic(
+  () => import("@/components/clientes/ModalCambiarCliente"),
+  { ssr: false }
+);
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {

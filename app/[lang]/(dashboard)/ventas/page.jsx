@@ -1,12 +1,22 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   columnsPresupuestos,
   columnsVentas,
 } from "../(invoice)/invoice-list/invoice-list-table/components/columns-enhanced";
-import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
+
+const DataTableEnhanced = dynamic(
+  () => import("@/components/ui/data-table-enhanced").then((m) => ({ default: m.DataTableEnhanced })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 rounded-xl bg-default-100/50 animate-pulse" aria-hidden />
+    ),
+  }
+);
 import {
   Dialog,
   DialogContent,
@@ -15,11 +25,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
 import { Loader2, CheckCircle, AlertCircle, Trash2, X, AlertTriangle, Info } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -40,9 +45,6 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
-import { computeTotals } from "@/lib/pricing";
-
-// FormularioVentaPresupuesto movido a components/ventas/FormularioVentaPresupuesto.jsx
 
 const VentasPage = () => {
   const { user } = useAuth();

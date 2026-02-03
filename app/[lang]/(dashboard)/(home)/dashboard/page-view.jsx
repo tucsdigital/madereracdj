@@ -1,16 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import PersonalSpace from "./components/personal-space";
-import LiveActivityFeed from "./components/live-activity-feed";
-import BusinessStatus from "./components/business-status";
-import UserProgress from "./components/user-progress";
-import CommunityStats from "./components/community-stats";
-import PlatformMessages from "./components/platform-messages";
-import Opportunities from "./components/opportunities";
-import DailyRitualSection from "./components/daily-ritual-section";
 import { DateRangeProvider } from "./context/date-range-context";
 import { DashboardDataProvider } from "./context/dashboard-data-context";
+
+const SkeletonCard = () => (
+  <div className="h-48 rounded-3xl bg-default-100/50 animate-pulse" aria-hidden />
+);
 
 const SalesStats = dynamic(() => import("./components/sales-stats"), {
   ssr: false,
@@ -19,14 +15,33 @@ const SalesStats = dynamic(() => import("./components/sales-stats"), {
   ),
 });
 
+const LiveActivityFeed = dynamic(() => import("./components/live-activity-feed"), {
+  loading: () => <SkeletonCard />,
+});
+const BusinessStatus = dynamic(() => import("./components/business-status"), {
+  loading: () => <SkeletonCard />,
+});
+const CommunityStats = dynamic(() => import("./components/community-stats"), {
+  loading: () => <SkeletonCard />,
+});
+const PersonalSpace = dynamic(() => import("./components/personal-space"), {
+  loading: () => <SkeletonCard />,
+});
+const UserProgress = dynamic(() => import("./components/user-progress"), {
+  loading: () => <SkeletonCard />,
+});
+const Opportunities = dynamic(() => import("./components/opportunities"), {
+  loading: () => <SkeletonCard />,
+});
+const PlatformMessages = dynamic(() => import("./components/platform-messages"), {
+  loading: () => <SkeletonCard />,
+});
+
 const DashboardPageView = ({ trans }) => {
   return (
     <DateRangeProvider>
       <DashboardDataProvider>
         <div className="space-y-6 pb-6">
-          {/* Ritual Diario - Sección destacada */}
-          <DailyRitualSection />
-
           {/* Estadísticas de Ventas - Carga diferida para priorizar el resto */}
           <SalesStats />
 

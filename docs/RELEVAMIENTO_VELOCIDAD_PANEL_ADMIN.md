@@ -270,4 +270,24 @@ Para medir mejoras:
 - Número de lecturas Firestore por carga de página (antes y después).
 - Tamaño de chunks JS de las rutas del panel (antes y después de dynamic/lazy).
 
+---
+
+## Optimizaciones aplicadas (post-relevamiento)
+
+Se implementaron mejoras priorizando **Dashboard** y **Ventas**:
+
+### Dashboard
+- **Carga diferida (dynamic):** Los componentes below-the-fold (LiveActivityFeed, BusinessStatus, CommunityStats, PersonalSpace, UserProgress, Opportunities, PlatformMessages) se cargan con `dynamic()`, reduciendo el bundle inicial y mejorando FCP. Cada uno muestra un skeleton mientras carga.
+- **Cache por rango de fechas:** En `dashboard-data-context.jsx` se agregó cache en memoria keyed por `fechaDesde_fechaHasta` (TTL 2 min). Al cambiar el rango y volver al mismo, no se vuelve a llamar a Firestore.
+
+### Ventas (listado)
+- **DataTableEnhanced en dynamic:** La tabla se carga en un chunk separado con `dynamic(..., { ssr: false })` y skeleton, reduciendo el JS inicial de la ruta `/ventas`.
+- **Limpieza de imports:** Se quitaron imports no usados (useForm, yup, yupResolver, Input, Textarea, computeTotals) para aligerar el bundle.
+
+### Ventas (crear)
+- **FormularioVentaPresupuesto en dynamic:** El formulario pesado se carga con `dynamic(..., { ssr: false })` y skeleton, de modo que la ruta `/ventas/create` muestre la shell rápido y el formulario después.
+
+### Ventas (detalle `/ventas/[id]`)
+- **ModalCambiarCliente en dynamic:** El modal se carga en un chunk separado (`dynamic(..., { ssr: false })`) para no bloquear el parse inicial del detalle.
+
 Documento generado como parte del relevamiento de velocidad del panel admin.

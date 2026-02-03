@@ -1,10 +1,20 @@
 "use client";
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, updateDoc, writeBatch, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
-import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
+
+const FormularioVentaPresupuesto = dynamic(
+  () => import("@/components/ventas/FormularioVentaPresupuesto").then((m) => ({ default: m.FormularioVentaPresupuesto })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[400px] rounded-2xl bg-default-100/50 animate-pulse" aria-hidden />
+    ),
+  }
+);
 
 const getNextVentaNumber = async () => {
   const snap = await getDocs(collection(db, "ventas"));

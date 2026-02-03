@@ -72,7 +72,7 @@ export async function getCurrentUserServer(request?: NextRequest): Promise<{ id:
       };
     } catch (verifyError: any) {
       // Si falla la verificación del token (token inválido, expirado, etc.)
-      // Para daily-spin, esto es crítico, así que logueamos el error completo
+      // Logueamos el error completo para diagnóstico
       console.error("Error verificando token:", {
         message: verifyError?.message,
         status: verifyError?.status,
