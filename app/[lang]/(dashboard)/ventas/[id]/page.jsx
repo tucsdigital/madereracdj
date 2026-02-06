@@ -2227,6 +2227,7 @@ const VentaDetalle = () => {
             ) : (
               <div className="text-sm text-gray-600">Sin pagos registrados</div>
             )}
+          </div>
 
           {/* Pago en dólares - Vista e impresión */}
           {(venta.pagoEnDolares && venta.valorOficialDolar) ? (
