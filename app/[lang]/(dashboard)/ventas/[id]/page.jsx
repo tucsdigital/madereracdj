@@ -15,6 +15,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
@@ -244,6 +245,9 @@ const VentaDetalle = () => {
   // Estado para cambio de cliente
   const [showSelectorCliente, setShowSelectorCliente] = useState(false);
 
+  // Comprobantes de pago y pago en dólares
+  const [uploadingComprobante, setUploadingComprobante] = useState(false);
+
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
@@ -376,6 +380,11 @@ const VentaDetalle = () => {
       // Inicializar campos de pago para el formulario
       ventaClonada.nuevoPagoMonto = "";
       ventaClonada.nuevoPagoMetodo = "";
+
+      // Comprobantes de pago y pago en dólares
+      ventaClonada.comprobantesPago = Array.isArray(ventaClonada.comprobantesPago) ? ventaClonada.comprobantesPago : [];
+      ventaClonada.pagoEnDolares = ventaClonada.pagoEnDolares ?? false;
+      ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
 
       // Verificar que los datos se copiaron correctamente
       console.log("venta clonada:", ventaClonada);
@@ -2218,7 +2227,43 @@ const VentaDetalle = () => {
             ) : (
               <div className="text-sm text-gray-600">Sin pagos registrados</div>
             )}
-          </div>
+
+          {/* Pago en dólares - Vista e impresión */}
+          {(venta.pagoEnDolares && venta.valorOficialDolar) ? (
+            <div className="mt-4 p-3 rounded-lg bg-amber-50/80 border border-amber-200 print:block">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold text-amber-800">Pago en dólares:</span>
+                <span className="text-amber-900">Sí</span>
+                <span className="text-amber-700">| Valor oficial: $ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Comprobantes de pago adjuntos - Vista e impresión */}
+          {Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0 ? (
+            <div className="mt-4 historial-pagos-empleado">
+              <h4 className="font-medium mb-2">Comprobantes de pago adjuntos:</h4>
+              <div className="flex flex-wrap gap-2">
+                {venta.comprobantesPago.map((comp, idx) => (
+                  <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-sm">
+                    {comp.tipo === 'pdf' ? (
+                      <>
+                        <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium no-print">
+                          📄 {comp.nombre || `Comprobante ${idx + 1}`}
+                        </a>
+                        <span className="print:inline hidden">📄 {comp.nombre || `Comprobante ${idx + 1}`}</span>
+                      </>
+                    ) : (
+                      <a href={comp.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                        <img src={comp.url} alt={comp.nombre || 'Comprobante'} className="h-12 w-auto max-w-24 rounded border object-cover hover:opacity-90" />
+                        <span className="text-xs text-gray-600 no-print">{comp.nombre || `Comprobante ${idx + 1}`}</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Productos y Servicios */}
@@ -2545,6 +2590,130 @@ const VentaDetalle = () => {
                     placeholder="Observaciones"
                   />
                 </label>
+              </div>
+            </section>
+
+            {/* Pago en dólares y comprobantes adjuntos */}
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold mb-2">Pago en dólares y comprobantes</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3 col-span-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Switch
+                      checked={!!ventaEdit.pagoEnDolares}
+                      onCheckedChange={(checked) =>
+                        setVentaEdit({
+                          ...ventaEdit,
+                          pagoEnDolares: checked,
+                          valorOficialDolar: checked ? (ventaEdit.valorOficialDolar ?? "") : null,
+                        })
+                      }
+                      color="warning"
+                    />
+                    <span className="text-sm font-medium">Pago en dólares</span>
+                  </label>
+                  {ventaEdit.pagoEnDolares && (
+                    <label className="block">
+                      <span className="text-sm font-medium">Valor oficial del dólar</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg mt-1"
+                        value={ventaEdit.valorOficialDolar ?? ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            valorOficialDolar: e.target.value ? Number(e.target.value) : null,
+                          })
+                        }
+                        placeholder="Ej: 1150.50"
+                      />
+                    </label>
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <span className="text-sm font-medium block mb-2">Comprobantes de pago (imágenes o PDF)</span>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        multiple
+                        disabled={uploadingComprobante}
+                        onChange={async (e) => {
+                          const inputEl = e.target;
+                          const files = inputEl?.files;
+                          if (!files?.length) return;
+                          setUploadingComprobante(true);
+                          try {
+                            const nuevos = [];
+                            for (let i = 0; i < files.length; i++) {
+                              const file = files[i];
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              const res = await fetch("/api/upload-comprobante", {
+                                method: "POST",
+                                body: formData,
+                              });
+                              if (!res.ok) {
+                                const err = await res.json();
+                                throw new Error(err.error || "Error al subir");
+                              }
+                              const data = await res.json();
+                              nuevos.push({
+                                url: data.url,
+                                nombre: data.nombre || file.name,
+                                tipo: data.tipo || (file.type === "application/pdf" ? "pdf" : "image"),
+                              });
+                            }
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              comprobantesPago: [...(prev.comprobantesPago || []), ...nuevos],
+                            }));
+                          } catch (err) {
+                            alert(err.message || "Error al subir comprobante");
+                          } finally {
+                            setUploadingComprobante(false);
+                            if (inputEl) inputEl.value = "";
+                          }
+                        }}
+                      />
+                      {uploadingComprobante ? (
+                        <span className="text-sm text-gray-500">Subiendo...</span>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-600">+ Adjuntar imagen o PDF</span>
+                      )}
+                    </label>
+                    {(ventaEdit.comprobantesPago || []).map((comp, idx) => (
+                      <div key={idx} className="inline-flex items-center gap-2 px-2 py-1 rounded bg-slate-100 border border-slate-200 text-sm">
+                        {comp.tipo === "pdf" ? (
+                          <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            📄 {comp.nombre}
+                          </a>
+                        ) : (
+                          <a href={comp.url} target="_blank" rel="noopener noreferrer">
+                            <img src={comp.url} alt={comp.nombre} className="h-8 w-auto rounded object-cover" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              comprobantesPago: (prev.comprobantesPago || []).filter((_, i) => i !== idx),
+                            }))
+                          }
+                          className="text-red-600 hover:text-red-800 p-0.5"
+                          title="Quitar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </section>
 
