@@ -248,6 +248,10 @@ const VentaDetalle = () => {
   // Comprobantes de pago y pago en dólares
   const [uploadingComprobante, setUploadingComprobante] = useState(false);
 
+  // Dólar Blue dinámico (venta)
+  const [loadingDolar, setLoadingDolar] = useState(false);
+  const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
+
   // Estados para filtros de productos
   const [categoriaId, setCategoriaId] = useState("");
   const [busquedaProducto, setBusquedaProducto] = useState("");
@@ -396,6 +400,34 @@ const VentaDetalle = () => {
       setVentaEdit(ventaClonada);
     }
   }, [editando, venta]);
+
+  // Fetch Dólar Blue (venta) - se actualiza al entrar en edición y cada 5 min
+  const fetchDolarBlue = useCallback(async () => {
+    setLoadingDolar(true);
+    try {
+      const res = await fetch("/api/dolar-blue");
+      const data = await res.json();
+      if (res.ok && data?.venta != null) {
+        setVentaEdit((prev) => {
+          if (!prev?.pagoEnDolares) return prev;
+          return { ...prev, valorOficialDolar: data.venta };
+        });
+        setUltimaActualizacionDolar(data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date());
+      }
+    } catch (err) {
+      console.warn("Error al obtener dólar blue:", err);
+    } finally {
+      setLoadingDolar(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editando || !ventaEdit?.pagoEnDolares) return;
+    fetchDolarBlue();
+    const interval = setInterval(fetchDolarBlue, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [editando, ventaEdit?.pagoEnDolares, fetchDolarBlue]);
+
   // Al activar edición, inicializar pagosSimples si no hay array pagos
   useEffect(() => {
     if (editando && venta && !Array.isArray(venta.pagos)) {
@@ -2235,7 +2267,7 @@ const VentaDetalle = () => {
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-semibold text-amber-800">Pago en dólares:</span>
                 <span className="text-amber-900">Sí</span>
-                <span className="text-amber-700">| Valor oficial: $ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
+                <span className="text-amber-700">| Dólar Blue (venta): $ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
               </div>
             </div>
           ) : null}
@@ -2614,23 +2646,52 @@ const VentaDetalle = () => {
                     <span className="text-sm font-medium">Pago en dólares</span>
                   </label>
                   {ventaEdit.pagoEnDolares && (
-                    <label className="block">
-                      <span className="text-sm font-medium">Valor oficial del dólar</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg mt-1"
-                        value={ventaEdit.valorOficialDolar ?? ""}
-                        onChange={(e) =>
-                          setVentaEdit({
-                            ...ventaEdit,
-                            valorOficialDolar: e.target.value ? Number(e.target.value) : null,
-                          })
-                        }
-                        placeholder="Ej: 1150.50"
-                      />
-                    </label>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="block">
+                          <span className="text-sm font-medium">Dólar Blue (venta)</span>
+                          <div className="flex gap-2 mt-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                              value={ventaEdit.valorOficialDolar ?? ""}
+                              onChange={(e) =>
+                                setVentaEdit({
+                                  ...ventaEdit,
+                                  valorOficialDolar: e.target.value ? Number(e.target.value) : null,
+                                })
+                              }
+                              placeholder="Ej: 1440"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDolarBlue}
+                              disabled={loadingDolar}
+                              className="shrink-0 h-9"
+                            >
+                              {loadingDolar ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Actualizar"
+                              )}
+                            </Button>
+                          </div>
+                        </label>
+                      </div>
+                      {ultimaActualizacionDolar && (
+                        <p className="text-xs text-gray-500">
+                          Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}{" "}
+                          (se actualiza cada 5 min)
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="col-span-2">
