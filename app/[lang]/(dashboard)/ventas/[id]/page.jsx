@@ -24,6 +24,7 @@ const ModalCambiarCliente = dynamic(
   () => import("@/components/clientes/ModalCambiarCliente"),
   { ssr: false }
 );
+import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -244,9 +245,6 @@ const VentaDetalle = () => {
 
   // Estado para cambio de cliente
   const [showSelectorCliente, setShowSelectorCliente] = useState(false);
-
-  // Comprobantes de pago y pago en dólares
-  const [uploadingComprobante, setUploadingComprobante] = useState(false);
 
   // Dólar Blue dinámico (venta)
   const [loadingDolar, setLoadingDolar] = useState(false);
@@ -2261,42 +2259,79 @@ const VentaDetalle = () => {
             )}
           </div>
 
-          {/* Pago en dólares - Vista e impresión */}
-          {(venta.pagoEnDolares && venta.valorOficialDolar) ? (
-            <div className="mt-4 p-3 rounded-lg bg-amber-50/80 border border-amber-200 print:block">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-semibold text-amber-800">Pago en dólares:</span>
-                <span className="text-amber-900">Sí</span>
-                <span className="text-amber-700">| Dólar Blue (venta): $ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
-              </div>
-            </div>
-          ) : null}
+          {/* Información de pago en dólares y comprobantes - Vista e impresión profesional */}
+          {((venta.pagoEnDolares && venta.valorOficialDolar) || (Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0)) && (
+            <div className="mt-6 historial-pagos-empleado">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-100/80 border-b border-slate-200">
+                  <h4 className="font-semibold text-slate-800 text-sm">Información de pago</h4>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Pago en dólares - Dólar Blue */}
+                  {venta.pagoEnDolares && venta.valorOficialDolar && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pago en dólares</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm text-slate-600">Dólar Blue (venta):</span>
+                        <span className="text-lg font-bold text-amber-700">$ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
+                      </div>
+                    </div>
+                  )}
 
-          {/* Comprobantes de pago adjuntos - Vista e impresión */}
-          {Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0 ? (
-            <div className="mt-4 historial-pagos-empleado">
-              <h4 className="font-medium mb-2">Comprobantes de pago adjuntos:</h4>
-              <div className="flex flex-wrap gap-2">
-                {venta.comprobantesPago.map((comp, idx) => (
-                  <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-sm">
-                    {comp.tipo === 'pdf' ? (
-                      <>
-                        <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium no-print">
-                          📄 {comp.nombre || `Comprobante ${idx + 1}`}
-                        </a>
-                        <span className="print:inline hidden">📄 {comp.nombre || `Comprobante ${idx + 1}`}</span>
-                      </>
-                    ) : (
-                      <a href={comp.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                        <img src={comp.url} alt={comp.nombre || 'Comprobante'} className="h-12 w-auto max-w-24 rounded border object-cover hover:opacity-90" />
-                        <span className="text-xs text-gray-600 no-print">{comp.nombre || `Comprobante ${idx + 1}`}</span>
-                      </a>
-                    )}
-                  </div>
-                ))}
+                  {/* Comprobantes adjuntos */}
+                  {Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0 && (
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">Comprobantes adjuntos</span>
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="text-left text-slate-600 border-b border-slate-200">
+                            <th className="py-2 pr-3 font-medium">#</th>
+                            <th className="py-2 pr-3 font-medium">Tipo</th>
+                            <th className="py-2 font-medium">Archivo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {venta.comprobantesPago.map((comp, idx) => (
+                            <tr key={idx} className="border-b border-slate-100 last:border-0">
+                              <td className="py-2 pr-3 text-slate-500">{idx + 1}</td>
+                              <td className="py-2 pr-3">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${comp.tipo === "pdf" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                                  {comp.tipo === "pdf" ? "PDF" : "Imagen"}
+                                </span>
+                              </td>
+                              <td className="py-2">
+                                <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium no-print">
+                                  {comp.nombre || `Comprobante ${idx + 1}`}
+                                </a>
+                                <span className="print:inline hidden">{comp.nombre || `Comprobante ${idx + 1}`}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {/* Miniaturas: visibles en vista e impresión */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {venta.comprobantesPago.filter((c) => c.tipo !== "pdf").map((comp, idx) => (
+                          <a key={idx} href={comp.url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                            <img src={comp.url} alt={comp.nombre || "Comprobante"} className="h-16 w-auto max-w-20 rounded border border-slate-200 object-cover hover:opacity-90 print:h-14 print:max-w-16" />
+                          </a>
+                        ))}
+                        {venta.comprobantesPago.filter((c) => c.tipo === "pdf").length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {venta.comprobantesPago.filter((c) => c.tipo === "pdf").map((comp, idx) => (
+                              <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 border border-slate-200 text-xs font-medium">
+                                PDF: {comp.nombre || `Comprobante ${idx + 1}`}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
 
         {/* Productos y Servicios */}
@@ -2695,86 +2730,14 @@ const VentaDetalle = () => {
                   )}
                 </div>
                 <div className="col-span-2">
-                  <span className="text-sm font-medium block mb-2">Comprobantes de pago (imágenes o PDF)</span>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                        multiple
-                        disabled={uploadingComprobante}
-                        onChange={async (e) => {
-                          const inputEl = e.target;
-                          const files = inputEl?.files;
-                          if (!files?.length) return;
-                          setUploadingComprobante(true);
-                          try {
-                            const nuevos = [];
-                            for (let i = 0; i < files.length; i++) {
-                              const file = files[i];
-                              const formData = new FormData();
-                              formData.append("file", file);
-                              const res = await fetch("/api/upload-comprobante", {
-                                method: "POST",
-                                body: formData,
-                              });
-                              if (!res.ok) {
-                                const err = await res.json();
-                                throw new Error(err.error || "Error al subir");
-                              }
-                              const data = await res.json();
-                              nuevos.push({
-                                url: data.url,
-                                nombre: data.nombre || file.name,
-                                tipo: data.tipo || (file.type === "application/pdf" ? "pdf" : "image"),
-                              });
-                            }
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              comprobantesPago: [...(prev.comprobantesPago || []), ...nuevos],
-                            }));
-                          } catch (err) {
-                            alert(err.message || "Error al subir comprobante");
-                          } finally {
-                            setUploadingComprobante(false);
-                            if (inputEl) inputEl.value = "";
-                          }
-                        }}
-                      />
-                      {uploadingComprobante ? (
-                        <span className="text-sm text-gray-500">Subiendo...</span>
-                      ) : (
-                        <span className="text-sm font-medium text-gray-600">+ Adjuntar imagen o PDF</span>
-                      )}
-                    </label>
-                    {(ventaEdit.comprobantesPago || []).map((comp, idx) => (
-                      <div key={idx} className="inline-flex items-center gap-2 px-2 py-1 rounded bg-slate-100 border border-slate-200 text-sm">
-                        {comp.tipo === "pdf" ? (
-                          <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                            📄 {comp.nombre}
-                          </a>
-                        ) : (
-                          <a href={comp.url} target="_blank" rel="noopener noreferrer">
-                            <img src={comp.url} alt={comp.nombre} className="h-8 w-auto rounded object-cover" />
-                          </a>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              comprobantesPago: (prev.comprobantesPago || []).filter((_, i) => i !== idx),
-                            }))
-                          }
-                          className="text-red-600 hover:text-red-800 p-0.5"
-                          title="Quitar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <ComprobantesPagoSection
+                    comprobantes={ventaEdit.comprobantesPago || []}
+                    onComprobantesChange={(lista) =>
+                      setVentaEdit((prev) => ({ ...prev, comprobantesPago: lista }))
+                    }
+                    disabled={loadingPrecios}
+                    maxFiles={10}
+                  />
                 </div>
               </div>
             </section>
