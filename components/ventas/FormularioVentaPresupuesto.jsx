@@ -1216,32 +1216,25 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         );
       })
       .sort((a, b) => {
-        // 1) Primero los con stock, después los sin stock
         const stockA = Number(a.stock) || 0;
         const stockB = Number(b.stock) || 0;
-        if (stockA > 0 && stockB === 0) return -1;
-        if (stockA === 0 && stockB > 0) return 1;
+        const tieneStockA = stockA > 0;
+        const tieneStockB = stockB > 0;
 
-        // 2) Entre los que tienen stock: más stock primero (descendente)
-        if (stockA > 0 && stockB > 0 && stockA !== stockB) return stockB - stockA;
+        if (tieneStockA && !tieneStockB) return -1;
+        if (!tieneStockA && tieneStockB) return 1;
 
-        // 3) Si hay búsqueda: priorizar coincidencias al inicio (nombre/código)
-        if (busquedaNormalizada && !busquedaNormalizada.endsWith(".")) {
-          const busq = busquedaNormalizada;
-          const score = (p) => {
-            const n = normalizarTexto(p.nombre);
-            const c = normalizarTexto(p.codigo || "");
-            if (n.startsWith(busq) || c.startsWith(busq)) return 2;
-            if (n.includes(busq) || c.includes(busq)) return 1;
-            return 0;
-          };
-          const sa = score(a);
-          const sb = score(b);
-          if (sa !== sb) return sb - sa;
+        if (stockA !== stockB) {
+          return stockB - stockA;
         }
 
-        // 4) Orden estable por nombre
-        return (a.nombre || "").localeCompare(b.nombre || "", "es", { sensitivity: "base" });
+        const nombreA = (a.nombre || a.descripcion || "").toLowerCase();
+        const nombreB = (b.nombre || b.descripcion || "").toLowerCase();
+        if (nombreA !== nombreB) {
+          return nombreA.localeCompare(nombreB, "es", { sensitivity: "base" });
+        }
+
+        return 0;
       });
   }, [
     productosPorCategoria,
