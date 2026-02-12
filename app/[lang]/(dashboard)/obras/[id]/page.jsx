@@ -1,10 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,7 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Printer, Edit, User, MapPin, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Printer, Edit, User, MapPin, Calendar, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { useObra } from "@/hooks/useObra";
 import {
   formatearNumeroArgentino,
@@ -48,6 +51,25 @@ const ObraDetallePage = () => {
   const [openPrint, setOpenPrint] = useState(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   const [showCamposSecundarios, setShowCamposSecundarios] = useState(false);
+  // Pago en dólares y comprobantes para la sección de documentación
+  const [pagoEnDolares, setPagoEnDolares] = useState(false);
+  const [valorOficialDolar, setValorOficialDolar] = useState(null);
+  const [comprobantesPago, setComprobantesPago] = useState([]);
+  const [loadingDolar, setLoadingDolar] = useState(false);
+  const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
+  const [notasObra, setNotasObra] = useState([]);
+  const [notaTitulo, setNotaTitulo] = useState("");
+  const [notaContenido, setNotaContenido] = useState("");
+  const [notaEditIdx, setNotaEditIdx] = useState(null);
+
+  // Cuando cambia la obra, inicializar estados de pago/comprobantes con los datos existentes
+  useEffect(() => {
+    if (!obra) return;
+    setPagoEnDolares(!!obra.pagoEnDolares);
+    setValorOficialDolar(obra.valorOficialDolar ?? null);
+    setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
+    setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
+  }, [obra]);
 
   const {
     obra,
@@ -80,9 +102,16 @@ const ObraDetallePage = () => {
     setOpenPrint(true);
   };
 
-  const handleToggleEdit = () => {
+  const handleToggleEdit = async () => {
     if (editando) {
-      guardarEdicion();
+      try {
+        await guardarEdicion();
+        // Guardar también la sección de pago/comprobantes cuando se finaliza la edición
+        await handleGuardarDocPago();
+      } catch (err) {
+        console.error("Error al guardar edición completa:", err);
+        alert("Error al guardar cambios de la obra y documentación: " + err.message);
+      }
     } else {
       setEditando(true);
     }
@@ -116,6 +145,49 @@ const ObraDetallePage = () => {
 
 
   const handleCantidadChange = (id, cantidad) => {
+  
+  // Fetch Dólar Blue para la sección de documentación (cuando se habilita pago en dólares)
+  const fetchDolarBlue = useCallback(async () => {
+    setLoadingDolar(true);
+    try {
+      const res = await fetch("/api/dolar-blue");
+      const data = await res.json();
+      if (res.ok && data?.venta != null) {
+        setValorOficialDolar(data.venta);
+        setUltimaActualizacionDolar(data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date());
+      }
+    } catch (err) {
+      console.warn("Error al obtener dólar blue:", err);
+    } finally {
+      setLoadingDolar(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pagoEnDolares) return;
+    fetchDolarBlue();
+    const interval = setInterval(fetchDolarBlue, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [pagoEnDolares, fetchDolarBlue]);
+
+  // Guardar campos de pago/comprobantes en la obra
+  const handleGuardarDocPago = async () => {
+    if (!obra?.id) return alert("Obra no disponible");
+    try {
+      await updateDoc(doc(db, "obras", obra.id), {
+        pagoEnDolares: !!pagoEnDolares,
+        valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
+        comprobantesPago: comprobantesPago || [],
+        notasObra: notasObra || [],
+        fechaModificacion: new Date().toISOString(),
+      });
+      alert("Documentación guardada correctamente");
+    } catch (err) {
+      console.error("Error al guardar documentación:", err);
+      alert("Error al guardar documentación: " + err.message);
+    }
+  };
+
     const parsedCantidad = parseNumericValue(cantidad);
     setItemsCatalogo((prev) =>
       prev.map((p) => {
@@ -709,6 +781,68 @@ const ObraDetallePage = () => {
                   editando={editando}
                 />
 
+                {/* Pago en dólares y comprobantes (integrado a Documentación) */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Switch
+                      checked={!!pagoEnDolares}
+                      onCheckedChange={(checked) => {
+                        setPagoEnDolares(checked);
+                        if (!checked) setValorOficialDolar(null);
+                      }}
+                      color="warning"
+                    />
+                    <span className="text-sm font-medium">Pago en dólares (USD)</span>
+                  </label>
+
+                  {pagoEnDolares && (
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                          value={valorOficialDolar ?? ""}
+                          onChange={(e) => setValorOficialDolar(e.target.value ? Number(e.target.value) : null)}
+                          placeholder="Ej: 1440"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchDolarBlue}
+                          disabled={loadingDolar}
+                          className="shrink-0 h-9"
+                        >
+                          {loadingDolar ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
+                        </Button>
+                      </div>
+                      {ultimaActualizacionDolar && (
+                        <p className="text-xs text-gray-500">
+                          Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })} (se actualiza cada 5 min)
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <ComprobantesPagoSection
+                    comprobantes={comprobantesPago}
+                    onComprobantesChange={setComprobantesPago}
+                    disabled={loadingDolar}
+                    maxFiles={8}
+                  />
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setPagoEnDolares(false); setComprobantesPago([]); setValorOficialDolar(null); }}>
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Presupuesto Inicial (si existe) */}
                 {presupuesto && (
                   <div className="space-y-4">
@@ -798,14 +932,110 @@ const ObraDetallePage = () => {
           </Card>
         </div>
 
-        {/* Barra lateral - Solo Resumen Financiero */}
+        {/* Espacio lateral: anotador de notas de la obra */}
         <div className="space-y-6">
-          <ObraResumenFinanciero
-            obra={obra}
-            presupuesto={presupuesto}
-            modoCosto={modoCosto}
-            formatearNumeroArgentino={formatearNumeroArgentino}
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Notas rápidas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Form para nueva nota / editar */}
+              <div className="space-y-2">
+                <Input
+                  placeholder="Título"
+                  value={notaTitulo}
+                  onChange={(e) => setNotaTitulo(e.target.value)}
+                />
+                <Textarea
+                  placeholder="Escribí una nota..."
+                  rows={3}
+                  value={notaContenido}
+                  onChange={(e) => setNotaContenido(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setNotaTitulo("");
+                      setNotaContenido("");
+                      setNotaEditIdx(null);
+                    }}
+                    size="sm"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      const titulo = (notaTitulo || "").trim();
+                      const contenido = (notaContenido || "").trim();
+                      if (!titulo && !contenido) return;
+                      const nueva = {
+                        id: Date.now().toString(),
+                        titulo: titulo || `Nota ${notasObra.length + 1}`,
+                        contenido,
+                        fecha: new Date().toISOString(),
+                      };
+                      if (notaEditIdx !== null && notasObra[notaEditIdx]) {
+                        const copia = [...notasObra];
+                        copia[notaEditIdx] = { ...copia[notaEditIdx], ...nueva };
+                        setNotasObra(copia);
+                      } else {
+                        setNotasObra((prev) => [nueva, ...(prev || [])]);
+                      }
+                      // limpiar campos
+                      setNotaTitulo("");
+                      setNotaContenido("");
+                      setNotaEditIdx(null);
+                    }}
+                  >
+                    {notaEditIdx !== null ? "Guardar nota" : "Agregar nota"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista de notas */}
+              <div className="space-y-2 max-h-[360px] overflow-y-auto">
+                {(notasObra || []).length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay notas aún.</p>
+                ) : (
+                  (notasObra || []).map((n, idx) => (
+                    <div key={n.id || idx} className="p-2 border rounded-md bg-gray-50">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-medium text-sm">{n.titulo}</div>
+                          <div className="text-xs text-gray-500">{new Date(n.fecha).toLocaleString()}</div>
+                          <div className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{n.contenido}</div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            onClick={() => {
+                              setNotaEditIdx(idx);
+                              setNotaTitulo(n.titulo || "");
+                              setNotaContenido(n.contenido || "");
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            onClick={() => {
+                              if (!confirm("¿Eliminar nota?")) return;
+                              setNotasObra(prev => prev.filter((_, i) => i !== idx));
+                            }}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings } from "lucide-react";
+import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2 } from "lucide-react";
 import { Icon } from "@iconify/react";
+import { Switch } from "@/components/ui/switch";
+import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
@@ -490,6 +492,16 @@ const GastosPage = () => {
   const [fechaPago, setFechaPago] = useState(new Date().toISOString().split("T")[0]);
   const [metodoPago, setMetodoPago] = useState("Efectivo");
   const [notasPago, setNotasPago] = useState("");
+  // Pago en dólares y comprobantes (para registrar pagos en cuentas por pagar)
+  const [pagoEnDolares, setPagoEnDolares] = useState(false);
+  const [valorOficialDolar, setValorOficialDolar] = useState(null);
+  const [comprobantesPago, setComprobantesPago] = useState([]);
+  const [loadingDolar, setLoadingDolar] = useState(false);
+  const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
+
+  // Editar / eliminar pagos individuales
+  const [openEditarPago, setOpenEditarPago] = useState(false);
+  const [pagoEdit, setPagoEdit] = useState(null); // { idx, monto, fecha, metodo, notas, pagoEnDolares, valorOficialDolar, comprobantesPago }
 
   const handleRegistrarPago = async () => {
     if (!cuentaSeleccionada || !montoPago || Number(montoPago) <= 0) return;
@@ -514,6 +526,9 @@ const GastosPage = () => {
         notas: notasPago,
         responsable: user?.email || "Usuario no identificado",
         fechaRegistro: new Date().toISOString(),
+        pagoEnDolares: !!pagoEnDolares,
+        valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
+        comprobantes: comprobantesPago || [],
       };
       
       const pagosActualizados = [...(cuentaSeleccionada.pagos || []), nuevoPago];
@@ -534,9 +549,113 @@ const GastosPage = () => {
       setFechaPago(new Date().toISOString().split("T")[0]);
       setMetodoPago("Efectivo");
       setNotasPago("");
+      setPagoEnDolares(false);
+      setValorOficialDolar(null);
+      setComprobantesPago([]);
     } catch (error) {
       console.error("Error al registrar pago:", error);
       alert("Error al registrar el pago: " + error.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // Fetch Dólar Blue (similar a ventas) - usable cuando se registra pago en dólares
+  const fetchDolarBlue = useCallback(async () => {
+    setLoadingDolar(true);
+    try {
+      const res = await fetch("/api/dolar-blue");
+      const data = await res.json();
+      if (res.ok && data?.venta != null) {
+        setValorOficialDolar(data.venta);
+        setUltimaActualizacionDolar(data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date());
+      }
+    } catch (err) {
+      console.warn("Error al obtener dólar blue:", err);
+    } finally {
+      setLoadingDolar(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!openPago || !pagoEnDolares) return;
+    fetchDolarBlue();
+    const interval = setInterval(fetchDolarBlue, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [openPago, pagoEnDolares, fetchDolarBlue]);
+
+  // Guardar edición de un pago existente
+  const handleGuardarEdicionPago = async () => {
+    if (!cuentaSeleccionada || !pagoEdit) return;
+    setGuardando(true);
+    try {
+      const pagos = Array.isArray(cuentaSeleccionada.pagos) ? [...cuentaSeleccionada.pagos] : [];
+      const idx = pagoEdit.idx;
+      const pagoNuevo = {
+        monto: Number(pagoEdit.monto),
+        fecha: pagoEdit.fecha,
+        metodo: pagoEdit.metodo,
+        notas: pagoEdit.notas || "",
+        responsable: pagoEdit.responsable || user?.email || "Usuario no identificado",
+        fechaRegistro: pagoEdit.fechaRegistro || new Date().toISOString(),
+        pagoEnDolares: !!pagoEdit.pagoEnDolares,
+        valorOficialDolar: pagoEdit.pagoEnDolares ? (pagoEdit.valorOficialDolar ?? null) : null,
+        comprobantes: pagoEdit.comprobantes || [],
+      };
+
+      pagos[idx] = pagoNuevo;
+
+      const montoPagadoNuevo = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+      const montoTotalCuenta = Number(cuentaSeleccionada.monto) || 0;
+      let nuevoEstado = "pendiente";
+      if (montoPagadoNuevo >= montoTotalCuenta) nuevoEstado = "pagado";
+      else if (montoPagadoNuevo > 0) nuevoEstado = "parcial";
+
+      await updateDoc(doc(db, "gastos", cuentaSeleccionada.id), {
+        pagos,
+        montoPagado: montoPagadoNuevo,
+        estadoPago: nuevoEstado,
+        fechaActualizacion: serverTimestamp(),
+      });
+
+      await cargarDatos();
+      setOpenEditarPago(false);
+      setPagoEdit(null);
+    } catch (err) {
+      console.error("Error al guardar edición de pago:", err);
+      alert("Error al guardar la edición: " + err.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleEliminarPago = async (idx) => {
+    if (!cuentaSeleccionada) return;
+    if (!confirm("¿Eliminar este pago? Esta acción no se puede deshacer.")) return;
+    setGuardando(true);
+    try {
+      const pagos = Array.isArray(cuentaSeleccionada.pagos) ? [...cuentaSeleccionada.pagos] : [];
+      const next = pagos.filter((_, i) => i !== idx);
+      const montoPagadoNuevo = next.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+      const montoTotalCuenta = Number(cuentaSeleccionada.monto) || 0;
+      let nuevoEstado = "pendiente";
+      if (montoPagadoNuevo >= montoTotalCuenta) nuevoEstado = "pagado";
+      else if (montoPagadoNuevo > 0) nuevoEstado = "parcial";
+
+      await updateDoc(doc(db, "gastos", cuentaSeleccionada.id), {
+        pagos: next,
+        montoPagado: montoPagadoNuevo,
+        estadoPago: nuevoEstado,
+        fechaActualizacion: serverTimestamp(),
+      });
+
+      await cargarDatos();
+      // cerrar edición si estaba abierto sobre ese índice
+      setOpenEditarPago(false);
+      setPagoEdit(null);
+    } catch (err) {
+      console.error("Error al eliminar pago:", err);
+      alert("Error al eliminar el pago: " + err.message);
     } finally {
       setGuardando(false);
     }
@@ -1271,6 +1390,10 @@ const GastosPage = () => {
                                 onClick={() => {
                                   setCuentaSeleccionada(c);
                                   setMontoPago((Number(c.monto) - Number(c.montoPagado || 0)).toString());
+                                  // Inicializar opciones de pago en dólares / comprobantes desde la cuenta si hubiera
+                                  setPagoEnDolares(!!c.pagoEnDolares);
+                                  setValorOficialDolar(c.valorOficialDolar ?? null);
+                                  setComprobantesPago(c.comprobantes || []);
                                   setOpenPago(true);
                                 }}
                                 title="Registrar pago"
@@ -1597,6 +1720,64 @@ const GastosPage = () => {
                 </div>
               </div>
 
+              {/* Switch: pago en dólares y comprobantes */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <Switch
+                    checked={!!pagoEnDolares}
+                    onCheckedChange={(checked) => {
+                      setPagoEnDolares(checked);
+                      if (!checked) {
+                        setValorOficialDolar(null);
+                      }
+                    }}
+                    color="warning"
+                  />
+                  <span className="text-sm font-medium">Pago en dólares</span>
+                </label>
+                {pagoEnDolares && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                        value={valorOficialDolar ?? ""}
+                        onChange={(e) => setValorOficialDolar(e.target.value ? Number(e.target.value) : null)}
+                        placeholder="Ej: 1440"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchDolarBlue}
+                        disabled={loadingDolar}
+                        className="shrink-0 h-9"
+                      >
+                        {loadingDolar ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
+                      </Button>
+                    </div>
+                    {ultimaActualizacionDolar && (
+                      <p className="text-xs text-gray-500">
+                        Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}{" "}
+                        (se actualiza cada 5 min)
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <ComprobantesPagoSection
+                  comprobantes={comprobantesPago || []}
+                  onComprobantesChange={setComprobantesPago}
+                  disabled={loadingDolar || guardando}
+                  maxFiles={8}
+                />
+              </div>
+
               {/* Historial de pagos */}
               {cuentaSeleccionada.pagos && cuentaSeleccionada.pagos.length > 0 && (
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
@@ -1728,6 +1909,11 @@ const GastosPage = () => {
                               <Badge variant="outline" className="text-xs">
                                 {pago.metodo || "Efectivo"}
                               </Badge>
+                              {pago.pagoEnDolares && (
+                                <Badge variant="subtle" className="text-xs ml-1">
+                                  USD
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-xs text-gray-500 mt-1 space-y-0.5">
                               <div className="flex items-center gap-1">
@@ -1740,10 +1926,36 @@ const GastosPage = () => {
                               {pago.responsable && (
                                 <div className="text-gray-400">Por: {pago.responsable}</div>
                               )}
+                              {pago.comprobantes && pago.comprobantes.length > 0 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {pago.comprobantes.length} comprobante{pago.comprobantes.length !== 1 ? "s" : ""}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-xs text-gray-400">
-                            Pago #{idx + 1}
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="text-xs text-gray-400">Pago #{idx + 1}</div>
+                            <div className="flex gap-1 mt-2">
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => {
+                                  setPagoEdit({ ...pago, idx });
+                                  setOpenEditarPago(true);
+                                }}
+                                title="Editar pago"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => handleEliminarPago(idx)}
+                                title="Eliminar pago"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1784,6 +1996,99 @@ const GastosPage = () => {
         open={openGestionCategorias} 
         onOpenChange={setOpenGestionCategorias} 
       />
+      
+      {/* Modal para editar pago individual */}
+      <Dialog open={openEditarPago} onOpenChange={setOpenEditarPago}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{pagoEdit ? `Editar Pago #${pagoEdit.idx + 1}` : "Editar Pago"}</DialogTitle>
+          </DialogHeader>
+          {pagoEdit && (
+            <div className="flex flex-col gap-3 py-2">
+              <div>
+                <Label>Monto *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={pagoEdit.monto}
+                  onChange={(e) => setPagoEdit(prev => ({ ...prev, monto: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Fecha *</Label>
+                <Input
+                  type="date"
+                  value={pagoEdit.fecha}
+                  onChange={(e) => setPagoEdit(prev => ({ ...prev, fecha: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Método</Label>
+                <select
+                  value={pagoEdit.metodo}
+                  onChange={(e) => setPagoEdit(prev => ({ ...prev, metodo: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                </select>
+              </div>
+              <div>
+                <Label>Notas</Label>
+                <Textarea
+                  rows={2}
+                  value={pagoEdit.notas || ""}
+                  onChange={(e) => setPagoEdit(prev => ({ ...prev, notas: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <Switch
+                    checked={!!pagoEdit.pagoEnDolares}
+                    onCheckedChange={(checked) => setPagoEdit(prev => ({ ...prev, pagoEnDolares: checked }))}
+                    color="warning"
+                  />
+                  <span className="text-sm font-medium">Pago en dólares</span>
+                </label>
+                {pagoEdit.pagoEnDolares && (
+                  <div className="mt-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={pagoEdit.valorOficialDolar ?? ""}
+                      onChange={(e) => setPagoEdit(prev => ({ ...prev, valorOficialDolar: e.target.value ? Number(e.target.value) : null }))}
+                      placeholder="Valor dólar"
+                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <ComprobantesPagoSection
+                  comprobantes={pagoEdit.comprobantes || []}
+                  onComprobantesChange={(list) => setPagoEdit(prev => ({ ...prev, comprobantes: list }))}
+                  disabled={guardando}
+                  maxFiles={6}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOpenEditarPago(false); setPagoEdit(null); }} disabled={guardando}>
+              Cancelar
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => pagoEdit && handleEliminarPago(pagoEdit.idx)} disabled={guardando}>
+                Eliminar
+              </Button>
+              <Button onClick={handleGuardarEdicionPago} disabled={guardando}>
+                {guardando ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
