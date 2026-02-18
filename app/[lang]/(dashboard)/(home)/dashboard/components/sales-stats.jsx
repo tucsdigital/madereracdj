@@ -41,6 +41,44 @@ const SalesStats = () => {
     );
     const ticketPromedio = ventasCount > 0 ? ventasMonto / ventasCount : 0;
 
+    let cobranzasIngresado = 0;
+    let cobranzasPendiente = 0;
+    let cobranzasParcialPendiente = 0;
+    let cobranzasAbonadoParcial = 0;
+    let cobranzasPagadoTotal = 0;
+    let cobranzasIngresadoPeriodo = 0;
+    ventasFiltradas.forEach((v) => {
+      const total = Number(v.total) || 0;
+      let pagosArr = Array.isArray(v.pagos) ? v.pagos : [];
+      if ((!pagosArr || pagosArr.length === 0) && Number(v.montoAbonado)) {
+        pagosArr = [{ monto: Number(v.montoAbonado) }];
+      }
+      const abonado = pagosArr.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+      pagosArr.forEach((p) => {
+        const f = p.fecha;
+        if (f && isInRange(f)) {
+          cobranzasIngresadoPeriodo += Number(p.monto) || 0;
+        }
+      });
+      let estado = String(v.estadoPago || "").toLowerCase();
+      if (!estado) {
+        if (abonado >= total && total > 0) estado = "pagado";
+        else if (abonado > 0 && abonado < total) estado = "parcial";
+        else estado = "pendiente";
+      }
+      cobranzasIngresado += abonado;
+      if (estado === "pagado") {
+        cobranzasPagadoTotal += total;
+      } else if (estado === "pendiente") {
+        cobranzasPendiente += total;
+      } else if (estado === "parcial") {
+        const saldo = Math.max(total - abonado, 0);
+        cobranzasParcialPendiente += saldo;
+        cobranzasAbonadoParcial += abonado;
+      }
+    });
+    const pendienteParcialTotal = cobranzasPendiente + cobranzasParcialPendiente;
+
     // Calcular totales de obras (todas las filtradas)
     const obrasCount = obrasFiltradas.length;
     const obrasMonto = obrasFiltradas.reduce((acc, o) => {
@@ -150,6 +188,13 @@ const SalesStats = () => {
       obrasCount,
       obrasMonto,
       obrasComision,
+      cobranzasIngresado,
+      cobranzasPendiente,
+      cobranzasParcialPendiente,
+      cobranzasAbonadoParcial,
+      cobranzasPagadoTotal,
+      pendienteParcialTotal,
+      cobranzasIngresadoPeriodo,
     };
   }, [
     ventasFiltradas,
@@ -270,70 +315,12 @@ const SalesStats = () => {
 
   // Comisión sobre ventas (2.5% para todos los clientes)
   const comisionesPorTipoCliente = useMemo(() => {
-    let totalVentasConCliente = 0;
-    let ventasSinCliente = 0;
-    let totalVentasProcesadas = 0;
-    let ventasClienteNoEncontradoIds = [];
-
-    ventasFiltradas.forEach((venta) => {
-      let clienteEncontrado = null;
-
-      // Buscar cliente por clienteId primero
-      if (venta.clienteId) {
-        clienteEncontrado = clientesData[venta.clienteId];
-      }
-
-      // Si no se encontró por clienteId, buscar por teléfono del objeto cliente
-      if (!clienteEncontrado && venta.cliente && venta.cliente.telefono) {
-        const telefono = venta.cliente.telefono;
-        // Buscar en clientesData por teléfono
-        for (const [clienteId, cliente] of Object.entries(clientesData)) {
-          if (cliente.telefono === telefono) {
-            clienteEncontrado = cliente;
-            break;
-          }
-        }
-      }
-
-      // Si no se encontró por teléfono, buscar por CUIT del objeto cliente
-      if (!clienteEncontrado && venta.cliente && venta.cliente.cuit) {
-        const cuit = venta.cliente.cuit;
-        // Buscar en clientesData por CUIT
-        for (const [clienteId, cliente] of Object.entries(clientesData)) {
-          if (cliente.cuit === cuit) {
-            clienteEncontrado = cliente;
-            break;
-          }
-        }
-      }
-
-      if (!clienteEncontrado) {
-        ventasSinCliente++;
-        ventasClienteNoEncontradoIds.push({
-          id: venta.id,
-          numeroPedido: venta.numeroPedido,
-          cliente: venta.cliente,
-          monto: venta.total,
-        });
-        return;
-      }
-
-      const montoVenta = Number(venta.total) || 0;
-      totalVentasProcesadas += montoVenta;
-      totalVentasConCliente += montoVenta;
-    });
-
-    // Calcular comisión: 2.5% para todas las ventas con cliente
-    const comisionTotal = totalVentasConCliente * (COMMISSION_RATE / 100);
-
-    return {
-      totalVentasConCliente,
-      comisionTotal,
-      ventasSinCliente,
-      totalVentasProcesadas,
-      ventasClienteNoEncontradoIds,
-    };
-  }, [ventasFiltradas, clientesData, kpis.ventasMonto, COMMISSION_RATE]);
+    const basePagada = Number(kpis.cobranzasPagadoTotal) || 0;
+    const baseCobrosPeriodo = Number(kpis.cobranzasIngresadoPeriodo) || 0;
+    const comisionPagado = basePagada * (COMMISSION_RATE / 100);
+    const comisionCobrosPeriodo = baseCobrosPeriodo * (COMMISSION_RATE / 100);
+    return { comisionPagado, comisionCobrosPeriodo };
+  }, [kpis.cobranzasPagadoTotal, kpis.cobranzasIngresadoPeriodo, COMMISSION_RATE]);
 
   // Eliminar cálculos anteriores que ya no se usan
   // const totalVendidoClientesNuevos = useMemo(() => {
@@ -721,7 +708,7 @@ const SalesStats = () => {
                     <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-green-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300">
-                          Monto
+                          Total
                         </div>
                         <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                           <Icon
@@ -738,10 +725,10 @@ const SalesStats = () => {
                   <TooltipContent side="bottom" color="secondary">
                     <div className="space-y-2 text-xs sm:text-sm">
                       <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Total acumulado
+                        Total del período
                       </div>
                       <div className="text-gray-700 dark:text-gray-300">
-                        Suma de todas las ventas del período
+                        Suma de ventas completas, parciales y pendientes
                       </div>
                       <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
                         <div className="text-gray-600 dark:text-gray-400 text-xs">
@@ -757,76 +744,66 @@ const SalesStats = () => {
                     <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-indigo-100/80 via-indigo-50/60 to-purple-50/80 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs md:text-sm text-indigo-700 dark:text-indigo-300">
-                          Ticket
+                          Pagado (ventas)
                         </div>
                         <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
                           <Icon
-                            icon="heroicons:chart-bar-square"
+                            icon="heroicons:check-badge"
                             className="w-3 h-3 md:w-4 md:h-4"
                           />
                         </span>
                       </div>
                       <div className="text-lg md:text-2xl lg:text-3xl font-extrabold tracking-tight break-all">
-                        ${nf.format(Math.round(kpis.ticketPromedio))}
+                        ${nf.format(Math.round(kpis.cobranzasPagadoTotal))}
                       </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" color="secondary">
                     <div className="space-y-2 text-xs sm:text-sm">
                       <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Ticket promedio
+                        Ventas completamente pagadas
                       </div>
                       <div className="text-gray-700 dark:text-gray-300">
-                        Monto promedio por venta
-                      </div>
-                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <div className="text-gray-600 dark:text-gray-400 text-xs">
-                          <span className="font-medium">Calculado:</span> Total ÷ Cantidad de ventas
-                        </div>
+                        Monto total de ventas con estado pagado
                       </div>
                     </div>
                   </TooltipContent>
                 </Tooltip>
-                {/* Presupuestos */}
+                {/* Pendiente + Parciales */}
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link href="/presupuestos" className="block">
-                      <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-amber-100/80 via-amber-50/60 to-yellow-50/80 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all cursor-pointer transform hover:scale-[1.01]">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
-                            Presup.
-                          </div>
-                          <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                            <Icon
-                              icon="heroicons:document-text"
-                              className="w-3 h-3 md:w-4 md:h-4"
-                            />
-                          </span>
+                    <div className="p-4 md:p-5 rounded-2xl border-0 bg-gradient-to-br from-amber-100/80 via-amber-50/60 to-yellow-50/80 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01]">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs md:text-sm text-amber-700 dark:text-amber-300">
+                          Pendiente + Parciales
                         </div>
-                        <div className="text-xl md:text-3xl font-extrabold tracking-tight">
-                          {kpis.presupuestosCount}
-                        </div>
+                        <span className="inline-flex w-6 h-6 md:w-8 md:h-8 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                          <Icon
+                            icon="heroicons:exclamation-circle"
+                            className="w-3 h-3 md:w-4 md:h-4"
+                          />
+                        </span>
                       </div>
-                    </Link>
+                      <div className="text-xl md:text-3xl font-extrabold tracking-tight">
+                        ${nf.format(Math.round(kpis.pendienteParcialTotal))}
+                      </div>
+                    </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" color="secondary">
                     <div className="space-y-2 text-xs sm:text-sm">
                       <div className="font-bold text-sm sm:text-base text-gray-900 dark:text-gray-100">
-                        Presupuestos generados
+                        Suma de saldos
                       </div>
                       <div className="text-gray-700 dark:text-gray-300">
-                        En el período seleccionado
-                      </div>
-                      <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <span className="text-primary dark:text-primary font-medium text-xs sm:text-sm">
-                          Click para ver todos los presupuestos →
-                        </span>
+                        Incluye pendientes y el saldo de ventas parciales
                       </div>
                     </div>
                   </TooltipContent>
                 </Tooltip>
               </div>
             </TooltipProvider>
+
+            
 
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {/* Comisión por ventas */}
@@ -843,10 +820,10 @@ const SalesStats = () => {
                   </span>
                 </div>
                 <div className="text-lg md:text-xl lg:text-2xl font-extrabold tracking-tight break-all">
-                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionTotal))}
+                  ${nf.format(Math.round(comisionesPorTipoCliente.comisionPagado))}
                 </div>
                 <div className="text-[10px] md:text-xs text-default-500 mt-1">
-                  2.5% sobre ventas
+                  2.5% sobre ventas pagadas
                 </div>
               </div>
 
