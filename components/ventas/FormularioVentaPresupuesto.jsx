@@ -3236,7 +3236,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Dirección *
+                        Dirección
                       </label>
                       <Input
                         placeholder="Dirección completa"
@@ -3248,7 +3248,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             direccion: e.target.value,
                           })
                         }
-                        required
                       />
                     </div>
                   </div>
@@ -3391,11 +3390,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     disabled={
                       (activeTab === "datos" &&
                         (!nuevoCliente.nombre ||
-                          !nuevoCliente.direccion ||
                           !nuevoCliente.telefono)) ||
                       (activeTab === "ubicacion" &&
                         (!nuevoCliente.nombre ||
-                          !nuevoCliente.direccion ||
                           !nuevoCliente.telefono))
                     }
                     className="text-sm"
@@ -3418,10 +3415,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   onClick={async () => {
                     if (
                       !nuevoCliente.nombre ||
-                      !nuevoCliente.direccion ||
                       !nuevoCliente.telefono
                     ) {
-                      alert("Nombre, dirección y teléfono son obligatorios");
+                      alert("Nombre y teléfono son obligatorios");
                       return;
                     }
                     const clienteObj = {
@@ -3466,7 +3462,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   }}
                   disabled={
                     !nuevoCliente.nombre ||
-                    !nuevoCliente.direccion ||
                     !nuevoCliente.telefono
                   }
                   className="text-sm"
