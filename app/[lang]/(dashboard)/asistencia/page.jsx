@@ -42,6 +42,12 @@ const estados = [
   { value: "media", label: "Media jornada" },
   { value: "extra", label: "Extra" },
 ];
+const estadoItems = [
+  { value: "presente", label: "P", icon: "lucide:check-circle", cls: "bg-green-50 text-green-700 border-green-200" },
+  { value: "ausente", label: "A", icon: "lucide:x-circle", cls: "bg-red-50 text-red-700 border-red-200" },
+  { value: "media", label: "½", icon: "lucide:clock-2", cls: "bg-yellow-50 text-yellow-800 border-yellow-200" },
+  { value: "extra", label: "+", icon: "lucide:plus-circle", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+];
 
 function calcMonto(estado, base, extra) {
   if (estado === "ausente") return 0;
@@ -317,10 +323,28 @@ export default function AsistenciaPage() {
                         return (
                           <td key={i} className="px-2 py-2">
                             <div className="flex items-center gap-2">
-                              <select disabled={cerrada} value={d.estado} onChange={e=>setDay(emp,i,e.target.value,null)} className="border rounded-md px-2 py-1 text-xs">
-                                {estados.map(s=>(<option key={s.value} value={s.value}>{s.label}</option>))}
-                              </select>
-                              <Input disabled={cerrada} type="number" min={0} value={d.monto} onChange={e=>setDay(emp,i,d.estado,e.target.value)} className="w-24 text-right rounded-md" />
+                              <div className="inline-flex items-center gap-1 p-0.5 rounded-full bg-default-50">
+                                {estadoItems.map(item=>(
+                                  <button
+                                    key={item.value}
+                                    type="button"
+                                    disabled={cerrada}
+                                    onClick={()=>setDay(emp,i,item.value,null)}
+                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs transition-colors ${d.estado===item.value ? item.cls : "border-transparent text-muted-foreground hover:bg-white hover:shadow-sm"}`}
+                                  >
+                                    <Icon icon={item.icon} className="w-3.5 h-3.5" />
+                                    <span>{item.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <Input
+                                disabled={cerrada || d.estado!=="extra"}
+                                type="number"
+                                min={0}
+                                value={d.monto}
+                                onChange={e=>setDay(emp,i,d.estado,e.target.value)}
+                                className="w-20 text-right rounded-md"
+                              />
                             </div>
                           </td>
                         );
@@ -331,7 +355,10 @@ export default function AsistenciaPage() {
                       </td>
                       <td className="px-3 py-2 text-right font-semibold">${tPagar.toLocaleString("es-AR")}</td>
                       <td className="px-3 py-2 text-center">
-                        <Button variant="ghost" size="sm" onClick={()=>window.location.assign(`/${lang}/asistencia/empleado/${emp.id}`)}>Ver detalle</Button>
+                        <Button variant="ghost" size="sm" className="px-2" onClick={()=>window.location.assign(`/${lang}/asistencia/empleado/${emp.id}`)}>
+                          <Icon icon="lucide:eye" className="w-4 h-4 mr-1" />
+                          Ver detalle
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -372,8 +399,12 @@ export default function AsistenciaPage() {
                     <td className="px-3 py-2">{emp.sector || ""}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <Button variant="ghost" size="sm" onClick={()=>abrirEditarEmp(emp)}>Editar</Button>
-                        <Button variant="ghost" size="sm" onClick={()=>eliminarEmp(emp)}>Eliminar</Button>
+                        <Button variant="ghost" size="sm" className="px-2" onClick={()=>abrirEditarEmp(emp)}>
+                          <Icon icon="lucide:pencil" className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="px-2 text-red-600 hover:text-red-700" onClick={()=>eliminarEmp(emp)}>
+                          <Icon icon="lucide:trash-2" className="w-4 h-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
