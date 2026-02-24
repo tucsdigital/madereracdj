@@ -68,11 +68,6 @@ export const menusConfig = {
       icon: CalendarCheck,
       href: "/asistencia",
     },
-    {
-      title: "Empleados",
-      icon: Users2,
-      href: "/asistencia/empleados",
-    },
   ],
   sidebarNav: {
     modern: [
@@ -135,11 +130,6 @@ export const menusConfig = {
         title: "Asistencia",
         icon: CalendarCheck,
         href: "/asistencia",
-      },
-      {
-        title: "Empleados",
-        icon: Users2,
-        href: "/asistencia/empleados",
       },
     ],
     classic: [
@@ -206,11 +196,6 @@ export const menusConfig = {
         title: "Asistencia",
         icon: CalendarCheck,
         href: "/asistencia",
-      },
-      {
-        title: "Empleados",
-        icon: Users2,
-        href: "/asistencia/empleados",
       },
     ],
   },

@@ -233,16 +233,20 @@ export default function AsistenciaPage() {
 
   return (
     <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white border rounded-2xl px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold">Asistencia</div>
-          <div className="flex items-center gap-2 pl-4">
+          <div className="flex items-center gap-2 pl-3">
             <Label htmlFor="vistaEmp" className="text-sm">Empleados</Label>
             <Switch id="vistaEmp" checked={vistaActiva==="empleados"} onCheckedChange={(v)=>setVistaActiva(v?"empleados":"asistencia")} />
           </div>
         </div>
         {vistaActiva === "asistencia" ? (
           <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${cerrada ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+              {cerrada ? "Semana cerrada" : "Semana abierta"}
+            </span>
+            <Button variant="outline" onClick={() => setFechaBase(fmt(startOfWeek(new Date())))} className="px-3">Hoy</Button>
             <Button variant="outline" onClick={() => navSemana(-1)} className="px-3"><Icon icon="lucide:chevron-left" /></Button>
             <div className="text-sm font-semibold">Semana {rangoSemana}</div>
             <Button variant="outline" onClick={() => navSemana(1)} className="px-3"><Icon icon="lucide:chevron-right" /></Button>
@@ -252,7 +256,7 @@ export default function AsistenciaPage() {
               <option value="inactivos">Inactivos</option>
               <option value="todos">Todos</option>
             </select>
-            <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="ml-2">{cerrada?"Semana cerrada":"Cerrar semana"}</Button>
+            <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="ml-2">{cerrada?"Cerrada":"Cerrar semana"}</Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -268,13 +272,13 @@ export default function AsistenciaPage() {
       </div>
 
       {vistaActiva === "asistencia" ? (
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Liquidación semanal</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm border border-default-200 rounded-lg overflow-hidden">
+          <div className="overflow-auto rounded-xl border">
+            <table className="min-w-full text-sm rounded-xl overflow-hidden">
               <thead className="bg-default-100">
                 <tr>
                   <th className="px-3 py-2 text-left w-56">Empleado</th>
@@ -292,10 +296,10 @@ export default function AsistenciaPage() {
                   const tAdv = totalAdelantosEmp(emp.id);
                   const tPagar = tSemana - tAdv;
                   return (
-                    <tr key={emp.id} className="border-t">
+                    <tr key={emp.id} className="border-t hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${emp.activo!==false?"bg-green-500":"bg-gray-400"}`} />
+                          <div className={`w-2.5 h-2.5 rounded-full ${emp.activo!==false?"bg-green-500":"bg-gray-400"}`} />
                           <div className="font-medium">{emp.nombre || ""}</div>
                         </div>
                       </td>
@@ -307,7 +311,7 @@ export default function AsistenciaPage() {
                               <select disabled={cerrada} value={d.estado} onChange={e=>setDay(emp,i,e.target.value,null)} className="border rounded-md px-2 py-1 text-xs">
                                 {estados.map(s=>(<option key={s.value} value={s.value}>{s.label}</option>))}
                               </select>
-                              <Input disabled={cerrada} type="number" min={0} value={d.monto} onChange={e=>setDay(emp,i,d.estado,e.target.value)} className="w-24 text-right" />
+                              <Input disabled={cerrada} type="number" min={0} value={d.monto} onChange={e=>setDay(emp,i,d.estado,e.target.value)} className="w-24 text-right rounded-md" />
                             </div>
                           </td>
                         );
@@ -329,13 +333,13 @@ export default function AsistenciaPage() {
         </CardContent>
       </Card>
       ) : (
-      <Card>
+      <Card className="rounded-2xl shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Empleados</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm border rounded-lg overflow-hidden">
+          <div className="overflow-auto rounded-xl border">
+            <table className="min-w-full text-sm rounded-xl overflow-hidden">
               <thead className="bg-default-100">
                 <tr>
                   <th className="px-3 py-2 text-left">Nombre</th>
@@ -351,7 +355,7 @@ export default function AsistenciaPage() {
                   .filter(i => (filtroEmp === "todos" ? true : filtroEmp === "activos" ? i.activo !== false : i.activo === false))
                   .filter(i => (i.nombre || "").toLowerCase().includes(buscadorEmp.toLowerCase()))
                   .map(emp => (
-                  <tr key={emp.id} className="border-t">
+                  <tr key={emp.id} className="border-t hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2">{emp.nombre || ""}</td>
                     <td className="px-3 py-2 text-center">{emp.activo !== false ? "Sí" : "No"}</td>
                     <td className="px-3 py-2 text-right">${Number(emp.valorDia || 0).toLocaleString("es-AR")}</td>
@@ -373,7 +377,7 @@ export default function AsistenciaPage() {
       )}
 
       <Dialog open={Boolean(popoverEmpleado)} onOpenChange={()=>setPopoverEmpleado(null)}>
-        <DialogContent>
+        <DialogContent className="rounded-xl">
           <DialogHeader>
             <DialogTitle>Adelantos {popoverEmpleado?.nombre || ""}</DialogTitle>
           </DialogHeader>
