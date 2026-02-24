@@ -4,7 +4,7 @@ import {
   Building,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2 } from "lucide-react";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -63,6 +63,16 @@ export const menusConfig = {
       icon: ClipboardList,
       href: "/auditoria",
     },
+    {
+      title: "Asistencia",
+      icon: CalendarCheck,
+      href: "/asistencia",
+    },
+    {
+      title: "Empleados",
+      icon: Users2,
+      href: "/asistencia/empleados",
+    },
   ],
   sidebarNav: {
     modern: [
@@ -120,6 +130,16 @@ export const menusConfig = {
         title: "Auditoría",
         icon: ClipboardList,
         href: "/auditoria",
+      },
+      {
+        title: "Asistencia",
+        icon: CalendarCheck,
+        href: "/asistencia",
+      },
+      {
+        title: "Empleados",
+        icon: Users2,
+        href: "/asistencia/empleados",
       },
     ],
     classic: [
@@ -181,6 +201,16 @@ export const menusConfig = {
         title: "Auditoría",
         icon: ClipboardList,
         href: "/auditoria",
+      },
+      {
+        title: "Asistencia",
+        icon: CalendarCheck,
+        href: "/asistencia",
+      },
+      {
+        title: "Empleados",
+        icon: Users2,
+        href: "/asistencia/empleados",
       },
     ],
   },
