@@ -73,6 +73,7 @@ export default function AsistenciaPage() {
   const [popoverEmpleado, setPopoverEmpleado] = useState(null);
   const [nuevoAdelanto, setNuevoAdelanto] = useState({ fecha: fmt(new Date()), monto: "", nota: "" });
   const [cerrada, setCerrada] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(null);
   // Estado para gestión de empleados (vista empleados)
   const [buscadorEmp, setBuscadorEmp] = useState("");
   const [filtroEmp, setFiltroEmp] = useState("activos");
@@ -248,40 +249,40 @@ export default function AsistenciaPage() {
 
   return (
     <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
-      <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white rounded-2xl px-4 py-3 shadow">
-        <div className="flex items-center gap-3">
-          <div className="text-lg font-semibold">Asistencia</div>
-          <div className="flex items-center gap-2 pl-3">
-            <Label htmlFor="vistaEmp" className="text-sm">Empleados</Label>
+      <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2 bg-white/70 backdrop-blur shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="text-base font-semibold">Asistencia</div>
+          <div className="flex items-center gap-2 pl-2">
+            <Label htmlFor="vistaEmp" className="text-xs text-muted-foreground">Empleados</Label>
             <Switch id="vistaEmp" checked={vistaActiva==="empleados"} onCheckedChange={(v)=>setVistaActiva(v?"empleados":"asistencia")} />
           </div>
         </div>
         {vistaActiva === "asistencia" ? (
           <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${cerrada ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
-              {cerrada ? "Semana cerrada" : "Semana abierta"}
+            <span className={`px-2 py-1 rounded-full text-[11px] font-medium border ${cerrada ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+              {cerrada ? "Cerrada" : "Abierta"}
             </span>
-            <Button variant="outline" onClick={() => setFechaBase(fmt(startOfWeek(new Date())))} className="px-3">Hoy</Button>
-            <Button variant="outline" onClick={() => navSemana(-1)} className="px-3"><Icon icon="lucide:chevron-left" /></Button>
-            <div className="text-sm font-semibold">Semana {rangoSemana}</div>
-            <Button variant="outline" onClick={() => navSemana(1)} className="px-3"><Icon icon="lucide:chevron-right" /></Button>
-            <Input placeholder="Buscar empleado" value={filtroNombre} onChange={e=>setFiltroNombre(e.target.value)} className="w-56" />
-            <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+            <Button variant="outline" onClick={() => setFechaBase(fmt(startOfWeek(new Date())))} className="h-8 px-2 text-xs">Hoy</Button>
+            <Button variant="outline" onClick={() => navSemana(-1)} className="h-8 w-8 p-0"><Icon icon="lucide:chevron-left" /></Button>
+            <div className="text-xs font-semibold">{rangoSemana}</div>
+            <Button variant="outline" onClick={() => navSemana(1)} className="h-8 w-8 p-0"><Icon icon="lucide:chevron-right" /></Button>
+            <Input placeholder="Buscar" value={filtroNombre} onChange={e=>setFiltroNombre(e.target.value)} className="h-8 w-40 text-xs" />
+            <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="h-8 border rounded-md px-2 text-xs">
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
               <option value="todos">Todos</option>
             </select>
-            <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="ml-2">{cerrada?"Cerrada":"Cerrar semana"}</Button>
+            <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="h-8 px-2 text-xs">Cerrar semana</Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <Input placeholder="Buscar por nombre" value={buscadorEmp} onChange={(e)=>setBuscadorEmp(e.target.value)} className="w-64" />
-            <select value={filtroEmp} onChange={(e)=>setFiltroEmp(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+            <Input placeholder="Buscar" value={buscadorEmp} onChange={(e)=>setBuscadorEmp(e.target.value)} className="h-8 w-48 text-xs" />
+            <select value={filtroEmp} onChange={(e)=>setFiltroEmp(e.target.value)} className="h-8 border rounded-md px-2 text-xs">
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
               <option value="todos">Todos</option>
             </select>
-            <Button onClick={abrirNuevoEmp}>Nuevo empleado</Button>
+            <Button className="h-8 px-2 text-xs" onClick={abrirNuevoEmp}>Nuevo</Button>
           </div>
         )}
       </div>
@@ -296,12 +297,12 @@ export default function AsistenciaPage() {
             <table className="min-w-full text-sm rounded-xl overflow-hidden">
               <thead className="bg-default-100">
                 <tr>
-                  <th className="px-3 py-2 text-left w-56">Empleado</th>
-                  {encabezadosDias.map((h,i)=>(<th key={i} className="px-3 py-2 text-center w-36">{h}</th>))}
-                  <th className="px-3 py-2 text-right w-28">Total semana</th>
-                  <th className="px-3 py-2 text-right w-28">Adelantos</th>
-                  <th className="px-3 py-2 text-right w-28">Total a pagar</th>
-                  <th className="px-3 py-2 text-center w-24">Acciones</th>
+                  <th className="px-2 py-2 text-left w-48">Empleado</th>
+                  {encabezadosDias.map((h,i)=>(<th key={i} className="px-2 py-2 text-center w-28">{h}</th>))}
+                  <th className="px-2 py-2 text-right w-24">Total</th>
+                  <th className="px-2 py-2 text-right w-24">Adelantos</th>
+                  <th className="px-2 py-2 text-right w-24">A pagar</th>
+                  <th className="px-2 py-2 text-center w-16">Acc.</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-default-200">
@@ -312,7 +313,7 @@ export default function AsistenciaPage() {
                   const tPagar = tSemana - tAdv;
                   return (
                     <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2">
                         <div className="flex items-center gap-2">
                           <div className={`w-2.5 h-2.5 rounded-full ${emp.activo!==false?"bg-green-500":"bg-gray-400"}`} />
                           <div className="font-medium">{emp.nombre || ""}</div>
@@ -320,44 +321,56 @@ export default function AsistenciaPage() {
                       </td>
                       {[0,1,2,3,4,5].map(i=>{
                         const d = getDay(emp.id,i);
+                        const estadoItem = estadoItems.find(it=>it.value===d.estado) || estadoItems[1];
+                        const key = `${emp.id}-${i}`;
                         return (
-                          <td key={i} className="px-2 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className="inline-flex items-center gap-1 p-0.5 rounded-full bg-default-50">
-                                {estadoItems.map(item=>(
-                                  <button
-                                    key={item.value}
-                                    type="button"
-                                    disabled={cerrada}
-                                    onClick={()=>setDay(emp,i,item.value,null)}
-                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs transition-colors ${d.estado===item.value ? item.cls : "border-transparent text-muted-foreground hover:bg-white hover:shadow-sm"}`}
-                                  >
-                                    <Icon icon={item.icon} className="w-3.5 h-3.5" />
-                                    <span>{item.label}</span>
-                                  </button>
-                                ))}
-                              </div>
+                          <td key={i} className="px-2 py-1.5">
+                            <div className="relative flex items-center gap-1.5" onBlur={()=>setPickerOpen(null)} tabIndex={0}>
+                              <button
+                                type="button"
+                                disabled={cerrada}
+                                onClick={()=>setPickerOpen(p=>p===key?null:key)}
+                                className={`inline-flex items-center gap-1 h-7 px-2 rounded-full border text-xs transition-colors ${estadoItem.cls}`}
+                              >
+                                <Icon icon={estadoItem.icon} className="w-3.5 h-3.5" />
+                                <span>{estadoItem.label}</span>
+                                <Icon icon="lucide:chevron-down" className="w-3 h-3 opacity-70" />
+                              </button>
+                              {pickerOpen===key && !cerrada && (
+                                <div className="absolute top-full left-0 mt-1 inline-flex items-center gap-1 rounded-full bg-white shadow-lg px-1 py-1 z-20">
+                                  {estadoItems.map(item=>(
+                                    <button
+                                      key={item.value}
+                                      type="button"
+                                      onClick={()=>{ setDay(emp,i,item.value,null); setPickerOpen(null); }}
+                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${item.cls}`}
+                                    >
+                                      <Icon icon={item.icon} className="w-3.5 h-3.5" />
+                                      <span>{item.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                               <Input
                                 disabled={cerrada || d.estado!=="extra"}
                                 type="number"
                                 min={0}
                                 value={d.monto}
                                 onChange={e=>setDay(emp,i,d.estado,e.target.value)}
-                                className="w-20 text-right rounded-md"
+                                className="w-14 h-7 text-right rounded-md text-xs"
                               />
                             </div>
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2 text-right font-semibold">${tSemana.toLocaleString("es-AR")}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Button variant="outline" size="sm" onClick={()=>abrirPopoverAdelantos(emp)}>{tAdv.toLocaleString("es-AR")}</Button>
+                      <td className="px-2 py-2 text-right font-semibold text-xs">${tSemana.toLocaleString("es-AR")}</td>
+                      <td className="px-2 py-2 text-right">
+                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={()=>abrirPopoverAdelantos(emp)}>{tAdv.toLocaleString("es-AR")}</Button>
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold">${tPagar.toLocaleString("es-AR")}</td>
-                      <td className="px-3 py-2 text-center">
-                        <Button variant="ghost" size="sm" className="px-2" onClick={()=>window.location.assign(`/${lang}/asistencia/empleado/${emp.id}`)}>
-                          <Icon icon="lucide:eye" className="w-4 h-4 mr-1" />
-                          Ver detalle
+                      <td className="px-2 py-2 text-right font-semibold text-xs">${tPagar.toLocaleString("es-AR")}</td>
+                      <td className="px-2 py-2 text-center">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={()=>window.location.assign(`/${lang}/asistencia/empleado/${emp.id}`)}>
+                          <Icon icon="lucide:eye" className="w-4 h-4" />
                         </Button>
                       </td>
                     </tr>
