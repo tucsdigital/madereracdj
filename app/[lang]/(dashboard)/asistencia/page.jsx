@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, onSnapshot, query, setDoc, where, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, setDoc, where, addDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 
@@ -50,6 +52,7 @@ function dayKey(i) {
 
 export default function AsistenciaPage() {
   const { lang } = useParams();
+  const [vistaActiva, setVistaActiva] = useState("asistencia"); // asistencia | empleados
   const [fechaBase, setFechaBase] = useState(fmt(startOfWeek(new Date())));
   const [empleados, setEmpleados] = useState([]);
   const [filtroNombre, setFiltroNombre] = useState("");
@@ -59,6 +62,12 @@ export default function AsistenciaPage() {
   const [popoverEmpleado, setPopoverEmpleado] = useState(null);
   const [nuevoAdelanto, setNuevoAdelanto] = useState({ fecha: fmt(new Date()), monto: "", nota: "" });
   const [cerrada, setCerrada] = useState(false);
+  // Estado para gestión de empleados (vista empleados)
+  const [buscadorEmp, setBuscadorEmp] = useState("");
+  const [filtroEmp, setFiltroEmp] = useState("activos");
+  const [openEmp, setOpenEmp] = useState(false);
+  const [editandoEmp, setEditandoEmp] = useState(null);
+  const [formEmp, setFormEmp] = useState({ nombre: "", activo: true, valorDia: "", valorExtra: "", sector: "" });
 
   const semanaInicio = useMemo(() => startOfWeek(new Date(fechaBase)), [fechaBase]);
   const semanaClave = useMemo(() => fmt(semanaInicio), [semanaInicio]);
@@ -180,25 +189,85 @@ export default function AsistenciaPage() {
     setFechaBase(fmt(addDays(semanaInicio, delta)));
   };
 
+  // Funciones gestión de empleados (vista empleados)
+  const abrirNuevoEmp = () => {
+    setEditandoEmp(null);
+    setFormEmp({ nombre: "", activo: true, valorDia: "", valorExtra: "", sector: "" });
+    setOpenEmp(true);
+  };
+  const abrirEditarEmp = (emp) => {
+    setEditandoEmp(emp);
+    setFormEmp({
+      nombre: emp.nombre || "",
+      activo: emp.activo !== false,
+      valorDia: emp.valorDia ?? "",
+      valorExtra: emp.valorExtra ?? "",
+      sector: emp.sector || "",
+    });
+    setOpenEmp(true);
+  };
+  const guardarEmp = async () => {
+    const payload = {
+      nombre: (formEmp.nombre || "").trim(),
+      activo: Boolean(formEmp.activo),
+      valorDia: Number(formEmp.valorDia || 0),
+      valorExtra: Number(formEmp.valorExtra || 0),
+      sector: formEmp.sector || "",
+    };
+    if (!payload.nombre) return;
+    if (editandoEmp) {
+      await updateDoc(doc(db, "empleados", editandoEmp.id), payload);
+    } else {
+      await addDoc(collection(db, "empleados"), payload);
+    }
+    const snap = await getDocs(collection(db, "empleados"));
+    setEmpleados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setOpenEmp(false);
+  };
+  const eliminarEmp = async (emp) => {
+    if (!confirm("¿Eliminar empleado?")) return;
+    await deleteDoc(doc(db, "empleados", emp.id));
+    const snap = await getDocs(collection(db, "empleados"));
+    setEmpleados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+
   return (
     <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => navSemana(-1)} className="px-3"><Icon icon="lucide:chevron-left" /> </Button>
-          <div className="text-sm font-semibold">Semana {rangoSemana}</div>
-          <Button variant="outline" onClick={() => navSemana(1)} className="px-3"><Icon icon="lucide:chevron-right" /> </Button>
+          <div className="text-lg font-semibold">Asistencia</div>
+          <div className="flex items-center gap-2 pl-4">
+            <Label htmlFor="vistaEmp" className="text-sm">Empleados</Label>
+            <Switch id="vistaEmp" checked={vistaActiva==="empleados"} onCheckedChange={(v)=>setVistaActiva(v?"empleados":"asistencia")} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Input placeholder="Buscar empleado" value={filtroNombre} onChange={e=>setFiltroNombre(e.target.value)} className="w-56" />
-          <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
-            <option value="activos">Activos</option>
-            <option value="inactivos">Inactivos</option>
-            <option value="todos">Todos</option>
-          </select>
-          <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="ml-2">{cerrada?"Semana cerrada":"Cerrar semana"}</Button>
-          <Button variant="outline" onClick={()=>window.location.assign(`/${lang}/asistencia/empleados`)} className="ml-2">Gestionar empleados</Button>
-        </div>
+        {vistaActiva === "asistencia" ? (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navSemana(-1)} className="px-3"><Icon icon="lucide:chevron-left" /></Button>
+            <div className="text-sm font-semibold">Semana {rangoSemana}</div>
+            <Button variant="outline" onClick={() => navSemana(1)} className="px-3"><Icon icon="lucide:chevron-right" /></Button>
+            <Input placeholder="Buscar empleado" value={filtroNombre} onChange={e=>setFiltroNombre(e.target.value)} className="w-56" />
+            <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+              <option value="todos">Todos</option>
+            </select>
+            <Button variant="default" onClick={cerrarSemana} disabled={cerrada} className="ml-2">{cerrada?"Semana cerrada":"Cerrar semana"}</Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Input placeholder="Buscar por nombre" value={buscadorEmp} onChange={(e)=>setBuscadorEmp(e.target.value)} className="w-64" />
+            <select value={filtroEmp} onChange={(e)=>setFiltroEmp(e.target.value)} className="border rounded-md px-3 py-2 text-sm">
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+              <option value="todos">Todos</option>
+            </select>
+            <Button onClick={abrirNuevoEmp}>Nuevo empleado</Button>
+          </div>
+        )}
       </div>
+
+      {vistaActiva === "asistencia" ? (
       <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle className="text-base">Liquidación semanal</CardTitle>
@@ -259,6 +328,49 @@ export default function AsistenciaPage() {
           </div>
         </CardContent>
       </Card>
+      ) : (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Empleados</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm border rounded-lg overflow-hidden">
+              <thead className="bg-default-100">
+                <tr>
+                  <th className="px-3 py-2 text-left">Nombre</th>
+                  <th className="px-3 py-2 text-center">Activo</th>
+                  <th className="px-3 py-2 text-right">Valor día</th>
+                  <th className="px-3 py-2 text-right">Valor extra</th>
+                  <th className="px-3 py-2 text-left">Sector</th>
+                  <th className="px-3 py-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {empleados
+                  .filter(i => (filtroEmp === "todos" ? true : filtroEmp === "activos" ? i.activo !== false : i.activo === false))
+                  .filter(i => (i.nombre || "").toLowerCase().includes(buscadorEmp.toLowerCase()))
+                  .map(emp => (
+                  <tr key={emp.id} className="border-t">
+                    <td className="px-3 py-2">{emp.nombre || ""}</td>
+                    <td className="px-3 py-2 text-center">{emp.activo !== false ? "Sí" : "No"}</td>
+                    <td className="px-3 py-2 text-right">${Number(emp.valorDia || 0).toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2 text-right">${Number(emp.valorExtra || 0).toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2">{emp.sector || ""}</td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button variant="ghost" size="sm" onClick={()=>abrirEditarEmp(emp)}>Editar</Button>
+                        <Button variant="ghost" size="sm" onClick={()=>eliminarEmp(emp)}>Eliminar</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      )}
 
       <Dialog open={Boolean(popoverEmpleado)} onOpenChange={()=>setPopoverEmpleado(null)}>
         <DialogContent>
@@ -283,6 +395,45 @@ export default function AsistenciaPage() {
           </div>
           <DialogFooter>
             <Button onClick={agregarAdelanto} disabled={!nuevoAdelanto.monto}>Agregar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openEmp} onOpenChange={setOpenEmp}>
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">{editandoEmp ? "Editar empleado" : "Nuevo empleado"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="empNombre" className="text-sm font-medium">Nombre</Label>
+              <Input id="empNombre" placeholder="Nombre y apellido" value={formEmp.nombre} onChange={(e)=>setFormEmp({...formEmp, nombre: e.target.value})} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="empValorDia" className="text-sm font-medium">Valor día</Label>
+                <Input id="empValorDia" type="number" min={0} placeholder="0" value={formEmp.valorDia} onChange={(e)=>setFormEmp({...formEmp, valorDia: e.target.value})} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="empValorExtra" className="text-sm font-medium">Valor extra</Label>
+                <Input id="empValorExtra" type="number" min={0} placeholder="0" value={formEmp.valorExtra} onChange={(e)=>setFormEmp({...formEmp, valorExtra: e.target.value})} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="empSector" className="text-sm font-medium">Sector</Label>
+              <Input id="empSector" placeholder="Ej: Aserrado, Carga, Entregas" value={formEmp.sector} onChange={(e)=>setFormEmp({...formEmp, sector: e.target.value})} className="mt-1" />
+            </div>
+            <div className="flex items-center justify-between rounded-md border bg-default-50 py-2 px-3">
+              <div className="flex flex-col">
+                <Label htmlFor="empActivo" className="text-sm font-medium">Activo</Label>
+                <span className="text-xs text-muted-foreground">Habilitar para listados de asistencia</span>
+              </div>
+              <Switch id="empActivo" checked={formEmp.activo} onCheckedChange={(v)=>setFormEmp({...formEmp, activo: v})} />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={()=>setOpenEmp(false)}>Cancelar</Button>
+            <Button onClick={guardarEmp} disabled={!formEmp.nombre}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
