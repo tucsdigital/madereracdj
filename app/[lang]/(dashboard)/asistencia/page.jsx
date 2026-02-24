@@ -30,6 +30,11 @@ function addDays(d, n) {
 function fmt(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
+function fmtDM(d) {
+  const dd = String(new Date(d).getDate()).padStart(2, "0");
+  const mm = String(new Date(d).getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}`;
+}
 
 const estados = [
   { value: "presente", label: "Presente" },
@@ -75,6 +80,10 @@ export default function AsistenciaPage() {
     const ini = fmt(semanaInicio);
     const fin = fmt(addDays(semanaInicio, 5));
     return `${ini} – ${fin}`;
+  }, [semanaInicio]);
+  const encabezadosDias = useMemo(() => {
+    const nombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    return [0,1,2,3,4,5].map(i => `${nombres[i]} ${fmtDM(addDays(semanaInicio, i))}`);
   }, [semanaInicio]);
 
   useEffect(() => {
@@ -233,7 +242,7 @@ export default function AsistenciaPage() {
 
   return (
     <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
-      <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white border rounded-2xl px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-gray-50 to-white rounded-2xl px-4 py-3 shadow">
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold">Asistencia</div>
           <div className="flex items-center gap-2 pl-3">
@@ -272,31 +281,31 @@ export default function AsistenciaPage() {
       </div>
 
       {vistaActiva === "asistencia" ? (
-      <Card className="overflow-hidden rounded-2xl shadow-sm">
+      <Card className="overflow-hidden rounded-2xl shadow">
         <CardHeader>
           <CardTitle className="text-base">Liquidación semanal</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto rounded-xl border">
+          <div className="overflow-auto rounded-xl shadow-sm">
             <table className="min-w-full text-sm rounded-xl overflow-hidden">
               <thead className="bg-default-100">
                 <tr>
                   <th className="px-3 py-2 text-left w-56">Empleado</th>
-                  {["Lun","Mar","Mié","Jue","Vie","Sáb"].map(h=>(<th key={h} className="px-3 py-2 text-center w-36">{h}</th>))}
+                  {encabezadosDias.map((h,i)=>(<th key={i} className="px-3 py-2 text-center w-36">{h}</th>))}
                   <th className="px-3 py-2 text-right w-28">Total semana</th>
                   <th className="px-3 py-2 text-right w-28">Adelantos</th>
                   <th className="px-3 py-2 text-right w-28">Total a pagar</th>
                   <th className="px-3 py-2 text-center w-24">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-default-200">
                 {empleadosFiltrados.map(emp=>{
                   const a = asistencias[emp.id];
                   const tSemana = a?.totalSemana || 0;
                   const tAdv = totalAdelantosEmp(emp.id);
                   const tPagar = tSemana - tAdv;
                   return (
-                    <tr key={emp.id} className="border-t hover:bg-muted/30 transition-colors">
+                    <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <div className={`w-2.5 h-2.5 rounded-full ${emp.activo!==false?"bg-green-500":"bg-gray-400"}`} />
@@ -333,12 +342,12 @@ export default function AsistenciaPage() {
         </CardContent>
       </Card>
       ) : (
-      <Card className="rounded-2xl shadow-sm">
+      <Card className="rounded-2xl shadow">
         <CardHeader>
           <CardTitle className="text-base">Empleados</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto rounded-xl border">
+          <div className="overflow-auto rounded-xl shadow-sm">
             <table className="min-w-full text-sm rounded-xl overflow-hidden">
               <thead className="bg-default-100">
                 <tr>
@@ -350,12 +359,12 @@ export default function AsistenciaPage() {
                   <th className="px-3 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-default-200">
                 {empleados
                   .filter(i => (filtroEmp === "todos" ? true : filtroEmp === "activos" ? i.activo !== false : i.activo === false))
                   .filter(i => (i.nombre || "").toLowerCase().includes(buscadorEmp.toLowerCase()))
                   .map(emp => (
-                  <tr key={emp.id} className="border-t hover:bg-muted/30 transition-colors">
+                  <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-3 py-2">{emp.nombre || ""}</td>
                     <td className="px-3 py-2 text-center">{emp.activo !== false ? "Sí" : "No"}</td>
                     <td className="px-3 py-2 text-right">${Number(emp.valorDia || 0).toLocaleString("es-AR")}</td>
@@ -383,9 +392,9 @@ export default function AsistenciaPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="text-sm font-medium">Semana {rangoSemana}</div>
-            <div className="space-y-2 max-h-52 overflow-auto border rounded-md p-2">
+            <div className="space-y-2 max-h-52 overflow-auto rounded-md p-2 bg-default-50">
               {(adelantos[popoverEmpleado?.id]||[]).map(a=>(
-                <div key={a.id} className="flex items-center justify-between gap-2 border rounded-md px-2 py-1">
+                <div key={a.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1 bg-white shadow-sm">
                   <div className="text-sm">{a.fecha} — ${Number(a.monto||0).toLocaleString("es-AR")} {a.nota?`• ${a.nota}`:""}</div>
                   <Button variant="ghost" size="sm" onClick={()=>eliminarAdelanto(a.id)}>Eliminar</Button>
                 </div>
