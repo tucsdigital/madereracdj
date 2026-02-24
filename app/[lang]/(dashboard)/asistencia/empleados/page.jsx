@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
@@ -128,31 +130,39 @@ export default function EmpleadosPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] rounded-xl">
           <DialogHeader>
-            <DialogTitle>{editando ? "Editar empleado" : "Nuevo empleado"}</DialogTitle>
+            <DialogTitle className="text-xl font-bold">{editando ? "Editar empleado" : "Nuevo empleado"}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="md:col-span-2">
-              <Input placeholder="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="nombre" className="text-sm font-medium">Nombre</Label>
+              <Input id="nombre" placeholder="Nombre y apellido" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="valorDia" className="text-sm font-medium">Valor día</Label>
+                <Input id="valorDia" type="number" min={0} placeholder="0" value={form.valorDia} onChange={(e) => setForm({ ...form, valorDia: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="valorExtra" className="text-sm font-medium">Valor extra</Label>
+                <Input id="valorExtra" type="number" min={0} placeholder="0" value={form.valorExtra} onChange={(e) => setForm({ ...form, valorExtra: e.target.value })} className="mt-1" />
+              </div>
             </div>
             <div>
-              <Input type="number" min={0} placeholder="Valor día" value={form.valorDia} onChange={(e) => setForm({ ...form, valorDia: e.target.value })} />
+              <Label htmlFor="sector" className="text-sm font-medium">Sector</Label>
+              <Input id="sector" placeholder="Ej: Aserrado, Carga, Entregas" value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} className="mt-1" />
             </div>
-            <div>
-              <Input type="number" min={0} placeholder="Valor extra" value={form.valorExtra} onChange={(e) => setForm({ ...form, valorExtra: e.target.value })} />
-            </div>
-            <div className="md:col-span-2">
-              <Input placeholder="Sector" value={form.sector} onChange={(e) => setForm({ ...form, sector: e.target.value })} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.activo} onChange={(e) => setForm({ ...form, activo: e.target.checked })} />
-                Activo
-              </label>
+            <div className="flex items-center justify-between rounded-md border bg-default-50 py-2 px-3">
+              <div className="flex flex-col">
+                <Label htmlFor="activo" className="text-sm font-medium">Activo</Label>
+                <span className="text-xs text-muted-foreground">Habilitar para que aparezca en listados de asistencia</span>
+              </div>
+              <Switch id="activo" checked={form.activo} onCheckedChange={(v) => setForm({ ...form, activo: v })} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={guardar} disabled={!form.nombre}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
