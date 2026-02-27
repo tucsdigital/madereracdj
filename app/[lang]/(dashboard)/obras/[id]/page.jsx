@@ -62,15 +62,6 @@ const ObraDetallePage = () => {
   const [notaContenido, setNotaContenido] = useState("");
   const [notaEditIdx, setNotaEditIdx] = useState(null);
 
-  // Cuando cambia la obra, inicializar estados de pago/comprobantes con los datos existentes
-  useEffect(() => {
-    if (!obra) return;
-    setPagoEnDolares(!!obra.pagoEnDolares);
-    setValorOficialDolar(obra.valorOficialDolar ?? null);
-    setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
-    setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
-  }, [obra]);
-
   const {
     obra,
     loading,
@@ -94,9 +85,19 @@ const ObraDetallePage = () => {
     setFechasEdit,
     setClienteId,
     setCliente,
+    cliente,
     setItemsCatalogo,
     guardarEdicion,
   } = useObra(id);
+
+  // Cuando cambia la obra, inicializar estados de pago/comprobantes con los datos existentes
+  useEffect(() => {
+    if (!obra) return;
+    setPagoEnDolares(!!obra.pagoEnDolares);
+    setValorOficialDolar(obra.valorOficialDolar ?? null);
+    setComprobantesPago(Array.isArray(obra.comprobantesPago) ? obra.comprobantesPago : []);
+    setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
+  }, [obra]);
 
   const handlePrint = () => {
     setOpenPrint(true);
@@ -144,8 +145,6 @@ const ObraDetallePage = () => {
   };
 
 
-  const handleCantidadChange = (id, cantidad) => {
-  
   // Fetch Dólar Blue para la sección de documentación (cuando se habilita pago en dólares)
   const fetchDolarBlue = useCallback(async () => {
     setLoadingDolar(true);
@@ -188,6 +187,7 @@ const ObraDetallePage = () => {
     }
   };
 
+  const handleCantidadChange = (id, cantidad) => {
     const parsedCantidad = parseNumericValue(cantidad);
     setItemsCatalogo((prev) =>
       prev.map((p) => {
@@ -507,96 +507,75 @@ const ObraDetallePage = () => {
     );
   }
 
+  const handleEstadoChange = async (nuevoEstado) => {
+    if (nuevoEstado === "en_ejecucion" && estadoObra === "pendiente_inicio") {
+      const confirmar = window.confirm(
+        "¿Desea actualizar la fecha de inicio a HOY al comenzar la obra?"
+      );
+      if (confirmar) {
+        const hoy = new Date().toISOString().split("T")[0];
+        setFechasEdit((prev) => ({ ...prev, inicio: hoy }));
+        // Si no estamos editando, guardar directamente
+        if (!editando) {
+            try {
+                await updateDoc(doc(db, "obras", obra.id), {
+                    estado: nuevoEstado,
+                    "fechas.inicio": hoy,
+                    fechaModificacion: new Date().toISOString()
+                });
+                setEstadoObra(nuevoEstado);
+                // Actualizar localmente la fecha de inicio en el objeto obra para reflejar el cambio
+                if(obra && obra.fechas) {
+                    obra.fechas.inicio = hoy;
+                }
+            } catch (error) {
+                console.error("Error al actualizar estado y fecha:", error);
+                alert("Error al actualizar el estado de la obra");
+            }
+            return;
+        }
+      }
+    }
+    setEstadoObra(nuevoEstado);
+  };
+
   return (
-    <div>
+    <div className="w-full max-w-[1600px] mx-auto p-4 space-y-6">
       <ObraHeader
         obra={obra}
         editando={editando}
         onToggleEdit={handleToggleEdit}
         onPrint={handlePrint}
-        showBackButton={true}
-        backUrl={`/${lang}/obras`}
+        onDownload={null} // Opcional
+        onConvertToObra={null}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* COLUMNA IZQUIERDA: Datos principales, Estado, Fechas */}
         <div className="lg:col-span-2 space-y-6">
-          {/* PRIMER BLOQUE: Cliente, Dirección, Estado, Fechas */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Información Principal
-                </div>
-                {!editando && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFormularioCliente(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Cambiar Cliente
-                  </Button>
-                )}
-              </CardTitle>
+              <CardTitle>Datos Generales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Cliente */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Cliente</label>
-                {obra?.cliente ? (
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="font-medium text-gray-900">{obra.cliente.nombre || "Sin nombre"}</p>
-                    {obra.cliente.telefono && (
-                      <p className="text-sm text-gray-600 mt-1">Tel: {obra.cliente.telefono}</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">No hay cliente asignado</p>
-                )}
-              </div>
+              {/* Selector de Cliente */}
+              <SelectorClienteObras
+                clienteSeleccionado={cliente}
+                onClienteSeleccionado={handleClienteSeleccionado}
+                editando={editando}
+              />
 
-              {/* Dirección */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Dirección
-                </label>
-                {obra?.ubicacion?.direccion || obra?.cliente?.direccion ? (
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-sm text-gray-900">
-                      {obra.ubicacion?.direccion || obra.cliente?.direccion || ""}
-                      {obra.ubicacion?.localidad || obra.cliente?.localidad ? (
-                        <span>, {obra.ubicacion?.localidad || obra.cliente?.localidad}</span>
-                      ) : null}
-                      {obra.ubicacion?.provincia || obra.cliente?.provincia ? (
-                        <span>, {obra.ubicacion?.provincia || obra.cliente?.provincia}</span>
-                      ) : null}
-                    </p>
-                    {(obra.ubicacion?.barrio || obra.cliente?.barrio || obra.ubicacion?.lote || obra.cliente?.lote) && (
-                      <div className="flex gap-4 text-xs text-gray-600 mt-1">
-                        {obra.ubicacion?.barrio || obra.cliente?.barrio ? (
-                          <span>Barrio: {obra.ubicacion?.barrio || obra.cliente?.barrio}</span>
-                        ) : null}
-                        {obra.ubicacion?.lote || obra.cliente?.lote ? (
-                          <span>Lote: {obra.ubicacion?.lote || obra.cliente?.lote}</span>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">No hay dirección especificada</p>
-                )}
-              </div>
-
-              {/* Estado y Fechas en grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Estado */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Estado</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Estado de la Obra
+                  </label>
                   {editando ? (
-                    <Select value={estadoObra} onValueChange={setEstadoObra}>
+                    <Select
+                      value={estadoObra}
+                      onValueChange={handleEstadoChange}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
