@@ -2187,81 +2187,83 @@ const VentaDetalle = () => {
           </div>
 
           {/* Historial de pagos */}
-          <div className="mt-4 historial-pagos-empleado">
-            <h4 className="font-medium mb-2">Historial de pagos:</h4>
-            {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
-              <div className="bg-card rounded-lg p-3">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-card border-b">
-                      <th className="text-left py-1">Fecha</th>
-                      <th className="text-left py-1">Método</th>
-                      <th className="text-right py-1">Monto</th>
-                      {user?.email === "admin@admin.com" && (
-                        <th className="text-center py-1">Acciones</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {venta.pagos.map((pago, idx) => (
-                      <tr key={idx} className="border-b border-gray-200">
-                        <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
-                        <td className="py-1">{pago.metodo}</td>
-                        <td className="py-1 text-right">
-                          ${Number(pago.monto).toFixed(2)}
-                        </td>
+          {((Array.isArray(venta.pagos) && venta.pagos.length > 0) || venta.estadoPago !== 'pagado') && (
+            <div className="mt-4 historial-pagos-empleado">
+              <h4 className="font-medium mb-2">Historial de pagos:</h4>
+              {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
+                <div className="bg-card rounded-lg p-3">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-card border-b">
+                        <th className="text-left py-1">Fecha</th>
+                        <th className="text-left py-1">Método</th>
+                        <th className="text-right py-1">Monto</th>
                         {user?.email === "admin@admin.com" && (
-                          <td className="py-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => confirmarBorradoPago(idx)}
-                              disabled={borrandoPago}
-                              className={`p-1 rounded text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors ${
-                                borrandoPago && pagoABorrar === idx
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : ""
-                              }`}
-                              title="Borrar pago"
-                            >
-                              {borrandoPago && pagoABorrar === idx ? (
-                                <svg
-                                  className="animate-spin h-4 w-4"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    fill="none"
-                                  />
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8v8z"
-                                  />
-                                </svg>
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </button>
-                          </td>
+                          <th className="text-center py-1">Acciones</th>
                         )}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-600">Sin pagos registrados</div>
-            )}
-          </div>
+                    </thead>
+                    <tbody>
+                      {venta.pagos.map((pago, idx) => (
+                        <tr key={idx} className="border-b border-gray-200">
+                          <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
+                          <td className="py-1">{pago.metodo}</td>
+                          <td className="py-1 text-right">
+                            ${Number(pago.monto).toFixed(2)}
+                          </td>
+                          {user?.email === "admin@admin.com" && (
+                            <td className="py-1 text-center">
+                              <button
+                                type="button"
+                                onClick={() => confirmarBorradoPago(idx)}
+                                disabled={borrandoPago}
+                                className={`p-1 rounded text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors ${
+                                  borrandoPago && pagoABorrar === idx
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                                title="Borrar pago"
+                              >
+                                {borrandoPago && pagoABorrar === idx ? (
+                                  <svg
+                                    className="animate-spin h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                      fill="none"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v8z"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">Sin pagos registrados</div>
+              )}
+            </div>
+          )}
 
           {/* Información de pago en dólares y comprobantes - Independiente del historial de pagos */}
           {((venta.pagoEnDolares && venta.valorOficialDolar) || (Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0)) && (
-            <div className="mt-6">
+            <div className={`mt-6 ${!(venta.pagoEnDolares && venta.valorOficialDolar) ? 'no-print' : ''}`}>
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden">
                 <div className="px-4 py-3 bg-slate-100/80 border-b border-slate-200">
                   <h4 className="font-semibold text-slate-800 text-sm">Información de pago</h4>
@@ -2280,7 +2282,7 @@ const VentaDetalle = () => {
 
                   {/* Comprobantes adjuntos */}
                   {Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0 && (
-                    <div>
+                    <div className="no-print">
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">Comprobantes adjuntos</span>
                       <table className="w-full text-sm border-collapse">
                         <thead>

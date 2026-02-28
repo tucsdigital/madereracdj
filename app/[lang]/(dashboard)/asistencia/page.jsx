@@ -99,7 +99,7 @@ export default function AsistenciaPage() {
   const [formEmp, setFormEmp] = useState({ nombre: "", activo: true, valorDia: "", valorExtra: "", sector: "" });
 
   // --- Memos ---
-  const semanaInicio = useMemo(() => startOfWeek(new Date(fechaBase)), [fechaBase]);
+  const semanaInicio = useMemo(() => startOfWeek(fechaBase), [fechaBase]);
   const semanaClave = useMemo(() => fmt(semanaInicio), [semanaInicio]);
   
   const rangoSemana = useMemo(() => {
@@ -439,14 +439,6 @@ export default function AsistenciaPage() {
                                   ))}
                                 </div>
                               )}
-                              <Input
-                                disabled={cerrada || d.estado!=="extra"}
-                                type="number"
-                                min={0}
-                                value={d.monto}
-                                onChange={e=>setDay(emp,i,d.estado,e.target.value)}
-                                className="w-14 h-7 text-right rounded-md text-xs"
-                              />
                             </div>
                           </td>
                         );
