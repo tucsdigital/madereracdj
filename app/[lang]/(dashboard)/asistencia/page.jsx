@@ -14,7 +14,13 @@ import { Icon } from "@iconify/react";
 // --- Helper Functions ---
 
 function startOfWeek(d) {
-  const date = new Date(d);
+  let date;
+  if (typeof d === 'string' && d.match(/^\d{4}-\d{2}-\d{2}$/)) {
+     const [y, m, day] = d.split('-').map(Number);
+     date = new Date(y, m - 1, day); 
+  } else {
+     date = new Date(d);
+  }
   const day = date.getDay();
   const diff = (day === 0 ? -6 : 1) - day;
   const res = new Date(date);
@@ -30,12 +36,18 @@ function addDays(d, n) {
 }
 
 function fmt(d) {
-  return new Date(d).toISOString().slice(0, 10);
+  const date = new Date(d);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function fmtDM(d) {
-  const dd = String(new Date(d).getDate()).padStart(2, "0");
-  const mm = String(new Date(d).getMonth() + 1).padStart(2, "0");
+  // Ajustar para mostrar día/mes local correctamente
+  const date = new Date(d);
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}`;
 }
 
@@ -400,11 +412,11 @@ export default function AsistenciaPage() {
                         const key = `${emp.id}-${i}`;
                         return (
                           <td key={i} className="px-2 py-1.5">
-                            <div className="relative flex items-center gap-1.5" onBlur={()=>setPickerOpen(null)} tabIndex={0}>
+                            <div className="relative flex items-center gap-1.5" onBlur={(e)=>{ if(!e.currentTarget.contains(e.relatedTarget)) setPickerOpen(null); }} tabIndex={0}>
                               <button
                                 type="button"
                                 disabled={cerrada}
-                                onClick={()=>setPickerOpen(p=>p===key?null:key)}
+                                onClick={(e)=>{ e.stopPropagation(); setPickerOpen(p=>p===key?null:key); }}
                                 className={`inline-flex items-center gap-1 h-7 px-2 rounded-full border text-xs transition-colors ${estadoItem.cls}`}
                               >
                                 <Icon icon={estadoItem.icon} className="w-3.5 h-3.5" />
@@ -417,7 +429,8 @@ export default function AsistenciaPage() {
                                     <button
                                       key={item.value}
                                       type="button"
-                                      onClick={()=>{ setDay(emp,i,item.value,null); setPickerOpen(null); }}
+                                      onMouseDown={(e)=>e.preventDefault()}
+                                      onClick={(e)=>{ e.stopPropagation(); setDay(emp,i,item.value,null); setPickerOpen(null); }}
                                       className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${item.cls}`}
                                     >
                                       <Icon icon={item.icon} className="w-3.5 h-3.5" />
