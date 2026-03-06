@@ -1,5 +1,5 @@
 "use client";
-import { cn, isLocationMatch, translate, getDynamicPath } from "@/lib/utils";
+import { cn, isLocationMatch, translate, getDynamicPath, useLocalizedPath } from "@/lib/utils";
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +30,9 @@ function LockLink({ href, children, subItem, trans }) {
 const SubMenuItem = ({ subItem, trans }) => {
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
   return (
-    <LockLink href={subItem.href} subItem={subItem} trans={trans}>
+    <LockLink href={localize(subItem.href)} subItem={subItem} trans={trans}>
       <div
         className={cn(
           "text-sm capitalize  font-normal flex gap-3 items-center transition-all duration-150 rounded dark:hover:text-primary  ",

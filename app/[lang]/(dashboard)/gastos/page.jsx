@@ -83,9 +83,12 @@ const GastosPage = () => {
   const inicioMesISO = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
     .split("T")[0];
-  const [fechaDesde, setFechaDesde] = useState(inicioMesISO);
+  const inicioAnioISO = new Date(now.getFullYear(), 0, 1)
+    .toISOString()
+    .split("T")[0];
+  const [fechaDesde, setFechaDesde] = useState(inicioAnioISO);
   const [fechaHasta, setFechaHasta] = useState(hoyISO);
-  const [rangoRapido, setRangoRapido] = useState("month");
+  const [rangoRapido, setRangoRapido] = useState("ytd");
   
   // Estados comunes
   const [gastosInternos, setGastosInternos] = useState([]);

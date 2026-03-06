@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { loginWithEmail } from "@/lib/firebase";
 import toast from "react-hot-toast";
-import { cn } from "@/lib/utils";
+import { cn, buildLocalizedPath } from "@/lib/utils";
 import Link from "next/link";
 import { SiteLogo } from "@/components/svg";
 import { Icon } from "@iconify/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { usePathname } from "next/navigation";
 
 const schema = z.object({
   email: z.string().email({ message: "El correo no es válido." }),
@@ -25,6 +26,13 @@ const LogInForm = () => {
   const [isPending, startTransition] = React.useTransition();
   const [passwordType, setPasswordType] = React.useState("password");
   const isDesktop2xl = useMediaQuery("(max-width: 1530px)");
+  const pathname = usePathname();
+  
+  // Obtener el idioma actual de la URL
+  const getCurrentLang = () => {
+    const segments = pathname.split('/');
+    return segments[1] || 'en';
+  };
 
   const togglePasswordType = () => {
     if (passwordType === "text") {
@@ -55,7 +63,8 @@ const LogInForm = () => {
       try {
         await loginWithEmail(data.email, data.password);
         toast.success("Inicio de sesión exitoso");
-        window.location.assign("/dashboard");
+        const lang = getCurrentLang();
+        window.location.assign(buildLocalizedPath("/dashboard", lang));
         reset();
       } catch (error) {
         let msg = "Error al iniciar sesión";
@@ -68,7 +77,7 @@ const LogInForm = () => {
   };
   return (
     <div className="w-full py-10">
-      <Link href="/dashboard" className="inline-block">
+      <Link href={buildLocalizedPath("/dashboard", getCurrentLang())} className="inline-block">
         <SiteLogo className="text-primary" />
       </Link>
       <div className="2xl:mt-8 mt-6 2xl:text-3xl text-2xl font-bold text-default-900">
@@ -153,7 +162,7 @@ const LogInForm = () => {
               Recuérdame
             </Label>
           </div>
-          <Link href="/auth/forgot" className="flex-none text-sm text-primary">
+          <Link href={buildLocalizedPath("/auth/forgot", getCurrentLang())} className="flex-none text-sm text-primary">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>

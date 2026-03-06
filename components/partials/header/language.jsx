@@ -13,7 +13,7 @@ import flag2 from "@/public/images/all-img/flag-2.png";
 import flag3 from "@/public/images/all-img/flag-3.png";
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getDynamicPath } from "@/lib/utils";
 import { useRouter, usePathname } from "next/navigation";
 import { useThemeStore } from "@/store";
 const languages = [
@@ -46,9 +46,8 @@ const Language = () => {
       language: lang === "en" ? "En" : "Bn",
     });
     setRtl(lang === "ar");
-    const pathParts = pathname.split("/");
-    const safeSegment = pathParts.length > 2 ? pathParts[2] : "";
-    router.push(`/${lang}/${safeSegment}`);
+    const dynamicPath = getDynamicPath(pathname);
+    router.push(`/${lang}${dynamicPath === "/" ? "" : dynamicPath}`);
   };
   return (
     <DropdownMenu>

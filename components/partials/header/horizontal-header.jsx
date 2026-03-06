@@ -1,13 +1,15 @@
 import React from "react";
 import { SiteLogo } from "@/components/svg";
 import Link from "next/link";
+import { useLocalizedPath } from "@/lib/utils";
 
-const horizontalHeader = () => {
+const HorizontalHeader = () => {
+  const localize = useLocalizedPath();
   return (
     <div className="flex items-center lg:gap-12 gap-3">
       <div>
         <Link
-          href="/dashboard"
+          href={localize("/dashboard")}
           className="text-primary flex items-center gap-2"
         >
           <SiteLogo className="h-7 w-7" />
@@ -21,4 +23,4 @@ const horizontalHeader = () => {
   );
 };
 
-export default horizontalHeader;
+export default HorizontalHeader;

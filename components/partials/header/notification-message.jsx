@@ -14,7 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, useLocalizedPath } from "@/lib/utils";
 import { useStockNotifications } from "@/hooks/useStockNotifications";
 import shortImage from "@/public/images/all-img/short-image-2.png";
 import { useState, useMemo, useCallback } from "react";
@@ -24,6 +24,7 @@ const NotificationMessage = () => {
   const { notifications, loading } = useStockNotifications();
   const [showAll, setShowAll] = useState(false);
   const router = useRouter();
+  const localize = useLocalizedPath();
 
   // Mostrar máximo 6 productos inicialmente - memoizado
   const PRODUCTOS_VISIBLES = 6;
@@ -49,9 +50,9 @@ const NotificationMessage = () => {
   // Navegar a la página de stock - memoizado con useCallback
   const handleVerProducto = useCallback(
     (productoId) => {
-      router.push(`/stock-compras?producto=${productoId}`);
+      router.push(localize(`/stock-compras?producto=${productoId}`));
     },
-    [router]
+    [router, localize]
   );
 
   return (
@@ -226,7 +227,7 @@ const NotificationMessage = () => {
         <DropdownMenuSeparator />
         <div className="m-4 mt-5">
           <Button asChild variant="outline" className="w-full">
-            <Link href="/stock-compras">
+            <Link href={localize("/stock-compras")}>
               Ver Gestión de Stock
             </Link>
           </Button>

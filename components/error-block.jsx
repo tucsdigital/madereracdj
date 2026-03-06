@@ -5,8 +5,10 @@ import darkImage from "@/public/images/error/dark-404.png";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useLocalizedPath } from "@/lib/utils";
 const ErrorBlock = () => {
   const { theme } = useTheme();
+  const localize = useLocalizedPath();
   return (
     <div className="min-h-screen  overflow-y-auto flex justify-center items-center p-10">
       <div className="w-full flex flex-col items-center">
@@ -26,7 +28,7 @@ const ErrorBlock = () => {
             name changed or is temporarily unavailable.
           </div>
           <Button asChild className="mt-9  md:min-w-[300px]" size="lg">
-            <Link href="/dashboard">Go to Homepage</Link>
+            <Link href={localize("/dashboard")}>Go to Homepage</Link>
           </Button>
         </div>
       </div>

@@ -275,6 +275,7 @@ const PresupuestoPage = () => {
             editando={editando}
             formatearNumeroArgentino={formatearNumeroArgentino}
             onObraUpdate={handleObraUpdate}
+            onRequestSave={handleToggleEdit}
             shouldSave={shouldSave}
             onResetShouldSave={handleResetShouldSave}
           />

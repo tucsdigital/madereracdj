@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 
 export default function EmpleadoDetallePage() {
@@ -16,9 +16,9 @@ export default function EmpleadoDetallePage() {
 
   useEffect(() => {
     const load = async () => {
-      const empSnap = await getDocs(query(collection(db, "empleados"), where("id", "==", id)));
-      const alt = empSnap.docs.map(d => ({ id: d.id, ...d.data() })).find(e => e.id === id) || null;
-      setEmpleado(alt);
+      const empRef = doc(db, "empleados", String(id));
+      const empSnap = await getDoc(empRef);
+      setEmpleado(empSnap.exists() ? { ...empSnap.data(), id: empSnap.id } : null);
       const asistSnap = await getDocs(query(collection(db, "asistencias"), where("employeeId", "==", id), orderBy("weekStart","desc")));
       setAsistencias(asistSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       const adSnap = await getDocs(query(collection(db, "adelantos"), where("employeeId","==", id)));

@@ -4,12 +4,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { cn, isLocationMatch, translate, getDynamicPath } from "@/lib/utils";
+import { cn, isLocationMatch, translate, getDynamicPath, useLocalizedPath } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 const MultiNestedMenu = ({ subItem, subIndex, activeMultiMenu, trans }) => {
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
 
   return (
     <Collapsible open={activeMultiMenu === subIndex}>
@@ -17,7 +18,7 @@ const MultiNestedMenu = ({ subItem, subIndex, activeMultiMenu, trans }) => {
         <ul className="space-y-3 pl-1">
           {subItem?.multi_menu?.map((item, i) => (
             <li className=" first:pt-3" key={i}>
-              <Link href={item.href}>
+              <Link href={localize(item.href)}>
                 <span
                   className={cn(
                     "text-sm flex gap-3  items-center transition-all duration-150 hover:text-primary capitalize",

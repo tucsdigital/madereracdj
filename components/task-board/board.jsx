@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useTransition } from "react";
+import React from "react";
 import { toast } from "react-hot-toast";
 
 import {
@@ -29,7 +29,7 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Task from "./task";
 
-const taskBoard = ({
+const TaskBoard = ({
   board,
   children,
   onEdit,
@@ -155,4 +155,4 @@ const taskBoard = ({
   );
 };
 
-export default taskBoard;
+export default TaskBoard;

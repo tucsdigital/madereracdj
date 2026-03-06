@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@iconify/react";
 import Link from "next/link";
+import { useLocalizedPath } from "@/lib/utils";
 
 const ProfileInfo = () => {
   const { user, logout } = useAuth();
+  const localize = useLocalizedPath();
   if (!user) return null;
   return (
     <DropdownMenu>
@@ -55,7 +57,7 @@ const ProfileInfo = () => {
             },
           ].map((item, index) => (
             <Link
-              href={item.href}
+              href={localize(item.href)}
               key={`info-menu-${index}`}
               className="cursor-pointer"
             >

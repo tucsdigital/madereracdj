@@ -26,11 +26,13 @@ export function middleware(request) {
   if (pathnameIsMissingLocale) {
     const locale = getLocale(request);
 
-    // e.g. incoming request is /products
-    // The new URL is now /en-US/products
-    return NextResponse.redirect(
-      new URL(`/${locale}/${pathname}`, request.url)
-    );
+    const url = request.nextUrl.clone();
+    if (pathname === "/") {
+      url.pathname = `/${locale}`;
+    } else {
+      url.pathname = `/${locale}${pathname}`;
+    }
+    return NextResponse.redirect(url);
   }
 }
 

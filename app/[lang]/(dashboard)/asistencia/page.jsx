@@ -136,7 +136,7 @@ export default function AsistenciaPage() {
         // Cargar empleados
         const snapEmp = await getDocs(collection(db, "empleados"));
         if (!isActive) return;
-        setEmpleados(snapEmp.docs.map(d => ({ id: d.id, ...d.data() })));
+        setEmpleados(snapEmp.docs.map(d => ({ ...d.data(), id: d.id })));
 
         // Suscripción a asistencias
         const qAsis = query(collection(db, "asistencias"), where("weekStart", "==", semanaClave));
@@ -193,6 +193,7 @@ export default function AsistenciaPage() {
 
   const setDay = async (emp, idx, estado, montoManual) => {
     if (cerrada) return;
+    if (!emp?.id) return;
     const base = Number(emp.valorDia || 0);
     const extra = Number(emp.valorExtra || 0);
     const monto = montoManual != null ? Number(montoManual) : calcMonto(estado, base, extra);
@@ -312,7 +313,7 @@ export default function AsistenciaPage() {
       }
       // Recargar lista
       const snap = await getDocs(collection(db, "empleados"));
-      setEmpleados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEmpleados(snap.docs.map(d => ({ ...d.data(), id: d.id })));
       setOpenEmp(false);
     } catch (err) {
       console.error("Error guardando empleado:", err);
@@ -324,7 +325,7 @@ export default function AsistenciaPage() {
     try {
       await deleteDoc(doc(db, "empleados", emp.id));
       const snap = await getDocs(collection(db, "empleados"));
-      setEmpleados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEmpleados(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     } catch (err) {
       console.error("Error eliminando empleado:", err);
     }

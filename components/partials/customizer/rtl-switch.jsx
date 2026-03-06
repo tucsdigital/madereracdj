@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { cn, getDynamicPath } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@iconify/react";
 
@@ -17,9 +17,8 @@ const RtlSwitcher = () => {
   const handleDirectionChange = (rtl) => {
     const lang = rtl ? "ar" : "en";
     setRtl(rtl);
-    const pathParts = pathname.split("/");
-    const safeSegment = pathParts.length > 2 ? pathParts[2] : "";
-    router.push(`/${lang}/${safeSegment}`);
+    const dynamicPath = getDynamicPath(pathname);
+    router.push(`/${lang}${dynamicPath === "/" ? "" : dynamicPath}`);
   };
 
   return (

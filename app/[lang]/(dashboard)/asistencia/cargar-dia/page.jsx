@@ -52,7 +52,7 @@ export default function CargarDiaPage() {
   useEffect(() => {
     const load = async () => {
       const snap = await getDocs(collection(db, "empleados"));
-      setEmpleados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEmpleados(snap.docs.map(d => ({ ...d.data(), id: d.id })));
       const q = query(collection(db, "asistencias"), where("weekStart", "==", semanaClave));
       const as = await getDocs(q);
       const map = {};
@@ -63,6 +63,7 @@ export default function CargarDiaPage() {
   }, [semanaClave]);
 
   const setEstado = async (emp, estado) => {
+    if (!emp?.id) return;
     const base = Number(emp.valorDia || 0);
     const extra = Number(emp.valorExtra || 0);
     const monto = calcMonto(estado, base, extra);

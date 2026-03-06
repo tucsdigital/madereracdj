@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { useLocalizedPath } from "@/lib/utils";
 
 // Helper para filtrar por mes actual
 const isCurrentMonth = (dateValue) => {
@@ -41,6 +42,7 @@ const isCurrentMonth = (dateValue) => {
 const UserProgress = () => {
   const { user } = useAuth();
   const { productos, clientes, allVentas = [], loading } = useDashboardData();
+  const localize = useLocalizedPath();
   
   // Filtrar ventas del usuario actual del mes actual
   const ventasMesActual = useMemo(() => {
@@ -281,22 +283,22 @@ const UserProgress = () => {
                         Te faltan {progress.proximoPaso.meta - progress.proximoPaso.actual} para completar esta acción
                       </div>
                       {progress.proximoPaso.id === "productos" && (
-                        <Link href="/productos" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
+                        <Link href={localize("/productos")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
                           Agregar productos →
                         </Link>
                       )}
                       {progress.proximoPaso.id === "clientes" && (
-                        <Link href="/clientes" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
+                        <Link href={localize("/clientes")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
                           Agregar clientes →
                         </Link>
                       )}
                       {progress.proximoPaso.id === "ventas" && (
-                        <Link href="/ventas" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
+                        <Link href={localize("/ventas")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
                           Crear venta →
                         </Link>
                       )}
                       {progress.proximoPaso.id === "productos_imagenes" && (
-                        <Link href="/productos" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
+                        <Link href={localize("/productos")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block mt-1">
                           Agregar imágenes →
                         </Link>
                       )}
@@ -360,7 +362,7 @@ const UserProgress = () => {
                         Te faltan <span className="font-bold">{accion.meta - accion.actual}</span> para completar
                       </div>
                       {linkHref && (
-                        <Link href={linkHref} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block">
+                        <Link href={localize(linkHref)} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline block">
                           {accion.id === "productos" && "Ver productos →"}
                           {accion.id === "clientes" && "Ver clientes →"}
                           {accion.id === "ventas" && "Crear venta →"}
@@ -405,7 +407,7 @@ const UserProgress = () => {
                 <Tooltip key={accion.id}>
                   <TooltipTrigger asChild>
                     {linkHref && !accion.completado ? (
-                      <Link href={linkHref} className="block">
+                      <Link href={localize(linkHref)} className="block">
                         {content}
                       </Link>
                     ) : (

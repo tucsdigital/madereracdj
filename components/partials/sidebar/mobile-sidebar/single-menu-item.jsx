@@ -1,14 +1,16 @@
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { cn, isLocationMatch } from "@/lib/utils";
+import { cn, isLocationMatch, getDynamicPath, useLocalizedPath } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 const SingleMenuItem = ({ item, collapsed }) => {
   const { badge, href, title } = item;
-  const locationName = usePathname();
+  const pathname = usePathname();
+  const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
   return (
-    <Link href={href}>
+    <Link href={localize(href)}>
       <>
         {collapsed ? (
           <div>

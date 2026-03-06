@@ -762,64 +762,104 @@ const ObraDetallePage = () => {
 
                 {/* Pago en dólares y comprobantes (integrado a Documentación) */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <Switch
-                      checked={!!pagoEnDolares}
-                      onCheckedChange={(checked) => {
-                        setPagoEnDolares(checked);
-                        if (!checked) setValorOficialDolar(null);
-                      }}
-                      color="warning"
-                    />
-                    <span className="text-sm font-medium">Pago en dólares (USD)</span>
-                  </label>
-
-                  {pagoEnDolares && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
-                          value={valorOficialDolar ?? ""}
-                          onChange={(e) => setValorOficialDolar(e.target.value ? Number(e.target.value) : null)}
-                          placeholder="Ej: 1440"
+                  {editando ? (
+                    <>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <Switch
+                          checked={!!pagoEnDolares}
+                          onCheckedChange={(checked) => {
+                            setPagoEnDolares(checked);
+                            if (!checked) setValorOficialDolar(null);
+                          }}
+                          color="warning"
                         />
+                        <span className="text-sm font-medium">Pago en dólares (USD)</span>
+                      </label>
+
+                      {pagoEnDolares && (
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                              value={valorOficialDolar ?? ""}
+                              onChange={(e) =>
+                                setValorOficialDolar(
+                                  e.target.value ? Number(e.target.value) : null
+                                )
+                              }
+                              placeholder="Ej: 1440"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDolarBlue}
+                              disabled={loadingDolar}
+                              className="shrink-0 h-9"
+                            >
+                              {loadingDolar ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Actualizar"
+                              )}
+                            </Button>
+                          </div>
+                          {ultimaActualizacionDolar && (
+                            <p className="text-xs text-gray-500">
+                              Última cotización:{" "}
+                              {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}{" "}
+                              (se actualiza cada 5 min)
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <ComprobantesPagoSection
+                        comprobantes={comprobantesPago}
+                        onComprobantesChange={setComprobantesPago}
+                        disabled={loadingDolar}
+                        maxFiles={8}
+                      />
+
+                      <div className="flex gap-2">
                         <Button
-                          type="button"
                           variant="outline"
-                          size="sm"
-                          onClick={fetchDolarBlue}
-                          disabled={loadingDolar}
-                          className="shrink-0 h-9"
+                          onClick={() => {
+                            setPagoEnDolares(false);
+                            setComprobantesPago([]);
+                            setValorOficialDolar(null);
+                          }}
                         >
-                          {loadingDolar ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
+                          Limpiar
                         </Button>
                       </div>
-                      {ultimaActualizacionDolar && (
-                        <p className="text-xs text-gray-500">
-                          Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })} (se actualiza cada 5 min)
-                        </p>
+                    </>
+                  ) : (
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <div className="flex justify-between gap-3">
+                        <span>Pago en dólares</span>
+                        <span className="font-medium">
+                          {obra?.pagoEnDolares ? "Sí" : "No"}
+                        </span>
+                      </div>
+                      {!!obra?.pagoEnDolares && (
+                        <div className="flex justify-between gap-3">
+                          <span>Cotización usada</span>
+                          <span className="font-medium">
+                            {obra?.valorOficialDolar != null
+                              ? String(obra.valorOficialDolar)
+                              : "-"}
+                          </span>
+                        </div>
                       )}
                     </div>
                   )}
-
-                  <ComprobantesPagoSection
-                    comprobantes={comprobantesPago}
-                    onComprobantesChange={setComprobantesPago}
-                    disabled={loadingDolar}
-                    maxFiles={8}
-                  />
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => { setPagoEnDolares(false); setComprobantesPago([]); setValorOficialDolar(null); }}>
-                      Limpiar
-                    </Button>
-                  </div>
                 </div>
 
                 {/* Presupuesto Inicial (si existe) */}

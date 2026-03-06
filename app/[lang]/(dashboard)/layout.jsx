@@ -10,9 +10,9 @@ const Layout = ({ children, params: { lang } }) => {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/auth/login");
+      router.replace(`/${lang}/auth/login`);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, lang]);
 
   if (loading || !user) {
     return <div className="w-full h-screen flex items-center justify-center text-lg text-muted-foreground">Cargando sesión...</div>;

@@ -2,7 +2,7 @@
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { cn, isLocationMatch, translate, getDynamicPath } from "@/lib/utils";
+import { cn, isLocationMatch, translate, getDynamicPath, useLocalizedPath } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -11,13 +11,14 @@ const SingleMenuItem = ({ item, collapsed, hovered, trans }) => {
 
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
 
   // Verificación de seguridad para el icono
   const IconComponent = item.icon;
   const hasValidIcon = IconComponent && typeof IconComponent === 'function';
 
   return (
-    <Link href={href}>
+    <Link href={localize(href)}>
       <div
         className={cn(
           "flex gap-3  text-default-700 text-sm capitalize px-[10px] font-medium py-3 rounded cursor-pointer hover:bg-primary hover:text-primary-foreground",

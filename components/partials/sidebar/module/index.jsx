@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { cn, isLocationMatch, getDynamicPath, translate } from "@/lib/utils";
+import { cn, isLocationMatch, getDynamicPath, translate, useLocalizedPath } from "@/lib/utils";
 import { menusConfig } from "@/config/menus";
 import SingleIconMenu from "./single-icon-menu";
 import { useRouter, usePathname } from "next/navigation";
@@ -34,6 +34,7 @@ const ModuleSidebar = ({ trans }) => {
 
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
 
   const toggleSubMenu = (index) => {
     setActiveIndex(index);
@@ -154,7 +155,7 @@ const ModuleSidebar = ({ trans }) => {
           )}
         >
           <div className=" pt-4 ">
-            <Link href="/dashboard">
+            <Link href={localize("/dashboard")}>
               <SiteLogo className=" mx-auto text-primary h-8 w-8" />
             </Link>
           </div>

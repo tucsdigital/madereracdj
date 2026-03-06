@@ -1,6 +1,6 @@
 import React from "react";
 import { useSidebar, useThemeStore } from "@/store";
-import { cn } from "@/lib/utils";
+import { cn, useLocalizedPath } from "@/lib/utils";
 import { Icon } from "@iconify/react";
 import { Search } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
@@ -59,12 +59,13 @@ const VerticalHeader = ({ handleOpenSearch }) => {
   const { layout } = useThemeStore();
   const isDesktop = useMediaQuery("(min-width: 1280px)");
   const isMobile = useMediaQuery("(min-width: 768px)");
+  const localize = useLocalizedPath();
   let LogoContent = null;
   let menuBarContent = null;
   // let searchButtonContent = null;
 
   const MainLogo = (
-    <Link href="/dashboard" className=" text-primary ">
+    <Link href={localize("/dashboard")} className=" text-primary ">
       <SiteLogo className="h-7 w-7" />
     </Link>
   );

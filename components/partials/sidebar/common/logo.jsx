@@ -2,14 +2,16 @@ import { SiteLogo } from "@/components/svg";
 import { useSidebar } from "@/store";
 import Link from "next/link";
 import React from "react";
+import { useLocalizedPath } from "@/lib/utils";
 
 const SidebarLogo = ({ hovered }) => {
   const { sidebarType, setCollapsed, collapsed } = useSidebar();
+  const localize = useLocalizedPath();
   return (
     <div className="px-4 py-4 ">
       <div className=" flex items-center">
         <div className=" flex-1">
-          <Link href="/dashboard" className="flex items-center gap-x-3">
+          <Link href={localize("/dashboard")} className="flex items-center gap-x-3">
             <SiteLogo className="text-primary" />
            
           </Link>

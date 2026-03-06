@@ -11,10 +11,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { useLocalizedPath } from "@/lib/utils";
 
 const BusinessStatus = () => {
   const { ventas, presupuestos, productos, loading } = useDashboardData();
   const data = { ventas, presupuestos, productos };
+  const localize = useLocalizedPath();
 
   const status = useMemo(() => {
     if (loading) return null;
@@ -214,7 +216,7 @@ const BusinessStatus = () => {
                     {data.productos.length} productos
                   </div>
                   <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                    <Link href="/productos" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
+                    <Link href={localize("/productos")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
                       Ver productos →
                     </Link>
                   </div>
@@ -247,7 +249,7 @@ const BusinessStatus = () => {
                     })()}
                   </div>
                   <div className="pt-2 mt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                    <Link href="/ventas" className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
+                    <Link href={localize("/ventas")} className="text-primary dark:text-primary font-medium text-xs sm:text-sm hover:underline transition-all">
                       Ver ventas →
                     </Link>
                   </div>

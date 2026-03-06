@@ -1,5 +1,5 @@
 import React from "react";
-import { cn, isLocationMatch, translate } from "@/lib/utils";
+import { cn, isLocationMatch, translate, useLocalizedPath } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ChevronRight, ChevronLeft } from "lucide-react";
@@ -7,9 +7,10 @@ import { useThemeStore } from "@/store";
 
 function NavLink({ childItem, locationName, trans }) {
   const { href, icon, title, badge } = childItem;
+  const localize = useLocalizedPath();
   return (
     <Link
-      href={href}
+      href={localize(href)}
       className={cn(
         "flex  font-medium  text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
         {

@@ -14,7 +14,7 @@ const Blank = ({ mblChatHandler }) => {
             No message yet...
           </div>
           <p className="mt-1 text-sm font-medium text-default-400">
-            don't worry, just take a deep breath & say "Hello"
+            don’t worry, just take a deep breath & say “Hello”
           </p>
           {isLg && (
             <Button onClick={mblChatHandler} className="mt-2">

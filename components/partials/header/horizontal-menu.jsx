@@ -1,7 +1,7 @@
 import React from "react";
 import * as NavigationMenu from "@radix-ui/react-navigation-menu";
 import { menusConfig } from "@/config/menus";
-import { cn, translate } from "@/lib/utils";
+import { cn, translate, useLocalizedPath } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import image from "@/public/images/all-img/man-with-laptop.png";
 import Image from "next/image";
 export default function MainMenu({ trans }) {
   const menus = menusConfig.mainNav || [];
+  const buildLocalizedPath = useLocalizedPath();
 
   const [offset, setOffset] = React.useState();
   const [list, setList] = React.useState();
@@ -65,7 +66,7 @@ export default function MainMenu({ trans }) {
                         className="text-sm font-medium text-default-700"
                         key={`child-${index}`}
                         title={childItem.title}
-                        href={childItem.href}
+                        href={buildLocalizedPath(childItem.href)}
                         childItem={childItem}
                         trans={trans}
                       >
@@ -121,7 +122,7 @@ export default function MainMenu({ trans }) {
                                 className="mb-0 text-sm font-medium text-default-600"
                                 key={`child-${megaChild.title}`}
                                 title={megaChild.title}
-                                href={megaChild.href}
+                                href={buildLocalizedPath(megaChild.href)}
                                 childItem={megaChild}
                               />
                             ))}
@@ -166,11 +167,11 @@ export default function MainMenu({ trans }) {
   );
 }
 
-const ListItem = React.forwardRef(
-  (
-    { className, children, title, childItem, trans, ...props },
-    forwardedRef
-  ) => (
+const ListItem = React.forwardRef(function ListItem(
+  { className, children, title, childItem, trans, ...props },
+  forwardedRef
+) {
+  return (
     <NavigationMenu.Link asChild>
       <Link
         className={cn(
@@ -184,5 +185,5 @@ const ListItem = React.forwardRef(
         <div className=" capitalize">{translate(title, trans)}</div>
       </Link>
     </NavigationMenu.Link>
-  )
-);
+  );
+});

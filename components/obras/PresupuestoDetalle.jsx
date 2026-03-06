@@ -26,6 +26,7 @@ const PresupuestoDetalle = ({
   formatearNumeroArgentino,
   onObraUpdate,
   onGuardarRef,
+  onRequestSave,
   shouldSave,
   onResetShouldSave
 }) => {
@@ -1192,19 +1193,21 @@ const PresupuestoDetalle = ({
 
       {/* Descripción general removida: se usa descripción por bloque */}
 
-            {/* Botón de Guardar */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={() => {
-            console.log("🔘 Botón Guardar Cambios clickeado");
-            guardarCambios();
-          }} 
-          className="flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          Guardar Cambios
-        </Button>
-      </div>
+      {editando && (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              console.log("🔘 Botón Guardar Cambios clickeado");
+              if (onRequestSave) onRequestSave();
+              else guardarCambios();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" />
+            Guardar Cambios
+          </Button>
+        </div>
+      )}
             </div>
   );
 };

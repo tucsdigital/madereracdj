@@ -4,7 +4,7 @@ import { Icon } from "@iconify/react";
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { cn, isLocationMatch, translate, getDynamicPath } from "@/lib/utils";
+import { cn, isLocationMatch, translate, getDynamicPath, useLocalizedPath } from "@/lib/utils";
 
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { usePathname } from "next/navigation";
@@ -14,8 +14,9 @@ const SingleMenuItem = ({ item, collapsed, trans }) => {
 
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
+  const localize = useLocalizedPath();
   return (
-    <Link href={href}>
+    <Link href={localize(href)}>
       <>
         {collapsed ? (
           <div>

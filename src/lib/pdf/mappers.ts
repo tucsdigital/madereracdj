@@ -9,7 +9,6 @@ import {
   calcularFechaVencimiento,
   safeText,
 } from "./formatters";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - módulo JS sin tipos
 import { computeLineBase, computeLineSubtotal, computeTotals } from "../../../lib/pricing";
 

@@ -157,6 +157,7 @@ const AssignTags = ({ task, taskId }) => {
                 <div className="flex flex-wrap gap-4">
                   {themeColors.map((item, index) => (
                     <label
+                      key={item}
                       htmlFor={item}
                       className={`w-10 h-10 p-0 flex flex-wrap justify-center items-center rounded cursor-pointer bg-${item}`}
                     >
