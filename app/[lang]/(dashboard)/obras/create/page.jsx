@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,19 @@ export default function CrearObraPage() {
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
+  const DEFAULT_CLIENTE_ID = "consumidor_final";
+  const DEFAULT_CLIENTE_DATA = useMemo(
+    () => ({
+      nombre: "CONSUMIDOR FINAL",
+      email: "",
+      telefono: "",
+      direccion: "",
+      cuit: "",
+      localidad: "",
+      esClienteDefault: true,
+    }),
+    []
+  );
 
   // Datos generales eliminados (tipoObra, prioridad, responsable)
 
@@ -111,9 +124,29 @@ export default function CrearObraPage() {
     async function fetchData() {
       // Clientes
       setClientesLoading(true);
+      let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
+      try {
+        const defaultRef = doc(db, "clientes", DEFAULT_CLIENTE_ID);
+        const defaultSnap = await getDoc(defaultRef);
+        if (!defaultSnap.exists()) {
+          await setDoc(defaultRef, {
+            ...DEFAULT_CLIENTE_DATA,
+            creadoEn: new Date().toISOString(),
+          });
+        } else {
+          defaultCliente = { id: defaultSnap.id, ...defaultSnap.data() };
+        }
+      } catch (e) {
+        console.warn("No se pudo asegurar el cliente por defecto:", e);
+      }
+
       const snapClientes = await getDocs(collection(db, "clientes"));
-      setClientes(snapClientes.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const list = snapClientes.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
+      const next = tieneDefault ? list : [defaultCliente, ...list];
+      setClientes(next);
       setClientesLoading(false);
+      setClienteId((prev) => prev || DEFAULT_CLIENTE_ID);
 
       // Productos (catálogo general)
       const snapProd = await getDocs(collection(db, "productos"));
@@ -133,7 +166,7 @@ export default function CrearObraPage() {
       setPresupuestosObra(presup);
     }
     fetchData();
-  }, []);
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID]);
 
   // Normaliza texto para búsqueda
   const normalizarTexto = useCallback((texto) => {
@@ -471,26 +504,24 @@ export default function CrearObraPage() {
   // Submit
   const [guardando, setGuardando] = useState(false);
   const handleGuardarObra = async () => {
-    if (!clienteId) {
-      alert("Cliente es requerido");
-      return;
-    }
+    const finalClienteId = clienteId || DEFAULT_CLIENTE_ID;
+    const clienteSel = clientes.find((c) => c.id === finalClienteId) || null;
     setGuardando(true);
     try {
       const numeroPedido = await getNextObraNumber();
-      const clienteObj = clienteSeleccionado
+      const clienteObj = clienteSel
         ? {
-            nombre: clienteSeleccionado.nombre || "",
-            cuit: clienteSeleccionado.cuit || "",
-            direccion: clienteSeleccionado.direccion || "",
-            telefono: clienteSeleccionado.telefono || "",
-            email: clienteSeleccionado.email || "",
-            localidad: clienteSeleccionado.localidad || "",
-            partido: clienteSeleccionado.partido || "",
-            barrio: clienteSeleccionado.barrio || "",
-            area: clienteSeleccionado.area || "",
-            lote: clienteSeleccionado.lote || "",
-            descripcion: clienteSeleccionado.descripcion || "",
+            nombre: clienteSel.nombre || "",
+            cuit: clienteSel.cuit || "",
+            direccion: clienteSel.direccion || "",
+            telefono: clienteSel.telefono || "",
+            email: clienteSel.email || "",
+            localidad: clienteSel.localidad || "",
+            partido: clienteSel.partido || "",
+            barrio: clienteSel.barrio || "",
+            area: clienteSel.area || "",
+            lote: clienteSel.lote || "",
+            descripcion: clienteSel.descripcion || "",
           }
         : null;
 
@@ -524,16 +555,16 @@ export default function CrearObraPage() {
       });
 
       const ubicacionObra = (() => {
-        if (usarDireccionCliente && clienteSeleccionado) {
+        if (usarDireccionCliente && clienteSel) {
           return {
-            direccion: clienteSeleccionado.direccion || "",
-            localidad: clienteSeleccionado.localidad || "",
-            provincia: clienteSeleccionado.provincia || "",
-            partido: clienteSeleccionado.partido || "",
-            barrio: clienteSeleccionado.barrio || "",
-            area: clienteSeleccionado.area || "",
-            lote: clienteSeleccionado.lote || "",
-            descripcion: clienteSeleccionado.descripcion || "",
+            direccion: clienteSel.direccion || "",
+            localidad: clienteSel.localidad || "",
+            provincia: clienteSel.provincia || "",
+            partido: clienteSel.partido || "",
+            barrio: clienteSel.barrio || "",
+            area: clienteSel.area || "",
+            lote: clienteSel.lote || "",
+            descripcion: clienteSel.descripcion || "",
           };
         }
         return {
@@ -552,7 +583,7 @@ export default function CrearObraPage() {
         tipo: "obra",
         numeroPedido,
         estado: "pendiente_inicio",
-        clienteId,
+        clienteId: finalClienteId,
         cliente: clienteObj,
         ubicacion: ubicacionObra,
         materialesCatalogo: materialesSanitizados,
@@ -592,7 +623,7 @@ export default function CrearObraPage() {
         <CardContent className="space-y-4">
           {/* Cliente */}
           <div>
-            <label className="text-sm text-gray-600">Cliente *</label>
+            <label className="text-sm text-gray-600">Cliente</label>
             <div className="relative w-full mt-1">
               <div
                 className="w-full flex items-center cursor-pointer bg-card border border-default-300 rounded-lg h-10 px-3 text-sm justify-between transition duration-300"
@@ -1208,7 +1239,7 @@ export default function CrearObraPage() {
       {/* Acciones */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => router.push(`/${lang}/obras`)}>Cancelar</Button>
-        <Button onClick={handleGuardarObra} disabled={guardando || !clienteId}>
+        <Button onClick={handleGuardarObra} disabled={guardando}>
           {guardando ? "Guardando..." : "Crear Obra"}
         </Button>
       </div>

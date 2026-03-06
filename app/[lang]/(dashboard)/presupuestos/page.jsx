@@ -12,7 +12,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Box, Layers, Settings, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
 
 // Categorías y productos ficticios
@@ -42,6 +42,19 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
   const [submitMessage, setSubmitMessage] = useState("");
+  const DEFAULT_CLIENTE_ID = "consumidor_final";
+  const DEFAULT_CLIENTE_DATA = React.useMemo(
+    () => ({
+      nombre: "CONSUMIDOR FINAL",
+      email: "",
+      telefono: "",
+      direccion: "",
+      cuit: "",
+      localidad: "",
+      esClienteDefault: true,
+    }),
+    []
+  );
 
   const schema = yup.object().shape({
     nombre: yup.string().required("El nombre es obligatorio"),
@@ -52,11 +65,11 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
       originalValue === "" ? undefined : value
     ).notRequired(),
     cliente: yup.object().shape({
-      nombre: yup.string().required("Obligatorio"),
-      email: yup.string().email("Email inválido").required("Obligatorio"),
-      telefono: yup.string().required("Obligatorio"),
-      direccion: yup.string().required("Obligatorio"),
-      cuit: yup.string().required("Obligatorio"),
+      nombre: yup.string().notRequired(),
+      email: yup.string().email("Email inválido").notRequired(),
+      telefono: yup.string().notRequired(),
+      direccion: yup.string().notRequired(),
+      cuit: yup.string().notRequired(),
     }),
     items: yup.array().of(
       yup.object().shape({
@@ -189,12 +202,31 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
   useEffect(() => {
     const fetchClientes = async () => {
       setClientesLoading(true);
+      let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
+      try {
+        const defaultRef = doc(db, "clientes", DEFAULT_CLIENTE_ID);
+        const defaultSnap = await getDoc(defaultRef);
+        if (!defaultSnap.exists()) {
+          await setDoc(defaultRef, {
+            ...DEFAULT_CLIENTE_DATA,
+            creadoEn: new Date().toISOString(),
+          });
+        } else {
+          defaultCliente = { id: defaultSnap.id, ...defaultSnap.data() };
+        }
+      } catch (e) {
+        console.warn("No se pudo asegurar el cliente por defecto:", e);
+      }
       const snap = await getDocs(collection(db, "clientes"));
-      setClientesState(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
+      const next = tieneDefault ? list : [defaultCliente, ...list];
+      setClientesState(next);
+      setClienteId((prev) => prev || DEFAULT_CLIENTE_ID);
       setClientesLoading(false);
     };
     fetchClientes();
-  }, []);
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID]);
 
   // Debug: monitorear valores de envío
   useEffect(() => {
@@ -211,11 +243,7 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     setSubmitMessage("");
     
     // Validaciones adicionales
-    if (!clienteId) {
-      setSubmitStatus("error");
-      setSubmitMessage("Debe seleccionar un cliente");
-      return;
-    }
+    const finalClienteId = clienteId || DEFAULT_CLIENTE_ID;
 
     if (productosSeleccionados.length === 0) {
       setSubmitStatus("error");
@@ -235,9 +263,23 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
     
     try {
       // Preparar datos del formulario
+      const finalClienteObj = (() => {
+        const c = clientesState.find((x) => x.id === finalClienteId);
+        if (c) {
+          return {
+            nombre: c.nombre || DEFAULT_CLIENTE_DATA.nombre,
+            email: c.email || DEFAULT_CLIENTE_DATA.email,
+            telefono: c.telefono || DEFAULT_CLIENTE_DATA.telefono,
+            direccion: c.direccion || DEFAULT_CLIENTE_DATA.direccion,
+            cuit: c.cuit || DEFAULT_CLIENTE_DATA.cuit,
+          };
+        }
+        return DEFAULT_CLIENTE_DATA;
+      })();
       const formData = {
         ...data,
-        clienteId: clienteId,
+        clienteId: finalClienteId,
+        cliente: finalClienteObj,
         productos: productosSeleccionados,
         subtotal: subtotal,
         descuentoTotal: descuentoTotal,

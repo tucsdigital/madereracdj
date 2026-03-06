@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,19 @@ export default function CrearPresupuestoObraPage() {
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
+  const DEFAULT_CLIENTE_ID = "consumidor_final";
+  const DEFAULT_CLIENTE_DATA = useMemo(
+    () => ({
+      nombre: "CONSUMIDOR FINAL",
+      email: "",
+      telefono: "",
+      direccion: "",
+      cuit: "",
+      localidad: "",
+      esClienteDefault: true,
+    }),
+    []
+  );
 
   // Clientes
   const [clientes, setClientes] = useState([]);
@@ -112,9 +125,29 @@ export default function CrearPresupuestoObraPage() {
     async function fetchData() {
       // Clientes
       setClientesLoading(true);
+      let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
+      try {
+        const defaultRef = doc(db, "clientes", DEFAULT_CLIENTE_ID);
+        const defaultSnap = await getDoc(defaultRef);
+        if (!defaultSnap.exists()) {
+          await setDoc(defaultRef, {
+            ...DEFAULT_CLIENTE_DATA,
+            creadoEn: new Date().toISOString(),
+          });
+        } else {
+          defaultCliente = { id: defaultSnap.id, ...defaultSnap.data() };
+        }
+      } catch (e) {
+        console.warn("No se pudo asegurar el cliente por defecto:", e);
+      }
+
       const snapClientes = await getDocs(collection(db, "clientes"));
-      setClientes(snapClientes.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const list = snapClientes.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
+      const next = tieneDefault ? list : [defaultCliente, ...list];
+      setClientes(next);
       setClientesLoading(false);
+      setClienteId((prev) => prev || DEFAULT_CLIENTE_ID);
 
       // Productos de obras
       const snapProd = await getDocs(collection(db, "productos_obras"));
@@ -129,7 +162,7 @@ export default function CrearPresupuestoObraPage() {
       setCategorias(Object.keys(agrupados));
     }
     fetchData();
-  }, []);
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID]);
 
   // Normalizador de texto
   const normalizarTexto = useCallback((texto) => {
@@ -397,7 +430,8 @@ export default function CrearPresupuestoObraPage() {
   // Guardar
   const [guardando, setGuardando] = useState(false);
   const guardarPresupuesto = async () => {
-    if (!clienteId) return;
+    const finalClienteId = clienteId || DEFAULT_CLIENTE_ID;
+    const clienteSel = clientes.find((c) => c.id === finalClienteId) || null;
     if (bloques.every(bloque => bloque.items.length === 0)) return;
     
     setGuardando(true);
@@ -408,8 +442,8 @@ export default function CrearPresupuestoObraPage() {
         tipo: "presupuesto",
         numeroPedido,
         fecha: new Date().toISOString().split("T")[0],
-        clienteId,
-        cliente: clienteSeleccionado || null,
+        clienteId: finalClienteId,
+        cliente: clienteSel || null,
         bloques: bloques.map((bloque, index) => {
           const totales = totalesPorBloque[index];
           return {
@@ -1082,7 +1116,7 @@ export default function CrearPresupuestoObraPage() {
         <Button variant="outline" onClick={() => router.push(`/${lang}/obras`)}>
           Cancelar
         </Button>
-        <Button onClick={guardarPresupuesto} disabled={guardando || !clienteId || bloques.every(bloque => bloque.items.length === 0)}>
+        <Button onClick={guardarPresupuesto} disabled={guardando || bloques.every(bloque => bloque.items.length === 0)}>
           {guardando ? "Guardando..." : "Guardar Presupuesto"}
         </Button>
       </div>

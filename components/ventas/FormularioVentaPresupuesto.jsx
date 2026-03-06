@@ -29,6 +29,8 @@ import {
   getDocs,
   addDoc,
   doc,
+  getDoc,
+  setDoc,
   updateDoc,
   increment,
   serverTimestamp,
@@ -51,15 +53,29 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
+  const DEFAULT_CLIENTE_ID = "consumidor_final";
+  const DEFAULT_CLIENTE_DATA = useMemo(
+    () => ({
+      nombre: "CONSUMIDOR FINAL",
+      email: "",
+      telefono: "",
+      direccion: "",
+      cuit: "",
+      localidad: "",
+      esClienteDefault: true,
+    }),
+    []
+  );
 
   // Esquema Yup para presupuesto
   const schemaPresupuesto = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
+    clienteId: yup.string().notRequired(),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").notRequired(),
-      telefono: yup.string().required("Obligatorio"),
-      direccion: yup.string().required("Obligatorio"),
+      telefono: yup.string().notRequired(),
+      direccion: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
     items: yup
@@ -95,12 +111,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   // Esquema Yup para venta
   const schemaVenta = yup.object().shape({
     fecha: yup.string().required("La fecha es obligatoria"),
-    clienteId: yup.string().required("Debe seleccionar un cliente"),
+    clienteId: yup.string().notRequired(),
     cliente: yup.object().shape({
       nombre: yup.string().required("Obligatorio"),
       email: yup.string().email("Email inválido").notRequired(),
-      telefono: yup.string().required("Obligatorio"),
-      direccion: yup.string().required("Obligatorio"),
+      telefono: yup.string().notRequired(),
+      direccion: yup.string().notRequired(),
       cuit: yup.string().notRequired(),
     }),
     items: yup
@@ -931,9 +947,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     if (val === "nuevo") {
       setOpenNuevoCliente(true);
     } else {
-      setClienteId(val);
-      setValue("clienteId", val);
-      const clienteObj = clientesState.find((c) => c.id === val);
+      const nextId = val || DEFAULT_CLIENTE_ID;
+      setClienteId(nextId);
+      setValue("clienteId", nextId);
+      const clienteObj = clientesState.find((c) => c.id === nextId);
       if (clienteObj) {
         setValue("cliente", {
           nombre: (clienteObj.nombre || "").toUpperCase(),
@@ -984,12 +1001,37 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   useEffect(() => {
     const fetchClientes = async () => {
       setClientesLoading(true);
+      let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
+      try {
+        const defaultRef = doc(db, "clientes", DEFAULT_CLIENTE_ID);
+        const defaultSnap = await getDoc(defaultRef);
+        if (!defaultSnap.exists()) {
+          await setDoc(defaultRef, {
+            ...DEFAULT_CLIENTE_DATA,
+            creadoEn: new Date().toISOString(),
+          });
+        } else {
+          defaultCliente = { id: defaultSnap.id, ...defaultSnap.data() };
+        }
+      } catch (e) {
+        console.warn("No se pudo asegurar el cliente por defecto:", e);
+      }
+
       const snap = await getDocs(collection(db, "clientes"));
-      setClientesState(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
+      const next = tieneDefault ? list : [defaultCliente, ...list];
+      setClientesState(next);
       setClientesLoading(false);
+
+      setClienteId((prev) => {
+        const nextId = prev || DEFAULT_CLIENTE_ID;
+        setValue("clienteId", nextId);
+        return nextId;
+      });
     };
     fetchClientes();
-  }, []);
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID, setValue]);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -999,11 +1041,23 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setSubmitStatus(null);
     setSubmitMessage("");
 
-    if (!clienteId) {
-      setSubmitStatus("error");
-      setSubmitMessage("Debe seleccionar un cliente");
-      return;
-    }
+    const finalClienteId = clienteId || data.clienteId || DEFAULT_CLIENTE_ID;
+    const finalClienteObj = (() => {
+      const fromForm = data?.cliente;
+      if (fromForm?.nombre) return fromForm;
+      const fromState = clientesState.find((c) => c.id === finalClienteId);
+      if (fromState) {
+        return {
+          nombre: (fromState.nombre || "").toUpperCase(),
+          email: (fromState.email || "").toUpperCase(),
+          telefono: (fromState.telefono || "").toUpperCase(),
+          direccion: (fromState.direccion || "").toUpperCase(),
+          cuit: (fromState.cuit || "").toUpperCase(),
+        };
+      }
+      return DEFAULT_CLIENTE_DATA;
+    })();
+
     if (productosSeleccionados.length === 0) {
       setSubmitStatus("error");
       setSubmitMessage("Debe agregar al menos un producto");
@@ -1048,6 +1102,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         cleanData.localidadEnvio = undefined;
         cleanData.costoEnvio = undefined;
       }
+      cleanData.clienteId = finalClienteId;
+      cleanData.cliente = finalClienteObj;
 
       // Lógica para manejar montoAbonado y estado de pago
       let montoAbonadoFinal = cleanData.montoAbonado || 0;
@@ -1082,6 +1138,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         tipo === "presupuesto"
           ? {
               fecha: cleanData.fecha,
+              clienteId: finalClienteId,
               cliente: cleanData.cliente,
               items: productosLimpios,
               productos: productosLimpios,
@@ -1105,7 +1162,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             }
           : {
               ...cleanData,
-              clienteId: clienteId || cleanData.clienteId,
+              clienteId: finalClienteId,
               productos: productosLimpios,
               subtotal: subtotal,
               descuentoTotal: descuentoTotal,
