@@ -1780,6 +1780,7 @@ const ProductosPage = () => {
 
                 const values = parseCSVLine(lines[i]);
                 const producto = {};
+                const presentFields = new Set();
 
                 headers.forEach((header, index) => {
                   let value = values[index] || "";
@@ -1798,15 +1799,20 @@ const ProductosPage = () => {
                     ].includes(header)
                   ) {
                     // Manejar comas en números (formato argentino)
-                    value = value.replace(",", ".");
-                    value = parseFloat(value) || 0;
+                    const normalized = value.replace(",", ".");
+                    const parsed = parseFloat(normalized);
+                    value = isNaN(parsed) ? "" : parsed;
                   }
 
                   producto[header] = value;
+                  if (values[index] !== undefined && String(values[index]).trim() !== "") {
+                    presentFields.add(header);
+                  }
                 });
 
                 // Validar que tenga los campos mínimos
                 if (producto.codigo && producto.nombre && producto.categoria) {
+                  producto.__presentFields = Array.from(presentFields);
                   productos.push(producto);
                   console.log("Producto válido agregado:", producto.codigo);
                 } else {
@@ -1931,6 +1937,7 @@ const ProductosPage = () => {
               if (values.length === 0 || values.every(v => !v)) continue;
               
               const producto = {};
+              const presentFields = new Set();
 
               headers.forEach((header, index) => {
                 let value = values[index] || "";
@@ -1949,15 +1956,20 @@ const ProductosPage = () => {
                   ].includes(header)
                 ) {
                   // Manejar comas en números (formato argentino)
-                  value = value.replace(",", ".");
-                  value = parseFloat(value) || 0;
+                  const normalized = value.replace(",", ".");
+                  const parsed = parseFloat(normalized);
+                  value = isNaN(parsed) ? "" : parsed;
                 }
 
                 producto[header] = value;
+                if (values[index] !== undefined && String(values[index]).trim() !== "") {
+                  presentFields.add(header);
+                }
               });
 
               // Validar que tenga los campos mínimos
               if (producto.codigo && producto.nombre && producto.categoria) {
+                producto.__presentFields = Array.from(presentFields);
                 productos.push(producto);
                 console.log(
                   "Producto Ferretería válido agregado:",
@@ -2270,22 +2282,73 @@ const ProductosPage = () => {
         return;
       }
 
-      // Procesar productos válidos
+      const snapExistentes = await getDocs(collection(db, "productos"));
+      const mapExistentes = new Map();
+      snapExistentes.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        if ((data.categoria || "") === "Maderas" && data.codigo) {
+          const key = String(data.codigo).trim().toLowerCase();
+          if (!mapExistentes.has(key)) {
+            mapExistentes.set(key, { id: docSnap.id, data });
+          }
+        }
+      });
+
+      let creados = 0;
+      let actualizados = 0;
       setBulkProgress({ current: 0, total: productosValidos.length });
 
       for (let i = 0; i < productosValidos.length; i++) {
         const producto = productosValidos[i];
-
+        const key = String(producto.codigo).trim().toLowerCase();
+        const existente = mapExistentes.get(key);
         try {
-          await addDoc(collection(db, "productos"), producto);
+          if (existente) {
+            const fields = new Set(producto.__presentFields || []);
+            const updates = {};
+            const copiar = [
+              "nombre",
+              "descripcion",
+              "subcategoria",
+              "tipoMadera",
+              "largo",
+              "ancho",
+              "alto",
+              "unidadMedida",
+              "precioPorPie",
+              "costo",
+              "ubicacion",
+              "estado",
+              "estadoTienda",
+              "stock"
+            ];
+            if (fields.has("subCategoria") && producto.subCategoria) {
+              updates.subcategoria = producto.subCategoria;
+            }
+            copiar.forEach((k) => {
+              if (fields.has(k)) {
+                updates[k] = producto[k];
+              }
+            });
+            updates.fechaActualizacion = new Date().toISOString();
+            if (Object.keys(updates).length > 0) {
+              await updateDoc(doc(db, "productos", existente.id), updates);
+              actualizados++;
+            }
+          } else {
+            await addDoc(collection(db, "productos"), {
+              ...producto,
+              fechaCreacion: new Date().toISOString(),
+              fechaActualizacion: new Date().toISOString(),
+            });
+            creados++;
+          }
           setBulkProgress({ current: i + 1, total: productosValidos.length });
-
-          // Pequeña pausa para no sobrecargar Firebase
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 50));
         } catch (e) {
           setBulkStatus("error");
           setBulkMessage(
-            `Error al guardar producto ${producto.codigo}: ${e.message}`
+            `Error al procesar producto ${producto.codigo}: ${e.message}`
           );
           setBulkLoading(false);
           return;
@@ -2294,7 +2357,7 @@ const ProductosPage = () => {
 
       setBulkStatus("success");
       setBulkMessage(
-        `Se cargaron exitosamente ${productosValidos.length} productos.`
+        `Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`
       );
 
       // Limpiar formulario y cerrar modal
@@ -2472,25 +2535,72 @@ const ProductosPage = () => {
         return;
       }
 
-      // Procesar productos válidos
+      const snapExistentes = await getDocs(collection(db, "productos"));
+      const mapExistentes = new Map();
+      snapExistentes.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        if ((data.categoria || "") === "Ferretería" && data.codigo) {
+          const key = String(data.codigo).trim().toLowerCase();
+          if (!mapExistentes.has(key)) {
+            mapExistentes.set(key, { id: docSnap.id, data });
+          }
+        }
+      });
+
+      let creados = 0;
+      let actualizados = 0;
       setBulkProgressFerreteria({ current: 0, total: productosValidos.length });
 
       for (let i = 0; i < productosValidos.length; i++) {
         const producto = productosValidos[i];
+        const key = String(producto.codigo).trim().toLowerCase();
+        const existente = mapExistentes.get(key);
 
         try {
-          await addDoc(collection(db, "productos"), producto);
+          if (existente) {
+            const fields = new Set(producto.__presentFields || []);
+            const updates = {};
+            const copiar = [
+              "nombre",
+              "descripcion",
+              "subCategoria",
+              "unidadMedida",
+              "proveedor",
+              "stockMinimo",
+              "valorCompra",
+              "valorVenta",
+              "stock",
+              "estado",
+              "estadoTienda",
+              "costo"
+            ];
+            copiar.forEach((k) => {
+              if (fields.has(k)) {
+                updates[k] = producto[k];
+              }
+            });
+            updates.fechaActualizacion = new Date().toISOString();
+            if (Object.keys(updates).length > 0) {
+              await updateDoc(doc(db, "productos", existente.id), updates);
+              actualizados++;
+            }
+          } else {
+            await addDoc(collection(db, "productos"), {
+              ...producto,
+              fechaCreacion: new Date().toISOString(),
+              fechaActualizacion: new Date().toISOString(),
+            });
+            creados++;
+          }
           setBulkProgressFerreteria({
             current: i + 1,
             total: productosValidos.length,
           });
-
-          // Pequeña pausa para no sobrecargar Firebase
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 50));
         } catch (e) {
           setBulkStatusFerreteria("error");
           setBulkMessageFerreteria(
-            `Error al guardar producto ${producto.codigo}: ${e.message}`
+            `Error al procesar producto ${producto.codigo}: ${e.message}`
           );
           setBulkLoadingFerreteria(false);
           return;
@@ -2499,7 +2609,7 @@ const ProductosPage = () => {
 
       setBulkStatusFerreteria("success");
       setBulkMessageFerreteria(
-        `Se cargaron exitosamente ${productosValidos.length} productos de Ferretería.`
+        `Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`
       );
 
       // Limpiar formulario y cerrar modal
