@@ -1992,6 +1992,52 @@ const ProductosPage = () => {
 
           // Si es un archivo CSV, procesar directamente
           if (file.name.toLowerCase().endsWith(".csv")) {
+            const detectarDelimitador = (line) => {
+              let commas = 0;
+              let semis = 0;
+              let inQuotes = false;
+              for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                  const next = line[i + 1];
+                  if (inQuotes && next === '"') {
+                    i++;
+                    continue;
+                  }
+                  inQuotes = !inQuotes;
+                  continue;
+                }
+                if (!inQuotes) {
+                  if (ch === ",") commas++;
+                  if (ch === ";") semis++;
+                }
+              }
+              return semis > commas ? ";" : ",";
+            };
+
+            const parseCSVLine = (line, delimiter) => {
+              const result = [];
+              let current = "";
+              let inQuotes = false;
+              for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                const nextChar = line[j + 1];
+                if (char === '"' && inQuotes && nextChar === '"') {
+                  current += '"';
+                  j++;
+                } else if (char === '"') {
+                  inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                  result.push(current.trim());
+                  current = "";
+                } else {
+                  current += char;
+                }
+              }
+              result.push(current.trim());
+              return result;
+            };
+
             const lines = content.split("\n");
             console.log("Líneas CSV encontradas:", lines.length);
 
@@ -2004,36 +2050,16 @@ const ProductosPage = () => {
               return;
             }
 
-            const headers = lines[0]
-              .split(",")
-              .map((h) => h.trim().replace(/"/g, ""));
+            const headerLineRaw = lines.find((l) => l && l.trim() !== "") || "";
+            const delimiter = detectarDelimitador(headerLineRaw);
+            const headers = parseCSVLine(headerLineRaw, delimiter)
+              .map((h) => h.trim().replace(/^"|"$/g, "").replace(/^\uFEFF/, ""));
             console.log("Encabezados detectados:", headers);
 
             const productos = [];
             for (let i = 1; i < lines.length; i++) {
               if (lines[i].trim()) {
-                // Función para parsear valores CSV correctamente
-                const parseCSVLine = (line) => {
-                  const result = [];
-                  let current = "";
-                  let inQuotes = false;
-
-                  for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    if (char === '"') {
-                      inQuotes = !inQuotes;
-                    } else if (char === "," && !inQuotes) {
-                      result.push(current.trim());
-                      current = "";
-                    } else {
-                      current += char;
-                    }
-                  }
-                  result.push(current.trim());
-                  return result;
-                };
-
-                const values = parseCSVLine(lines[i]);
+                const values = parseCSVLine(lines[i], delimiter);
                 const producto = {};
                 const presentFields = new Set();
 
@@ -2041,7 +2067,7 @@ const ProductosPage = () => {
                   let value = values[index] || "";
 
                   // Limpiar comillas
-                  value = value.replace(/"/g, "");
+                  value = value.replace(/^"|"$/g, "").replace(/""/g, '"');
 
                   // Convertir valores numéricos
                   if (
@@ -2130,6 +2156,54 @@ const ProductosPage = () => {
           if (file.name.toLowerCase().endsWith(".csv")) {
             // Parser CSV mejorado que maneja descripciones multilínea
             const parseCSV = (text) => {
+              const detectarDelimitador = (line) => {
+                let commas = 0;
+                let semis = 0;
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                  const ch = line[i];
+                  if (ch === '"') {
+                    const next = line[i + 1];
+                    if (inQuotes && next === '"') {
+                      i++;
+                      continue;
+                    }
+                    inQuotes = !inQuotes;
+                    continue;
+                  }
+                  if (!inQuotes) {
+                    if (ch === ",") commas++;
+                    if (ch === ";") semis++;
+                  }
+                }
+                return semis > commas ? ";" : ",";
+              };
+
+              const tomarPrimeraLinea = (raw) => {
+                let line = "";
+                let inQuotes = false;
+                for (let i = 0; i < raw.length; i++) {
+                  const ch = raw[i];
+                  const next = raw[i + 1];
+                  if (ch === '"' && inQuotes && next === '"') {
+                    line += '"';
+                    i++;
+                    continue;
+                  }
+                  if (ch === '"') {
+                    inQuotes = !inQuotes;
+                    line += ch;
+                    continue;
+                  }
+                  if ((ch === "\n" || ch === "\r") && !inQuotes) {
+                    break;
+                  }
+                  line += ch;
+                }
+                return line;
+              };
+
+              const delimiter = detectarDelimitador(tomarPrimeraLinea(text));
               const rows = [];
               let currentRow = [];
               let currentField = "";
@@ -2146,7 +2220,7 @@ const ProductosPage = () => {
                 } else if (char === '"') {
                   // Toggle estado de comillas
                   inQuotes = !inQuotes;
-                } else if (char === ',' && !inQuotes) {
+                } else if (char === delimiter && !inQuotes) {
                   // Separador de campo fuera de comillas
                   currentRow.push(currentField.trim());
                   currentField = "";
@@ -2192,7 +2266,7 @@ const ProductosPage = () => {
               return;
             }
 
-            const headers = rows[0].map(h => h.replace(/"/g, "").trim());
+            const headers = rows[0].map(h => h.replace(/^"|"$/g, "").replace(/""/g, '"').trim().replace(/^\uFEFF/, ""));
             console.log("Encabezados Ferretería detectados:", headers);
 
             const productos = [];
@@ -2207,7 +2281,7 @@ const ProductosPage = () => {
                 let value = values[index] || "";
 
                 // Limpiar comillas
-                value = value.replace(/^"|"$/g, "").trim();
+                  value = value.replace(/^"|"$/g, "").replace(/""/g, '"').trim();
 
                 // Convertir valores numéricos
                 if (
@@ -2304,6 +2378,52 @@ const ProductosPage = () => {
 
           // Si es un archivo CSV, procesar directamente
           if (file.name.toLowerCase().endsWith(".csv")) {
+            const detectarDelimitador = (line) => {
+              let commas = 0;
+              let semis = 0;
+              let inQuotes = false;
+              for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                  const next = line[i + 1];
+                  if (inQuotes && next === '"') {
+                    i++;
+                    continue;
+                  }
+                  inQuotes = !inQuotes;
+                  continue;
+                }
+                if (!inQuotes) {
+                  if (ch === ",") commas++;
+                  if (ch === ";") semis++;
+                }
+              }
+              return semis > commas ? ";" : ",";
+            };
+
+            const parseCSVLine = (line, delimiter) => {
+              const result = [];
+              let current = "";
+              let inQuotes = false;
+              for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                const nextChar = line[j + 1];
+                if (char === '"' && inQuotes && nextChar === '"') {
+                  current += '"';
+                  j++;
+                } else if (char === '"') {
+                  inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                  result.push(current.trim());
+                  current = "";
+                } else {
+                  current += char;
+                }
+              }
+              result.push(current.trim());
+              return result;
+            };
+
             const lines = content.split("\n");
             console.log("Líneas CSV Obras encontradas:", lines.length);
 
@@ -2316,36 +2436,16 @@ const ProductosPage = () => {
               return;
             }
 
-            const headers = lines[0]
-              .split(",")
-              .map((h) => h.trim().replace(/"/g, ""));
+            const headerLineRaw = lines.find((l) => l && l.trim() !== "") || "";
+            const delimiter = detectarDelimitador(headerLineRaw);
+            const headers = parseCSVLine(headerLineRaw, delimiter)
+              .map((h) => h.trim().replace(/^"|"$/g, "").replace(/^\uFEFF/, ""));
             console.log("Encabezados Obras detectados:", headers);
 
             const productos = [];
             for (let i = 1; i < lines.length; i++) {
               if (lines[i].trim()) {
-                // Función para parsear valores CSV correctamente
-                const parseCSVLine = (line) => {
-                  const result = [];
-                  let current = "";
-                  let inQuotes = false;
-
-                  for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    if (char === '"') {
-                      inQuotes = !inQuotes;
-                    } else if (char === "," && !inQuotes) {
-                      result.push(current.trim());
-                      current = "";
-                    } else {
-                      current += char;
-                    }
-                  }
-                  result.push(current.trim());
-                  return result;
-                };
-
-                const values = parseCSVLine(lines[i]);
+                const values = parseCSVLine(lines[i], delimiter);
                 const producto = {};
 
                 headers.forEach((header, index) => {
