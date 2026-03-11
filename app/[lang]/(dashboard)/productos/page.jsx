@@ -1370,6 +1370,9 @@ const ProductosPage = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkFile, setBulkFile] = useState(null);
+  const [bulkPreview, setBulkPreview] = useState(null);
+  const [bulkPreviewLoading, setBulkPreviewLoading] = useState(false);
+  const [bulkPreviewError, setBulkPreviewError] = useState("");
 
   // Estados para carga masiva Ferretería
   const [bulkStatusFerreteria, setBulkStatusFerreteria] = useState(null);
@@ -1380,6 +1383,9 @@ const ProductosPage = () => {
     total: 0,
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
+  const [bulkPreviewFerreteria, setBulkPreviewFerreteria] = useState(null);
+  const [bulkPreviewLoadingFerreteria, setBulkPreviewLoadingFerreteria] = useState(false);
+  const [bulkPreviewErrorFerreteria, setBulkPreviewErrorFerreteria] = useState("");
 
   // Estados para carga masiva Obras
   const [bulkStatusObras, setBulkStatusObras] = useState(null);
@@ -1462,6 +1468,213 @@ const ProductosPage = () => {
         .map(p => p.unidadMedida)
     )].sort();
     setUnidadesMedida(unidadesMedidaUnicas);
+  };
+
+  const computeBulkPreviewMaderas = async (file) => {
+    setBulkPreview(null);
+    setBulkPreviewError("");
+    if (!file) return;
+    setBulkPreviewLoading(true);
+    try {
+      const productosData = await processExcelFile(file);
+      const validos = [];
+      let invalidos = 0;
+      for (let i = 0; i < productosData.length; i++) {
+        const p = productosData[i];
+        if (!p.codigo || !p.nombre || !p.categoria) {
+          invalidos++;
+          continue;
+        }
+        if (p.categoria !== "Maderas") {
+          invalidos++;
+          continue;
+        }
+        if (!p.tipoMadera || !p.largo || !p.ancho || !p.alto) {
+          invalidos++;
+          continue;
+        }
+        if (p.precioPorPie === null || p.precioPorPie === undefined || p.precioPorPie === 0) {
+          invalidos++;
+          continue;
+        }
+        const valoresNumericos = ["largo", "ancho", "alto", "costo", "precioPorPie"];
+        let okNum = true;
+        for (const k of valoresNumericos) {
+          if (p[k] === null || p[k] === undefined || isNaN(p[k]) || p[k] <= 0) {
+            okNum = false;
+            break;
+          }
+        }
+        if (!okNum) {
+          invalidos++;
+          continue;
+        }
+        validos.push(p);
+      }
+      const mapExist = new Map();
+      productos.forEach((x) => {
+        if ((x.categoria || "") === "Maderas" && x.codigo) {
+          const key = String(x.codigo).trim().toLowerCase();
+          if (!mapExist.has(key)) mapExist.set(key, x);
+        }
+      });
+      const nuevos = [];
+      const updates = [];
+      const muestrasNuevos = [];
+      const muestrasUpdates = [];
+      validos.forEach((p) => {
+        const key = String(p.codigo).trim().toLowerCase();
+        const ex = mapExist.get(key);
+        if (!ex) {
+          nuevos.push(p);
+          if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
+        } else {
+          const fields = new Set(p.__presentFields || []);
+          const comparar = [
+            "nombre",
+            "descripcion",
+            "subcategoria",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "costo",
+            "ubicacion",
+            "estado",
+            "estadoTienda",
+            "stock"
+          ];
+          const cambiados = [];
+          comparar.forEach((k) => {
+            if (fields.has(k) && p[k] !== undefined) {
+              const a = p[k];
+              const b = ex[k];
+              if (String(a) !== String(b)) cambiados.push(k);
+            }
+          });
+          if (fields.has("subCategoria") && p.subCategoria && String(p.subCategoria) !== String(ex.subcategoria || "")) {
+            cambiados.push("subcategoria");
+          }
+          if (cambiados.length > 0) {
+            updates.push({ p, cambiados });
+            if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          }
+        }
+      });
+      setBulkPreview({
+        total: validos.length,
+        invalidos,
+        nuevos: nuevos.length,
+        actualizaciones: updates.length,
+        muestrasNuevos,
+        muestrasUpdates,
+      });
+    } catch (e) {
+      setBulkPreviewError(e.message || "Error al previsualizar");
+    } finally {
+      setBulkPreviewLoading(false);
+    }
+  };
+
+  const computeBulkPreviewFerreteria = async (file) => {
+    setBulkPreviewFerreteria(null);
+    setBulkPreviewErrorFerreteria("");
+    if (!file) return;
+    setBulkPreviewLoadingFerreteria(true);
+    try {
+      const productosData = await processExcelFileFerreteria(file);
+      const validos = [];
+      let invalidos = 0;
+      for (let i = 0; i < productosData.length; i++) {
+        const p = productosData[i];
+        if (!p.codigo || !p.nombre || !p.categoria) {
+          invalidos++;
+          continue;
+        }
+        if (p.categoria !== "Ferretería") {
+          invalidos++;
+          continue;
+        }
+        if (!p.stockMinimo || !p.unidadMedida || !p.valorCompra || !p.valorVenta || !p.proveedor) {
+          invalidos++;
+          continue;
+        }
+        const valoresNumericos = ["costo", "stockMinimo", "valorCompra", "valorVenta"];
+        let okNum = true;
+        for (const k of valoresNumericos) {
+          if (p[k] === null || p[k] === undefined || isNaN(p[k]) || p[k] < 0) {
+            okNum = false;
+            break;
+          }
+        }
+        if (!okNum) {
+          invalidos++;
+          continue;
+        }
+        validos.push(p);
+      }
+      const mapExist = new Map();
+      productos.forEach((x) => {
+        if ((x.categoria || "") === "Ferretería" && x.codigo) {
+          const key = String(x.codigo).trim().toLowerCase();
+          if (!mapExist.has(key)) mapExist.set(key, x);
+        }
+      });
+      const nuevos = [];
+      const updates = [];
+      const muestrasNuevos = [];
+      const muestrasUpdates = [];
+      validos.forEach((p) => {
+        const key = String(p.codigo).trim().toLowerCase();
+        const ex = mapExist.get(key);
+        if (!ex) {
+          nuevos.push(p);
+          if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
+        } else {
+          const fields = new Set(p.__presentFields || []);
+          const comparar = [
+            "nombre",
+            "descripcion",
+            "subCategoria",
+            "unidadMedida",
+            "proveedor",
+            "stockMinimo",
+            "valorCompra",
+            "valorVenta",
+            "stock",
+            "estado",
+            "estadoTienda",
+            "costo"
+          ];
+          const cambiados = [];
+          comparar.forEach((k) => {
+            if (fields.has(k) && p[k] !== undefined) {
+              const a = p[k];
+              const b = ex[k];
+              if (String(a) !== String(b)) cambiados.push(k);
+            }
+          });
+          if (cambiados.length > 0) {
+            updates.push({ p, cambiados });
+            if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          }
+        }
+      });
+      setBulkPreviewFerreteria({
+        total: validos.length,
+        invalidos,
+        nuevos: nuevos.length,
+        actualizaciones: updates.length,
+        muestrasNuevos,
+        muestrasUpdates,
+      });
+    } catch (e) {
+      setBulkPreviewErrorFerreteria(e.message || "Error al previsualizar");
+    } finally {
+      setBulkPreviewLoadingFerreteria(false);
+    }
   };
 
   // Función para cargar subcategorías específicas por categoría
@@ -4957,7 +5170,15 @@ const ProductosPage = () => {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(e) => setBulkFile(e.target.files[0])}
+                  onChange={(e) => {
+                    const f = e.target.files[0];
+                    setBulkFile(f);
+                    setBulkStatus(null);
+                    setBulkMessage("");
+                    setBulkPreview(null);
+                    setBulkPreviewError("");
+                    if (f) computeBulkPreviewMaderas(f);
+                  }}
                   className="hidden"
                   id="file-upload"
                   disabled={bulkLoading}
@@ -4976,6 +5197,48 @@ const ProductosPage = () => {
                     <p className="text-sm text-green-800">
                       Archivo seleccionado: <strong>{bulkFile.name}</strong>
                     </p>
+                  </div>
+                )}
+                {bulkPreviewLoading && (
+                  <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                    Analizando archivo...
+                  </div>
+                )}
+                {bulkPreviewError && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                    {bulkPreviewError}
+                  </div>
+                )}
+                {bulkPreview && (
+                  <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-gray-800">Previsualización</div>
+                      <div className="text-xs text-gray-500">Válidos: {bulkPreview.total} • Inválidos: {bulkPreview.invalidos}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-2 rounded-md bg-green-50 border border-green-200">
+                        <div className="font-medium text-green-800">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700">{bulkPreview.nuevos}</div>
+                        {bulkPreview.muestrasNuevos.length > 0 && (
+                          <ul className="mt-1 text-xs text-green-900 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreview.muestrasNuevos.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.nombre}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-yellow-50 border border-yellow-200">
+                        <div className="font-medium text-yellow-800">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-yellow-700">{bulkPreview.actualizaciones}</div>
+                        {bulkPreview.muestrasUpdates.length > 0 && (
+                          <ul className="mt-1 text-xs text-yellow-900 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreview.muestrasUpdates.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
                 <p className="text-sm text-gray-500 mt-2">
@@ -5110,7 +5373,15 @@ const ProductosPage = () => {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(e) => setBulkFileFerreteria(e.target.files[0])}
+                  onChange={(e) => {
+                    const f = e.target.files[0];
+                    setBulkFileFerreteria(f);
+                    setBulkStatusFerreteria(null);
+                    setBulkMessageFerreteria("");
+                    setBulkPreviewFerreteria(null);
+                    setBulkPreviewErrorFerreteria("");
+                    if (f) computeBulkPreviewFerreteria(f);
+                  }}
                   className="hidden"
                   id="file-upload-ferreteria"
                   disabled={bulkLoadingFerreteria}
@@ -5130,6 +5401,48 @@ const ProductosPage = () => {
                       Archivo seleccionado:{" "}
                       <strong>{bulkFileFerreteria.name}</strong>
                     </p>
+                  </div>
+                )}
+                {bulkPreviewLoadingFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                    Analizando archivo...
+                  </div>
+                )}
+                {bulkPreviewErrorFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                    {bulkPreviewErrorFerreteria}
+                  </div>
+                )}
+                {bulkPreviewFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-gray-800">Previsualización</div>
+                      <div className="text-xs text-gray-500">Válidos: {bulkPreviewFerreteria.total} • Inválidos: {bulkPreviewFerreteria.invalidos}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-2 rounded-md bg-green-50 border border-green-200">
+                        <div className="font-medium text-green-800">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700">{bulkPreviewFerreteria.nuevos}</div>
+                        {bulkPreviewFerreteria.muestrasNuevos.length > 0 && (
+                          <ul className="mt-1 text-xs text-green-900 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreviewFerreteria.muestrasNuevos.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.nombre}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-yellow-50 border border-yellow-200">
+                        <div className="font-medium text-yellow-800">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-yellow-700">{bulkPreviewFerreteria.actualizaciones}</div>
+                        {bulkPreviewFerreteria.muestrasUpdates.length > 0 && (
+                          <ul className="mt-1 text-xs text-yellow-900 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreviewFerreteria.muestrasUpdates.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
                 <p className="text-sm text-gray-500 mt-2">
