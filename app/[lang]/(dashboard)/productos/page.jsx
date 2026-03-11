@@ -1371,6 +1371,7 @@ const ProductosPage = () => {
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkPreview, setBulkPreview] = useState(null);
+  const [bulkOnlyChanges, setBulkOnlyChanges] = useState(true);
   const [bulkPreviewLoading, setBulkPreviewLoading] = useState(false);
   const [bulkPreviewError, setBulkPreviewError] = useState("");
 
@@ -1384,6 +1385,7 @@ const ProductosPage = () => {
   });
   const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
   const [bulkPreviewFerreteria, setBulkPreviewFerreteria] = useState(null);
+  const [bulkOnlyChangesFerreteria, setBulkOnlyChangesFerreteria] = useState(true);
   const [bulkPreviewLoadingFerreteria, setBulkPreviewLoadingFerreteria] = useState(false);
   const [bulkPreviewErrorFerreteria, setBulkPreviewErrorFerreteria] = useState("");
 
@@ -1524,6 +1526,7 @@ const ProductosPage = () => {
       });
       const nuevos = [];
       const updates = [];
+      const sinCambios = [];
       const muestrasNuevos = [];
       const muestrasUpdates = [];
       validos.forEach((p) => {
@@ -1581,6 +1584,8 @@ const ProductosPage = () => {
           if (cambiados.length > 0) {
             updates.push({ p, cambiados });
             if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          } else {
+            sinCambios.push({ p });
           }
         }
       });
@@ -1589,8 +1594,14 @@ const ProductosPage = () => {
         invalidos,
         nuevos: nuevos.length,
         actualizaciones: updates.length,
+        ignorados: Math.max(0, validos.length - nuevos.length - updates.length),
         muestrasNuevos,
         muestrasUpdates,
+        detalles: {
+          nuevos: nuevos.map(x => ({ id: x.id || "", codigo: x.codigo || "", nombre: x.nombre || "" })),
+          actualizaciones: updates.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "", cambios: x.cambiados || x.cambios || [] })),
+          ignorados: sinCambios.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "" })),
+        }
       });
     } catch (e) {
       setBulkPreviewError(e.message || "Error al previsualizar");
@@ -1649,6 +1660,7 @@ const ProductosPage = () => {
       });
       const nuevos = [];
       const updates = [];
+      const sinCambios = [];
       const muestrasNuevos = [];
       const muestrasUpdates = [];
       validos.forEach((p) => {
@@ -1701,6 +1713,8 @@ const ProductosPage = () => {
           if (cambiados.length > 0) {
             updates.push({ p, cambiados });
             if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          } else {
+            sinCambios.push({ p });
           }
         }
       });
@@ -1709,8 +1723,14 @@ const ProductosPage = () => {
         invalidos,
         nuevos: nuevos.length,
         actualizaciones: updates.length,
+        ignorados: Math.max(0, validos.length - nuevos.length - updates.length),
         muestrasNuevos,
         muestrasUpdates,
+        detalles: {
+          nuevos: nuevos.map(x => ({ id: x.id || "", codigo: x.codigo || "", nombre: x.nombre || "" })),
+          actualizaciones: updates.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "", cambios: x.cambiados || x.cambios || [] })),
+          ignorados: sinCambios.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "" })),
+        }
       });
     } catch (e) {
       setBulkPreviewErrorFerreteria(e.message || "Error al previsualizar");
@@ -2655,16 +2675,16 @@ const ProductosPage = () => {
         return;
       }
 
-      const snapExistentes = await getDocs(collection(db, "productos"));
+      // Usar estado local 'productos' para evitar lecturas extra
       const mapExistentesCodigo = new Map();
       const mapExistentesId = new Map();
-      snapExistentes.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-        mapExistentesId.set(docSnap.id, { id: docSnap.id, data });
-        if ((data.categoria || "") === "Maderas" && data.codigo) {
-          const key = String(data.codigo).trim().toLowerCase();
+      productos.forEach((p) => {
+        if (!p || (p.categoria || "") !== "Maderas") return;
+        if (p.id) mapExistentesId.set(String(p.id).trim(), { id: p.id, data: p });
+        if (p.codigo) {
+          const key = String(p.codigo).trim().toLowerCase();
           if (!mapExistentesCodigo.has(key)) {
-            mapExistentesCodigo.set(key, { id: docSnap.id, data });
+            mapExistentesCodigo.set(key, { id: p.id, data: p });
           }
         }
       });
@@ -2673,8 +2693,10 @@ const ProductosPage = () => {
       let actualizados = 0;
       setBulkProgress({ current: 0, total: productosValidos.length });
 
-      for (let i = 0; i < productosValidos.length; i++) {
-        const producto = productosValidos[i];
+      // Preparar operaciones y aplicar en lotes para acelerar
+      const toUpdate = [];
+      const toCreate = [];
+      for (const producto of productosValidos) {
         const key = String(producto.codigo).trim().toLowerCase();
         let existente = null;
         if (producto.id) {
@@ -2686,75 +2708,97 @@ const ProductosPage = () => {
         if (!existente) {
           existente = mapExistentesCodigo.get(key);
         }
-        try {
-          if (existente) {
-            const fields = new Set(producto.__presentFields || []);
-            const updates = {};
-            const copiar = [
-              "nombre",
-              "descripcion",
-              "subcategoria",
-              "tipoMadera",
-              "largo",
-              "ancho",
-              "alto",
-              "unidadMedida",
-              "precioPorPie",
-              "costo",
-              "ubicacion",
-              "estado",
-              "estadoTienda",
-              "stock",
-              "freeShipping",
-              "featuredBrand",
-              "newArrival",
-              "specialOffer",
-              "rating",
-              "imagenes"
-            ];
-            if (fields.has("subCategoria") && producto.subCategoria) {
-              updates.subcategoria = producto.subCategoria;
-            }
-            copiar.forEach((k) => {
-              if (fields.has(k)) {
-                updates[k] = producto[k];
-              }
-            });
-            if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
-              updates.discount = {
-                amount: fields.has("descuentoMonto") ? producto.descuentoMonto : existente.data?.discount?.amount || 0,
-                percentage: fields.has("descuentoPorcentaje") ? producto.descuentoPorcentaje : existente.data?.discount?.percentage || 0,
-              };
-            }
-            updates.fechaActualizacion = new Date().toISOString();
-            if (Object.keys(updates).length > 0) {
-              await updateDoc(doc(db, "productos", existente.id), updates);
-              actualizados++;
-            }
-          } else {
-            await addDoc(collection(db, "productos"), {
-              ...producto,
-              fechaCreacion: new Date().toISOString(),
-              fechaActualizacion: new Date().toISOString(),
-            });
-            creados++;
+        if (existente) {
+          const fields = new Set(producto.__presentFields || []);
+          const updates = {};
+          const copiar = [
+            "nombre",
+            "descripcion",
+            "subcategoria",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "costo",
+            "ubicacion",
+            "estado",
+            "estadoTienda",
+            "stock",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating",
+            "imagenes",
+          ];
+          if (fields.has("subCategoria") && producto.subCategoria) {
+            updates.subcategoria = producto.subCategoria;
           }
-          setBulkProgress({ current: i + 1, total: productosValidos.length });
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        } catch (e) {
-          setBulkStatus("error");
-          setBulkMessage(
-            `Error al procesar producto ${producto.codigo}: ${e.message}`
-          );
-          setBulkLoading(false);
-          return;
+          copiar.forEach((k) => {
+            if (fields.has(k)) {
+              updates[k] = producto[k];
+            }
+          });
+          if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+            updates.discount = {
+              amount: fields.has("descuentoMonto")
+                ? producto.descuentoMonto
+                : existente.data?.discount?.amount || 0,
+              percentage: fields.has("descuentoPorcentaje")
+                ? producto.descuentoPorcentaje
+                : existente.data?.discount?.percentage || 0,
+            };
+          }
+          if (Object.keys(updates).length > 0 || !bulkOnlyChanges) {
+            updates.fechaActualizacion = new Date().toISOString();
+            toUpdate.push({ id: existente.id, updates });
+          }
+        } else {
+          const {
+            __presentFields, // eliminar meta interna
+            ...dataCrear
+          } = producto;
+          dataCrear.fechaCreacion = new Date().toISOString();
+          dataCrear.fechaActualizacion = new Date().toISOString();
+          toCreate.push(dataCrear);
         }
       }
 
+      // Aplicar en writeBatch de hasta 450 operaciones
+      let processed = 0;
+      const totalOps = toUpdate.length + toCreate.length;
+      const chunkSize = 450;
+      let indexU = 0;
+      let indexC = 0;
+      while (indexU < toUpdate.length || indexC < toCreate.length) {
+        const batch = writeBatch(db);
+        let ops = 0;
+        for (; indexU < toUpdate.length && ops < chunkSize; indexU++, ops++) {
+          const { id, updates } = toUpdate[indexU];
+          const ref = doc(db, "productos", id);
+          batch.update(ref, updates);
+        }
+        for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
+          const data = toCreate[indexC];
+          const ref = doc(collection(db, "productos"));
+          batch.set(ref, data);
+        }
+        if (ops > 0) {
+          await batch.commit();
+          processed += ops;
+          setBulkProgress({ current: processed, total: totalOps });
+          if (processed % 500 === 0) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+      }
+      actualizados = toUpdate.length;
+      creados = toCreate.length;
+
       setBulkStatus("success");
-      setBulkMessage(
-        `Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`
-      );
+      setBulkMessage(`Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`);
 
       // Limpiar formulario y cerrar modal
       setTimeout(() => {
@@ -2931,16 +2975,16 @@ const ProductosPage = () => {
         return;
       }
 
-      const snapExistentes = await getDocs(collection(db, "productos"));
+      // Usar estado local 'productos' para evitar lecturas extra
       const mapExistentesCodigo = new Map();
       const mapExistentesId = new Map();
-      snapExistentes.docs.forEach((docSnap) => {
-        const data = docSnap.data();
-        mapExistentesId.set(docSnap.id, { id: docSnap.id, data });
-        if ((data.categoria || "") === "Ferretería" && data.codigo) {
-          const key = String(data.codigo).trim().toLowerCase();
+      productos.forEach((p) => {
+        if (!p || (p.categoria || "") !== "Ferretería") return;
+        if (p.id) mapExistentesId.set(String(p.id).trim(), { id: p.id, data: p });
+        if (p.codigo) {
+          const key = String(p.codigo).trim().toLowerCase();
           if (!mapExistentesCodigo.has(key)) {
-            mapExistentesCodigo.set(key, { id: docSnap.id, data });
+            mapExistentesCodigo.set(key, { id: p.id, data: p });
           }
         }
       });
@@ -2949,8 +2993,10 @@ const ProductosPage = () => {
       let actualizados = 0;
       setBulkProgressFerreteria({ current: 0, total: productosValidos.length });
 
-      for (let i = 0; i < productosValidos.length; i++) {
-        const producto = productosValidos[i];
+      // Preparar operaciones y aplicar en lotes para acelerar
+      const toUpdate = [];
+      const toCreate = [];
+      for (const producto of productosValidos) {
         const key = String(producto.codigo).trim().toLowerCase();
         let existente = null;
         if (producto.id) {
@@ -2962,74 +3008,90 @@ const ProductosPage = () => {
         if (!existente) {
           existente = mapExistentesCodigo.get(key);
         }
-
-        try {
-          if (existente) {
-            const fields = new Set(producto.__presentFields || []);
-            const updates = {};
-            const copiar = [
-              "nombre",
-              "descripcion",
-              "subCategoria",
-              "unidadMedida",
-              "proveedor",
-              "stockMinimo",
-              "valorCompra",
-              "valorVenta",
-              "stock",
-              "estado",
-              "estadoTienda",
-              "costo",
-              "freeShipping",
-              "featuredBrand",
-              "newArrival",
-              "specialOffer",
-              "rating",
-              "imagenes"
-            ];
-            copiar.forEach((k) => {
-              if (fields.has(k)) {
-                updates[k] = producto[k];
-              }
-            });
-            if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
-              updates.discount = {
-                amount: fields.has("descuentoMonto") ? producto.descuentoMonto : existente.data?.discount?.amount || 0,
-                percentage: fields.has("descuentoPorcentaje") ? producto.descuentoPorcentaje : existente.data?.discount?.percentage || 0,
-              };
+        if (existente) {
+          const fields = new Set(producto.__presentFields || []);
+          const updates = {};
+          const copiar = [
+            "nombre",
+            "descripcion",
+            "subCategoria",
+            "unidadMedida",
+            "proveedor",
+            "stockMinimo",
+            "valorCompra",
+            "valorVenta",
+            "stock",
+            "estado",
+            "estadoTienda",
+            "costo",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating",
+            "imagenes",
+          ];
+          copiar.forEach((k) => {
+            if (fields.has(k)) {
+              updates[k] = producto[k];
             }
-            updates.fechaActualizacion = new Date().toISOString();
-            if (Object.keys(updates).length > 0) {
-              await updateDoc(doc(db, "productos", existente.id), updates);
-              actualizados++;
-            }
-          } else {
-            await addDoc(collection(db, "productos"), {
-              ...producto,
-              fechaCreacion: new Date().toISOString(),
-              fechaActualizacion: new Date().toISOString(),
-            });
-            creados++;
-          }
-          setBulkProgressFerreteria({
-            current: i + 1,
-            total: productosValidos.length,
           });
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        } catch (e) {
-          setBulkStatusFerreteria("error");
-          setBulkMessageFerreteria(
-            `Error al procesar producto ${producto.codigo}: ${e.message}`
-          );
-          setBulkLoadingFerreteria(false);
-          return;
+          if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+            updates.discount = {
+              amount: fields.has("descuentoMonto")
+                ? producto.descuentoMonto
+                : existente.data?.discount?.amount || 0,
+              percentage: fields.has("descuentoPorcentaje")
+                ? producto.descuentoPorcentaje
+                : existente.data?.discount?.percentage || 0,
+            };
+          }
+          if (Object.keys(updates).length > 0 || !bulkOnlyChangesFerreteria) {
+            updates.fechaActualizacion = new Date().toISOString();
+            toUpdate.push({ id: existente.id, updates });
+          }
+        } else {
+          const { __presentFields, ...dataCrear } = producto;
+          dataCrear.fechaCreacion = new Date().toISOString();
+          dataCrear.fechaActualizacion = new Date().toISOString();
+          toCreate.push(dataCrear);
         }
       }
 
+
+      // Aplicar en writeBatch de hasta 450 operaciones
+      let processed = 0;
+      const totalOps = toUpdate.length + toCreate.length;
+      const chunkSize = 450;
+      let indexU = 0;
+      let indexC = 0;
+      while (indexU < toUpdate.length || indexC < toCreate.length) {
+        const batch = writeBatch(db);
+        let ops = 0;
+        for (; indexU < toUpdate.length && ops < chunkSize; indexU++, ops++) {
+          const { id, updates } = toUpdate[indexU];
+          const ref = doc(db, "productos", id);
+          batch.update(ref, updates);
+        }
+        for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
+          const data = toCreate[indexC];
+          const ref = doc(collection(db, "productos"));
+          batch.set(ref, data);
+        }
+        if (ops > 0) {
+          await batch.commit();
+          processed += ops;
+          setBulkProgressFerreteria({ current: processed, total: totalOps });
+          if (processed % 500 === 0) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+      }
+      actualizados = toUpdate.length;
+      creados = toCreate.length;
+
       setBulkStatusFerreteria("success");
-      setBulkMessageFerreteria(
-        `Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`
-      );
+      setBulkMessageFerreteria(`Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`);
 
       // Limpiar formulario y cerrar modal
       setTimeout(() => {
@@ -5439,7 +5501,7 @@ const ProductosPage = () => {
                       <div className="text-sm font-semibold text-gray-800">Previsualización</div>
                       <div className="text-xs text-gray-500">Válidos: {bulkPreview.total} • Inválidos: {bulkPreview.invalidos}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-3 gap-3 text-sm">
                       <div className="p-2 rounded-md bg-green-50 border border-green-200">
                         <div className="font-medium text-green-800">Nuevos</div>
                         <div className="text-2xl font-bold text-green-700">{bulkPreview.nuevos}</div>
@@ -5462,6 +5524,55 @@ const ProductosPage = () => {
                           </ul>
                         )}
                       </div>
+                      <div className="p-2 rounded-md bg-gray-100 border border-gray-200">
+                        <div className="font-medium text-gray-800">Ignorados</div>
+                        <div className="text-2xl font-bold text-gray-700">{bulkPreview.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-gray-600">
+                          Productos válidos sin cambios detectados
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={bulkOnlyChanges}
+                          onChange={(e) => setBulkOnlyChanges(e.target.checked)}
+                          disabled={bulkLoading}
+                        />
+                        <span>
+                          Aplicar solo cambios detectados y nuevos <span className="text-green-700 font-medium">(Recomendado)</span>
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkPreview) return;
+                          const headers = ["accion","id","codigo","nombre","cambios"];
+                          const rows = [headers.join(",")];
+                          bulkPreview.detalles?.nuevos?.forEach((x) => {
+                            rows.push(["nuevo", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreview.detalles?.actualizaciones?.forEach((x) => {
+                            rows.push(["actualizacion", x.id, x.codigo, x.nombre, (x.cambios||[]).join(" | ")].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreview.detalles?.ignorados?.forEach((x) => {
+                            rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          const csv = "data:text/csv;charset=utf-8," + rows.join("\n");
+                          const encodedUri = encodeURI(csv);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", encodedUri);
+                          link.setAttribute("download", `reporte_previsualizacion_maderas_${new Date().toISOString().split("T")[0]}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50"
+                      >
+                        Descargar reporte
+                      </button>
                     </div>
                   </div>
                 )}
@@ -5644,7 +5755,7 @@ const ProductosPage = () => {
                       <div className="text-sm font-semibold text-gray-800">Previsualización</div>
                       <div className="text-xs text-gray-500">Válidos: {bulkPreviewFerreteria.total} • Inválidos: {bulkPreviewFerreteria.invalidos}</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="grid grid-cols-3 gap-3 text-sm">
                       <div className="p-2 rounded-md bg-green-50 border border-green-200">
                         <div className="font-medium text-green-800">Nuevos</div>
                         <div className="text-2xl font-bold text-green-700">{bulkPreviewFerreteria.nuevos}</div>
@@ -5667,6 +5778,55 @@ const ProductosPage = () => {
                           </ul>
                         )}
                       </div>
+                      <div className="p-2 rounded-md bg-gray-100 border border-gray-200">
+                        <div className="font-medium text-gray-800">Ignorados</div>
+                        <div className="text-2xl font-bold text-gray-700">{bulkPreviewFerreteria.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-gray-600">
+                          Productos válidos sin cambios detectados
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={bulkOnlyChangesFerreteria}
+                          onChange={(e) => setBulkOnlyChangesFerreteria(e.target.checked)}
+                          disabled={bulkLoadingFerreteria}
+                        />
+                        <span>
+                          Aplicar solo cambios detectados y nuevos <span className="text-green-700 font-medium">(Recomendado)</span>
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkPreviewFerreteria) return;
+                          const headers = ["accion","id","codigo","nombre","cambios"];
+                          const rows = [headers.join(",")];
+                          bulkPreviewFerreteria.detalles?.nuevos?.forEach((x) => {
+                            rows.push(["nuevo", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreviewFerreteria.detalles?.actualizaciones?.forEach((x) => {
+                            rows.push(["actualizacion", x.id, x.codigo, x.nombre, (x.cambios||[]).join(" | ")].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreviewFerreteria.detalles?.ignorados?.forEach((x) => {
+                            rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          const csv = "data:text/csv;charset=utf-8," + rows.join("\n");
+                          const encodedUri = encodeURI(csv);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", encodedUri);
+                          link.setAttribute("download", `reporte_previsualizacion_ferreteria_${new Date().toISOString().split("T")[0]}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50"
+                      >
+                        Descargar reporte
+                      </button>
                     </div>
                   </div>
                 )}
