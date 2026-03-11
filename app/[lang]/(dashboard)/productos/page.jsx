@@ -1512,7 +1512,11 @@ const ProductosPage = () => {
         validos.push(p);
       }
       const mapExist = new Map();
+      const mapExistById = new Map();
       productos.forEach((x) => {
+        if (x.id) {
+          mapExistById.set(String(x.id).trim(), x);
+        }
         if ((x.categoria || "") === "Maderas" && x.codigo) {
           const key = String(x.codigo).trim().toLowerCase();
           if (!mapExist.has(key)) mapExist.set(key, x);
@@ -1523,8 +1527,14 @@ const ProductosPage = () => {
       const muestrasNuevos = [];
       const muestrasUpdates = [];
       validos.forEach((p) => {
-        const key = String(p.codigo).trim().toLowerCase();
-        const ex = mapExist.get(key);
+        let ex = null;
+        if (p.id) {
+          ex = mapExistById.get(String(p.id).trim());
+        }
+        if (!ex) {
+          const key = String(p.codigo).trim().toLowerCase();
+          ex = mapExist.get(key);
+        }
         if (!ex) {
           nuevos.push(p);
           if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
@@ -1544,7 +1554,12 @@ const ProductosPage = () => {
             "ubicacion",
             "estado",
             "estadoTienda",
-            "stock"
+            "stock",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating"
           ];
           const cambiados = [];
           comparar.forEach((k) => {
@@ -1556,6 +1571,12 @@ const ProductosPage = () => {
           });
           if (fields.has("subCategoria") && p.subCategoria && String(p.subCategoria) !== String(ex.subcategoria || "")) {
             cambiados.push("subcategoria");
+          }
+          if (fields.has("descuentoMonto") && String(p.descuentoMonto) !== String(ex.discount?.amount || "")) {
+            cambiados.push("descuentoMonto");
+          }
+          if (fields.has("descuentoPorcentaje") && String(p.descuentoPorcentaje) !== String(ex.discount?.percentage || "")) {
+            cambiados.push("descuentoPorcentaje");
           }
           if (cambiados.length > 0) {
             updates.push({ p, cambiados });
@@ -1616,7 +1637,11 @@ const ProductosPage = () => {
         validos.push(p);
       }
       const mapExist = new Map();
+      const mapExistById = new Map();
       productos.forEach((x) => {
+        if (x.id) {
+          mapExistById.set(String(x.id).trim(), x);
+        }
         if ((x.categoria || "") === "Ferretería" && x.codigo) {
           const key = String(x.codigo).trim().toLowerCase();
           if (!mapExist.has(key)) mapExist.set(key, x);
@@ -1627,8 +1652,14 @@ const ProductosPage = () => {
       const muestrasNuevos = [];
       const muestrasUpdates = [];
       validos.forEach((p) => {
-        const key = String(p.codigo).trim().toLowerCase();
-        const ex = mapExist.get(key);
+        let ex = null;
+        if (p.id) {
+          ex = mapExistById.get(String(p.id).trim());
+        }
+        if (!ex) {
+          const key = String(p.codigo).trim().toLowerCase();
+          ex = mapExist.get(key);
+        }
         if (!ex) {
           nuevos.push(p);
           if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
@@ -1646,7 +1677,12 @@ const ProductosPage = () => {
             "stock",
             "estado",
             "estadoTienda",
-            "costo"
+            "costo",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating"
           ];
           const cambiados = [];
           comparar.forEach((k) => {
@@ -1656,6 +1692,12 @@ const ProductosPage = () => {
               if (String(a) !== String(b)) cambiados.push(k);
             }
           });
+          if (fields.has("descuentoMonto") && String(p.descuentoMonto) !== String(ex.discount?.amount || "")) {
+            cambiados.push("descuentoMonto");
+          }
+          if (fields.has("descuentoPorcentaje") && String(p.descuentoPorcentaje) !== String(ex.discount?.percentage || "")) {
+            cambiados.push("descuentoPorcentaje");
+          }
           if (cambiados.length > 0) {
             updates.push({ p, cambiados });
             if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
@@ -2009,12 +2051,21 @@ const ProductosPage = () => {
                       "ancho",
                       "alto",
                       "precioPorPie",
+                      "rating",
+                      "descuentoMonto",
+                      "descuentoPorcentaje",
                     ].includes(header)
                   ) {
                     // Manejar comas en números (formato argentino)
                     const normalized = value.replace(",", ".");
                     const parsed = parseFloat(normalized);
                     value = isNaN(parsed) ? "" : parsed;
+                  } else if (["freeShipping", "featuredBrand", "newArrival", "specialOffer"].includes(header)) {
+                    const v = value.toString().toLowerCase();
+                    value = v === "si" || v === "sí" || v === "true" || v === "1" ? true : v === "no" || v === "false" || v === "0" ? false : "";
+                  } else if (header === "imagenes") {
+                    const raw = value;
+                    value = raw ? raw.split("|").map((s) => s.trim()).filter(Boolean) : [];
                   }
 
                   producto[header] = value;
@@ -2166,12 +2217,21 @@ const ProductosPage = () => {
                     "valorCompra",
                     "valorVenta",
                     "stock",
+                    "rating",
+                    "descuentoMonto",
+                    "descuentoPorcentaje",
                   ].includes(header)
                 ) {
                   // Manejar comas en números (formato argentino)
                   const normalized = value.replace(",", ".");
                   const parsed = parseFloat(normalized);
                   value = isNaN(parsed) ? "" : parsed;
+                } else if (["freeShipping", "featuredBrand", "newArrival", "specialOffer"].includes(header)) {
+                  const v = value.toString().toLowerCase();
+                  value = v === "si" || v === "sí" || v === "true" || v === "1" ? true : v === "no" || v === "false" || v === "0" ? false : "";
+                } else if (header === "imagenes") {
+                  const raw = value;
+                  value = raw ? raw.split("|").map((s) => s.trim()).filter(Boolean) : [];
                 }
 
                 producto[header] = value;
@@ -2496,13 +2556,15 @@ const ProductosPage = () => {
       }
 
       const snapExistentes = await getDocs(collection(db, "productos"));
-      const mapExistentes = new Map();
+      const mapExistentesCodigo = new Map();
+      const mapExistentesId = new Map();
       snapExistentes.docs.forEach((docSnap) => {
         const data = docSnap.data();
+        mapExistentesId.set(docSnap.id, { id: docSnap.id, data });
         if ((data.categoria || "") === "Maderas" && data.codigo) {
           const key = String(data.codigo).trim().toLowerCase();
-          if (!mapExistentes.has(key)) {
-            mapExistentes.set(key, { id: docSnap.id, data });
+          if (!mapExistentesCodigo.has(key)) {
+            mapExistentesCodigo.set(key, { id: docSnap.id, data });
           }
         }
       });
@@ -2514,7 +2576,16 @@ const ProductosPage = () => {
       for (let i = 0; i < productosValidos.length; i++) {
         const producto = productosValidos[i];
         const key = String(producto.codigo).trim().toLowerCase();
-        const existente = mapExistentes.get(key);
+        let existente = null;
+        if (producto.id) {
+          const byId = mapExistentesId.get(String(producto.id).trim());
+          if (byId && (byId.data.categoria || "") === "Maderas") {
+            existente = byId;
+          }
+        }
+        if (!existente) {
+          existente = mapExistentesCodigo.get(key);
+        }
         try {
           if (existente) {
             const fields = new Set(producto.__presentFields || []);
@@ -2533,7 +2604,13 @@ const ProductosPage = () => {
               "ubicacion",
               "estado",
               "estadoTienda",
-              "stock"
+              "stock",
+              "freeShipping",
+              "featuredBrand",
+              "newArrival",
+              "specialOffer",
+              "rating",
+              "imagenes"
             ];
             if (fields.has("subCategoria") && producto.subCategoria) {
               updates.subcategoria = producto.subCategoria;
@@ -2543,6 +2620,12 @@ const ProductosPage = () => {
                 updates[k] = producto[k];
               }
             });
+            if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+              updates.discount = {
+                amount: fields.has("descuentoMonto") ? producto.descuentoMonto : existente.data?.discount?.amount || 0,
+                percentage: fields.has("descuentoPorcentaje") ? producto.descuentoPorcentaje : existente.data?.discount?.percentage || 0,
+              };
+            }
             updates.fechaActualizacion = new Date().toISOString();
             if (Object.keys(updates).length > 0) {
               await updateDoc(doc(db, "productos", existente.id), updates);
@@ -2749,13 +2832,15 @@ const ProductosPage = () => {
       }
 
       const snapExistentes = await getDocs(collection(db, "productos"));
-      const mapExistentes = new Map();
+      const mapExistentesCodigo = new Map();
+      const mapExistentesId = new Map();
       snapExistentes.docs.forEach((docSnap) => {
         const data = docSnap.data();
+        mapExistentesId.set(docSnap.id, { id: docSnap.id, data });
         if ((data.categoria || "") === "Ferretería" && data.codigo) {
           const key = String(data.codigo).trim().toLowerCase();
-          if (!mapExistentes.has(key)) {
-            mapExistentes.set(key, { id: docSnap.id, data });
+          if (!mapExistentesCodigo.has(key)) {
+            mapExistentesCodigo.set(key, { id: docSnap.id, data });
           }
         }
       });
@@ -2767,7 +2852,16 @@ const ProductosPage = () => {
       for (let i = 0; i < productosValidos.length; i++) {
         const producto = productosValidos[i];
         const key = String(producto.codigo).trim().toLowerCase();
-        const existente = mapExistentes.get(key);
+        let existente = null;
+        if (producto.id) {
+          const byId = mapExistentesId.get(String(producto.id).trim());
+          if (byId && (byId.data.categoria || "") === "Ferretería") {
+            existente = byId;
+          }
+        }
+        if (!existente) {
+          existente = mapExistentesCodigo.get(key);
+        }
 
         try {
           if (existente) {
@@ -2785,13 +2879,25 @@ const ProductosPage = () => {
               "stock",
               "estado",
               "estadoTienda",
-              "costo"
+              "costo",
+              "freeShipping",
+              "featuredBrand",
+              "newArrival",
+              "specialOffer",
+              "rating",
+              "imagenes"
             ];
             copiar.forEach((k) => {
               if (fields.has(k)) {
                 updates[k] = producto[k];
               }
             });
+            if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+              updates.discount = {
+                amount: fields.has("descuentoMonto") ? producto.descuentoMonto : existente.data?.discount?.amount || 0,
+                percentage: fields.has("descuentoPorcentaje") ? producto.descuentoPorcentaje : existente.data?.discount?.percentage || 0,
+              };
+            }
             updates.fechaActualizacion = new Date().toISOString();
             if (Object.keys(updates).length > 0) {
               await updateDoc(doc(db, "productos", existente.id), updates);
@@ -3002,10 +3108,10 @@ const ProductosPage = () => {
 
   // Función para descargar CSV de ejemplo
   const downloadExampleCSV = () => {
-    const csvContent = `codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida
-1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,,pie
-1402,TABALAS 1" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,,pie
-1403,TABALAS 1" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,,pie`;
+    const csvContent = `id,codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida,estadoTienda,freeShipping,featuredBrand,newArrival,specialOffer,rating,descuentoMonto,descuentoPorcentaje,imagenes
+,1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
+,1402,TABALAS 1\" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
+,1403,TABALAS 1\" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,`;
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -3021,6 +3127,7 @@ const ProductosPage = () => {
   // Función para descargar CSV de ejemplo para Ferretería
   const downloadExampleCSVFerreteria = () => {
     const headers = [
+      "id",
       "codigo",
       "nombre",
       "descripcion",
@@ -3034,12 +3141,20 @@ const ProductosPage = () => {
       "stock",
       "estado",
       "estadoTienda",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes",
     ];
     const csvContent =
       "data:text/csv;charset=utf-8," +
       headers.join(",") +
       "\n" +
-      "1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,50,Activo,Activo";
+      ",1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,50,Activo,Inactivo,No,No,No,No,0,0,0,";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -3058,22 +3173,25 @@ const ProductosPage = () => {
   // Función para descargar CSV de ejemplo para Obras
   const downloadExampleCSVObras = () => {
     const headers = [
+      "id",
       "codigo",
       "nombre",
       "descripcion",
       "categoria",
       "subCategoria",
       "estado",
+      "estadoTienda",
       "unidad",
       "stockMinimo",
       "unidadMedida",
       "valorVenta",
+      "imagenes"
     ];
     const csvContent =
       "data:text/csv;charset=utf-8," +
       headers.join(",") +
       "\n" +
-      "7000,Muelle en madera grandis,nada,Muelles,Obras,Activo,1,1,M2,140000";
+      ",7000,Muelle en madera grandis,nada,Muelles,Obras,Activo,Inactivo,1,1,M2,140000,";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -3099,6 +3217,7 @@ const ProductosPage = () => {
     }
 
     const headers = [
+      "id",
       "codigo",
       "nombre", 
       "descripcion",
@@ -3129,6 +3248,7 @@ const ProductosPage = () => {
     
     maderas.forEach(producto => {
       const row = [
+        producto.id || "",
         producto.codigo || "",
         producto.nombre || "",
         producto.descripcion || "",
@@ -3181,6 +3301,7 @@ const ProductosPage = () => {
     }
 
     const headers = [
+      "id",
       "codigo",
       "nombre",
       "descripcion", 
@@ -3209,6 +3330,7 @@ const ProductosPage = () => {
     
     ferreteria.forEach(producto => {
       const row = [
+        producto.id || "",
         producto.codigo || "",
         producto.nombre || "",
         producto.descripcion || "",
@@ -3259,6 +3381,7 @@ const ProductosPage = () => {
     }
 
     const headers = [
+      "id",
       "codigo",
       "nombre",
       "descripcion",
@@ -3278,6 +3401,7 @@ const ProductosPage = () => {
     
     obras.forEach(producto => {
       const row = [
+        producto.id || "",
         producto.codigo || "",
         producto.nombre || "",
         producto.descripcion || "",
@@ -5258,7 +5382,7 @@ const ProductosPage = () => {
             </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2">
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -5267,6 +5391,7 @@ const ProductosPage = () => {
                 </h4>
               </div>
               <ul className="text-sm text-yellow-700 space-y-1">
+                      <li>• Si se incluye la columna "id", se usará para actualizar ese producto</li>
                 <li>• Solo se permiten productos de categoría "Maderas"</li>
                 <li>• Todos los campos obligatorios deben estar presentes</li>
                 <li>• El campo "precioPorPie" no puede ser null o 0</li>
@@ -5462,7 +5587,7 @@ const ProductosPage = () => {
             </div>
 
             <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-              <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2">
                 <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -5475,6 +5600,7 @@ const ProductosPage = () => {
                 <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
                 <li>• <strong>Campos opcionales:</strong> stock (si no se proporciona, se establecerá en 0), estadoTienda</li>
                 <li>• El campo "estadoTienda" debe ser "Activo" o "Inactivo". Si no se proporciona, se establecerá por defecto como "Inactivo"</li>
+                      <li>• Si se incluye la columna "id", se usará para actualizar ese producto</li>
                 <li>• El campo "stockMinimo" debe ser un número positivo</li>
                 <li>
                   • El campo "valorCompra" y "valorVenta" deben ser números
