@@ -120,6 +120,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.descuentoTotal || 0)}</td>
       </tr>
+      ${totales.descuentoEfectivo && totales.descuentoEfectivo > 0 ? `
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO (EFECTIVO 10%)</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.descuentoEfectivo)}</td>
+      </tr>
+      ` : ``}
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>

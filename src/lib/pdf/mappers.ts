@@ -190,13 +190,15 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
 
   // Calcular totales
   const totalesCalculados = computeTotals(items);
+  const descuentoEfectivo =
+    presupuesto?.pagoEnEfectivo ? totalesCalculados.subtotal * 0.1 : 0;
   const costoEnvio =
     presupuesto.costoEnvio !== undefined &&
     presupuesto.costoEnvio !== "" &&
     !isNaN(Number(presupuesto.costoEnvio))
       ? Number(presupuesto.costoEnvio)
       : 0;
-  const totalFinal = totalesCalculados.total + costoEnvio;
+  const totalFinal = totalesCalculados.total + costoEnvio - descuentoEfectivo;
 
   // Determinar envío
   const tieneEnvio = presupuesto.tipoEnvio && presupuesto.tipoEnvio !== "retiro_local";
@@ -251,6 +253,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
     totales: {
       subtotal: totalesCalculados.subtotal,
       descuentoTotal: totalesCalculados.descuentoTotal,
+      descuentoEfectivo: descuentoEfectivo > 0 ? descuentoEfectivo : undefined,
       costoEnvio: costoEnvio > 0 ? costoEnvio : 0,
       total: totalFinal,
     },
