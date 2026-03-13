@@ -111,29 +111,34 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     `).join("");
     }
 
+  // Calcular descuento unificado
+  const descuentoUnificado = (totales.descuentoTotal || 0) + (totales.descuentoEfectivo || 0);
+
   // Generar filas de totales en el footer de la tabla (alineados como en el PDF)
   const totalesRowsHtml = !paraEmpleado
     ? `
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.descuentoTotal || 0)}</td>
-      </tr>
-      ${totales.descuentoEfectivo && totales.descuentoEfectivo > 0 ? `
-      <tr>
-        <td colspan="2" style="padding: 6px;"></td>
-        <td style="padding: 6px;"></td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO (EFECTIVO 10%)</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.descuentoEfectivo)}</td>
-      </tr>
-      ` : ``}
-      <tr>
-        <td colspan="2" style="padding: 6px;"></td>
-        <td style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">SUBTOTAL</td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.subtotal)}</td>
       </tr>
+      ${descuentoUnificado > 0 ? `
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(descuentoUnificado)}</td>
+      </tr>
+      ` : ""}
+      ${totales.costoEnvio > 0 ? `
+      <tr>
+        <td colspan="2" style="padding: 6px;"></td>
+        <td style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">ENVÍO</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.costoEnvio)}</td>
+      </tr>
+      ` : ""}
       <tr>
         <td colspan="2" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
