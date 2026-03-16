@@ -1385,7 +1385,7 @@ const GastosPage = () => {
                                 <Eye className="w-3 h-3" />
                               </Button>
                             )}
-                            {c.estadoPago !== "pagado" && (
+                            {saldo > 0 && (
                               <Button 
                                 size="sm" 
                                 variant="outline"
