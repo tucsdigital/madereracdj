@@ -2480,6 +2480,7 @@ const ProductosPage = () => {
                       "unidad",
                       "stockMinimo",
                       "valorVenta",
+                      "costo"
                     ].includes(header)
                   ) {
                     // Manejar comas en números (formato argentino)
@@ -3214,11 +3215,32 @@ const ProductosPage = () => {
       // Procesar productos válidos
       setBulkProgressObras({ current: 0, total: productosValidos.length });
 
+      const obrasExistentes = productos.filter(p => p.categoria === "Obras");
+      const mapObras = new Map(obrasExistentes.map(p => [p.codigo, p]));
+      let actualizados = 0;
+      let creados = 0;
+
       for (let i = 0; i < productosValidos.length; i++) {
         const producto = productosValidos[i];
 
         try {
-          await addDoc(collection(db, "productos_obras"), producto);
+          const { id, ...productoData } = producto;
+          const existentePorId = id ? obrasExistentes.find(p => p.id === id) : null;
+          const existentePorCodigo = mapObras.get(productoData.codigo);
+          
+          if (existentePorId) {
+            const docRef = doc(db, "productos_obras", id);
+            await updateDoc(docRef, { ...productoData, fechaActualizacion: new Date().toISOString() });
+            actualizados++;
+          } else if (existentePorCodigo) {
+            const docRef = doc(db, "productos_obras", existentePorCodigo.id);
+            await updateDoc(docRef, { ...productoData, fechaActualizacion: new Date().toISOString() });
+            actualizados++;
+          } else {
+            await addDoc(collection(db, "productos_obras"), productoData);
+            creados++;
+          }
+
           setBulkProgressObras({
             current: i + 1,
             total: productosValidos.length,
@@ -3240,12 +3262,12 @@ const ProductosPage = () => {
           .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
           .join("\n");
         setBulkMessageObras(
-          `Se procesaron ${productosValidos.length - productosInvalidos.length} productos exitosamente, pero ${productosInvalidos.length} tuvieron errores:\n\n${erroresDetallados}`
+          `Se procesaron ${productosValidos.length - productosInvalidos.length} productos exitosamente (${creados} creados, ${actualizados} actualizados), pero ${productosInvalidos.length} tuvieron errores:\n\n${erroresDetallados}`
         );
       } else {
         setBulkStatusObras("success");
         setBulkMessageObras(
-          `Se importaron exitosamente ${productosValidos.length} productos de obras.`
+          `Se importaron exitosamente ${productosValidos.length} productos de obras (${creados} creados, ${actualizados} actualizados).`
         );
       }
 
@@ -3270,7 +3292,7 @@ const ProductosPage = () => {
 
   // Función para descargar CSV de ejemplo
   const downloadExampleCSV = () => {
-    const csvContent = `id,codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida,estadoTienda,freeShipping,featuredBrand,newArrival,specialOffer,rating,descuentoMonto,descuentoPorcentaje,imagenes
+    const csvContent = `\uFEFFid,codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida,estadoTienda,freeShipping,featuredBrand,newArrival,specialOffer,rating,descuentoMonto,descuentoPorcentaje,imagenes
 ,1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
 ,1402,TABALAS 1\" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
 ,1403,TABALAS 1\" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,`;
@@ -3313,7 +3335,7 @@ const ProductosPage = () => {
       "imagenes",
     ];
     const csvContent =
-      "data:text/csv;charset=utf-8," +
+      "data:text/csv;charset=utf-8,\uFEFF" +
       headers.join(",") +
       "\n" +
       ",1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,50,Activo,Inactivo,No,No,No,No,0,0,0,";
@@ -3347,13 +3369,15 @@ const ProductosPage = () => {
       "stockMinimo",
       "unidadMedida",
       "valorVenta",
+      "costo",
+      "proveedor",
       "imagenes"
     ];
     const csvContent =
-      "data:text/csv;charset=utf-8," +
+      "data:text/csv;charset=utf-8,\uFEFF" +
       headers.join(",") +
       "\n" +
-      ",7000,Muelle en madera grandis,nada,Muelles,Obras,Activo,Inactivo,1,1,M2,140000,";
+      ",7000,Muelle en madera grandis,nada,Obras,Muelles,Activo,Inactivo,1,1,M2,140000,100000,Proveedor1,";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -3440,7 +3464,7 @@ const ProductosPage = () => {
       csvRows.push(row);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -3520,7 +3544,7 @@ const ProductosPage = () => {
       csvRows.push(row);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -3542,6 +3566,7 @@ const ProductosPage = () => {
       return;
     }
 
+    // Tomar todos los datos posibles
     const headers = [
       "id",
       "codigo",
@@ -3555,6 +3580,9 @@ const ProductosPage = () => {
       "stockMinimo",
       "unidadMedida",
       "valorVenta",
+      "costo",
+      "proveedor",
+      "imagenes",
       "fechaCreacion",
       "fechaActualizacion"
     ];
@@ -3575,14 +3603,17 @@ const ProductosPage = () => {
         producto.stockMinimo || "",
         producto.unidadMedida || "",
         producto.valorVenta || "",
+        producto.costo || "",
+        producto.proveedor || "",
+        producto.imagenes ? (Array.isArray(producto.imagenes) ? producto.imagenes.join(";") : producto.imagenes) : "",
         producto.fechaCreacion || "",
         producto.fechaActualizacion || ""
-      ].map(field => `"${field}"`).join(",");
+      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(",");
       
       csvRows.push(row);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -5560,7 +5591,7 @@ const ProductosPage = () => {
                           bulkPreview.detalles?.ignorados?.forEach((x) => {
                             rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
                           });
-                          const csv = "data:text/csv;charset=utf-8," + rows.join("\n");
+                          const csv = "data:text/csv;charset=utf-8,\uFEFF" + rows.join("\n");
                           const encodedUri = encodeURI(csv);
                           const link = document.createElement("a");
                           link.setAttribute("href", encodedUri);
@@ -5814,7 +5845,7 @@ const ProductosPage = () => {
                           bulkPreviewFerreteria.detalles?.ignorados?.forEach((x) => {
                             rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
                           });
-                          const csv = "data:text/csv;charset=utf-8," + rows.join("\n");
+                          const csv = "data:text/csv;charset=utf-8,\uFEFF" + rows.join("\n");
                           const encodedUri = encodeURI(csv);
                           const link = document.createElement("a");
                           link.setAttribute("href", encodedUri);
