@@ -1116,6 +1116,41 @@ const PresupuestoDetalle = () => {
       productos: prev.productos.filter((p) => p.id !== id),
     }));
   };
+  const buildProductoUniqueId = (baseId) => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    return `${baseId}-${timestamp}-${randomSuffix}`;
+  };
+  const handleClonarProducto = (id) => {
+    setPresupuestoEdit((prev) => {
+      const producto = (prev.productos || []).find((p) => p.id === id);
+      if (!producto) return prev;
+      const baseId = producto.originalId || producto.id;
+      const duplicado = {
+        ...producto,
+        id: buildProductoUniqueId(baseId),
+        originalId: baseId,
+      };
+      return {
+        ...prev,
+        productos: [...(prev.productos || []), duplicado],
+      };
+    });
+  };
+  const handleQuitarProductoDesdeCatalogo = (productoId) => {
+    setPresupuestoEdit((prev) => {
+      const productos = prev.productos || [];
+      const indices = productos
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => (p.originalId || p.id) === productoId);
+      if (indices.length === 0) return prev;
+      const idxToRemove = indices[indices.length - 1].idx;
+      return {
+        ...prev,
+        productos: productos.filter((_, idx) => idx !== idxToRemove),
+      };
+    });
+  };
 
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
@@ -2345,10 +2380,11 @@ const PresupuestoDetalle = () => {
                             )}
 
                             {productosPaginados.map((prod) => {
-                              const yaAgregado = (
-                                presupuestoEdit.productos || []
-                              ).some((p) => p.id === prod.id);
-                              const itemAgregado = (presupuestoEdit.productos || []).find((p) => p.id === prod.id);
+                              const productosMismoOrigen = (presupuestoEdit.productos || []).filter(
+                                (p) => (p.originalId || p.id) === prod.id
+                              );
+                              const yaAgregado = productosMismoOrigen.length > 0;
+                              const itemAgregado = productosMismoOrigen[0];
                               const cantidadActual = itemAgregado?.cantidad || 0;
                               const precio = (() => {
                                 if (prod.categoria === "Maderas") {
@@ -2481,16 +2517,16 @@ const PresupuestoDetalle = () => {
 
                                     <div className="mt-auto">
                                       {yaAgregado ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="grid grid-cols-4 gap-2">
                                           <button
                                             type="button"
                                             onClick={(e) => {
                                               e.preventDefault();
                                               e.stopPropagation();
                                               if (cantidadActual > 1) {
-                                                handleDecrementarCantidad(prod.id);
+                                                handleDecrementarCantidad(itemAgregado.id);
                                               } else {
-                                                handleQuitarProducto(prod.id);
+                                                handleQuitarProductoDesdeCatalogo(prod.id);
                                               }
                                             }}
                                             disabled={loadingPrecios}
@@ -2508,12 +2544,25 @@ const PresupuestoDetalle = () => {
                                             onClick={(e) => {
                                               e.preventDefault();
                                               e.stopPropagation();
-                                              handleIncrementarCantidad(prod.id);
+                                              handleIncrementarCantidad(itemAgregado.id);
                                             }}
                                             disabled={loadingPrecios}
                                             className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
                                           >
                                             +
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handleClonarProducto(itemAgregado.id);
+                                            }}
+                                            disabled={loadingPrecios}
+                                            className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                            title="Clonar"
+                                          >
+                                            Clonar
                                           </button>
                                         </div>
                                       ) : (
@@ -2572,7 +2621,9 @@ const PresupuestoDetalle = () => {
                                                 ...(prev.productos || []),
                                                 {
                                                   id: prod.id,
+                                                  originalId: prod.id,
                                                   nombre: prod.nombre,
+                                                  detalle: prod.detalle || "",
                                                   precio: precioCalculado,
                                                   unidad:
                                                     prod.unidadMedida ||
@@ -3221,6 +3272,15 @@ const PresupuestoDetalle = () => {
                                       </svg>
                                     </button>
                                   </div>
+                              <button
+                                type="button"
+                                onClick={() => handleClonarProducto(p.id)}
+                                disabled={loadingPrecios}
+                                className="ml-2 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                title="Clonar producto"
+                              >
+                                Clonar
+                              </button>
                                 </div>
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600">
@@ -3249,13 +3309,29 @@ const PresupuestoDetalle = () => {
                                     type="number"
                                     min="0"
                                     step="100"
-                                    value={p.precio === "" ? "" : p.precio}
+                                    value={
+                                      p.precio === ""
+                                        ? ""
+                                        : p.categoria === "Maderas" && p.unidad === "M2"
+                                        ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                        : p.precio
+                                    }
                                     onChange={(e) => {
                                       const parsed = e.target.value === "" ? "" : Number(e.target.value);
                                       setPresupuestoEdit((prev) => ({
                                         ...prev,
                                         productos: prev.productos.map((prod) =>
-                                          prod.id === p.id ? { ...prod, precio: parsed } : prod
+                                          prod.id === p.id
+                                            ? {
+                                                ...prod,
+                                                precio:
+                                                  prod.categoria === "Maderas" && prod.unidad === "M2"
+                                                    ? (parsed === "" ? 0 : Number(parsed)) * (Number(prod.cantidad) || 1)
+                                                    : parsed,
+                                                precioIncluyeCantidad:
+                                                  prod.categoria === "Maderas" && prod.unidad === "M2",
+                                              }
+                                            : prod
                                         ),
                                       }));
                                     }}
@@ -3267,8 +3343,12 @@ const PresupuestoDetalle = () => {
                                   <span className="block text-right font-semibold text-default-900 tabular-nums">
                                     ${formatearNumeroArgentino(
                                       presupuesto?.pagoEnEfectivo 
-                                        ? Number(p.precio) * 0.9
-                                        : p.precio
+                                        ? (p.categoria === "Maderas" && p.unidad === "M2"
+                                            ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                            : Number(p.precio)) * 0.9
+                                        : p.categoria === "Maderas" && p.unidad === "M2"
+                                          ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                          : p.precio
                                     )}
                                   </span>
                                 )}
@@ -3356,14 +3436,7 @@ const PresupuestoDetalle = () => {
                               <td className="p-4 align-middle text-center text-sm text-default-600">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setPresupuestoEdit((prev) => ({
-                                      ...prev,
-                                      productos: prev.productos.filter(
-                                        (prod) => prod.id !== p.id
-                                      ),
-                                    }))
-                                  }
+                                  onClick={() => handleQuitarProducto(p.id)}
                                   disabled={loadingPrecios}
                                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                                 >
@@ -3481,6 +3554,7 @@ const PresupuestoDetalle = () => {
                     <tr className="bg-card border-b">
                       <th className="text-left p-3 font-medium">Producto</th>
                       <th className="text-center p-3 font-medium">Cantidad</th>
+                      <th className="text-left p-3 font-medium">Descripción</th>
                       <th className="text-center p-3 font-medium">Cepillado</th>
                       <th className="text-right p-3 font-medium">Precio Unit.</th>
                       <th className="text-right p-3 font-medium">Descuento</th>
@@ -3497,6 +3571,9 @@ const PresupuestoDetalle = () => {
                         </td>
                         <td className="p-3 text-center">
                           {safeNumber(producto.cantidad)}
+                        </td>
+                        <td className="p-3 text-left">
+                          {producto.detalle || "-"}
                         </td>
                         <td className="p-3 text-center">
                           {producto.categoria === "Maderas" ? (
@@ -3520,7 +3597,11 @@ const PresupuestoDetalle = () => {
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          ${formatearNumeroArgentino(Number(producto.precio))}
+                          ${formatearNumeroArgentino(
+                            producto.categoria === "Maderas" && (producto.unidad === "M2" || producto.unidadMedida === "M2")
+                              ? (Number(producto.precio) || 0) / (Number(producto.cantidad) || 1)
+                              : Number(producto.precio)
+                          )}
                         </td>
                         <td className="p-3 text-right">
                           {safeNumber(producto.descuento).toFixed(2)}%

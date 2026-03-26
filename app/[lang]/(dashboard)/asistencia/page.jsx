@@ -51,6 +51,20 @@ function fmtDM(d) {
   return `${dd}/${mm}`;
 }
 
+function toDateSafe(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "string" && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [y, m, day] = value.split("-").map(Number);
+    return new Date(y, m - 1, day);
+  }
+  if (value && typeof value === "object" && "seconds" in value) {
+    return new Date(value.seconds * 1000);
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function dayKey(i) {
   return ["lun", "mar", "mie", "jue", "vie", "sab"][i];
 }
@@ -90,6 +104,7 @@ export default function AsistenciaPage() {
   const [nuevoAdelanto, setNuevoAdelanto] = useState({ fecha: fmt(new Date()), monto: "", nota: "" });
   const [cerrada, setCerrada] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null);
+  const [asistenciasMensuales, setAsistenciasMensuales] = useState([]);
 
   // Estados para gestión de empleados (vista empleados)
   const [buscadorEmp, setBuscadorEmp] = useState("");
@@ -118,6 +133,47 @@ export default function AsistenciaPage() {
       .filter(e => (filtroEstado === "todos" ? true : filtroEstado === "activos" ? e.activo !== false : e.activo === false))
       .filter(e => e.nombre?.toLowerCase().includes(filtroNombre.toLowerCase()));
   }, [empleados, filtroEstado, filtroNombre]);
+
+  const estadisticasMensuales = useMemo(() => {
+    const hoy = new Date();
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59);
+    const docsMes = asistenciasMensuales.filter((a) => {
+      const d = toDateSafe(a.weekStart);
+      if (!d) return false;
+      return d >= inicioMes && d <= finMes;
+    });
+    const porEmpleado = empleadosFiltrados.map((emp) => {
+      const objetivoCalculado = Number(emp.objetivoMensual || 0) > 0
+        ? Number(emp.objetivoMensual)
+        : Math.round(Number(emp.valorDia || 0) * 26);
+      const cobrado = docsMes
+        .filter((a) => a.employeeId === emp.id)
+        .reduce((acc, a) => acc + Number(a.totalSemana || 0), 0);
+      const faltante = Math.max(objetivoCalculado - cobrado, 0);
+      const progreso = objetivoCalculado > 0 ? Math.min((cobrado / objetivoCalculado) * 100, 100) : 0;
+      return {
+        id: emp.id,
+        nombre: emp.nombre || "",
+        objetivo: objetivoCalculado,
+        cobrado,
+        faltante,
+        progreso,
+      };
+    });
+    const totalObjetivo = porEmpleado.reduce((acc, i) => acc + i.objetivo, 0);
+    const totalCobrado = porEmpleado.reduce((acc, i) => acc + i.cobrado, 0);
+    const totalFaltante = Math.max(totalObjetivo - totalCobrado, 0);
+    const progresoGeneral = totalObjetivo > 0 ? Math.min((totalCobrado / totalObjetivo) * 100, 100) : 0;
+    return {
+      porEmpleado: porEmpleado.sort((a, b) => b.cobrado - a.cobrado),
+      totalObjetivo,
+      totalCobrado,
+      totalFaltante,
+      progresoGeneral,
+      labelMes: hoy.toLocaleDateString("es-AR", { month: "long", year: "numeric" }),
+    };
+  }, [asistenciasMensuales, empleadosFiltrados]);
 
   // --- Effects ---
 
@@ -180,6 +236,15 @@ export default function AsistenciaPage() {
       unsubs.forEach(u => u());
     };
   }, [semanaClave]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "asistencias"), (s) => {
+      const rows = [];
+      s.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      setAsistenciasMensuales(rows);
+    });
+    return () => unsub();
+  }, []);
 
   // --- Helpers Logic ---
 
@@ -376,6 +441,67 @@ export default function AsistenciaPage() {
 
       {/* Contenido Principal */}
       {vistaActiva === "asistencia" ? (
+      <div className="space-y-4">
+      <Card className="rounded-2xl shadow">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between gap-2">
+            <span>Estadísticas de Cobro del Mes</span>
+            <span className="text-xs font-medium text-muted-foreground capitalize">{estadisticasMensuales.labelMes}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-xl border p-3 bg-green-50/60">
+              <div className="text-xs text-muted-foreground">Cobrado acumulado</div>
+              <div className="text-xl font-bold text-green-700">${estadisticasMensuales.totalCobrado.toLocaleString("es-AR")}</div>
+            </div>
+            <div className="rounded-xl border p-3 bg-blue-50/60">
+              <div className="text-xs text-muted-foreground">Objetivo mensual</div>
+              <div className="text-xl font-bold text-blue-700">${estadisticasMensuales.totalObjetivo.toLocaleString("es-AR")}</div>
+            </div>
+            <div className="rounded-xl border p-3 bg-orange-50/60">
+              <div className="text-xs text-muted-foreground">Faltante al cierre</div>
+              <div className="text-xl font-bold text-orange-700">${estadisticasMensuales.totalFaltante.toLocaleString("es-AR")}</div>
+            </div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <span>Avance general</span>
+              <span>{estadisticasMensuales.progresoGeneral.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-default-200 rounded-full h-2.5">
+              <div
+                className="h-2.5 rounded-full bg-primary transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, estadisticasMensuales.progresoGeneral))}%` }}
+              />
+            </div>
+          </div>
+          <div className="overflow-auto rounded-xl border">
+            <table className="min-w-full text-sm">
+              <thead className="bg-default-100">
+                <tr>
+                  <th className="px-3 py-2 text-left">Empleado</th>
+                  <th className="px-3 py-2 text-right">Cobrado</th>
+                  <th className="px-3 py-2 text-right">Objetivo</th>
+                  <th className="px-3 py-2 text-right">Faltante</th>
+                  <th className="px-3 py-2 text-right">Avance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-default-200">
+                {estadisticasMensuales.porEmpleado.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-3 py-2 font-medium">{item.nombre}</td>
+                    <td className="px-3 py-2 text-right text-green-700 font-semibold">${item.cobrado.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2 text-right">${item.objetivo.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2 text-right text-orange-700">${item.faltante.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-2 text-right">{item.progreso.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       <Card className="overflow-hidden rounded-2xl shadow">
         <CardHeader>
           <CardTitle className="text-base">Liquidación semanal</CardTitle>
@@ -463,6 +589,7 @@ export default function AsistenciaPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
       ) : (
       <Card className="rounded-2xl shadow">
         <CardHeader>

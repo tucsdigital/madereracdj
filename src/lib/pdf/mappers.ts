@@ -22,7 +22,8 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
 
   return productos.map((p) => {
     const cantidad = Number(p.cantidad) || 1;
-    const nombre = safeText(p.descripcion || p.nombre, "Producto sin nombre");
+    const nombre = safeText(p.nombre || p.descripcion, "Producto sin nombre");
+    const detalle = safeText(p.detalle || p.descripcion, "");
 
     // Calcular precios usando el mismo motor de la app
     let precioUnitario = 0;
@@ -34,7 +35,24 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
       precioUnitario = Number(p.precio) || 0;
       subtotal = precioUnitario * cantidad;
     } else {
-      // Para otros productos, usar computeLineSubtotal
+      const base = computeLineBase({
+        precio: p.precio,
+        cantidad: p.cantidad,
+        descuento: p.descuento,
+        subcategoria: p.subcategoria,
+        subCategoria: p.subCategoria,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        alto: p.alto,
+        ancho: p.ancho,
+        largo: p.largo,
+        precioPorPie: p.precioPorPie,
+        unidadMedida: p.unidadMedida,
+        unidad: p.unidad,
+        categoria: p.categoria,
+        precioIncluyeCantidad: p.precioIncluyeCantidad,
+      });
+      precioUnitario = cantidad > 0 ? base / cantidad : base;
       subtotal = computeLineSubtotal({
         precio: p.precio,
         cantidad: p.cantidad,
@@ -48,13 +66,15 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
         largo: p.largo,
         precioPorPie: p.precioPorPie,
         unidadMedida: p.unidadMedida,
+        unidad: p.unidad,
         categoria: p.categoria,
+        precioIncluyeCantidad: p.precioIncluyeCantidad,
       });
-      precioUnitario = cantidad > 0 ? subtotal / cantidad : subtotal;
     }
 
     return {
       nombre,
+      detalle: detalle || undefined,
       cantidad,
       cepillado: p.cepilladoAplicado || false,
       precioUnitario,

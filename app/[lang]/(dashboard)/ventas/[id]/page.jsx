@@ -878,9 +878,15 @@ const VentaDetalle = () => {
     const parsed = precio === "" ? "" : Number(precio);
     setVentaEdit((prev) => ({
       ...prev,
-      productos: prev.productos.map((p) =>
-        p.id === id ? { ...p, precio: parsed === "" ? 0 : parsed } : p
-      ),
+      productos: prev.productos.map((p) => {
+        if (p.id !== id) return p;
+        const precioNumerico = parsed === "" ? 0 : Number(parsed);
+        if (p.categoria === "Maderas" && p.unidad === "M2") {
+          const cantidad = Number(p.cantidad) || 1;
+          return { ...p, precio: precioNumerico * cantidad, precioIncluyeCantidad: true };
+        }
+        return { ...p, precio: precioNumerico };
+      }),
     }));
   };
 
@@ -889,6 +895,41 @@ const VentaDetalle = () => {
       ...prev,
       productos: prev.productos.filter((p) => p.id !== id),
     }));
+  };
+  const buildProductoUniqueId = (baseId) => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    return `${baseId}-${timestamp}-${randomSuffix}`;
+  };
+  const handleClonarProducto = (id) => {
+    setVentaEdit((prev) => {
+      const producto = (prev.productos || []).find((p) => p.id === id);
+      if (!producto) return prev;
+      const baseId = producto.originalId || producto.id;
+      const duplicado = {
+        ...producto,
+        id: buildProductoUniqueId(baseId),
+        originalId: baseId,
+      };
+      return {
+        ...prev,
+        productos: [...(prev.productos || []), duplicado],
+      };
+    });
+  };
+  const handleQuitarProductoDesdeCatalogo = (productoId) => {
+    setVentaEdit((prev) => {
+      const productos = prev.productos || [];
+      const indices = productos
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => (p.originalId || p.id) === productoId);
+      if (indices.length === 0) return prev;
+      const idxToRemove = indices[indices.length - 1].idx;
+      return {
+        ...prev,
+        productos: productos.filter((_, idx) => idx !== idxToRemove),
+      };
+    });
   };
 
   // Función para manejar cambios en alto para machimbre/deck
@@ -2349,6 +2390,7 @@ const VentaDetalle = () => {
                   <tr className="bg-card border-b">
                     <th className="text-left p-3 font-medium">Producto</th>
                     <th className="text-center p-3 font-medium">Cantidad</th>
+                    <th className="text-left p-3 font-medium">Descripción</th>
                     <th className="text-center p-3 font-medium">Cepillado</th>
                     <th className="text-right p-3 font-medium precio-empleado">
                       Precio Unit.
@@ -2372,6 +2414,9 @@ const VentaDetalle = () => {
                       <td className="p-3 text-center">
                         {Number(producto.cantidad)}
                       </td>
+                      <td className="p-3">
+                        {producto.detalle || "-"}
+                      </td>
                       <td className="p-3 text-center">
                         {producto.categoria === "Maderas" ? (
                           producto.cepilladoAplicado ? (
@@ -2394,7 +2439,11 @@ const VentaDetalle = () => {
                         )}
                       </td>
                       <td className="p-3 text-right precio-empleado">
-                        ${formatearNumeroArgentino(Number(producto.precio))}
+                        ${formatearNumeroArgentino(
+                          producto.categoria === "Maderas" && (producto.unidad === "M2" || producto.unidadMedida === "M2")
+                            ? (Number(producto.precio) || 0) / (Number(producto.cantidad) || 1)
+                            : Number(producto.precio)
+                        )}
                       </td>
                       <td className="p-3 text-right descuento-empleado">
                         {Number(producto.descuento || 0).toFixed(2)}%
@@ -2416,6 +2465,10 @@ const VentaDetalle = () => {
                               subCategoria: producto.subCategoria,
                               nombre: producto.nombre,
                               descripcion: producto.descripcion,
+                              categoria: producto.categoria,
+                              unidad: producto.unidad,
+                              unidadMedida: producto.unidadMedida,
+                              precioIncluyeCantidad: producto.precioIncluyeCantidad,
                             });
                           })()
                         )}
@@ -3002,8 +3055,9 @@ const VentaDetalle = () => {
                           )}
 
                           {productosPaginados.map((prod) => {
-                          const yaAgregado = (ventaEdit.productos || []).some((p) => p.id === prod.id);
-                          const itemAgregado = (ventaEdit.productos || []).find((p) => p.id === prod.id);
+                          const productosMismoOrigen = (ventaEdit.productos || []).filter((p) => (p.originalId || p.id) === prod.id);
+                          const yaAgregado = productosMismoOrigen.length > 0;
+                          const itemAgregado = productosMismoOrigen[0];
                           const cantidadActual = itemAgregado?.cantidad || 0;
                           const precio = (() => {
                             if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
@@ -3073,16 +3127,16 @@ const VentaDetalle = () => {
                                 {/* Botón de agregar o controles de cantidad */}
                                 <div className="mt-4">
                                 {yaAgregado ? (
-                                  <div className="flex items-center gap-2">
+                                  <div className="grid grid-cols-4 gap-2">
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         if (cantidadActual > 1) {
-                                          handleDecrementarCantidad(prod.id);
+                                          handleDecrementarCantidad(itemAgregado.id);
                                         } else {
-                                          handleQuitarProducto(prod.id);
+                                          handleQuitarProductoDesdeCatalogo(prod.id);
                                         }
                                       }}
                                       disabled={loadingPrecios}
@@ -3100,12 +3154,25 @@ const VentaDetalle = () => {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        handleIncrementarCantidad(prod.id);
+                                        handleIncrementarCantidad(itemAgregado.id);
                                       }}
                                       disabled={loadingPrecios}
                                       className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
                                     >
                                       +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleClonarProducto(itemAgregado.id);
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                      title="Clonar"
+                                    >
+                                      Clonar
                                     </button>
                                   </div>
                                 ) : (
@@ -3127,7 +3194,9 @@ const VentaDetalle = () => {
                                                 ...(prev.productos || []),
                                                 {
                                                   id: prod.id,
+                                                  originalId: prod.id,
                                                   nombre: prod.nombre,
+                                                  detalle: prod.detalle || "",
                                                   precio: precioCalc,
                                                   unidad: prod.unidadMedida,
                                                   stock: prod.stock,
@@ -3154,7 +3223,9 @@ const VentaDetalle = () => {
                                               ...(prev.productos || []),
                                               {
                                                 id: prod.id,
+                                                originalId: prod.id,
                                                 nombre: prod.nombre,
+                                                detalle: prod.detalle || "",
                                                 precio: prod.valorVenta || 0,
                                                 unidad: prod.unidadMedida || prod.unidadVenta,
                                                 stock: prod.stock,
@@ -3174,7 +3245,9 @@ const VentaDetalle = () => {
                                               ...(prev.productos || []),
                                               {
                                                 id: prod.id,
+                                                originalId: prod.id,
                                                 nombre: prod.nombre,
+                                                detalle: prod.detalle || "",
                                                 precio: precioOtro,
                                                 unidad: prod.unidadMedida || prod.unidadVenta,
                                                 stock: prod.stock,
@@ -3297,6 +3370,11 @@ const VentaDetalle = () => {
                                   </div>
                                 )}
                               </div>
+                              {p.detalle && (
+                                <div className="mt-1 text-xs text-default-500">
+                                  {p.detalle}
+                                </div>
+                              )}
                               {p.categoria === "Ferretería" && p.subCategoria && (
                                 <div className="flex items-center gap-1 mt-1">
                                   <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{p.subCategoria}</span>
@@ -3384,6 +3462,15 @@ const VentaDetalle = () => {
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
                                   </button>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClonarProducto(p.id)}
+                                  disabled={loadingPrecios}
+                                  className="ml-2 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                  title="Clonar producto"
+                                >
+                                  Clonar
+                                </button>
                               </div>
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">
@@ -3397,12 +3484,35 @@ const VentaDetalle = () => {
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">
                               {p.esEditable ? (
-                                <input type="number" min="0" step="100" value={p.precio === "" ? "" : p.precio} onChange={(e) => handlePrecioChange(p.id, e.target.value)} className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums" disabled={loadingPrecios} placeholder="0" />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="100"
+                                  value={
+                                    p.precio === ""
+                                      ? ""
+                                      : p.categoria === "Maderas" && p.unidad === "M2"
+                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                      : p.precio
+                                  }
+                                  onChange={(e) => handlePrecioChange(p.id, e.target.value)}
+                                  className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
+                                  disabled={loadingPrecios}
+                                  placeholder="0"
+                                />
                               ) : (
                                 <span className="block text-right font-semibold text-default-900 tabular-nums">
                                   {venta?.pagoEnEfectivo 
-                                    ? `$${formatearNumeroArgentino(Number(p.precio) * 0.9)}`
-                                    : `$${formatearNumeroArgentino(p.precio)}`
+                                    ? `$${formatearNumeroArgentino(
+                                        (p.categoria === "Maderas" && p.unidad === "M2"
+                                          ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                          : Number(p.precio)) * 0.9
+                                      )}`
+                                    : `$${formatearNumeroArgentino(
+                                        p.categoria === "Maderas" && p.unidad === "M2"
+                                          ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                          : p.precio
+                                      )}`
                                   }
                                 </span>
                               )}

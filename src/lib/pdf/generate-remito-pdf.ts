@@ -69,7 +69,10 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           (item) => `
           <tr>
             <td style="padding: 4px 6px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">${item.cantidad}</td>
-            <td style="padding: 4px 6px; font-weight: 700; color: #000000; font-size: 11.5px;">${safe(item.nombre)}</td>
+            <td style="padding: 4px 6px; font-weight: 700; color: #000000; font-size: 11.5px;">
+              ${safe(item.nombre)}
+              ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
+            </td>
             <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
             ${!paraEmpleado ? `
             <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
@@ -231,6 +234,17 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       `;
         })()
       : "";
+  const disclaimerTitle = esPresupuesto
+    ? "DETALLE DE CONDICIONES DEL PRESUPUESTO:"
+    : "CONDICIONES DE RETIRO Y DESCARGA:";
+  const disclaimerText = [
+    "EL PROPIETARIO/CLIENTE DEBE RETIRAR Y DESCARGAR SU MERCADERÍA COMPRADA.",
+    "LA MERCADERÍA DEBE SER REVISADA ANTES DE SU DESCARGA.",
+    "UNA VEZ DESCARGADA, NO TIENE DEVOLUCIÓN.",
+    "LA COMPRA NO INCLUYE DESCARGA NI ACARREO.",
+    "EL RETIRO DEBE REALIZARSE DENTRO DE LOS 7 (SIETE) DÍAS CORRIDOS DESDE EL PAGO.",
+    "VENCIDO ESE PLAZO, NO CORRESPONDE DEVOLUCIÓN.",
+  ].join(" ");
 
   // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
@@ -766,11 +780,10 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
     <!-- Footer -->
     <div class="bottom">
-      ${tipo === "venta" ? `
       <div class="disclaimer">
-        ESTE REMITO NO ES VÁLIDO COMO FACTURA. VERIFIQUE LA MERCADERÍA AL RECIBIRLA. RECLAMOS DENTRO DE LAS 48 HS DE ENTREGADA LA MISMA. TODA LA MERCADERÍA SERÁ DESCARGADA SIN EXCEPCIÓN ALGUNA AL PIE DEL CAMIÓN. NO SE ACEPTAN DEVOLUCIONES DE MATERIALES TRANSCURRIDOS 7 DÍAS DESDE LA ENTREGA.
+        <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
       </div>
-      
+      ${tipo === "venta" ? `
       <div class="firmas">
         <div class="firma-col">Firma</div>
         <div class="firma-col">Aclaración</div>

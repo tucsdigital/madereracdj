@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 // Nota: columnsPresupuestos y columnsVentas no se usan en este componente
@@ -45,6 +45,7 @@ import {
 // import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
+import { toast } from "@/components/ui/use-toast";
 // Nota: computeTotals no se usa directamente en este componente
 // import { computeTotals } from "@/lib/pricing";
 
@@ -53,6 +54,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [submitMessage, setSubmitMessage] = useState("");
+  const [cloneFeedbackById, setCloneFeedbackById] = useState({});
+  const [cloneHighlightId, setCloneHighlightId] = useState(null);
+  const cloneTimersRef = useRef({});
   const DEFAULT_CLIENTE_ID = "consumidor_final";
   const DEFAULT_CLIENTE_DATA = useMemo(
     () => ({
@@ -375,7 +379,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         ...productosSeleccionados,
         {
           id: real.id,
+          originalId: real.id,
           nombre: real.nombre,
+          detalle: real.detalle || "",
           precio,
           unidad:
             real.unidadMedida ||
@@ -387,6 +393,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           cantidad: 1, // Cantidad de paquetes (siempre empieza en 1)
           descuento: 0,
           categoria: real.categoria,
+          precioIncluyeCantidad: real.categoria === "Maderas" && (real.unidad === "M2" || real.unidadMedida === "M2"),
           alto: Number(real.alto) || 0,
           ancho: Number(real.ancho) || 0,
           largo: Number(real.largo) || 0,
@@ -403,6 +410,56 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     setProductosSeleccionados(
       productosSeleccionados.filter((p) => p.id !== id)
     );
+  };
+  const buildProductoUniqueId = (baseId) => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    return `${baseId}-${timestamp}-${randomSuffix}`;
+  };
+  const handleQuitarProductoDesdeCatalogo = (productoId) => {
+    setProductosSeleccionados((prev) => {
+      const indices = prev
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => (p.originalId || p.id) === productoId);
+      if (indices.length === 0) return prev;
+      const idxToRemove = indices[indices.length - 1].idx;
+      return prev.filter((_, idx) => idx !== idxToRemove);
+    });
+  };
+  const handleClonarProducto = (id) => {
+    const producto = productosSeleccionados.find((p) => p.id === id);
+    if (!producto) return;
+    const baseId = producto.originalId || producto.id;
+    const nuevoId = buildProductoUniqueId(baseId);
+    const duplicado = {
+      ...producto,
+      id: nuevoId,
+      originalId: baseId,
+    };
+    setProductosSeleccionados((prev) => [...prev, duplicado]);
+    setCloneFeedbackById((prev) => ({ ...prev, [id]: true }));
+    if (cloneTimersRef.current[`btn-${id}`]) {
+      clearTimeout(cloneTimersRef.current[`btn-${id}`]);
+    }
+    cloneTimersRef.current[`btn-${id}`] = setTimeout(() => {
+      setCloneFeedbackById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }, 1400);
+    setCloneHighlightId(nuevoId);
+    if (cloneTimersRef.current.row) {
+      clearTimeout(cloneTimersRef.current.row);
+    }
+    cloneTimersRef.current.row = setTimeout(() => {
+      setCloneHighlightId(null);
+    }, 2200);
+    toast({
+      title: "Producto clonado",
+      description: `${producto.nombre} · Cantidad ${Number(producto.cantidad) || 1}`,
+      color: "success",
+    });
   };
   // Función helper para manejar valores numéricos
   const parseNumericValue = (value) => {
@@ -543,9 +600,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const parsedPrecio = parseNumericValue(precio);
     
     setProductosSeleccionados(
-      productosSeleccionados.map((p) =>
-        p.id === id ? { ...p, precio: parsedPrecio === "" ? 0 : parsedPrecio } : p
-      )
+      productosSeleccionados.map((p) => {
+        if (p.id !== id) return p;
+        const precioNumerico = parsedPrecio === "" ? 0 : Number(parsedPrecio);
+        if (p.categoria === "Maderas" && p.unidad === "M2") {
+          const cantidad = Number(p.cantidad) || 1;
+          return { ...p, precio: precioNumerico * cantidad };
+        }
+        return { ...p, precio: precioNumerico };
+      })
     );
   };
 
@@ -916,8 +979,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const subtotal = productosSeleccionados.reduce(
     (acc, p) => {
-      // Para machimbre y deck, el precio ya incluye la cantidad
-      if (p.unidad === "M2") {
+      if (p.categoria === "Maderas" && p.unidad === "M2") {
         return acc + Number(p.precio);
       } else {
         return acc + Number(p.precio) * Number(p.cantidad);
@@ -929,6 +991,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     (acc, p) => acc + Number(p.descuento) * Number(p.cantidad),
     0
   );
+
+  useEffect(() => {
+    return () => {
+      Object.values(cloneTimersRef.current).forEach((timerId) => {
+        if (timerId) clearTimeout(timerId);
+      });
+    };
+  }, []);
 
   // Calcular descuento por pago en efectivo (10% sobre el subtotal)
   const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
@@ -980,6 +1050,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       "items",
       productosSeleccionados.map((p) => ({
         descripcion: p.nombre,
+        detalle: p.detalle || "",
         cantidad: p.cantidad,
         precio: p.precio,
         unidad: p.unidad,
@@ -1078,12 +1149,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       const productosLimpios = productosSeleccionados.map((p) => {
         const obj = {
           id: p.id,
+          originalId: p.originalId || p.id,
           nombre: p.nombre,
+          detalle: p.detalle || "",
           cantidad: p.cantidad,
           precio: p.precio,
           unidad: p.unidad,
           descuento: p.descuento || 0,
           categoria: p.categoria,
+          precioIncluyeCantidad: p.categoria === "Maderas" && p.unidad === "M2",
         };
         if (p.categoria === "Maderas") {
           obj.alto = Number(p.alto) || 0;
@@ -1965,10 +2039,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       )}
 
                       {productosPaginados.map((prod) => {
-                        const yaAgregado = productosSeleccionados.some(
-                          (p) => p.id === prod.id
+                        const productosMismoOrigen = productosSeleccionados.filter(
+                          (p) => (p.originalId || p.id) === prod.id
                         );
-                        const itemAgregado = productosSeleccionados.find((p) => p.id === prod.id);
+                        const yaAgregado = productosMismoOrigen.length > 0;
+                        const itemAgregado = productosMismoOrigen[0];
                         const cantidadActual = itemAgregado?.cantidad || 0;
                         const precio = (() => {
                           if (prod.categoria === "Maderas") {
@@ -2103,16 +2178,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                               {/* Botón de agregar */}
                               <div className="mt-4">
                                 {yaAgregado ? (
-                                  <div className="flex items-center gap-2">
+                                  <div className="grid grid-cols-4 gap-2">
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         if (cantidadActual > 1) {
-                                          handleDecrementarCantidad(prod.id);
+                                          handleDecrementarCantidad(itemAgregado.id);
                                         } else {
-                                          handleQuitarProducto(prod.id);
+                                          handleQuitarProductoDesdeCatalogo(prod.id);
                                         }
                                       }}
                                       disabled={isSubmitting}
@@ -2130,12 +2205,31 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        handleIncrementarCantidad(prod.id);
+                                        handleIncrementarCantidad(itemAgregado.id);
                                       }}
                                       disabled={isSubmitting}
                                       className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
                                     >
                                       +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleClonarProducto(itemAgregado.id);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all duration-300 disabled:opacity-50 ${
+                                        cloneFeedbackById[itemAgregado.id]
+                                          ? "bg-emerald-600 text-white shadow-md scale-[1.03] animate-pulse"
+                                          : "bg-blue-500 text-white hover:bg-blue-600 hover:shadow-sm hover:-translate-y-0.5"
+                                      }`}
+                                      title="Clonar"
+                                    >
+                                      {cloneFeedbackById[itemAgregado.id]
+                                        ? "¡Clonado!"
+                                        : "Clonar"}
                                     </button>
                                   </div>
                                 ) : (
@@ -2460,7 +2554,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       {productosSeleccionados.map((p, idx) => (
                         <tr
                           key={p.id}
-                          className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted"
+                          className={`border-b border-default-300 transition-all duration-300 data-[state=selected]:bg-muted ${
+                            cloneHighlightId === p.id
+                              ? "bg-emerald-50 ring-2 ring-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.25)] animate-pulse"
+                              : ""
+                          }`}
                         >
                           <td className="p-4 align-middle text-sm text-default-600">
                             {p.categoria && (
@@ -2483,16 +2581,23 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   placeholder="Nombre del producto"
                                 />
                               ) : (
-                                <div>
-                                  {p.nombre}
-                                  {p.categoria === "Maderas" &&
-                                    p.tipoMadera && (
-                                      <span className="font-semibold text-default-900">
-                                        {" "}
-                                        - {p.tipoMadera.toUpperCase()}
-                                      </span>
-                                    )}
-                                </div>
+                                <>
+                                  <div>
+                                    {p.nombre}
+                                    {p.categoria === "Maderas" &&
+                                      p.tipoMadera && (
+                                        <span className="font-semibold text-default-900">
+                                          {" "}
+                                          - {p.tipoMadera.toUpperCase()}
+                                        </span>
+                                      )}
+                                  </div>
+                                  {p.detalle && (
+                                    <div className="mt-1 text-xs text-default-500">
+                                      {p.detalle}
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                             {/* Información específica por categoría */}
@@ -2700,6 +2805,19 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   </svg>
                                 </button>
                               </div>
+                              <button
+                                type="button"
+                                onClick={() => handleClonarProducto(p.id)}
+                                disabled={isSubmitting}
+                                className={`ml-2 px-3 py-2 rounded-lg text-white text-xs font-semibold transition-all duration-300 disabled:opacity-50 ${
+                                  cloneFeedbackById[p.id]
+                                    ? "bg-emerald-600 hover:bg-emerald-700 scale-105 shadow-md animate-pulse"
+                                    : "bg-blue-500 hover:bg-blue-600 hover:-translate-y-0.5 hover:shadow-sm"
+                                }`}
+                                title="Clonar producto"
+                              >
+                                {cloneFeedbackById[p.id] ? "¡Clonado!" : "Clonar"}
+                              </button>
                             </div>
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
@@ -2729,7 +2847,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 type="number"
                                 min="0"
                                 step="100"
-                                value={p.precio === "" ? "" : p.precio}
+                                value={
+                                  p.precio === ""
+                                    ? ""
+                                    : p.categoria === "Maderas" && p.unidad === "M2"
+                                    ? ((Number(p.precio) || 0) / (Number(p.cantidad) || 1))
+                                    : p.precio
+                                }
                                 onChange={(e) =>
                                   handlePrecioChange(p.id, e.target.value)
                                 }
@@ -2738,7 +2862,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 placeholder="0"
                               />
                             ) : (
-                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(p.precio)}`}</span>
+                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(
+                                p.categoria === "Maderas" && p.unidad === "M2"
+                                  ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                  : p.precio
+                              )}`}</span>
                             )}
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">

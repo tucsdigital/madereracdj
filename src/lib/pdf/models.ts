@@ -4,6 +4,7 @@
 
 export interface RemitoItemModel {
   nombre: string;
+  detalle?: string;
   cantidad: number;
   cepillado?: boolean;
   precioUnitario?: number;
