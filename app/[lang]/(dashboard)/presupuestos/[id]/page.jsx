@@ -383,36 +383,65 @@ const PresupuestoDetalle = () => {
               (p) => p.id === productoPresupuesto.id
             );
             if (productoDB) {
+              const altoActual =
+                productoPresupuesto.alto !== undefined &&
+                productoPresupuesto.alto !== null &&
+                productoPresupuesto.alto !== ""
+                  ? Number(productoPresupuesto.alto)
+                  : Number(productoDB.alto) || 0;
+              const anchoActual =
+                productoPresupuesto.ancho !== undefined &&
+                productoPresupuesto.ancho !== null &&
+                productoPresupuesto.ancho !== ""
+                  ? Number(productoPresupuesto.ancho)
+                  : Number(productoDB.ancho) || 0;
+              const largoActual =
+                productoPresupuesto.largo !== undefined &&
+                productoPresupuesto.largo !== null &&
+                productoPresupuesto.largo !== ""
+                  ? Number(productoPresupuesto.largo)
+                  : Number(productoDB.largo) || 0;
+              const precioPorPieActual =
+                productoPresupuesto.precioPorPie !== undefined &&
+                productoPresupuesto.precioPorPie !== null &&
+                productoPresupuesto.precioPorPie !== ""
+                  ? Number(productoPresupuesto.precioPorPie)
+                  : Number(productoDB.precioPorPie) || 0;
               return {
                 ...productoPresupuesto,
                 // Preservar campos específicos de categoría
                 tipoMadera:
-                  productoDB.tipoMadera || productoPresupuesto.tipoMadera || "",
+                  productoPresupuesto.tipoMadera || productoDB.tipoMadera || "",
                 subcategoria:
                   productoDB.categoria === "Maderas"
-                    ? productoDB.subcategoria ||
-                      productoDB.subCategoria ||
-                      productoPresupuesto.subcategoria ||
+                    ? productoPresupuesto.subcategoria ||
                       productoPresupuesto.subCategoria ||
-                      ""
-                    : productoDB.subCategoria ||
                       productoDB.subcategoria ||
-                      productoPresupuesto.subCategoria ||
+                      productoDB.subCategoria ||
+                      ""
+                    : productoPresupuesto.subCategoria ||
                       productoPresupuesto.subcategoria ||
+                      productoDB.subCategoria ||
+                      productoDB.subcategoria ||
                       "",
-                // Actualizar dimensiones para maderas si no están presentes
-                alto: Number(productoDB.alto) || productoPresupuesto.alto || 0,
-                ancho:
-                  Number(productoDB.ancho) || productoPresupuesto.ancho || 0,
-                largo:
-                  Number(productoDB.largo) || productoPresupuesto.largo || 0,
-                precioPorPie:
-                  Number(productoDB.precioPorPie) ||
-                  productoPresupuesto.precioPorPie ||
-                  0,
+                alto: altoActual,
+                ancho: anchoActual,
+                largo: largoActual,
+                precioPorPie: precioPorPieActual,
+                calibradoAplicado:
+                  productoPresupuesto.calibradoAplicado || false,
+                calibradoPorcentaje: normalizarCalibradoPorcentaje(
+                  productoPresupuesto.calibradoPorcentaje
+                ),
               };
             }
-            return productoPresupuesto;
+            return {
+              ...productoPresupuesto,
+              calibradoAplicado: productoPresupuesto.calibradoAplicado || false,
+              calibradoPorcentaje: normalizarCalibradoPorcentaje(
+                productoPresupuesto.calibradoPorcentaje
+              ),
+            };
           }
         );
       }
@@ -420,7 +449,7 @@ const PresupuestoDetalle = () => {
       console.log("presupuestoClonado:", presupuestoClonado);
       setPresupuestoEdit(presupuestoClonado);
     }
-  }, [editando, presupuesto, clientes, productos]);
+  }, [editando, presupuesto]);
 
   // 5. Función para manejar pago en efectivo
   const handlePagoEnEfectivoChange = (checked) => {
@@ -456,15 +485,33 @@ const PresupuestoDetalle = () => {
         if (productoActualizado) {
           let nuevoPrecio = 0;
           if (productoActualizado.categoria === "Maderas") {
-            // Calcular precio para maderas
-            const alto = Number(productoActualizado.alto) || 0;
-            const ancho = Number(productoActualizado.ancho) || 0;
-            const largo = Number(productoActualizado.largo) || 0;
-            const precioPorPie = Number(productoActualizado.precioPorPie) || 0;
+            const alto = Number(productoPresupuesto.alto ?? productoActualizado.alto) || 0;
+            const ancho = Number(productoPresupuesto.ancho ?? productoActualizado.ancho) || 0;
+            const largo = Number(productoPresupuesto.largo ?? productoActualizado.largo) || 0;
+            const precioPorPie =
+              Number(
+                productoPresupuesto.precioPorPie ?? productoActualizado.precioPorPie
+              ) || 0;
 
             if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
-              nuevoPrecio = 0.2734 * alto * ancho * largo * precioPorPie;
-              nuevoPrecio = Math.round(nuevoPrecio * 100) / 100;
+              const precioBase =
+                productoPresupuesto.unidad === "M2"
+                  ? calcularPrecioMachimbre({
+                      alto,
+                      largo,
+                      cantidad: productoPresupuesto.cantidad || 1,
+                      precioPorPie,
+                    })
+                  : calcularPrecioCorteMadera({
+                      alto,
+                      ancho,
+                      largo,
+                      precioPorPie,
+                    });
+              nuevoPrecio = calcularPrecioMaderaConTratamientos(
+                productoPresupuesto,
+                precioBase
+              );
             }
           } else if (productoActualizado.categoria === "Ferretería") {
             nuevoPrecio = productoActualizado.valorVenta || 0;
@@ -483,28 +530,23 @@ const PresupuestoDetalle = () => {
             precio: nuevoPrecio,
             // Preservar campos específicos de categoría
             tipoMadera:
-              productoActualizado.tipoMadera ||
               productoPresupuesto.tipoMadera ||
+              productoActualizado.tipoMadera ||
               "",
             subCategoria:
-              productoActualizado.subCategoria ||
               productoPresupuesto.subCategoria ||
+              productoActualizado.subCategoria ||
               "",
-            // Actualizar dimensiones para maderas
             alto:
-              Number(productoActualizado.alto) || productoPresupuesto.alto || 0,
+              Number(productoPresupuesto.alto ?? productoActualizado.alto) || 0,
             ancho:
-              Number(productoActualizado.ancho) ||
-              productoPresupuesto.ancho ||
-              0,
+              Number(productoPresupuesto.ancho ?? productoActualizado.ancho) || 0,
             largo:
-              Number(productoActualizado.largo) ||
-              productoPresupuesto.largo ||
-              0,
+              Number(productoPresupuesto.largo ?? productoActualizado.largo) || 0,
             precioPorPie:
-              Number(productoActualizado.precioPorPie) ||
-              productoPresupuesto.precioPorPie ||
-              0,
+              Number(
+                productoPresupuesto.precioPorPie ?? productoActualizado.precioPorPie
+              ) || 0,
           };
         }
         return productoPresupuesto;
@@ -525,15 +567,46 @@ const PresupuestoDetalle = () => {
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
   // Función helper para manejar valores numéricos
+  const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {
       return "";
     }
-    const num = Number(value);
+    const normalizedValue =
+      typeof value === "string" ? value.replace(",", ".") : value;
+    const num = Number(normalizedValue);
     return isNaN(num) ? "" : num;
   };
+  const normalizarCalibradoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
+  const calcularPrecioMaderaConTratamientos = (
+    producto,
+    precioBase,
+    overrides = {}
+  ) => {
+    const cepilladoAplicado =
+      overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const calibradoAplicado =
+      overrides.calibradoAplicado ?? producto.calibradoAplicado;
+    const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+      overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
+    );
+    const subcategoria =
+      (producto.subcategoria || producto.subCategoria || "").toLowerCase();
+    const esMachimbreODeck =
+      producto.unidad === "M2" &&
+      (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
+    const factorCepillado = cepilladoAplicado && !esMachimbreODeck ? 1.066 : 1;
+    const factorCalibrado = calibradoAplicado
+      ? 1 + calibradoPorcentaje / 100
+      : 1;
+    return Math.round((precioBase * factorCepillado * factorCalibrado) / 100) * 100;
+  };
 
-  const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
+  const recalcularTratamientosMadera = (productoId, cambios = {}) => {
     setPresupuestoEdit((prev) => ({
       ...prev,
       productos: (prev.productos || []).map((p) => {
@@ -553,24 +626,42 @@ const PresupuestoDetalle = () => {
             precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
           }
 
-          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
-          const esMachimbreODeck = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (aplicarCepillado && !esMachimbreODeck)
-            ? precioBase * 1.066
-            : precioBase;
-
-          // Redondear a centenas (múltiplos de 100)
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase,
+            cambios
+          );
 
           return {
             ...p,
+            ...cambios,
             precio: precioRedondeado,
-            cepilladoAplicado: aplicarCepillado,
+            calibradoPorcentaje: normalizarCalibradoPorcentaje(
+              cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
+            ),
           };
         }
         return p;
       }),
     }));
+  };
+  const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
+    recalcularTratamientosMadera(productoId, {
+      cepilladoAplicado: aplicarCepillado,
+    });
+  };
+  const handleCalibradoAplicadoChange = (productoId, aplicarCalibrado) => {
+    recalcularTratamientosMadera(productoId, {
+      calibradoAplicado: aplicarCalibrado,
+    });
+  };
+  const handleCalibradoPorcentajeChange = (productoId, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCalibradoPorcentaje(parsed);
+    recalcularTratamientosMadera(productoId, {
+      calibradoPorcentaje: porcentajeNormalizado,
+    });
   };
 
   // Función para recalcular precio cuando se cambia el precio por pie
@@ -601,14 +692,10 @@ const PresupuestoDetalle = () => {
               (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
           }
 
-          // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-          const esMachimbre = (p.unidad === "M2") && (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (p.cepilladoAplicado && !esMachimbre)
-            ? precioBase * 1.066
-            : precioBase;
-
-          // Redondear a centenas (múltiplos de 100)
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -641,13 +728,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
-          const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -679,13 +763,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
-          const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -717,13 +798,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
-          const esMachimbreODeck = (p.subcategoria?.toLowerCase() === "machimbre" || p.subcategoria?.toLowerCase() === "deck" || !p.subcategoria || p.subcategoria === "");
-          const precioFinal = (p.cepilladoAplicado && !esMachimbreODeck)
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -755,11 +833,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -789,11 +866,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -823,11 +899,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: p.precioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -857,11 +932,10 @@ const PresupuestoDetalle = () => {
             precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
           });
 
-          const precioFinal = p.cepilladoAplicado
-            ? precioBase * 1.066
-            : precioBase;
-
-          const precioRedondeado = Math.round(precioFinal / 100) * 100;
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
 
           return {
             ...p,
@@ -1050,13 +1124,10 @@ const PresupuestoDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
-              ? precioBase * 1.066
-              : precioBase;
-
-            const precioRedondeado = Math.round(precioFinal / 100) * 100;
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(
+              p,
+              precioBase
+            );
 
             return {
               ...p,
@@ -1088,13 +1159,10 @@ const PresupuestoDetalle = () => {
               precioPorPie: p.precioPorPie,
             });
 
-            // Machimbre con cepillado NO multiplica por 1.066, mantiene el mismo precio
-            const esMachimbre = (p.subcategoria?.toLowerCase() === "machimbre" || !p.subcategoria || p.subcategoria === "");
-            const precioFinal = (p.cepilladoAplicado && !esMachimbre)
-              ? precioBase * 1.066
-              : precioBase;
-
-            const precioRedondeado = Math.round(precioFinal / 100) * 100;
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(
+              p,
+              precioBase
+            );
 
             return {
               ...p,
@@ -2640,6 +2708,8 @@ const PresupuestoDetalle = () => {
                                                   largo: largo,
                                                   precioPorPie: precioPorPie,
                                                   cepilladoAplicado: false,
+                                                  calibradoAplicado: false,
+                                                  calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                                                   tipoMadera:
                                                     prod.tipoMadera || "",
                                                   subcategoria: prod.subcategoria || prod.subCategoria || "",
@@ -2861,6 +2931,9 @@ const PresupuestoDetalle = () => {
                             </th>
                             <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Cepillado
+                            </th>
+                            <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
+                              Calibrado
                             </th>
                             <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">
                               Precio unit.
@@ -3166,10 +3239,10 @@ const PresupuestoDetalle = () => {
                                                   cantidad: nuevaCantidad,
                                                   precioPorPie: prod.precioPorPie,
                                                 });
-                                                // Machimbre y deck con cepillado NO multiplican por 1.066, mantienen el mismo precio
-                                                const esMachimbreODeck = (prod.subcategoria?.toLowerCase() === "machimbre" || prod.subcategoria?.toLowerCase() === "deck" || !prod.subcategoria || prod.subcategoria === "");
-                                                const precioFinal = (prod.cepilladoAplicado && !esMachimbreODeck) ? precioBase * 1.066 : precioBase;
-                                                const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                                const precioRedondeado = calcularPrecioMaderaConTratamientos(
+                                                  prod,
+                                                  precioBase
+                                                );
                                                 return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
                                               }
                                               return { ...prod, cantidad: nuevaCantidad };
@@ -3217,8 +3290,10 @@ const PresupuestoDetalle = () => {
                                                 cantidad: nuevaCantidad,
                                                 precioPorPie: prod.precioPorPie,
                                               });
-                                              const precioFinal = prod.cepilladoAplicado ? precioBase * 1.066 : precioBase;
-                                              const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                              const precioRedondeado = calcularPrecioMaderaConTratamientos(
+                                                prod,
+                                                precioBase
+                                              );
                                               return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
                                             }
                                             return { ...prod, cantidad: nuevaCantidad };
@@ -3246,8 +3321,10 @@ const PresupuestoDetalle = () => {
                                                 cantidad: nuevaCantidad,
                                                 precioPorPie: prod.precioPorPie,
                                               });
-                                              const precioFinal = prod.cepilladoAplicado ? precioBase * 1.066 : precioBase;
-                                              const precioRedondeado = Math.round(precioFinal / 100) * 100;
+                                              const precioRedondeado = calcularPrecioMaderaConTratamientos(
+                                                prod,
+                                                precioBase
+                                              );
                                               return { ...prod, cantidad: nuevaCantidad, precio: precioRedondeado };
                                             }
                                             return { ...prod, cantidad: nuevaCantidad };
@@ -3298,6 +3375,51 @@ const PresupuestoDetalle = () => {
                                       className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 focus:ring-2"
                                       disabled={loadingPrecios}
                                     />
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="p-4 align-middle text-sm text-default-600">
+                                {p.categoria === "Maderas" ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={p.calibradoAplicado || false}
+                                      onChange={(e) =>
+                                        handleCalibradoAplicadoChange(
+                                          p.id,
+                                          e.target.checked
+                                        )
+                                      }
+                                      className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 focus:ring-2"
+                                      disabled={loadingPrecios}
+                                    />
+                                    <div className="relative w-16">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step="0.1"
+                                        value={
+                                          p.calibradoPorcentaje === ""
+                                            ? ""
+                                            : p.calibradoPorcentaje ?? DEFAULT_CALIBRADO_PORCENTAJE
+                                        }
+                                        onChange={(e) =>
+                                          handleCalibradoPorcentajeChange(
+                                            p.id,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                        disabled={
+                                          loadingPrecios || !p.calibradoAplicado
+                                        }
+                                      />
+                                      <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">
+                                        %
+                                      </span>
+                                    </div>
                                   </div>
                                 ) : (
                                   <span className="text-gray-400">-</span>
@@ -3556,6 +3678,7 @@ const PresupuestoDetalle = () => {
                       <th className="text-center p-3 font-medium">Cantidad</th>
                       <th className="text-left p-3 font-medium">Descripción</th>
                       <th className="text-center p-3 font-medium">Cepillado</th>
+                      <th className="text-center p-3 font-medium">Calibrado</th>
                       <th className="text-right p-3 font-medium">Precio Unit.</th>
                       <th className="text-right p-3 font-medium">Descuento</th>
                       <th className="text-right p-3 font-medium">Subtotal</th>
@@ -3589,6 +3712,21 @@ const PresupuestoDetalle = () => {
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
                                 </svg>
+                                No
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {producto.categoria === "Maderas" ? (
+                            producto.calibradoAplicado ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                                {`Sí (${safeNumber(producto.calibradoPorcentaje || DEFAULT_CALIBRADO_PORCENTAJE).toFixed(2)}%)`}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
                                 No
                               </span>
                             )

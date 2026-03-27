@@ -74,6 +74,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
             <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓ Sí" : "No"}</td>
+            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
             ${!paraEmpleado ? `
             <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
             <td style="padding: 4px 6px; text-align: right; font-weight: 800; color: #000000; font-size: 12px;">${formatCurrency(item.subtotal || 0)}</td>
@@ -87,7 +88,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         .join("")
     : `
       <tr>
-        <td colspan="${paraEmpleado ? 3 : 5}" style="padding: 6px 8px; text-align: center; color: #000000; font-weight: 700;">
+        <td colspan="${paraEmpleado ? 4 : 6}" style="padding: 6px 8px; text-align: center; color: #000000; font-weight: 700;">
           Sin productos
         </td>
       </tr>
@@ -101,6 +102,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       filasVacias = Array.from({ length: numFilasVacias }, () => `
       <tr>
         <td style="padding: 4px 6px; height: 20px;"></td>
+        <td style="padding: 4px 6px;"></td>
         <td style="padding: 4px 6px;"></td>
         <td style="padding: 4px 6px;"></td>
         ${!paraEmpleado ? `
@@ -121,14 +123,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
   const totalesRowsHtml = !paraEmpleado
     ? `
       <tr>
-        <td colspan="2" style="padding: 6px;"></td>
+        <td colspan="3" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">SUBTOTAL</td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.subtotal)}</td>
       </tr>
       ${descuentoUnificado > 0 ? `
       <tr>
-        <td colspan="2" style="padding: 6px;"></td>
+        <td colspan="3" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">DESCUENTO</td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(descuentoUnificado)}</td>
@@ -136,14 +138,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       ` : ""}
       ${totales.costoEnvio > 0 ? `
       <tr>
-        <td colspan="2" style="padding: 6px;"></td>
+        <td colspan="3" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">ENVÍO</td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
       <tr>
-        <td colspan="2" style="padding: 6px;"></td>
+        <td colspan="3" style="padding: 6px;"></td>
         <td style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">TOTAL</td>
         <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">${formatCurrency(totales.total)}</td>
@@ -746,8 +748,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           <thead>
             <tr>
               <th class="text-center" style="width: 10%;">CANTIDAD</th>
-              <th style="width: 40%;">DETALLE</th>
-              <th class="text-center" style="width: 15%;">CEPILLADO</th>
+              <th style="width: 30%;">DETALLE</th>
+              <th class="text-center" style="width: 12.5%;">CEPILLADO</th>
+              <th class="text-center" style="width: 12.5%;">CALIBRADO</th>
               ${!paraEmpleado ? `
               <th class="text-right" style="width: 17.5%;">PRECIO UNIT.</th>
               <th class="text-right" style="width: 17.5%;">TOTAL</th>

@@ -7,6 +7,8 @@ export interface RemitoItemModel {
   detalle?: string;
   cantidad: number;
   cepillado?: boolean;
+  calibrado?: boolean;
+  calibradoPorcentaje?: number;
   precioUnitario?: number;
   descuento?: number;
   subtotal?: number;
