@@ -73,7 +73,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               ${safe(item.nombre)}
               ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
-            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? `✓ ${Number(item.cepilladoPorcentaje ?? 6)}%` : "No"}</td>
+            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>
             <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
             ${!paraEmpleado ? `
             <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>
@@ -207,7 +207,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
           return `
         <div class="payment-inline">
-          <div class="payment-row"><strong>Estado de pago:</strong> ${estadoLabel}</div>
+          <div class="payment-row"><strong>Estado de pago:</strong> <span class="payment-value">${estadoLabel}</span></div>
           <div class="payment-row"><strong>Total venta:</strong> ${formatCurrency(total)}</div>
           <div class="payment-row"><strong>Monto abonado:</strong> ${formatCurrency(abonado)}</div>
           <div class="payment-row"><strong>Saldo pendiente:</strong> ${formatCurrency(saldo)}</div>
@@ -563,26 +563,30 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       justify-content: center;
     }
     .envio-info {
-      font-size: 10px;
+      font-size: 12px;
       color: #000000;
       margin-bottom: 8px;
-      line-height: 1.5;
-      padding: 10px 12px;
+      line-height: 1.6;
+      padding: 12px 14px;
       background: #fff;
       border-radius: 6px;
       border: 1px solid #000000;
-      font-weight: 600;
+      font-weight: 700;
       display: flex;
       justify-content: space-between;
       gap: 16px;
     }
     .envio-info strong {
-      font-weight: 800;
+      font-weight: 900;
       color: #000000;
-      margin-right: 4px;
+      margin-right: 6px;
     }
     .envio-info-item {
-      margin-bottom: 3px;
+      margin-bottom: 5px;
+    }
+    .envio-strong-value {
+      font-weight: 900;
+      font-size: 12.5px;
     }
     .envio-info-item:last-child {
       margin-bottom: 0;
@@ -598,24 +602,27 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       padding-left: 12px;
     }
     .payment-inline {
-      font-size: 10px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.6;
     }
     .payment-row {
-      margin-bottom: 3px;
+      margin-bottom: 5px;
+    }
+    .payment-row .payment-value {
+      font-weight: 900;
     }
     .payment-history {
       margin-top: 4px;
     }
     .payment-history-title {
-      font-size: 10px;
-      font-weight: 800;
+      font-size: 11px;
+      font-weight: 900;
       margin-bottom: 4px;
     }
     .payment-history-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9px;
+      font-size: 10px;
     }
     .payment-history-table th,
     .payment-history-table td {
@@ -625,6 +632,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .payment-history-table th {
       font-weight: 800;
       text-align: left;
+    }
+    .payment-history-table td:first-child {
+      font-weight: 800;
     }
     .footer-bottom {
       display: flex;
@@ -796,9 +806,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       ${!esRetiroLocal ? `
       <div class="envio-info">
         <div class="envio-info-left">
-          <div class="envio-info-item"><strong>Tipo de envío:</strong> ${tipoEnvio}</div>
-          ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> ${safe(fechaEntrega)}</div>` : ""}
-          ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> ${safe(lugarEntrega)}</div>` : ""}
+          <div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoEnvio}</span></div>
+          ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> <span class="envio-strong-value">${safe(fechaEntrega)}</span></div>` : ""}
+          ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> <span class="envio-strong-value">${safe(lugarEntrega)}</span></div>` : ""}
           ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
           ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
         </div>
