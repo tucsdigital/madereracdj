@@ -5,14 +5,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Users, Plus, Save, X } from "lucide-react";
 import { useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, query, where, updateDoc, doc } from "firebase/firestore";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 
 const ClientesPage = () => {
   const [open, setOpen] = useState(false);
@@ -23,26 +21,9 @@ const ClientesPage = () => {
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [ventas, setVentas] = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
-  const [form, setForm] = useState({ 
-    nombre: "", 
-    cuit: "", 
-    direccion: "", 
-    telefono: "", 
-    email: "", 
-    estado: "Activo", 
-    localidad: "", 
-    partido: "", 
-    barrio: "", 
-    area: "", 
-    lote: "", 
-    descripcion: "",
-    esClienteViejo: false
-  });
-  const [saving, setSaving] = useState(false);
   const [editCliente, setEditCliente] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editMsg, setEditMsg] = useState("");
-  const [activeTab, setActiveTab] = useState('datos');
   const [detalleTab, setDetalleTab] = useState('datos');
   const lang = typeof window !== "undefined" ? window.location.pathname.split("/")[1] : "";
 
@@ -86,18 +67,6 @@ const ClientesPage = () => {
       setVentas(ventasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setPresupuestos(presupuestosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }
-  };
-
-  const handleGuardar = async () => {
-    if (!form.nombre || !form.direccion || !form.telefono) return;
-    setSaving(true);
-    // OPTIMIZADO: Agregar directamente a la lista local en lugar de recargar todo
-    const docRef = await addDoc(collection(db, "clientes"), form);
-    const nuevoCliente = { id: docRef.id, ...form };
-    setClientes(prev => [nuevoCliente, ...prev]);
-    setForm({ nombre: "", cuit: "", direccion: "", telefono: "", email: "", estado: "Activo", localidad: "", partido: "", barrio: "", area: "", lote: "", descripcion: "", esClienteViejo: false });
-    setOpen(false);
-    setSaving(false);
   };
 
   const handleGuardarEdicion = async () => {
@@ -172,267 +141,19 @@ const ClientesPage = () => {
           </Table>
         </CardContent>
       </Card>
-      {/* Modal alta cliente */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Agregar Cliente</DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex flex-col h-full">
-            {/* Pestañas */}
-            <div className="flex border-b border-gray-200 mb-4">
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'datos' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => setActiveTab('datos')}
-              >
-                Datos Básicos
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'ubicacion' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => setActiveTab('ubicacion')}
-              >
-                Ubicación
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'adicional' 
-                    ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => setActiveTab('adicional')}
-              >
-                Adicional
-              </button>
-            </div>
-
-            {/* Contenido de las pestañas */}
-            <div className="flex-1 overflow-y-auto">
-              {activeTab === 'datos' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nombre *
-                      </label>
-                      <Input 
-                        placeholder="Nombre completo" 
-                        value={form.nombre} 
-                        onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        CUIT / DNI
-                      </label>
-                      <Input 
-                        placeholder="CUIT o DNI" 
-                        value={form.cuit} 
-                        onChange={e => setForm(f => ({ ...f, cuit: e.target.value }))} 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Teléfono *
-                      </label>
-                      <Input 
-                        placeholder="Teléfono" 
-                        value={form.telefono} 
-                        onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
-                      <Input 
-                        placeholder="Email" 
-                        type="email"
-                        value={form.email} 
-                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))} 
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Dirección *
-                    </label>
-                    <Input 
-                      placeholder="Dirección completa" 
-                      value={form.direccion} 
-                      onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} 
-                      required 
-                    />
-                  </div>
-
-                  {/* Checkbox para cliente antiguo */}
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <input
-                      type="checkbox"
-                      id="esClienteViejo"
-                      checked={form.esClienteViejo}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          esClienteViejo: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label
-                      htmlFor="esClienteViejo"
-                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                    >
-                      ¿Es un cliente antiguo?
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Estado
-                    </label>
-                    <select 
-                      className="w-full border rounded-md px-3 py-2" 
-                      value={form.estado} 
-                      onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
-                    >
-                      <option value="Activo">Activo</option>
-                      <option value="Inactivo">Inactivo</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'ubicacion' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Localidad
-                      </label>
-                      <Input 
-                        placeholder="Localidad" 
-                        value={form.localidad} 
-                        onChange={e => setForm(f => ({ ...f, localidad: e.target.value }))} 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Partido
-                      </label>
-                      <Input 
-                        placeholder="Partido" 
-                        value={form.partido} 
-                        onChange={e => setForm(f => ({ ...f, partido: e.target.value }))} 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Barrio
-                      </label>
-                      <Input 
-                        placeholder="Barrio" 
-                        value={form.barrio} 
-                        onChange={e => setForm(f => ({ ...f, barrio: e.target.value }))} 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Área
-                      </label>
-                      <Input 
-                        placeholder="Área" 
-                        value={form.area} 
-                        onChange={e => setForm(f => ({ ...f, area: e.target.value }))} 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Lote
-                      </label>
-                      <Input 
-                        placeholder="Lote" 
-                        value={form.lote} 
-                        onChange={e => setForm(f => ({ ...f, lote: e.target.value }))} 
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'adicional' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Descripción
-                    </label>
-                    <Textarea 
-                      placeholder="Información adicional sobre el cliente" 
-                      value={form.descripcion} 
-                      onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} 
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer con navegación */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                {activeTab !== 'datos' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setActiveTab('datos')}
-                  >
-                    Anterior
-                  </Button>
-                )}
-                {activeTab !== 'adicional' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (activeTab === 'datos') setActiveTab('ubicacion');
-                      else if (activeTab === 'ubicacion') setActiveTab('adicional');
-                    }}
-                  >
-                    Siguiente
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button 
-                  variant="default" 
-                  onClick={handleGuardar} 
-                  disabled={saving || !form.nombre || !form.direccion || !form.telefono}
-                >
-                  {saving ? "Guardando..." : "Guardar"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FormularioClienteObras
+        open={open}
+        onClose={() => setOpen(false)}
+        onClienteGuardado={(clienteId, clienteData) => {
+          setClientes((prev) => {
+            if (prev.some((c) => c.id === clienteId)) return prev;
+            return [{ id: clienteId, ...clienteData }, ...prev];
+          });
+          setOpen(false);
+        }}
+        mode="general"
+        submitLabel="Guardar"
+      />
       {/* Modal detalle cliente */}
       <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
         <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border-0 outline-none focus:outline-none bg-white">

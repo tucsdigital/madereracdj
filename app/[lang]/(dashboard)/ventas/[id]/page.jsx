@@ -389,13 +389,48 @@ const VentaDetalle = () => {
       ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
-          ? {
-              ...p,
-              calibradoAplicado: p.calibradoAplicado || false,
-              calibradoPorcentaje: normalizarCalibradoPorcentaje(
+          ? (() => {
+              const cepilladoAplicado = p.cepilladoAplicado || false;
+              const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+                p.cepilladoPorcentaje
+              );
+              const calibradoAplicado = p.calibradoAplicado || false;
+              const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 p.calibradoPorcentaje
-              ),
-            }
+              );
+              const unidad = String(p.unidad || p.unidadMedida || "");
+              const alto = Number(p.alto) || 0;
+              const largo = Number(p.largo) || 0;
+              const precioPorPie = Number(p.precioPorPie) || 0;
+              const cantidad = Number(p.cantidad) || 1;
+              const precioBaseM2 =
+                unidad === "M2" && alto > 0 && largo > 0 && precioPorPie > 0
+                  ? calcularPrecioMachimbre({
+                      alto,
+                      largo,
+                      cantidad,
+                      precioPorPie,
+                    })
+                  : Number(p.precio) || 0;
+              const factorCepillado = cepilladoAplicado
+                ? 1 + cepilladoPorcentaje / 100
+                : 1;
+              const factorCalibrado = calibradoAplicado
+                ? 1 + calibradoPorcentaje / 100
+                : 1;
+              const precioRecalculado =
+                Math.round(
+                  (precioBaseM2 * factorCepillado * factorCalibrado) / 100
+                ) * 100;
+              return {
+                ...p,
+                precio: precioRecalculado,
+                cepilladoAplicado,
+                cepilladoPorcentaje,
+                calibradoAplicado,
+                calibradoPorcentaje,
+              };
+            })()
           : p
       );
 
@@ -565,6 +600,7 @@ const VentaDetalle = () => {
   };
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6.6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {
@@ -580,6 +616,11 @@ const VentaDetalle = () => {
     if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
     return Math.max(0, num);
   };
+  const normalizarCepilladoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CEPILLADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
   const calcularPrecioMaderaConTratamientos = (
     producto,
     precioBase,
@@ -587,17 +628,18 @@ const VentaDetalle = () => {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+    );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
       overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
     );
-    const subcategoria =
-      (producto.subcategoria || producto.subCategoria || "").toLowerCase();
-    const esMachimbreODeck =
-      producto.unidad === "M2" &&
-      (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
-    const factorCepillado = cepilladoAplicado && !esMachimbreODeck ? 1.066 : 1;
+    const factorCepillado =
+      cepilladoAplicado
+        ? 1 + cepilladoPorcentaje / 100
+        : 1;
     const factorCalibrado = calibradoAplicado
       ? 1 + calibradoPorcentaje / 100
       : 1;
@@ -633,6 +675,9 @@ const VentaDetalle = () => {
             ...p,
             ...cambios,
             precio: precioRedondeado,
+            cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+              cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+            ),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
@@ -650,6 +695,14 @@ const VentaDetalle = () => {
   const handleCalibradoAplicadoChange = (productoId, aplicarCalibrado) => {
     recalcularTratamientosMadera(productoId, {
       calibradoAplicado: aplicarCalibrado,
+    });
+  };
+  const handleCepilladoPorcentajeChange = (productoId, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCepilladoPorcentaje(parsed);
+    recalcularTratamientosMadera(productoId, {
+      cepilladoPorcentaje: porcentajeNormalizado,
     });
   };
   const handleCalibradoPorcentajeChange = (productoId, porcentaje) => {
@@ -2492,7 +2545,7 @@ const VentaDetalle = () => {
                               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                               </svg>
-                              Sí
+                              {`Sí (${Number(producto.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE)}%)`}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
@@ -3297,6 +3350,7 @@ const VentaDetalle = () => {
                                                   largo,
                                                   precioPorPie,
                                                   cepilladoAplicado: false,
+                                                  cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
                                                   calibradoAplicado: false,
                                                   calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                                                   tipoMadera: prod.tipoMadera || "",
@@ -3567,8 +3621,20 @@ const VentaDetalle = () => {
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">
                               {p.categoria === "Maderas" ? (
-                                <div className="flex items-center justify-center">
-                                  <input type="checkbox" checked={p.cepilladoAplicado || false} onChange={(e) => { recalcularPreciosMadera(p.id, e.target.checked); }} className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2" disabled={loadingPrecios} title="Aplicar cepillado (+6.6%)" />
+                                <div className="flex items-center justify-center gap-2">
+                                  <input type="checkbox" checked={p.cepilladoAplicado || false} onChange={(e) => { recalcularPreciosMadera(p.id, e.target.checked); }} className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2" disabled={loadingPrecios} title="Aplicar cepillado" />
+                                  <div className="relative w-16">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.1}
+                                      value={p.cepilladoPorcentaje === "" ? "" : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE}
+                                      onChange={(e) => handleCepilladoPorcentajeChange(p.id, e.target.value)}
+                                      className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
+                                      disabled={loadingPrecios || !p.cepilladoAplicado}
+                                    />
+                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
+                                  </div>
                                 </div>
                               ) : (
                                 <span className="text-gray-400">-</span>

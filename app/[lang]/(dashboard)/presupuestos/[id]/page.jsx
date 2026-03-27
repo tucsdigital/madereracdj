@@ -21,9 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogFooter,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -261,23 +259,6 @@ const PresupuestoDetalle = () => {
     setCategoriasState(Object.keys(agrupados));
   }, [productos]);
 
-  // Estado para nuevo cliente en presupuestos (legacy - mantener por compatibilidad)
-  const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({
-    nombre: "",
-    direccion: "",
-    telefono: "",
-    cuit: "",
-    email: "",
-    localidad: "",
-    partido: "",
-    barrio: "",
-    area: "",
-    lote: "",
-    descripcion: "",
-    esClienteViejo: false,
-  });
-
   // Estado para cambio de cliente
   const [showSelectorCliente, setShowSelectorCliente] = useState(false);
 
@@ -407,8 +388,49 @@ const PresupuestoDetalle = () => {
                 productoPresupuesto.precioPorPie !== ""
                   ? Number(productoPresupuesto.precioPorPie)
                   : Number(productoDB.precioPorPie) || 0;
+              const cepilladoAplicado =
+                productoPresupuesto.cepilladoAplicado || false;
+              const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+                productoPresupuesto.cepilladoPorcentaje
+              );
+              const calibradoAplicado =
+                productoPresupuesto.calibradoAplicado || false;
+              const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+                productoPresupuesto.calibradoPorcentaje
+              );
+              const unidadActual = String(
+                productoPresupuesto.unidad ||
+                  productoPresupuesto.unidadMedida ||
+                  productoDB.unidadMedida ||
+                  productoDB.unidad ||
+                  ""
+              );
+              const cantidadActual = Number(productoPresupuesto.cantidad) || 1;
+              const precioBaseM2 =
+                unidadActual === "M2" &&
+                altoActual > 0 &&
+                largoActual > 0 &&
+                precioPorPieActual > 0
+                  ? calcularPrecioMachimbre({
+                      alto: altoActual,
+                      largo: largoActual,
+                      cantidad: cantidadActual,
+                      precioPorPie: precioPorPieActual,
+                    })
+                  : Number(productoPresupuesto.precio) || 0;
+              const factorCepillado = cepilladoAplicado
+                ? 1 + cepilladoPorcentaje / 100
+                : 1;
+              const factorCalibrado = calibradoAplicado
+                ? 1 + calibradoPorcentaje / 100
+                : 1;
+              const precioRecalculado =
+                Math.round(
+                  (precioBaseM2 * factorCepillado * factorCalibrado) / 100
+                ) * 100;
               return {
                 ...productoPresupuesto,
+                precio: precioRecalculado,
                 // Preservar campos específicos de categoría
                 tipoMadera:
                   productoPresupuesto.tipoMadera || productoDB.tipoMadera || "",
@@ -428,19 +450,56 @@ const PresupuestoDetalle = () => {
                 ancho: anchoActual,
                 largo: largoActual,
                 precioPorPie: precioPorPieActual,
-                calibradoAplicado:
-                  productoPresupuesto.calibradoAplicado || false,
-                calibradoPorcentaje: normalizarCalibradoPorcentaje(
-                  productoPresupuesto.calibradoPorcentaje
-                ),
+                cepilladoAplicado,
+                cepilladoPorcentaje,
+                calibradoAplicado,
+                calibradoPorcentaje,
               };
             }
+            const cepilladoAplicado = productoPresupuesto.cepilladoAplicado || false;
+            const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+              productoPresupuesto.cepilladoPorcentaje
+            );
+            const calibradoAplicado = productoPresupuesto.calibradoAplicado || false;
+            const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+              productoPresupuesto.calibradoPorcentaje
+            );
+            const unidadActual = String(
+              productoPresupuesto.unidad || productoPresupuesto.unidadMedida || ""
+            );
+            const altoActual = Number(productoPresupuesto.alto) || 0;
+            const largoActual = Number(productoPresupuesto.largo) || 0;
+            const precioPorPieActual = Number(productoPresupuesto.precioPorPie) || 0;
+            const cantidadActual = Number(productoPresupuesto.cantidad) || 1;
+            const precioBaseM2 =
+              unidadActual === "M2" &&
+              altoActual > 0 &&
+              largoActual > 0 &&
+              precioPorPieActual > 0
+                ? calcularPrecioMachimbre({
+                    alto: altoActual,
+                    largo: largoActual,
+                    cantidad: cantidadActual,
+                    precioPorPie: precioPorPieActual,
+                  })
+                : Number(productoPresupuesto.precio) || 0;
+            const factorCepillado = cepilladoAplicado
+              ? 1 + cepilladoPorcentaje / 100
+              : 1;
+            const factorCalibrado = calibradoAplicado
+              ? 1 + calibradoPorcentaje / 100
+              : 1;
+            const precioRecalculado =
+              Math.round(
+                (precioBaseM2 * factorCepillado * factorCalibrado) / 100
+              ) * 100;
             return {
               ...productoPresupuesto,
-              calibradoAplicado: productoPresupuesto.calibradoAplicado || false,
-              calibradoPorcentaje: normalizarCalibradoPorcentaje(
-                productoPresupuesto.calibradoPorcentaje
-              ),
+              precio: precioRecalculado,
+              cepilladoAplicado,
+              cepilladoPorcentaje,
+              calibradoAplicado,
+              calibradoPorcentaje,
             };
           }
         );
@@ -567,6 +626,7 @@ const PresupuestoDetalle = () => {
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
   // Función helper para manejar valores numéricos
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6.6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {
@@ -582,6 +642,11 @@ const PresupuestoDetalle = () => {
     if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
     return Math.max(0, num);
   };
+  const normalizarCepilladoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CEPILLADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
   const calcularPrecioMaderaConTratamientos = (
     producto,
     precioBase,
@@ -589,17 +654,18 @@ const PresupuestoDetalle = () => {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+    );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
       overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
     );
-    const subcategoria =
-      (producto.subcategoria || producto.subCategoria || "").toLowerCase();
-    const esMachimbreODeck =
-      producto.unidad === "M2" &&
-      (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
-    const factorCepillado = cepilladoAplicado && !esMachimbreODeck ? 1.066 : 1;
+    const factorCepillado =
+      cepilladoAplicado
+        ? 1 + cepilladoPorcentaje / 100
+        : 1;
     const factorCalibrado = calibradoAplicado
       ? 1 + calibradoPorcentaje / 100
       : 1;
@@ -636,6 +702,9 @@ const PresupuestoDetalle = () => {
             ...p,
             ...cambios,
             precio: precioRedondeado,
+            cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+              cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+            ),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
@@ -653,6 +722,14 @@ const PresupuestoDetalle = () => {
   const handleCalibradoAplicadoChange = (productoId, aplicarCalibrado) => {
     recalcularTratamientosMadera(productoId, {
       calibradoAplicado: aplicarCalibrado,
+    });
+  };
+  const handleCepilladoPorcentajeChange = (productoId, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCepilladoPorcentaje(parsed);
+    recalcularTratamientosMadera(productoId, {
+      cepilladoPorcentaje: porcentajeNormalizado,
     });
   };
   const handleCalibradoPorcentajeChange = (productoId, porcentaje) => {
@@ -1366,37 +1443,6 @@ const PresupuestoDetalle = () => {
     } catch (error) {
       console.error("Error al actualizar cliente:", error);
       alert("Error al actualizar el cliente");
-    }
-  };
-
-  // Modal para nuevo cliente en presupuestos (legacy - mantener por compatibilidad)
-  const handleNuevoClienteSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const clienteObj = {
-        ...nuevoCliente,
-        esClienteViejo: nuevoCliente.esClienteViejo || false,
-      };
-      const docRef = await addDoc(collection(db, "clientes"), clienteObj);
-      setClientes((prev) => [...prev, { id: docRef.id, ...clienteObj }]);
-      setNuevoCliente({
-        nombre: "",
-        direccion: "",
-        telefono: "",
-        cuit: "",
-        email: "",
-        localidad: "",
-        partido: "",
-        barrio: "",
-        area: "",
-        lote: "",
-        descripcion: "",
-        esClienteViejo: false,
-      });
-      setOpenNuevoCliente(false);
-    } catch (error) {
-      console.error("Error al guardar nuevo cliente:", error);
-      alert("Error al guardar cliente: " + error.message);
     }
   };
 
@@ -2708,6 +2754,7 @@ const PresupuestoDetalle = () => {
                                                   largo: largo,
                                                   precioPorPie: precioPorPie,
                                                   cepilladoAplicado: false,
+                                                  cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
                                                   calibradoAplicado: false,
                                                   calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                                                   tipoMadera:
@@ -3362,7 +3409,7 @@ const PresupuestoDetalle = () => {
                               </td>
                               <td className="p-4 align-middle text-sm text-default-600">
                                 {p.categoria === "Maderas" ? (
-                                  <div className="flex items-center justify-center">
+                                  <div className="flex items-center justify-center gap-2">
                                     <input
                                       type="checkbox"
                                       checked={p.cepilladoAplicado || false}
@@ -3374,7 +3421,31 @@ const PresupuestoDetalle = () => {
                                       }
                                       className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 focus:ring-2"
                                       disabled={loadingPrecios}
+                                      title="Aplicar cepillado"
                                     />
+                                    <div className="relative w-16">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step="0.1"
+                                        value={
+                                          p.cepilladoPorcentaje === ""
+                                            ? ""
+                                            : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
+                                        }
+                                        onChange={(e) =>
+                                          handleCepilladoPorcentajeChange(
+                                            p.id,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                        disabled={loadingPrecios || !p.cepilladoAplicado}
+                                      />
+                                      <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">
+                                        %
+                                      </span>
+                                    </div>
                                   </div>
                                 ) : (
                                   <span className="text-gray-400">-</span>
@@ -3705,7 +3776,7 @@ const PresupuestoDetalle = () => {
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                 </svg>
-                                Sí
+                                {`Sí (${safeNumber(producto.cepilladoPorcentaje || DEFAULT_CEPILLADO_PORCENTAJE).toFixed(2)}%)`}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
@@ -4077,132 +4148,6 @@ const PresupuestoDetalle = () => {
             />
           </div>
         ) : null}
-
-        {/* Modal para nuevo cliente en presupuestos */}
-        <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-          <DialogContent className="w-[95vw] max-w-[420px] bg-card">
-            <DialogHeader className="bg-card">
-              <DialogTitle className="bg-card">Agregar Cliente</DialogTitle>
-              <DialogDescription className="bg-card">
-                Complete los datos del nuevo cliente para agregarlo al sistema.
-              </DialogDescription>
-            </DialogHeader>
-            <form
-              onSubmit={handleNuevoClienteSubmit}
-              className="space-y-2 bg-card"
-            >
-              {/* Checkbox para diferenciar tipo de cliente */}
-              <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <input
-                  type="checkbox"
-                  id="esClienteViejo"
-                  checked={nuevoCliente.esClienteViejo}
-                  onChange={(e) =>
-                    setNuevoCliente({
-                      ...nuevoCliente,
-                      esClienteViejo: e.target.checked,
-                    })
-                  }
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-                <label
-                  htmlFor="esClienteViejo"
-                  className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                >
-                  ¿Es un cliente existente/antiguo?
-                </label>
-              </div>
-              <Input
-                label="Nombre *"
-                value={nuevoCliente.nombre}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })
-                }
-                required
-              />
-              <Input
-                label="Dirección *"
-                value={nuevoCliente.direccion}
-                onChange={(e) =>
-                  setNuevoCliente({
-                    ...nuevoCliente,
-                    direccion: e.target.value,
-                  })
-                }
-                required
-              />
-              <Input
-                label="Teléfono *"
-                value={nuevoCliente.telefono}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })
-                }
-                required
-              />
-              <Input
-                label="CUIT / DNI"
-                value={nuevoCliente.cuit}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, cuit: e.target.value })
-                }
-              />
-              <Input
-                label="Partido"
-                value={nuevoCliente.partido}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, partido: e.target.value })
-                }
-              />
-              <Input
-                label="Barrio"
-                value={nuevoCliente.barrio}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, barrio: e.target.value })
-                }
-              />
-              <Input
-                label="Área"
-                value={nuevoCliente.area}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, area: e.target.value })
-                }
-              />
-              <Input
-                label="Lote"
-                value={nuevoCliente.lote}
-                onChange={(e) =>
-                  setNuevoCliente({ ...nuevoCliente, lote: e.target.value })
-                }
-              />
-              <Textarea
-                label="Descripción"
-                value={nuevoCliente.descripcion}
-                onChange={(e) =>
-                  setNuevoCliente({
-                    ...nuevoCliente,
-                    descripcion: e.target.value,
-                  })
-                }
-                rows={2}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setOpenNuevoCliente(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" variant="primary">
-                  Guardar
-                </Button>
-              </div>
-            </form>
-            <DialogFooter className="bg-card">
-              {/* ...botones... */}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Modal para cambiar cliente - Componente reutilizable */}
         <ModalCambiarCliente

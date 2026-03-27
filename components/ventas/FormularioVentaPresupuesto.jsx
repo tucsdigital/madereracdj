@@ -9,14 +9,6 @@ import { Button } from "@/components/ui/button";
 // } from "../(invoice)/invoice-list/invoice-list-table/components/columns-enhanced";
 // Nota: DataTableEnhanced no se usa en este componente
 // import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
@@ -27,7 +19,6 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   getDocs,
-  addDoc,
   doc,
   getDoc,
   setDoc,
@@ -46,6 +37,7 @@ import {
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { toast } from "@/components/ui/use-toast";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 // Nota: computeTotals no se usa directamente en este componente
 // import { computeTotals } from "@/lib/pricing";
 
@@ -217,15 +209,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [clientesLoading, setClientesLoading] = useState(true);
   const clienteSeleccionado = clientesState.find((c) => c.id === clienteId);
   const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({
-    nombre: "",
-    cuit: "",
-    direccion: "",
-    telefono: "",
-    email: "",
-    localidad: "",
-    esClienteViejo: false,
-  });
 
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [productosState, setProductosState] = useState([]);
@@ -374,6 +357,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 real.subcategoria?.toLowerCase() === "deck" ||
                                 !real.subcategoria || 
                                 real.subcategoria === "");
+      const precioConCepilladoInicial =
+        real.categoria === "Maderas" && esMachimbreODeck
+          ? Math.round(
+              (Number(precio || 0) * (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
+                100
+            ) * 100
+          : precio;
       
       setProductosSeleccionados([
         ...productosSeleccionados,
@@ -382,7 +372,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           originalId: real.id,
           nombre: real.nombre,
           detalle: real.detalle || "",
-          precio,
+          precio: precioConCepilladoInicial,
           unidad:
             real.unidadMedida ||
             real.unidadVenta ||
@@ -400,6 +390,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           precioPorPie: Number(real.precioPorPie) || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
           cepilladoAplicado: esMachimbreODeck, // Machimbre y deck se marcan automáticamente como cepillado
+          cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
           calibradoAplicado: false,
           calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
           tipoMadera: real.tipoMadera || "",
@@ -463,6 +454,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       color: "success",
     });
   };
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6.6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   // Función helper para manejar valores numéricos
   const parseNumericValue = (value) => {
@@ -477,6 +469,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
     return Math.max(0, num);
   };
+  const normalizarCepilladoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CEPILLADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
   const calcularPrecioMaderaConTratamientos = (
     producto,
     precioBase,
@@ -484,17 +481,18 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+    );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
       overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
     );
-    const subcategoria =
-      (producto.subcategoria || producto.subCategoria || "").toLowerCase();
-    const esMachimbreODeck =
-      producto.unidad === "M2" &&
-      (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
-    const factorCepillado = cepilladoAplicado && !esMachimbreODeck ? 1.066 : 1;
+    const factorCepillado =
+      cepilladoAplicado
+        ? 1 + cepilladoPorcentaje / 100
+        : 1;
     const factorCalibrado = calibradoAplicado
       ? 1 + calibradoPorcentaje / 100
       : 1;
@@ -679,6 +677,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             ...p,
             ...cambios,
             precio: precioRedondeado,
+            cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+              cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+            ),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
@@ -693,6 +694,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   };
   const handleCalibradoAplicadoChange = (id, aplicarCalibrado) => {
     recalcularTratamientosMadera(id, { calibradoAplicado: aplicarCalibrado });
+  };
+  const handleCepilladoPorcentajeChange = (id, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCepilladoPorcentaje(parsed);
+    recalcularTratamientosMadera(id, { cepilladoPorcentaje: porcentajeNormalizado });
   };
   const handleCalibradoPorcentajeChange = (id, porcentaje) => {
     const parsed = parseNumericValue(porcentaje);
@@ -1085,6 +1092,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: Number(p.largo) || 0,
           precioPorPie: Number(p.precioPorPie) || 0,
           cepilladoAplicado: p.cepilladoAplicado || false,
+          cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+            p.cepilladoPorcentaje
+          ),
           calibradoAplicado: p.calibradoAplicado || false,
           calibradoPorcentaje: normalizarCalibradoPorcentaje(
             p.calibradoPorcentaje
@@ -1190,6 +1200,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           obj.largo = Number(p.largo) || 0;
           obj.precioPorPie = Number(p.precioPorPie) || 0;
           obj.cepilladoAplicado = p.cepilladoAplicado || false; // Agregar propiedad de cepillado
+          obj.cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+            p.cepilladoPorcentaje
+          );
           obj.calibradoAplicado = p.calibradoAplicado || false;
           obj.calibradoPorcentaje = normalizarCalibradoPorcentaje(
             p.calibradoPorcentaje
@@ -1485,7 +1498,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     return () => clearTimeout(id);
   }, [busquedaCliente]);
   const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("datos");
   const clientesFiltrados = clientesState.filter(
     (c) =>
       c.nombre.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
@@ -2852,7 +2864,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                           </td>
                           <td className="p-4 align-middle text-sm text-default-600">
                             {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
-                              <div className="flex items-center justify-center">
+                              <div className="flex items-center justify-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked={p.cepilladoAplicado || false}
@@ -2864,8 +2876,29 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                   }}
                                   className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
                                   disabled={isSubmitting}
-                                  title="Aplicar cepillado (+6.6%)"
+                                  title="Aplicar cepillado"
                                 />
+                                <div className="relative w-16">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={
+                                      p.cepilladoPorcentaje === ""
+                                        ? ""
+                                        : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
+                                    }
+                                    onChange={(e) =>
+                                      handleCepilladoPorcentajeChange(
+                                        p.id,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                    disabled={isSubmitting || !p.cepilladoAplicado}
+                                  />
+                                  <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-gray-400">-</span>
@@ -3347,389 +3380,21 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         </div>
       </form>
 
-      <Dialog open={openNuevoCliente} onOpenChange={setOpenNuevoCliente}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-              <Icon icon="heroicons:user-plus" className="w-6 h-6" />
-              Agregar Cliente
-            </DialogTitle>
-            <DialogDescription className="text-base text-default-600">
-              Complete los datos del nuevo cliente para agregarlo al sistema.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col h-full">
-            {/* Pestañas */}
-            <div className="flex border-b border-gray-200 mb-4">
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "datos"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("datos")}
-              >
-                Datos Básicos
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "ubicacion"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("ubicacion")}
-              >
-                Ubicación
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === "adicional"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("adicional")}
-              >
-                Adicional
-              </button>
-            </div>
-
-            {/* Contenido de las pestañas */}
-            <div className="flex-1 overflow-y-auto">
-              {activeTab === "datos" && (
-                <div className="space-y-4">
-                  {/* Checkbox para cliente antiguo */}
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <input
-                      type="checkbox"
-                      id="esClienteViejo"
-                      checked={nuevoCliente.esClienteViejo}
-                      onChange={(e) =>
-                        setNuevoCliente({
-                          ...nuevoCliente,
-                          esClienteViejo: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label
-                      htmlFor="esClienteViejo"
-                      className="text-sm font-medium text-blue-800 dark:text-blue-200"
-                    >
-                      ¿Es un cliente antiguo?
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Nombre *
-                      </label>
-                      <Input
-                        placeholder="Nombre completo"
-                        className="w-full"
-                        value={nuevoCliente.nombre}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            nombre: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        CUIT / DNI
-                      </label>
-                      <Input
-                        placeholder="CUIT o DNI"
-                        className="w-full"
-                        value={nuevoCliente.cuit || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            cuit: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Teléfono *
-                      </label>
-                      <Input
-                        placeholder="Teléfono"
-                        className="w-full"
-                        value={nuevoCliente.telefono}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            telefono: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Email
-                      </label>
-                      <Input
-                        placeholder="Email"
-                        type="email"
-                        className="w-full"
-                        value={nuevoCliente.email}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            email: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Dirección
-                      </label>
-                      <Input
-                        placeholder="Dirección completa"
-                        className="w-full"
-                        value={nuevoCliente.direccion}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            direccion: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "ubicacion" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Localidad
-                      </label>
-                      <Input
-                        placeholder="Localidad"
-                        className="w-full"
-                        value={nuevoCliente.localidad || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            localidad: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Partido
-                      </label>
-                      <Input
-                        placeholder="Partido"
-                        className="w-full"
-                        value={nuevoCliente.partido || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            partido: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Barrio
-                      </label>
-                      <Input
-                        placeholder="Barrio"
-                        className="w-full"
-                        value={nuevoCliente.barrio || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            barrio: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Área
-                      </label>
-                      <Input
-                        placeholder="Área"
-                        className="w-full"
-                        value={nuevoCliente.area || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            area: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Lote
-                      </label>
-                      <Input
-                        placeholder="Lote"
-                        className="w-full"
-                        value={nuevoCliente.lote || ""}
-                        onChange={(e) =>
-                          setNuevoCliente({
-                            ...nuevoCliente,
-                            lote: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "adicional" && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Descripción
-                    </label>
-                    <Textarea
-                      placeholder="Información adicional sobre el cliente"
-                      className="w-full min-h-[120px]"
-                      value={nuevoCliente.descripcion || ""}
-                      onChange={(e) =>
-                        setNuevoCliente({
-                          ...nuevoCliente,
-                          descripcion: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Navegación y botones */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                {activeTab !== "datos" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (activeTab === "ubicacion") setActiveTab("datos");
-                      if (activeTab === "adicional") setActiveTab("ubicacion");
-                    }}
-                    className="text-sm"
-                  >
-                    Anterior
-                  </Button>
-                )}
-                {activeTab !== "adicional" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      if (activeTab === "datos") setActiveTab("ubicacion");
-                      if (activeTab === "ubicacion") setActiveTab("adicional");
-                    }}
-                    disabled={
-                      (activeTab === "datos" &&
-                        (!nuevoCliente.nombre ||
-                          !nuevoCliente.telefono)) ||
-                      (activeTab === "ubicacion" &&
-                        (!nuevoCliente.nombre ||
-                          !nuevoCliente.telefono))
-                    }
-                    className="text-sm"
-                  >
-                    Siguiente
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setOpenNuevoCliente(false)}
-                  className="text-sm"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={async () => {
-                    if (
-                      !nuevoCliente.nombre ||
-                      !nuevoCliente.telefono
-                    ) {
-                      alert("Nombre y teléfono son obligatorios");
-                      return;
-                    }
-                    const clienteObj = {
-                      nombre: nuevoCliente.nombre,
-                      cuit: nuevoCliente.cuit || "",
-                      direccion: nuevoCliente.direccion,
-                      telefono: nuevoCliente.telefono,
-                      email: nuevoCliente.email || "",
-                      localidad: nuevoCliente.localidad || "",
-                      partido: nuevoCliente.partido || "",
-                      barrio: nuevoCliente.barrio || "",
-                      area: nuevoCliente.area || "",
-                      lote: nuevoCliente.lote || "",
-                      descripcion: nuevoCliente.descripcion || "",
-                      esClienteViejo: nuevoCliente.esClienteViejo || false,
-                    };
-                    const docRef = await addDoc(
-                      collection(db, "clientes"),
-                      clienteObj
-                    );
-                    setClientesState([
-                      ...clientesState,
-                      { ...clienteObj, id: docRef.id },
-                    ]);
-                    setClienteId(docRef.id);
-                    setNuevoCliente({
-                      nombre: "",
-                      cuit: "",
-                      direccion: "",
-                      telefono: "",
-                      email: "",
-                      localidad: "",
-                      partido: "",
-                      barrio: "",
-                      area: "",
-                      lote: "",
-                      descripcion: "",
-                      esClienteViejo: false,
-                    });
-                    setOpenNuevoCliente(false);
-                    setDropdownClientesOpen(false);
-                  }}
-                  disabled={
-                    !nuevoCliente.nombre ||
-                    !nuevoCliente.telefono
-                  }
-                  className="text-sm"
-                >
-                  Guardar Cliente
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FormularioClienteObras
+        open={openNuevoCliente}
+        onClose={() => setOpenNuevoCliente(false)}
+        onClienteGuardado={(clienteIdNuevo, clienteData) => {
+          setClientesState((prev) => {
+            if (prev.some((c) => c.id === clienteIdNuevo)) return prev;
+            return [...prev, { id: clienteIdNuevo, ...clienteData }];
+          });
+          setClienteId(clienteIdNuevo);
+          setDropdownClientesOpen(false);
+          setOpenNuevoCliente(false);
+        }}
+        mode="general"
+        submitLabel="Guardar Cliente"
+      />
     </>
   );
 }

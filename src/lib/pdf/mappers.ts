@@ -77,6 +77,9 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
       detalle: detalle || undefined,
       cantidad,
       cepillado: p.cepilladoAplicado || false,
+      cepilladoPorcentaje: p.cepilladoAplicado
+        ? Math.max(0, Number(p.cepilladoPorcentaje ?? 6.6) || 6.6)
+        : undefined,
       calibrado: p.calibradoAplicado || false,
       calibradoPorcentaje: p.calibradoAplicado
         ? Math.max(0, Number(p.calibradoPorcentaje ?? 3) || 3)

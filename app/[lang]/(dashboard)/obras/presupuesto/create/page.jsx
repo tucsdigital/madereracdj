@@ -888,7 +888,7 @@ export default function CrearPresupuestoObraPage() {
                   <th className="p-2 text-right">
                     <div className="flex flex-col items-end">
                       <span>Valor Unit.</span>
-                      <span className="text-xs text-gray-500 font-normal">(Editable)</span>
+                      {/* <span className="text-xs text-gray-500 font-normal">(Editable)</span> */}
                     </div>
                   </th>
                   <th className="p-2 text-center">Desc. %</th>
@@ -920,7 +920,7 @@ export default function CrearPresupuestoObraPage() {
                               </div>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">{p.categoria}</div>
+                          {/* <div className="text-xs text-gray-500">{p.categoria}</div> */}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min={1} value={p.cantidad} onChange={(e) => actualizarCampo(p.id, "cantidad", e.target.value)} className="w-20 mx-auto" />
@@ -968,11 +968,11 @@ export default function CrearPresupuestoObraPage() {
                               title="Valor unitario editable. Se recalcula automáticamente al cambiar dimensiones."
                             />
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 text-center">
+                          {/* <div className="text-xs text-gray-500 mt-1 text-center">
                             {p.unidadMedida === "M2" && `(${p.alto || 0} × ${p.largo || 0} × ${p.cantidad || 1})`}
                             {p.unidadMedida === "ML" && `(${p.largo || 0} × ${p.cantidad || 1})`}
                             {p.unidadMedida === "UN" && `(${p.cantidad || 1})`}
-                          </div>
+                          </div> */}
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min={0} max={100} value={p.descuento} onChange={(e) => actualizarCampo(p.id, "descuento", e.target.value)} className="w-20 mx-auto" />
