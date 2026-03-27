@@ -14,6 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
 import {
   Search,
@@ -86,45 +87,48 @@ const ObrasHeader = ({
   }, [filtros.cliente, clientes]);
 
   return (
-    <div className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="container mx-auto px-4 py-6">
-        {/* Título y Botones Principales */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Gestión de Obras y Presupuestos
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm">
-              Administra y da seguimiento a todas las obras y presupuestos
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="default"
-              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
-              onClick={onNuevoPresupuesto}
-              disabled={disabled}
-            >
-              <Icon icon="heroicons:document-plus" className="w-4 h-4" />
-              <span className="hidden sm:inline">Nuevo Presupuesto</span>
-              <span className="sm:hidden">Presupuesto</span>
-            </Button>
-            <Button
-              variant="default"
-              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
-              onClick={onNuevaObra}
-              disabled={disabled}
-            >
-              <Icon icon="heroicons:building-office" className="w-4 h-4" />
-              <span className="hidden sm:inline">Nueva Obra</span>
-              <span className="sm:hidden">Obra</span>
-            </Button>
-          </div>
+    <div className="px-2">
+      <div className="mb-6">
+          <Card className="rounded-xl shadow-lg border border-default-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Icon icon="heroicons:briefcase" className="w-5 h-5" />
+                Gestión de Obras y Presupuestos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <p className="text-base text-default-600">
+                  Administra y da seguimiento a todas las obras y presupuestos
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="default"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-all duration-300"
+                    onClick={onNuevoPresupuesto}
+                    disabled={disabled}
+                  >
+                    <Icon icon="heroicons:document-plus" className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nuevo Presupuesto</span>
+                    <span className="sm:hidden">Presupuesto</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+                    onClick={onNuevaObra}
+                    disabled={disabled}
+                  >
+                    <Icon icon="heroicons:building-office" className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nueva Obra</span>
+                    <span className="sm:hidden">Obra</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Barra de Búsqueda y Filtros */}
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Buscador Global */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
@@ -136,7 +140,6 @@ const ObrasHeader = ({
             />
           </div>
 
-          {/* Selector de Vista del Calendario */}
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
             <Select
@@ -154,9 +157,7 @@ const ObrasHeader = ({
             </Select>
           </div>
 
-          {/* Filtros Rápidos */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Filtro: Estado de Obra */}
             <Popover
               open={filtrosAbiertos.estado}
               onOpenChange={(open) =>
@@ -206,7 +207,6 @@ const ObrasHeader = ({
               </PopoverContent>
             </Popover>
 
-            {/* Filtro: Cliente */}
             <Popover
               open={filtrosAbiertos.cliente}
               onOpenChange={(open) =>
@@ -260,7 +260,6 @@ const ObrasHeader = ({
               </PopoverContent>
             </Popover>
 
-            {/* Filtro: Estado de Pago */}
             <Popover
               open={filtrosAbiertos.estadoPago}
               onOpenChange={(open) =>
@@ -313,7 +312,6 @@ const ObrasHeader = ({
               </PopoverContent>
             </Popover>
 
-            {/* Filtro: Rango de Fechas */}
             <Popover
               open={filtrosAbiertos.fecha}
               onOpenChange={(open) =>
@@ -378,7 +376,6 @@ const ObrasHeader = ({
               </PopoverContent>
             </Popover>
 
-            {/* Botón Limpiar Filtros */}
             {filtrosActivos > 0 && (
               <Button
                 variant="outline"
@@ -393,7 +390,6 @@ const ObrasHeader = ({
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 };

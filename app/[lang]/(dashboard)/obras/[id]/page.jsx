@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Printer, Edit, User, MapPin, Calendar, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Printer, Edit, User, MapPin, Calendar, ChevronUp, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { useObra } from "@/hooks/useObra";
@@ -50,7 +50,6 @@ const ObraDetallePage = () => {
   const { id, lang } = params;
   const [openPrint, setOpenPrint] = useState(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
-  const [showCamposSecundarios, setShowCamposSecundarios] = useState(false);
   // Pago en dólares y comprobantes para la sección de documentación
   const [pagoEnDolares, setPagoEnDolares] = useState(false);
   const [valorOficialDolar, setValorOficialDolar] = useState(null);
@@ -539,6 +538,110 @@ const ObraDetallePage = () => {
     setEstadoObra(nuevoEstado);
   };
 
+  const normalizarNumero = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const calcularBaseProductoPreview = (producto) => {
+    const precioDirecto = normalizarNumero(producto?.precio);
+    if (precioDirecto > 0) return precioDirecto;
+    const unidad = String(producto?.unidadMedida || producto?.unidad || "UN").toUpperCase();
+    const alto = normalizarNumero(producto?.alto);
+    const largo = normalizarNumero(producto?.largo);
+    const cantidad = normalizarNumero(producto?.cantidad) || 1;
+    const valorUnitario = normalizarNumero(
+      producto?.valorVenta ?? producto?.valorUnitario ?? producto?.precioUnitario
+    );
+    if (unidad === "M2") return Math.round(alto * largo * valorUnitario * cantidad);
+    if (unidad === "ML") return Math.round(largo * valorUnitario * cantidad);
+    return Math.round(valorUnitario * cantidad);
+  };
+
+  const calcularSubtotalProductoPreview = (producto) => {
+    const subtotalDirecto = normalizarNumero(producto?.subtotal);
+    if (subtotalDirecto > 0) return Math.round(subtotalDirecto);
+    const descuento = normalizarNumero(producto?.descuento);
+    const base = calcularBaseProductoPreview(producto);
+    return Math.round(base * (1 - descuento / 100));
+  };
+
+  const obtenerValorUnitarioPreview = (producto) => {
+    const valorDirecto = normalizarNumero(
+      producto?.valorVenta ?? producto?.valorUnitario ?? producto?.precioUnitario
+    );
+    if (valorDirecto > 0) return valorDirecto;
+    const base = calcularBaseProductoPreview(producto);
+    const unidad = String(producto?.unidadMedida || producto?.unidad || "UN").toUpperCase();
+    const alto = normalizarNumero(producto?.alto);
+    const largo = normalizarNumero(producto?.largo);
+    const cantidad = normalizarNumero(producto?.cantidad) || 1;
+    if (unidad === "M2" && alto > 0 && largo > 0 && cantidad > 0) {
+      return Math.round(base / (alto * largo * cantidad));
+    }
+    if (unidad === "ML" && largo > 0 && cantidad > 0) {
+      return Math.round(base / (largo * cantidad));
+    }
+    if (cantidad > 0) return Math.round(base / cantidad);
+    return 0;
+  };
+
+  const presupuestoBloques = Array.isArray(presupuesto?.bloques)
+    ? presupuesto.bloques
+    : [];
+
+  const bloqueSeleccionado = presupuestoBloques.find((bloque) => {
+    if (
+      obra?.presupuestoInicialBloqueId &&
+      String(bloque?.id) === String(obra.presupuestoInicialBloqueId)
+    ) {
+      return true;
+    }
+    if (
+      obra?.presupuestoInicialBloqueNombre &&
+      String(bloque?.nombre || "").trim().toLowerCase() ===
+        String(obra.presupuestoInicialBloqueNombre).trim().toLowerCase()
+    ) {
+      return true;
+    }
+    return false;
+  });
+
+  const bloquePreview =
+    bloqueSeleccionado || (presupuestoBloques.length === 1 ? presupuestoBloques[0] : null);
+
+  const productosPreview = bloquePreview
+    ? (Array.isArray(bloquePreview.productos) ? bloquePreview.productos : [])
+    : (Array.isArray(presupuesto?.productos) ? presupuesto.productos : []);
+  const subtotalProductosPreview = productosPreview.reduce(
+    (acc, item) => acc + calcularBaseProductoPreview(item),
+    0
+  );
+  const totalProductosPreview = productosPreview.reduce(
+    (acc, item) => acc + calcularSubtotalProductoPreview(item),
+    0
+  );
+  const subtotalBloquePreview = (() => {
+    const subtotalDirecto = normalizarNumero(bloquePreview?.subtotal);
+    if (subtotalDirecto > 0) return Math.round(subtotalDirecto);
+    return Math.round(subtotalProductosPreview);
+  })();
+  const descuentoBloquePreview = (() => {
+    const descuentoDirecto = normalizarNumero(bloquePreview?.descuentoTotal);
+    if (descuentoDirecto > 0) return Math.round(descuentoDirecto);
+    const diferencia = subtotalBloquePreview - totalProductosPreview;
+    if (diferencia > 0) return Math.round(diferencia);
+    return 0;
+  })();
+  const totalBloquePreview = (() => {
+    const totalDirecto = normalizarNumero(bloquePreview?.total);
+    if (totalDirecto > 0) return Math.round(totalDirecto);
+    if (subtotalBloquePreview > 0) {
+      return Math.round(subtotalBloquePreview - descuentoBloquePreview);
+    }
+    return Math.round(totalProductosPreview);
+  })();
+
   return (
     <div className="w-full max-w-[1600px] mx-auto p-4 space-y-6">
       <ObraHeader
@@ -689,266 +792,130 @@ const ObraDetallePage = () => {
               );
             }}
           />
-          {/* TERCER BLOQUE: Materiales / productos (editables inline) */}
+
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Materiales y Productos</h3>
-            
-            {/* Selector de Materiales del Catálogo */}
-            <CatalogoVentas
-              titulo="Materiales a Utilizar"
-              productos={productosCatalogo}
-              productosPorCategoria={productosPorCategoria}
-              categorias={categorias}
-              itemsSeleccionados={itemsCatalogo}
-              onAgregarProducto={agregarProductoCatalogo}
-              onAgregarProductoManual={() => {}}
-              onActualizarCantidad={actualizarCantidadProductoCatalogo}
-              onQuitarProducto={quitarProductoCatalogo}
-              editando={editando}
-              maxProductos={48}
-              showFilters={true}
-              showSearch={true}
-              showPagination={true}
-              productosPorPagina={12}
-            />
-
-            {/* Tabla de Materiales Seleccionados */}
-            <TablaProductosVentas
-              titulo="Materiales Seleccionados"
-              items={itemsCatalogo}
-              editando={editando}
-              onQuitarProducto={quitarProductoCatalogo}
-              onActualizarCampo={(id, campo, valor) => {
-                if (campo === "cantidad") handleCantidadChange(id, valor);
-                else if (campo === "alto") handleAltoChange(id, valor);
-                else if (campo === "ancho") handleAnchoChange(id, valor);
-                else if (campo === "largo") handleLargoChange(id, valor);
-                else if (campo === "precioPorPie")
-                  handlePrecioPorPieChange(id, valor);
-                else if (campo === "cepilladoAplicado")
-                  toggleCepillado(id, valor);
-                else if (campo === "descuento") actualizarDescuento(id, valor);
-              }}
-              onActualizarNombreManual={() => {}}
-              formatearNumeroArgentino={formatearNumeroArgentino}
-              showTotals={true}
-              showDescripcionGeneral={false}
-            />
-          </div>
-
-          {/* CUARTO BLOQUE: Documentación, Notas, Campos secundarios (colapsable) */}
-          <Card>
-            <CardHeader>
-              <CardTitle 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setShowCamposSecundarios(!showCamposSecundarios)}
-              >
-                <span>Información Adicional</span>
-                {showCamposSecundarios ? (
-                  <ChevronUp className="w-5 h-5" />
-                ) : (
-                  <ChevronDown className="w-5 h-5" />
-                )}
-              </CardTitle>
-            </CardHeader>
-            {showCamposSecundarios && (
-              <CardContent className="space-y-6">
-                {/* Documentación */}
-                <ObraDocumentacion
-                  docLinks={docLinks}
-                  onDocLinksChange={setDocLinks}
-                  editando={editando}
-                />
-
-                {/* Pago en dólares y comprobantes (integrado a Documentación) */}
-                <div className="space-y-3">
-                  {editando ? (
-                    <>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <Switch
-                          checked={!!pagoEnDolares}
-                          onCheckedChange={(checked) => {
-                            setPagoEnDolares(checked);
-                            if (!checked) setValorOficialDolar(null);
-                          }}
-                          color="warning"
-                        />
-                        <span className="text-sm font-medium">Pago en dólares (USD)</span>
-                      </label>
-
-                      {pagoEnDolares && (
-                        <div className="space-y-2">
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
-                              value={valorOficialDolar ?? ""}
-                              onChange={(e) =>
-                                setValorOficialDolar(
-                                  e.target.value ? Number(e.target.value) : null
-                                )
-                              }
-                              placeholder="Ej: 1440"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={fetchDolarBlue}
-                              disabled={loadingDolar}
-                              className="shrink-0 h-9"
-                            >
-                              {loadingDolar ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                "Actualizar"
-                              )}
-                            </Button>
-                          </div>
-                          {ultimaActualizacionDolar && (
-                            <p className="text-xs text-gray-500">
-                              Última cotización:{" "}
-                              {ultimaActualizacionDolar.toLocaleString("es-AR", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              })}{" "}
-                              (se actualiza cada 5 min)
-                            </p>
-                          )}
-                        </div>
+            {presupuesto && (
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-gray-900">
+                        {bloquePreview?.nombre || obra?.presupuestoInicialBloqueNombre || "Bloque del presupuesto"}
+                      </p>
+                      <p className="text-sm text-gray-600">{productosPreview.length} productos</p>
+                      {presupuesto?.numeroPedido && (
+                        <p className="text-xs text-gray-500">Vinculado a {presupuesto.numeroPedido}</p>
                       )}
-
-                      <ComprobantesPagoSection
-                        comprobantes={comprobantesPago}
-                        onComprobantesChange={setComprobantesPago}
-                        disabled={loadingDolar}
-                        maxFiles={8}
-                      />
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setPagoEnDolares(false);
-                            setComprobantesPago([]);
-                            setValorOficialDolar(null);
-                          }}
-                        >
-                          Limpiar
-                        </Button>
-                      </div>
-                    </>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
+                      >
+                        Ver Presupuesto
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="group relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-blue-700">Total del Bloque</div>
+                      <p className="text-xl font-bold leading-tight text-gray-900">
+                        {formatearNumeroArgentino(totalBloquePreview)}
+                      </p>
+                    </div>
+                    <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">Subtotal</div>
+                      <p className="text-xl font-bold leading-tight text-gray-900">
+                        {formatearNumeroArgentino(subtotalBloquePreview)}
+                      </p>
+                    </div>
+                    <div className="group relative overflow-hidden rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-orange-700">Descuento</div>
+                      <p className="text-xl font-bold leading-tight text-gray-900">
+                        {formatearNumeroArgentino(descuentoBloquePreview)}
+                      </p>
+                    </div>
+                    <div className="group relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-emerald-700">Total</div>
+                      <p className="text-xl font-bold leading-tight text-emerald-800">
+                        {formatearNumeroArgentino(totalBloquePreview)}
+                      </p>
+                    </div>
+                  </div>
+                  {productosPreview.length > 0 ? (
+                    <div className="overflow-x-auto border border-gray-200 rounded-md bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr className="border-b">
+                            <th className="p-2 text-left">Producto</th>
+                            <th className="p-2 text-center">Cant.</th>
+                            <th className="p-2 text-center">Unidad</th>
+                            <th className="p-2 text-center">Alto</th>
+                            <th className="p-2 text-center">Largo</th>
+                            <th className="p-2 text-right">Valor Unit.</th>
+                            <th className="p-2 text-center">Desc. %</th>
+                            <th className="p-2 text-right">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productosPreview.map((producto, idx) => {
+                            const unidad = String(
+                              producto?.unidadMedida || producto?.unidad || "UN"
+                            ).toUpperCase();
+                            const requiereAlto = unidad === "M2";
+                            const requiereLargo = unidad === "M2" || unidad === "ML";
+                            const origen =
+                              producto?.categoria ||
+                              (producto?._esManual ? "Manual" : "Obras");
+                            return (
+                              <tr
+                                key={producto.id || `${producto.nombre || "producto"}-${idx}`}
+                                className="border-b last:border-0"
+                              >
+                                <td className="p-2">
+                                  <div className="font-medium text-gray-900">
+                                    {producto?.nombre || "Producto sin nombre"}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{origen}</div>
+                                </td>
+                                <td className="p-2 text-center">{normalizarNumero(producto?.cantidad) || 1}</td>
+                                <td className="p-2 text-center">{unidad}</td>
+                                <td className="p-2 text-center">
+                                  {requiereAlto ? normalizarNumero(producto?.alto) || "-" : "-"}
+                                </td>
+                                <td className="p-2 text-center">
+                                  {requiereLargo ? normalizarNumero(producto?.largo) || "-" : "-"}
+                                </td>
+                                <td className="p-2 text-right">
+                                  {formatearNumeroArgentino(obtenerValorUnitarioPreview(producto))}
+                                </td>
+                                <td className="p-2 text-center">
+                                  {normalizarNumero(producto?.descuento)}%
+                                </td>
+                                <td className="p-2 text-right font-semibold">
+                                  {formatearNumeroArgentino(calcularSubtotalProductoPreview(producto))}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   ) : (
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div className="flex justify-between gap-3">
-                        <span>Pago en dólares</span>
-                        <span className="font-medium">
-                          {obra?.pagoEnDolares ? "Sí" : "No"}
-                        </span>
-                      </div>
-                      {!!obra?.pagoEnDolares && (
-                        <div className="flex justify-between gap-3">
-                          <span>Cotización usada</span>
-                          <span className="font-medium">
-                            {obra?.valorOficialDolar != null
-                              ? String(obra.valorOficialDolar)
-                              : "-"}
-                          </span>
-                        </div>
-                      )}
+                    <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-md p-3">
+                      Este bloque no tiene productos para mostrar.
+                    </div>
+                  )}
+                  {!bloquePreview && (
+                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                      No se encontró un bloque aplicado exacto. Se muestra el detalle general del presupuesto.
                     </div>
                   )}
                 </div>
-
-                {/* Presupuesto Inicial (si existe) */}
-                {presupuesto && (
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Presupuesto Inicial</h4>
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-blue-900">
-                            Presupuesto Vinculado: {presupuesto.numeroPedido}
-                          </p>
-                          <p className="text-sm text-blue-700 mt-1">
-                            Total: ${formatearNumeroArgentino(presupuesto.total || 0)}
-                          </p>
-                          {obra.presupuestoInicialBloqueNombre && (
-                            <p className="text-xs text-blue-600 mt-1">
-                              Bloque: {obra.presupuestoInicialBloqueNombre}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`)}
-                          >
-                            Ver Presupuesto
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => router.push(`/${lang}/obras/presupuesto/${presupuesto.id}?edit=true`)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Editar Presupuesto
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Información de envío (si existe) */}
-                {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Información de Envío</h4>
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
-                      <div>
-                        <p className="text-sm text-gray-500">Tipo de Envío</p>
-                        <p className="font-medium">{obra.tipoEnvio}</p>
-                      </div>
-                      {obra.direccionEnvio && (
-                        <div>
-                          <p className="text-sm text-gray-500">Dirección de Envío</p>
-                          <p className="font-medium">{obra.direccionEnvio}</p>
-                        </div>
-                      )}
-                      {obra.localidadEnvio && (
-                        <div>
-                          <p className="text-sm text-gray-500">Localidad</p>
-                          <p className="font-medium">{obra.localidadEnvio}</p>
-                        </div>
-                      )}
-                      {obra.transportista && (
-                        <div>
-                          <p className="text-sm text-gray-500">Transportista</p>
-                          <p className="font-medium">{obra.transportista}</p>
-                        </div>
-                      )}
-                      {obra.fechaEntrega && (
-                        <div>
-                          <p className="text-sm text-gray-500">Fecha de Entrega</p>
-                          <p className="font-medium">{formatearFecha(obra.fechaEntrega)}</p>
-                        </div>
-                      )}
-                      {obra.rangoHorario && (
-                        <div>
-                          <p className="text-sm text-gray-500">Rango Horario</p>
-                          <p className="font-medium">{obra.rangoHorario}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
         </div>
 
         {/* Espacio lateral: anotador de notas de la obra */}
@@ -1055,6 +1022,211 @@ const ObraDetallePage = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle 
+                className="flex items-center justify-between"
+              >
+                <span>Información Adicional</span>
+                <ChevronUp className="w-5 h-5" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <ObraDocumentacion
+                  docLinks={docLinks}
+                  onDocLinksChange={setDocLinks}
+                  editando={editando}
+                />
+
+                <div className="space-y-3">
+                  {editando ? (
+                    <>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <Switch
+                          checked={!!pagoEnDolares}
+                          onCheckedChange={(checked) => {
+                            setPagoEnDolares(checked);
+                            if (!checked) setValorOficialDolar(null);
+                          }}
+                          color="warning"
+                        />
+                        <span className="text-sm font-medium">Pago en dólares (USD)</span>
+                      </label>
+
+                      {pagoEnDolares && (
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-full md:w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                              value={valorOficialDolar ?? ""}
+                              onChange={(e) =>
+                                setValorOficialDolar(
+                                  e.target.value ? Number(e.target.value) : null
+                                )
+                              }
+                              placeholder="Ej: 1440"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDolarBlue}
+                              disabled={loadingDolar}
+                              className="shrink-0 h-9"
+                            >
+                              {loadingDolar ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Actualizar"
+                              )}
+                            </Button>
+                          </div>
+                          {ultimaActualizacionDolar && (
+                            <p className="text-xs text-gray-500">
+                              Última cotización:{" "}
+                              {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}{" "}
+                              (se actualiza cada 5 min)
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <ComprobantesPagoSection
+                        comprobantes={comprobantesPago}
+                        onComprobantesChange={setComprobantesPago}
+                        disabled={loadingDolar}
+                        maxFiles={8}
+                      />
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setPagoEnDolares(false);
+                            setComprobantesPago([]);
+                            setValorOficialDolar(null);
+                          }}
+                        >
+                          Limpiar
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <div className="flex justify-between gap-3">
+                        <span>Pago en dólares</span>
+                        <span className="font-medium">
+                          {obra?.pagoEnDolares ? "Sí" : "No"}
+                        </span>
+                      </div>
+                      {!!obra?.pagoEnDolares && (
+                        <div className="flex justify-between gap-3">
+                          <span>Cotización usada</span>
+                          <span className="font-medium">
+                            {obra?.valorOficialDolar != null
+                              ? String(obra.valorOficialDolar)
+                              : "-"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+
+                {obra.tipoEnvio && obra.tipoEnvio !== "retiro_local" && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">Información de Envío</h4>
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                      <div>
+                        <p className="text-sm text-gray-500">Tipo de Envío</p>
+                        <p className="font-medium">{obra.tipoEnvio}</p>
+                      </div>
+                      {obra.direccionEnvio && (
+                        <div>
+                          <p className="text-sm text-gray-500">Dirección de Envío</p>
+                          <p className="font-medium">{obra.direccionEnvio}</p>
+                        </div>
+                      )}
+                      {obra.localidadEnvio && (
+                        <div>
+                          <p className="text-sm text-gray-500">Localidad</p>
+                          <p className="font-medium">{obra.localidadEnvio}</p>
+                        </div>
+                      )}
+                      {obra.transportista && (
+                        <div>
+                          <p className="text-sm text-gray-500">Transportista</p>
+                          <p className="font-medium">{obra.transportista}</p>
+                        </div>
+                      )}
+                      {obra.fechaEntrega && (
+                        <div>
+                          <p className="text-sm text-gray-500">Fecha de Entrega</p>
+                          <p className="font-medium">{formatearFecha(obra.fechaEntrega)}</p>
+                        </div>
+                      )}
+                      {obra.rangoHorario && (
+                        <div>
+                          <p className="text-sm text-gray-500">Rango Horario</p>
+                          <p className="font-medium">{obra.rangoHorario}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+            </CardContent>
+          </Card>
+
+          {/* <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Gestión de Materiales</h3>
+            <CatalogoVentas
+              titulo="Materiales a Utilizar"
+              productos={productosCatalogo}
+              productosPorCategoria={productosPorCategoria}
+              categorias={categorias}
+              itemsSeleccionados={itemsCatalogo}
+              onAgregarProducto={agregarProductoCatalogo}
+              onAgregarProductoManual={() => {}}
+              onActualizarCantidad={actualizarCantidadProductoCatalogo}
+              onQuitarProducto={quitarProductoCatalogo}
+              editando={editando}
+              maxProductos={48}
+              showFilters={true}
+              showSearch={true}
+              showPagination={true}
+              productosPorPagina={12}
+            />
+
+            <TablaProductosVentas
+              titulo="Materiales Seleccionados"
+              items={itemsCatalogo}
+              editando={editando}
+              onQuitarProducto={quitarProductoCatalogo}
+              onActualizarCampo={(id, campo, valor) => {
+                if (campo === "cantidad") handleCantidadChange(id, valor);
+                else if (campo === "alto") handleAltoChange(id, valor);
+                else if (campo === "ancho") handleAnchoChange(id, valor);
+                else if (campo === "largo") handleLargoChange(id, valor);
+                else if (campo === "precioPorPie")
+                  handlePrecioPorPieChange(id, valor);
+                else if (campo === "cepilladoAplicado")
+                  toggleCepillado(id, valor);
+                else if (campo === "descuento") actualizarDescuento(id, valor);
+              }}
+              onActualizarNombreManual={() => {}}
+              formatearNumeroArgentino={formatearNumeroArgentino}
+              showTotals={true}
+              showDescripcionGeneral={false}
+            />
+          </div> */}
         </div>
       </div>
 

@@ -35,9 +35,10 @@ import {
   Phone,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, doc, getDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import SelectorClienteObras from "./SelectorClienteObras";
+import { getNextObraNumber } from "@/lib/obra-numbering";
 
 const WizardConversion = ({
   presupuesto,
@@ -206,44 +207,6 @@ const WizardConversion = ({
     setError("");
     if (pasoActual === 2) {
       setPasoActual(1);
-    }
-  };
-
-  // Generar número de obra
-  // OPTIMIZADO: Usa query limitada en lugar de cargar todas las obras
-  const getNextObraNumber = async () => {
-    try {
-      // Consulta optimizada: solo obtener obras con número OBRA- ordenadas descendente, limitado a 1
-      const obrasQuery = query(
-        collection(db, "obras"),
-        where("tipo", "==", "obra"),
-        where("numeroPedido", ">=", "OBRA-"),
-        where("numeroPedido", "<", "OBRA-Z"), // Rango para números OBRA-
-        orderBy("numeroPedido", "desc"),
-        limit(1)
-      );
-      
-      const obrasSnap = await getDocs(obrasQuery);
-      
-      if (obrasSnap.empty) {
-        return "OBRA-00001";
-      }
-
-      // Solo procesar el primer resultado (el más reciente)
-      const ultimaObra = obrasSnap.docs[0].data();
-      const match = ultimaObra.numeroPedido?.match(/OBRA-(\d+)/);
-      
-      if (match) {
-        const ultimoNum = parseInt(match[1], 10);
-        const nextNum = ultimoNum + 1;
-        return `OBRA-${String(nextNum).padStart(5, "0")}`;
-      }
-      
-      return "OBRA-00001";
-    } catch (error) {
-      console.error("Error al generar número de obra:", error);
-      // Fallback: usar timestamp si falla la consulta optimizada
-      return `OBRA-${String(Date.now()).slice(-5)}`;
     }
   };
 
@@ -614,17 +577,6 @@ const WizardConversion = ({
                     </div>
                   </div>
 
-                  {/* Indicador de cliente confirmado - Solo mostrar si fue confirmado explícitamente */}
-                  {clienteConfirmadoExplicitamente && clienteConfirmado && (
-                    <div className="p-4 bg-green-50 rounded-lg border-2 border-green-300 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <p className="text-sm font-semibold text-green-800">
-                          Cliente confirmado: <span className="font-bold">{clienteConfirmado.nombre}</span>
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 

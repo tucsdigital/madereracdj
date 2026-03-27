@@ -231,13 +231,13 @@ const CalendarioObras = ({
 
   return (
     <Card className="rounded-2xl shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-      <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
+      <CardHeader className="py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
         <CardTitle className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
-            <Calendar className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">
+            <Calendar className="w-4 h-4 text-white" />
           </div>
           <div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-lg font-semibold text-gray-900">
               Calendario de Obras y Notas
             </div>
             <div className="text-xs font-medium text-gray-600">
@@ -246,9 +246,9 @@ const CalendarioObras = ({
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="pt-4">
         {/* Navegación */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <Button
             variant="outline"
             size="sm"
@@ -279,7 +279,7 @@ const CalendarioObras = ({
 
         {/* Vista Semana */}
         {vista === "semana" && (
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1.5">
             {getWeekDays().map((day, index) => {
               const dateKey = formatDateKey(day);
               const isToday =
@@ -290,7 +290,7 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border rounded-lg p-2 min-h-[200px] transition-all cursor-pointer ${
+                    className={`border rounded-lg p-2 min-h-[170px] transition-all cursor-pointer ${
                       isToday
                         ? "bg-blue-50 border-blue-300 shadow-md"
                         : "bg-white border-gray-200 hover:border-gray-300"
@@ -641,11 +641,11 @@ const CalendarioObras = ({
         {vista === "mes" && (
           <div className="space-y-3">
             {/* Headers de días de la semana */}
-            <div className="grid grid-cols-7 gap-2 mb-3">
+            <div className="grid grid-cols-7 gap-1.5 mb-2">
               {diasSemana.map((dia) => (
                 <div
                   key={dia}
-                  className="text-center text-sm font-bold text-gray-700 uppercase py-3 bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                  className="text-center text-xs font-bold text-gray-700 uppercase py-2 bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg border border-gray-200"
                 >
                   {dia}
                 </div>
@@ -653,7 +653,7 @@ const CalendarioObras = ({
             </div>
 
             {/* Grid de días del mes */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1.5">
               {getMonthDays().map((dayObj, index) => {
                 const day = dayObj.date;
                 const dateKey = formatDateKey(day);
@@ -666,7 +666,7 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border-2 rounded-xl p-2 min-h-[140px] transition-all duration-200 ${
+                    className={`border-2 rounded-xl p-2 min-h-[120px] transition-all duration-200 ${
                       !dayObj.isCurrentMonth
                         ? "bg-gray-50/50 border-gray-100 opacity-40"
                         : isToday

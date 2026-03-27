@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { getNextObraPresupuestoNumber } from "@/lib/obra-numbering";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,20 +14,6 @@ import { Filter, Search, RefreshCw, Plus, X, Edit3, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@iconify/react";
-
-// Genera un número incremental tipo PO-0001 (solo para presupuestos de obra)
-async function getNextObraNumber() {
-  const snap = await getDocs(collection(db, "obras"));
-  let maxNum = 0;
-  snap.docs.forEach((docSnap) => {
-    const data = docSnap.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("PO-")) {
-      const num = parseInt(String(data.numeroPedido).replace("PO-", ""), 10);
-      if (!Number.isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `PO-${String(maxNum + 1).padStart(4, "0")}`;
-}
 
 // Formateo regional simple
 function formatARNumber(value) {
@@ -436,7 +423,7 @@ export default function CrearPresupuestoObraPage() {
     
     setGuardando(true);
     try {
-      const numeroPedido = await getNextObraNumber();
+      const numeroPedido = await getNextObraPresupuestoNumber();
       
       const presupuestoData = {
         tipo: "presupuesto",

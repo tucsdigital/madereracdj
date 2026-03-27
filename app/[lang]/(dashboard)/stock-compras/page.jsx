@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { db, auth, onAuthStateChangedFirebase } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc, runTransaction } from "firebase/firestore";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +18,8 @@ function StockComprasPage() {
   const [openMov, setOpenMov] = useState(false);
   const [filtro, setFiltro] = useState("");
   const [filtroMov, setFiltroMov] = useState("");
+  const [filtroMovTipo, setFiltroMovTipo] = useState("");
+  const [filtroMovUsuario, setFiltroMovUsuario] = useState("");
   const [productos, setProductos] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [loadingProd, setLoadingProd] = useState(true);
@@ -56,12 +58,12 @@ function StockComprasPage() {
 
   // Estados para paginación optimizada
   const [paginaActual, setPaginaActual] = useState(1);
-  const [productosPorPagina] = useState(20);
+  const [productosPorPagina, setProductosPorPagina] = useState(20);
   const [isLoadingPagination, setIsLoadingPagination] = useState(false);
 
   // Estados para paginación de movimientos
   const [paginaActualMov, setPaginaActualMov] = useState(1);
-  const [movimientosPorPagina] = useState(15);
+  const [movimientosPorPagina, setMovimientosPorPagina] = useState(15);
   const [isLoadingPaginationMov, setIsLoadingPaginationMov] = useState(false);
 
   // Cargar productos en tiempo real
@@ -215,7 +217,7 @@ function StockComprasPage() {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1);
-  }, [categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado]);
+  }, [categoriaId, filtro, filtroTipoMadera, filtroSubCategoria, filtroEstado, productosPorPagina]);
 
   // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
   const normalizarTexto = useCallback((texto) => {
@@ -355,11 +357,17 @@ function StockComprasPage() {
         
         // Normalizar el usuario
         const usuarioNormalizado = normalizarTexto(m.usuario || "");
+        const observacionesNormalizado = normalizarTexto(m.observaciones || "");
+        const cumpleTexto = !filtroMov ||
+               nombreNormalizado.includes(filtroNormalizado) ||
+               usuarioNormalizado.includes(filtroNormalizado) ||
+               observacionesNormalizado.includes(filtroNormalizado);
+        const cumpleTipo = !filtroMovTipo || m.tipo === filtroMovTipo;
+        const cumpleUsuario = !filtroMovUsuario || (m.usuario || "") === filtroMovUsuario;
 
-        return nombreNormalizado.includes(filtroNormalizado) ||
-               usuarioNormalizado.includes(filtroNormalizado);
+        return cumpleTexto && cumpleTipo && cumpleUsuario;
       });
-  }, [movimientos, productos, filtroMov, normalizarTexto]);
+  }, [movimientos, productos, filtroMov, filtroMovTipo, filtroMovUsuario, normalizarTexto]);
 
   // Movimientos paginados optimizados
   const movimientosPaginados = useMemo(() => {
@@ -388,7 +396,11 @@ function StockComprasPage() {
   // Resetear página de movimientos cuando cambia el filtro
   useEffect(() => {
     setPaginaActualMov(1);
-  }, [filtroMov]);
+  }, [filtroMov, filtroMovTipo, filtroMovUsuario, movimientosPorPagina]);
+
+  const usuariosMovUnicos = useMemo(() => {
+    return [...new Set(movimientos.map((m) => m.usuario).filter(Boolean))].sort();
+  }, [movimientos]);
 
   // Obtener categorías únicas
   const categoriasUnicas = useMemo(() => {
@@ -565,9 +577,24 @@ function StockComprasPage() {
     setDetalleOpen(true);
   };
 
+  const formatFechaHora = useCallback((valor) => {
+    if (!valor) return "-";
+    const fecha = typeof valor?.toDate === "function" ? valor.toDate() : valor instanceof Date ? valor : new Date(valor);
+    if (Number.isNaN(fecha.getTime())) return "-";
+    return new Intl.DateTimeFormat("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(fecha);
+  }, []);
+
   return (
     <TooltipProvider>
-      <div className="py-8 px-2 max-w-5xl mx-auto">
+      <div className="py-8 px-2 max-w-8xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Stock y Compras</h1>
           <p className="text-lg text-gray-500">Controla el inventario, repón productos y gestiona los movimientos de stock de tu maderera.</p>
@@ -581,8 +608,31 @@ function StockComprasPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <CardTitle>Inventario</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Input placeholder="Buscar producto..." value={filtro} onChange={e => setFiltro(e.target.value)} className="w-48" />
+                  <select
+                    value={productosPorPagina}
+                    onChange={(e) => setProductosPorPagina(Number(e.target.value))}
+                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                  >
+                    <option value={10}>10 / pág.</option>
+                    <option value={20}>20 / pág.</option>
+                    <option value={50}>50 / pág.</option>
+                    <option value={100}>100 / pág.</option>
+                  </select>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFiltro("");
+                      setCategoriaId("");
+                      setFiltroTipoMadera("");
+                      setFiltroSubCategoria("");
+                      setFiltroEstado("");
+                      setPaginaActual(1);
+                    }}
+                  >
+                    Limpiar filtros
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -671,10 +721,10 @@ function StockComprasPage() {
                   {/* Información de resultados */}
                   <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
                     <span>
-                      Mostrando {productosPaginados.length} de {totalProductos} productos
+                      Mostrando {totalProductos === 0 ? 0 : (paginaActual - 1) * productosPorPagina + 1}-{Math.min(paginaActual * productosPorPagina, totalProductos)} de {totalProductos} productos
                     </span>
                     <span>
-                      Página {paginaActual} de {totalPaginas}
+                      Página {totalPaginas === 0 ? 1 : paginaActual} de {Math.max(totalPaginas, 1)}
                     </span>
                   </div>
                                 </div>
@@ -726,6 +776,27 @@ function StockComprasPage() {
                     </TableBody>
                   </Table>
                 )}
+                {!loadingProd && !error && totalPaginas > 1 && (
+                  <div className="flex items-center justify-between mt-4 border-t pt-4">
+                    <div className="text-sm text-gray-600">
+                      Página {paginaActual} de {totalPaginas}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="outline" onClick={() => cambiarPagina(1)} disabled={paginaActual === 1 || isLoadingPagination}>
+                        <ChevronsLeft className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1 || isLoadingPagination}>
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" onClick={() => cambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas || isLoadingPagination}>
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" onClick={() => cambiarPagina(totalPaginas)} disabled={paginaActual === totalPaginas || isLoadingPagination}>
+                        <ChevronsRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -733,9 +804,48 @@ function StockComprasPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <CardTitle>Movimientos de Stock</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap justify-end">
                   <Input placeholder="Buscar producto o usuario..." value={filtroMov} onChange={e => setFiltroMov(e.target.value)} className="w-56" />
-                  {/* <Button variant="default" onClick={() => setOpenMov(true)}><Plus className="w-4 h-4 mr-1" />Registrar Movimiento</Button> */}
+                  <select
+                    value={filtroMovTipo}
+                    onChange={(e) => setFiltroMovTipo(e.target.value)}
+                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                  >
+                    <option value="">Todos los tipos</option>
+                    <option value="entrada">Entradas</option>
+                    <option value="salida">Salidas</option>
+                    <option value="ajuste">Ajustes</option>
+                  </select>
+                  <select
+                    value={filtroMovUsuario}
+                    onChange={(e) => setFiltroMovUsuario(e.target.value)}
+                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                  >
+                    <option value="">Todos los usuarios</option>
+                    {usuariosMovUnicos.map((usuarioMov) => (
+                      <option key={usuarioMov} value={usuarioMov}>{usuarioMov}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={movimientosPorPagina}
+                    onChange={(e) => setMovimientosPorPagina(Number(e.target.value))}
+                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                  >
+                    <option value={15}>15 / pág.</option>
+                    <option value={30}>30 / pág.</option>
+                    <option value={50}>50 / pág.</option>
+                  </select>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFiltroMov("");
+                      setFiltroMovTipo("");
+                      setFiltroMovUsuario("");
+                      setPaginaActualMov(1);
+                    }}
+                  >
+                    Limpiar filtros
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="overflow-x-auto">
@@ -756,9 +866,9 @@ function StockComprasPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {movimientosFiltrados.map(m => (
+                      {movimientosPaginados.map(m => (
                         <TableRow key={m.id}>
-                          <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleString() : "-"}</TableCell>
+                          <TableCell>{formatFechaHora(m.fecha)}</TableCell>
                           <TableCell>{m.productoNombre}</TableCell>
                           <TableCell>
                             {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
@@ -772,6 +882,29 @@ function StockComprasPage() {
                       ))}
                     </TableBody>
                   </Table>
+                )}
+                {!loadingMov && !error && (
+                  <div className="flex items-center justify-between mt-4 border-t pt-4">
+                    <div className="text-sm text-gray-600">
+                      Mostrando {totalMovimientos === 0 ? 0 : (paginaActualMov - 1) * movimientosPorPagina + 1}-{Math.min(paginaActualMov * movimientosPorPagina, totalMovimientos)} de {totalMovimientos} movimientos
+                    </div>
+                    {totalPaginasMov > 1 && (
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="outline" onClick={() => cambiarPaginaMov(1)} disabled={paginaActualMov === 1 || isLoadingPaginationMov}>
+                          <ChevronsLeft className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" onClick={() => cambiarPaginaMov(paginaActualMov - 1)} disabled={paginaActualMov === 1 || isLoadingPaginationMov}>
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" onClick={() => cambiarPaginaMov(paginaActualMov + 1)} disabled={paginaActualMov === totalPaginasMov || isLoadingPaginationMov}>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" onClick={() => cambiarPaginaMov(totalPaginasMov)} disabled={paginaActualMov === totalPaginasMov || isLoadingPaginationMov}>
+                          <ChevronsRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1000,7 +1133,7 @@ function StockComprasPage() {
                       <TableBody>
                         {detalleMovimientos.map(m => (
                           <TableRow key={m.id}>
-                            <TableCell>{m.fecha?.toDate ? m.fecha.toDate().toLocaleString() : "-"}</TableCell>
+                            <TableCell>{formatFechaHora(m.fecha)}</TableCell>
                             <TableCell>
                               {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
                               {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}

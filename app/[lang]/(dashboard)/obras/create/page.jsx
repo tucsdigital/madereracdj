@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { getNextObraNumber } from "@/lib/obra-numbering";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,20 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Filter, Search, RefreshCw } from "lucide-react";
 import { Icon } from "@iconify/react";
-
-// Genera un número incremental tipo OBRA-00001
-async function getNextObraNumber() {
-  const snap = await getDocs(collection(db, "obras"));
-  let maxNum = 0;
-  snap.docs.forEach((docSnap) => {
-    const data = docSnap.data();
-    if (data.numeroPedido && String(data.numeroPedido).startsWith("OBRA-")) {
-      const num = parseInt(String(data.numeroPedido).replace("OBRA-", ""), 10);
-      if (!Number.isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `OBRA-${String(maxNum + 1).padStart(5, "0")}`;
-}
 
 function formatARNumber(value) {
   const num = Number(value || 0);

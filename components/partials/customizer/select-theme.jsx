@@ -18,6 +18,10 @@ const SelectTheme = () => {
   const { theme, setTheme, resolvedTheme: mode } = useTheme();
   const { theme: config, setTheme: setConfig } = useThemeStore();
   const newTheme = themes.find((theme) => theme.name === config);
+  const handleModeChange = (modeValue) => {
+    setTheme(modeValue);
+    setConfig("zinc");
+  };
 
   return (
     <div
@@ -37,7 +41,7 @@ const SelectTheme = () => {
         {allThemes?.map((themeOption) => (
           <div key={themeOption.key} className="flex-1 w-full">
             <button
-              onClick={() => setTheme(themeOption.key)}
+              onClick={() => handleModeChange(themeOption.key)}
               className={cn(
                 "border-solid border  flex  w-full text-center items-center justify-center py-[14px]  px-10 rounded relative cursor-pointer",
                 {

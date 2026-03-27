@@ -12,9 +12,15 @@ import {
 import { Device, Moon, Sun } from "@/components/svg";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/store";
 
 const ThemeButton = () => {
   const { theme, setTheme } = useTheme();
+  const { setTheme: setColorTheme } = useThemeStore();
+  const handleModeChange = (mode) => {
+    setTheme(mode);
+    setColorTheme("zinc");
+  };
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -32,7 +38,7 @@ const ThemeButton = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="p-2">
         <DropdownMenuItem
-          onClick={() => setTheme("light")}
+          onClick={() => handleModeChange("light")}
           className={cn(
             "p-2 font-medium text-sm text-default-600 cursor-pointer mb-[2px] ",
             {
@@ -49,7 +55,7 @@ const ThemeButton = () => {
           />
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => setTheme("dark")}
+          onClick={() => handleModeChange("dark")}
           className={cn(
             "p-2 font-medium text-sm text-default-600 hover:bg-primary hover:text-primary-foreground  dark:hover:bg-background cursor-pointer mb-[2px]",
             {

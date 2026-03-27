@@ -105,6 +105,7 @@ export default function AsistenciaPage() {
   const [cerrada, setCerrada] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null);
   const [asistenciasMensuales, setAsistenciasMensuales] = useState([]);
+  const [adelantosMensuales, setAdelantosMensuales] = useState([]);
 
   // Estados para gestión de empleados (vista empleados)
   const [buscadorEmp, setBuscadorEmp] = useState("");
@@ -150,30 +151,36 @@ export default function AsistenciaPage() {
       const cobrado = docsMes
         .filter((a) => a.employeeId === emp.id)
         .reduce((acc, a) => acc + Number(a.totalSemana || 0), 0);
+      const adelanto = adelantosMensuales
+        .filter((a) => a.employeeId === emp.id)
+        .reduce((acc, a) => acc + Number(a.monto || 0), 0);
       const faltante = Math.max(objetivoCalculado - cobrado, 0);
+      const saldoALiquidar = Math.max(cobrado - adelanto, 0);
       const progreso = objetivoCalculado > 0 ? Math.min((cobrado / objetivoCalculado) * 100, 100) : 0;
       return {
         id: emp.id,
         nombre: emp.nombre || "",
         objetivo: objetivoCalculado,
         cobrado,
+        adelanto,
         faltante,
+        saldoALiquidar,
         progreso,
       };
     });
     const totalObjetivo = porEmpleado.reduce((acc, i) => acc + i.objetivo, 0);
     const totalCobrado = porEmpleado.reduce((acc, i) => acc + i.cobrado, 0);
+    const totalAdelantos = porEmpleado.reduce((acc, i) => acc + i.adelanto, 0);
     const totalFaltante = Math.max(totalObjetivo - totalCobrado, 0);
-    const progresoGeneral = totalObjetivo > 0 ? Math.min((totalCobrado / totalObjetivo) * 100, 100) : 0;
     return {
       porEmpleado: porEmpleado.sort((a, b) => b.cobrado - a.cobrado),
       totalObjetivo,
       totalCobrado,
+      totalAdelantos,
       totalFaltante,
-      progresoGeneral,
       labelMes: hoy.toLocaleDateString("es-AR", { month: "long", year: "numeric" }),
     };
-  }, [asistenciasMensuales, empleadosFiltrados]);
+  }, [asistenciasMensuales, adelantosMensuales, empleadosFiltrados]);
 
   // --- Effects ---
 
@@ -242,6 +249,22 @@ export default function AsistenciaPage() {
       const rows = [];
       s.forEach((d) => rows.push({ id: d.id, ...d.data() }));
       setAsistenciasMensuales(rows);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "adelantos"), (s) => {
+      const hoy = new Date();
+      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59);
+      const rows = [];
+      s.forEach((d) => {
+        const data = { id: d.id, ...d.data() };
+        const fecha = toDateSafe(data.weekStart);
+        if (fecha && fecha >= inicioMes && fecha <= finMes) rows.push(data);
+      });
+      setAdelantosMensuales(rows);
     });
     return () => unsub();
   }, []);
@@ -442,59 +465,57 @@ export default function AsistenciaPage() {
       {/* Contenido Principal */}
       {vistaActiva === "asistencia" ? (
       <div className="space-y-4">
-      <Card className="rounded-2xl shadow">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between gap-2">
-            <span>Estadísticas de Cobro del Mes</span>
-            <span className="text-xs font-medium text-muted-foreground capitalize">{estadisticasMensuales.labelMes}</span>
+      <Card className="rounded-2xl border border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50/40 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <Icon icon="lucide:wallet-cards" className="w-4 h-4" />
+              </div>
+              <span className="text-sm md:text-base font-semibold text-slate-900">Estadísticas de Cobro del Mes</span>
+            </div>
+            <span className="text-[11px] md:text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-2.5 py-1 capitalize">
+              {estadisticasMensuales.labelMes}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-xl border p-3 bg-green-50/60">
-              <div className="text-xs text-muted-foreground">Cobrado acumulado</div>
-              <div className="text-xl font-bold text-green-700">${estadisticasMensuales.totalCobrado.toLocaleString("es-AR")}</div>
+            <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-emerald-700/80">Cobrado acumulado</div>
+              <div className="text-2xl font-bold text-emerald-700 mt-1">${estadisticasMensuales.totalCobrado.toLocaleString("es-AR")}</div>
+              <div className="text-[11px] text-emerald-700/70 mt-1">Ingreso confirmado en el mes</div>
             </div>
-            <div className="rounded-xl border p-3 bg-blue-50/60">
-              <div className="text-xs text-muted-foreground">Objetivo mensual</div>
-              <div className="text-xl font-bold text-blue-700">${estadisticasMensuales.totalObjetivo.toLocaleString("es-AR")}</div>
+            <div className="rounded-xl border border-blue-200/70 bg-blue-50/60 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-blue-700/80">Objetivo mensual</div>
+              <div className="text-2xl font-bold text-blue-700 mt-1">${estadisticasMensuales.totalObjetivo.toLocaleString("es-AR")}</div>
+              <div className="text-[11px] text-blue-700/70 mt-1">Meta total definida</div>
             </div>
-            <div className="rounded-xl border p-3 bg-orange-50/60">
-              <div className="text-xs text-muted-foreground">Faltante al cierre</div>
-              <div className="text-xl font-bold text-orange-700">${estadisticasMensuales.totalFaltante.toLocaleString("es-AR")}</div>
-            </div>
-          </div>
-          <div className="rounded-xl border p-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-              <span>Avance general</span>
-              <span>{estadisticasMensuales.progresoGeneral.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-default-200 rounded-full h-2.5">
-              <div
-                className="h-2.5 rounded-full bg-primary transition-all"
-                style={{ width: `${Math.max(0, Math.min(100, estadisticasMensuales.progresoGeneral))}%` }}
-              />
+            <div className="rounded-xl border border-violet-200/80 bg-violet-50/70 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-violet-700/80">Adelantos del mes</div>
+              <div className="text-2xl font-bold text-violet-700 mt-1">${estadisticasMensuales.totalAdelantos.toLocaleString("es-AR")}</div>
+              <div className="text-[11px] text-violet-700/70 mt-1">Total adelantado a empleados</div>
             </div>
           </div>
-          <div className="overflow-auto rounded-xl border">
+          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
             <table className="min-w-full text-sm">
-              <thead className="bg-default-100">
+              <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2 text-left">Empleado</th>
-                  <th className="px-3 py-2 text-right">Cobrado</th>
-                  <th className="px-3 py-2 text-right">Objetivo</th>
-                  <th className="px-3 py-2 text-right">Faltante</th>
-                  <th className="px-3 py-2 text-right">Avance</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Empleado</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Debería cobrar</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Lleva cobrado</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Adelantos</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Saldo a liquidar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-default-200">
+              <tbody className="divide-y divide-slate-100">
                 {estadisticasMensuales.porEmpleado.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-3 py-2 font-medium">{item.nombre}</td>
-                    <td className="px-3 py-2 text-right text-green-700 font-semibold">${item.cobrado.toLocaleString("es-AR")}</td>
-                    <td className="px-3 py-2 text-right">${item.objetivo.toLocaleString("es-AR")}</td>
-                    <td className="px-3 py-2 text-right text-orange-700">${item.faltante.toLocaleString("es-AR")}</td>
-                    <td className="px-3 py-2 text-right">{item.progreso.toFixed(1)}%</td>
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-3 py-3 font-medium text-slate-900">{item.nombre}</td>
+                    <td className="px-3 py-3 text-right text-slate-700 font-medium">${item.objetivo.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-3 text-right text-emerald-700 font-semibold">${item.cobrado.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-3 text-right text-violet-700 font-medium">${item.adelanto.toLocaleString("es-AR")}</td>
+                    <td className="px-3 py-3 text-right text-blue-700 font-semibold">${item.saldoALiquidar.toLocaleString("es-AR")}</td>
                   </tr>
                 ))}
               </tbody>

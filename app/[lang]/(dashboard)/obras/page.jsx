@@ -15,6 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
+import { repairObraPedidosByCreationDate } from "@/lib/obra-numbering";
 import {
   Building,
   CheckCircle,
@@ -220,6 +221,8 @@ const ObrasPage = () => {
   
   // Estado para impresión de obras
   const [imprimiendoObraId, setImprimiendoObraId] = useState(null);
+  const initialLoadDoneRef = useRef(false);
+  const lastRepairKeyRef = useRef("obras_last_repair_run_at");
   
   // Función para imprimir obra
   const handleImprimirObra = async (obra) => {
@@ -1043,9 +1046,9 @@ const ObrasPage = () => {
   }, [obrasData]);
 
   // Función para cargar datos (reutilizable)
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async ({ showLoader = true } = {}) => {
       try {
-        setLoading(true);
+        if (showLoader) setLoading(true);
         const obrasSnap = await getDocs(collection(db, "obras"));
         const base = obrasSnap.docs.map((d) => ({ ...d.data(), id: d.id }));
         // Enriquecer con presupuestoTotal, estadoPago y fechaListado
@@ -1131,12 +1134,48 @@ const ObrasPage = () => {
       } catch (error) {
         console.error("Error al cargar datos:", error);
       } finally {
-        setLoading(false);
+        if (showLoader) setLoading(false);
       }
   }, []);
 
   useEffect(() => {
-    fetchData();
+    if (initialLoadDoneRef.current) return;
+    initialLoadDoneRef.current = true;
+
+    const syncPedidosAndFetch = async () => {
+      await fetchData();
+
+      try {
+        const now = Date.now();
+        const lastRunRaw =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem(lastRepairKeyRef.current)
+            : null;
+        const lastRun = Number(lastRunRaw || 0);
+        const shouldRunRepair = !lastRun || now - lastRun > 24 * 60 * 60 * 1000;
+        if (!shouldRunRepair) return;
+
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(lastRepairKeyRef.current, String(now));
+        }
+
+        const summary = await repairObraPedidosByCreationDate();
+        if (summary.updatedCount > 0) {
+          const rangoCorregido =
+            summary.firstUpdated && summary.lastUpdated
+              ? ` (${summary.firstUpdated.numeroPedido} a ${summary.lastUpdated.numeroPedido})`
+              : "";
+          setDeleteMessage(
+            `✅ Pedidos de obras normalizados: ${summary.updatedCount} registro(s) actualizado(s)${rangoCorregido}`
+          );
+          setTimeout(() => setDeleteMessage(""), 7000);
+          await fetchData({ showLoader: false });
+        }
+      } catch (error) {
+        console.error("Error al normalizar pedidos de obras:", error);
+      }
+    };
+    syncPedidosAndFetch();
   }, [fetchData]);
 
   // Separar presupuestos y obras

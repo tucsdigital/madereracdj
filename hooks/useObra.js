@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/provider/auth.provider";
 import { useRouter } from "next/navigation";
+import { getNextObraNumber, getNextObraPresupuestoNumber } from "@/lib/obra-numbering";
 
 export const useObra = (id) => {
   const [obra, setObra] = useState(null);
@@ -67,6 +68,7 @@ export const useObra = (id) => {
   // Modo de costo para resumen (presupuesto | gasto)
   const [modoCosto, setModoCosto] = useState("gasto");
   const [descripcionGeneral, setDescripcionGeneral] = useState("");
+  const getNextPresupuestoNumber = getNextObraPresupuestoNumber;
 
   // Cargar clientes
   useEffect(() => {
@@ -314,34 +316,6 @@ export const useObra = (id) => {
     }
   };
 
-  // Generar número para obra nueva
-  const getNextObraNumber = async () => {
-    const snap = await getDocs(collection(db, "obras"));
-    let maxNum = 0;
-    snap.docs.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.numeroPedido && String(data.numeroPedido).startsWith("OBRA-")) {
-        const num = parseInt(String(data.numeroPedido).replace("OBRA-", ""), 10);
-        if (!Number.isNaN(num) && num > maxNum) maxNum = num;
-      }
-    });
-    return `OBRA-${String(maxNum + 1).padStart(5, "0")}`;
-  };
-
-  // Generar número para presupuesto nuevo
-  const getNextPresupuestoNumber = async () => {
-    const snap = await getDocs(collection(db, "obras"));
-    let maxNum = 0;
-    snap.docs.forEach((docSnap) => {
-      const data = docSnap.data();
-      if (data.numeroPedido && String(data.numeroPedido).startsWith("PO-")) {
-        const num = parseInt(String(data.numeroPedido).replace("PO-", ""), 10);
-        if (!Number.isNaN(num) && num > maxNum) maxNum = num;
-      }
-    });
-    return `PO-${String(maxNum + 1).padStart(4, "0")}`;
-  };
-
   const handleDesvincularPresupuesto = async () => {
     if (!obra) return;
     await updateDoc(doc(db, "obras", obra.id), { presupuestoInicialId: null });
@@ -359,7 +333,7 @@ export const useObra = (id) => {
 
   const handleCrearPresupuestoDesdeAqui = async () => {
     if (!obra) return;
-    const numeroPedido = await getNextPresupuestoNumber();
+    const numeroPedido = await getNextObraPresupuestoNumber();
     const nuevo = {
       tipo: "presupuesto",
       numeroPedido,
