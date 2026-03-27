@@ -206,7 +206,7 @@ const ObraDetallePage = () => {
             cantidad: cant,
             precioPorPie,
           });
-          const final = p.cepilladoAplicado ? base * 1.066 : base;
+          const final = p.cepilladoAplicado ? base * 1.06 : base;
           const precioRedondeado = Math.round(final / 100) * 100;
           return { ...p, cantidad: parsedCantidad, precio: precioRedondeado };
         }
@@ -244,7 +244,7 @@ const ObraDetallePage = () => {
             precioPorPie,
           });
         }
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, precioPorPie: parsed, precio: precioRedondeado };
       })
@@ -280,7 +280,7 @@ const ObraDetallePage = () => {
             precioPorPie,
           });
         }
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, alto: parsed, precio: precioRedondeado };
       })
@@ -308,7 +308,7 @@ const ObraDetallePage = () => {
           largo,
           precioPorPie,
         });
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, ancho: parsed, precio: precioRedondeado };
       })
@@ -344,7 +344,7 @@ const ObraDetallePage = () => {
             precioPorPie,
           });
         }
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, largo: parsed, precio: precioRedondeado };
       })
@@ -379,7 +379,7 @@ const ObraDetallePage = () => {
             precioPorPie,
           });
         }
-        const final = aplicar ? base * 1.066 : base;
+        const final = aplicar ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, precio: precioRedondeado, cepilladoAplicado: aplicar };
       })

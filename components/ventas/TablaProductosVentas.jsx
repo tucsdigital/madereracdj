@@ -333,7 +333,7 @@ const TablaProductosVentas = ({
                             checked={p.cepilladoAplicado || false}
                             onChange={(e) => onActualizarCampo && onActualizarCampo(p.id, "cepilladoAplicado", e.target.checked)}
                             className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
-                            title="Aplicar cepillado (+6.6%)"
+                            title="Aplicar cepillado (+6%)"
                           />
                         ) : (
                           <span className="text-sm font-medium text-blue-600">{p.cepilladoAplicado ? "Sí" : "No"}</span>

@@ -73,7 +73,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               ${safe(item.nombre)}
               ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
-            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? `✓ ${Number(item.cepilladoPorcentaje ?? 6.6)}%` : "No"}</td>
+            <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? `✓ ${Number(item.cepilladoPorcentaje ?? 6)}%` : "No"}</td>
             <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.calibrado ? `✓ ${Number(item.calibradoPorcentaje ?? 3)}%` : "No"}</td>
             ${!paraEmpleado ? `
             <td style="padding: 4px 6px; text-align: right; color: #000000; font-size: 11.5px; font-weight: 800;">${formatCurrency(item.precioUnitario || 0)}</td>

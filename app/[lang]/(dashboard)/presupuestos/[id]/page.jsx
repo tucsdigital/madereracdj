@@ -626,7 +626,7 @@ const PresupuestoDetalle = () => {
 
   // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
   // Función helper para manejar valores numéricos
-  const DEFAULT_CEPILLADO_PORCENTAJE = 6.6;
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   const parseNumericValue = (value) => {
     if (value === "" || value === null || value === undefined) {

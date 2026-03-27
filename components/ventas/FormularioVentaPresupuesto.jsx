@@ -454,7 +454,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       color: "success",
     });
   };
-  const DEFAULT_CEPILLADO_PORCENTAJE = 6.6;
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6;
   const DEFAULT_CALIBRADO_PORCENTAJE = 3;
   // Función helper para manejar valores numéricos
   const parseNumericValue = (value) => {

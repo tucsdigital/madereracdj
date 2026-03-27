@@ -3655,7 +3655,7 @@ const ProductosPage = () => {
           });
         }
 
-        const precioConCepillado = precioBase * 1.066;
+        const precioConCepillado = precioBase * 1.06;
         const aplicarCepillado = unidad !== "Unidad" && (producto.cepilladoAplicado || false);
         const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
 
@@ -3714,7 +3714,7 @@ const ProductosPage = () => {
           });
         }
 
-        const precioConCepillado = precioBase * 1.066;
+        const precioConCepillado = precioBase * 1.06;
         const debeAplicarCepillado = unidad !== "Unidad" && aplicarCepillado;
         const precioFinal = debeAplicarCepillado ? precioConCepillado : precioBase;
 
@@ -5107,7 +5107,7 @@ const ProductosPage = () => {
                                 });
                               }
                               const aplicaCepillado = unidad !== "Unidad";
-                              const precioConCepillado = aplicaCepillado ? precioBase * 1.066 : precioBase;
+                              const precioConCepillado = aplicaCepillado ? precioBase * 1.06 : precioBase;
                               return Math.round(precioConCepillado / 100) * 100;
                             })())}
                           </div>

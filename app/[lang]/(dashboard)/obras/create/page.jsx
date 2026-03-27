@@ -270,7 +270,7 @@ export default function CrearObraPage() {
       } else {
         base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
       }
-      const final = updated.cepilladoAplicado ? base * 1.066 : base;
+      const final = updated.cepilladoAplicado ? base * 1.06 : base;
       return { ...updated, precio: Math.round(final / 100) * 100 };
     }));
   };
@@ -288,7 +288,7 @@ export default function CrearObraPage() {
         const precioPorPie = Number(p.precioPorPie) || 0;
         const cant = parsedCantidad === "" ? 1 : Number(parsedCantidad) || 1;
         let base = calcularPrecioMachimbre({ alto, largo, cantidad: cant, precioPorPie });
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, cantidad: parsedCantidad, precio: precioRedondeado };
       }
@@ -307,7 +307,7 @@ export default function CrearObraPage() {
         const largo = Number(p.largo) || 0;
         const precioPorPie = Number(p.precioPorPie) || 0;
         let base = calcularPrecioMachimbre({ alto, largo, cantidad: nuevaCantidad, precioPorPie });
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, cantidad: nuevaCantidad, precio: precioRedondeado };
       }
@@ -325,7 +325,7 @@ export default function CrearObraPage() {
         const largo = Number(p.largo) || 0;
         const precioPorPie = Number(p.precioPorPie) || 0;
         let base = calcularPrecioMachimbre({ alto, largo, cantidad: nuevaCantidad, precioPorPie });
-        const final = p.cepilladoAplicado ? base * 1.066 : base;
+        const final = p.cepilladoAplicado ? base * 1.06 : base;
         const precioRedondeado = Math.round(final / 100) * 100;
         return { ...p, cantidad: nuevaCantidad, precio: precioRedondeado };
       }
@@ -351,7 +351,7 @@ export default function CrearObraPage() {
       } else {
         base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
       }
-      const final = p.cepilladoAplicado ? base * 1.066 : base;
+      const final = p.cepilladoAplicado ? base * 1.06 : base;
       const precioRedondeado = Math.round(final / 100) * 100;
       return { ...p, precioPorPie: parsed, precio: precioRedondeado };
     }));
@@ -375,7 +375,7 @@ export default function CrearObraPage() {
       } else {
         base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
       }
-      const final = p.cepilladoAplicado ? base * 1.066 : base;
+      const final = p.cepilladoAplicado ? base * 1.06 : base;
       const precioRedondeado = Math.round(final / 100) * 100;
       return { ...p, alto: parsed, precio: precioRedondeado };
     }));
@@ -397,7 +397,7 @@ export default function CrearObraPage() {
       const largo = Number(p.largo) || 0;
       const precioPorPie = Number(p.precioPorPie) || 0;
       const base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
-      const final = p.cepilladoAplicado ? base * 1.066 : base;
+      const final = p.cepilladoAplicado ? base * 1.06 : base;
       const precioRedondeado = Math.round(final / 100) * 100;
       return { ...p, ancho: parsed, precio: precioRedondeado };
     }));
@@ -421,7 +421,7 @@ export default function CrearObraPage() {
       } else {
         base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
       }
-      const final = p.cepilladoAplicado ? base * 1.066 : base;
+      const final = p.cepilladoAplicado ? base * 1.06 : base;
       const precioRedondeado = Math.round(final / 100) * 100;
       return { ...p, largo: parsed, precio: precioRedondeado };
     }));
@@ -444,7 +444,7 @@ export default function CrearObraPage() {
       } else {
         base = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
       }
-      const final = aplicarCepillado ? base * 1.066 : base;
+      const final = aplicarCepillado ? base * 1.06 : base;
       const precioRedondeado = Math.round(final / 100) * 100;
       return { ...p, precio: precioRedondeado, cepilladoAplicado: aplicarCepillado };
     }));
