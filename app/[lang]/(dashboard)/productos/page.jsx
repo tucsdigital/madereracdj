@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ import {
   updateDoc,
   getDocs,
   writeBatch,
+  increment,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -1416,6 +1417,8 @@ const ProductosPage = () => {
     estado: "",
     estadoTienda: "",
     unidadMedida: "",
+    stockOperation: "",
+    stockValue: "",
   });
   const [bulkEditLoading, setBulkEditLoading] = useState(false);
   const [bulkEditMessage, setBulkEditMessage] = useState("");
@@ -1436,6 +1439,7 @@ const ProductosPage = () => {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("info");
   const [showDragDropBanner, setShowDragDropBanner] = useState(true);
+  const selectAllCheckboxRef = useRef(null);
 
   // Función para cargar datos precargados de Firebase
   const cargarDatosPrecargados = () => {
@@ -1818,7 +1822,11 @@ const ProductosPage = () => {
     const unsubProductos = onSnapshot(
       productosQuery,
       (snapshot) => {
-        const productosNormales = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const productosNormales = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          __collection: "productos",
+          ...doc.data(),
+        }));
         
         // Cargar productos de obras
         const unsubObras = onSnapshot(
@@ -1826,6 +1834,7 @@ const ProductosPage = () => {
           (obrasSnapshot) => {
             const productosObras = obrasSnapshot.docs.map((doc) => ({ 
               id: doc.id, 
+              __collection: "productos_obras",
               ...doc.data(),
               categoria: "Obras" // Asegurar que tengan la categoría correcta
             }));
@@ -1853,84 +1862,94 @@ const ProductosPage = () => {
     return () => unsubProductos();
   }, [reload]);
 
+  const parseNumberInput = (value) => {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === "number") return Number.isNaN(value) ? NaN : value;
+    const normalized = String(value).trim().replace(/,/g, ".");
+    if (!normalized) return NaN;
+    const num = Number(normalized);
+    return Number.isNaN(num) ? NaN : num;
+  };
+
+  const getProductDocRef = (productId) => {
+    const product = productos.find((p) => p.id === productId);
+    const collectionName = product?.__collection
+      ? product.__collection
+      : product?.categoria === "Obras"
+        ? "productos_obras"
+        : "productos";
+    return doc(db, collectionName, productId);
+  };
+
 
   // Productos filtrados optimizados con useMemo
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
-      // Función para normalizar texto (eliminar espacios y convertir a minúsculas)
       const normalizarTexto = (texto) => {
         if (!texto) return "";
-        return texto.toLowerCase().replace(/\s+/g, '');
+        return texto.toLowerCase().replace(/\s+/g, "");
       };
 
-      // Normalizar el término de búsqueda
       const filtroNormalizado = normalizarTexto(filtro || "");
-      
-      // Normalizar el nombre del producto
       const nombreNormalizado = normalizarTexto(p.nombre || "");
-      
-      // Normalizar el código del producto
       const codigoNormalizado = normalizarTexto(p.codigo || "");
 
       const cumpleCategoria = cat ? p.categoria === cat : true;
-      // Filtro por búsqueda de texto con lógica mejorada
       let cumpleFiltro = !filtro;
-      
+
       if (filtro) {
-        // Si la búsqueda termina con punto, usar búsqueda dinámica (starts with)
-        if (filtroNormalizado.endsWith('.')) {
+        if (filtroNormalizado.endsWith(".")) {
           const busquedaSinPunto = filtroNormalizado.slice(0, -1);
-          cumpleFiltro = 
+          cumpleFiltro =
             nombreNormalizado.startsWith(busquedaSinPunto) ||
             codigoNormalizado.startsWith(busquedaSinPunto);
         } else {
-          // Búsqueda normal: incluye el texto en cualquier parte
-          cumpleFiltro = 
+          cumpleFiltro =
             nombreNormalizado.includes(filtroNormalizado) ||
             codigoNormalizado.includes(filtroNormalizado);
         }
       }
 
-      // Filtro específico por tipo de madera
       const cumpleTipoMadera =
         cat !== "Maderas" ||
         filtroTipoMadera === "" ||
         p.tipoMadera === filtroTipoMadera;
 
-      // Filtro específico por subcategoría de ferretería
       const cumpleSubCategoria =
         cat !== "Ferretería" ||
         filtroSubCategoria === "" ||
         p.subCategoria === filtroSubCategoria;
 
-      // Filtro específico por subcategoría de obras
       const cumpleSubCategoriaObras =
         cat !== "Obras" ||
         filtroSubCategoria === "" ||
         p.subCategoria === filtroSubCategoria;
 
-      // Filtro por estado de tienda
-      // Si no tiene estadoTienda, se considera "Inactivo" por defecto
       const estadoTiendaProducto = p.estadoTienda || "Inactivo";
-      const cumpleTienda =
-        filtroTienda === "" ||
-        estadoTiendaProducto === filtroTienda;
+      const cumpleTienda = filtroTienda === "" || estadoTiendaProducto === filtroTienda;
 
-      // Filtro por stock
       const stockProducto = Number(p.stock) || 0;
       const cumpleStock =
         filtroStock === "" ||
         (filtroStock === "conStock" && stockProducto > 0) ||
         (filtroStock === "sinStock" && stockProducto <= 0);
 
-      // Filtro por imágenes
       const tieneImagenes = p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0;
       const cumpleImagenes =
         filtroImagenes === "" ||
         (filtroImagenes === "conImagenes" && tieneImagenes) ||
         (filtroImagenes === "sinImagenes" && !tieneImagenes);
 
-      return cumpleCategoria && cumpleFiltro && cumpleTipoMadera && cumpleSubCategoria && cumpleSubCategoriaObras && cumpleTienda && cumpleStock && cumpleImagenes;
+      return (
+        cumpleCategoria &&
+        cumpleFiltro &&
+        cumpleTipoMadera &&
+        cumpleSubCategoria &&
+        cumpleSubCategoriaObras &&
+        cumpleTienda &&
+        cumpleStock &&
+        cumpleImagenes
+      );
     }).sort((a, b) => {
       // Ordenar por stock: primero los que tienen stock, luego los que no
       const stockA = Number(a.stock) || 0;
@@ -4010,8 +4029,16 @@ const ProductosPage = () => {
     if (productosPaginados.length > 0) {
       const allSelected = productosPaginados.every(p => selectedProducts.includes(p.id));
       setSelectAll(allSelected);
+      const selectedOnPageCount = productosPaginados.filter(p => selectedProducts.includes(p.id)).length;
+      if (selectAllCheckboxRef.current) {
+        selectAllCheckboxRef.current.indeterminate =
+          selectedOnPageCount > 0 && selectedOnPageCount < productosPaginados.length;
+      }
     } else {
       setSelectAll(false);
+      if (selectAllCheckboxRef.current) {
+        selectAllCheckboxRef.current.indeterminate = false;
+      }
     }
   }, [selectedProducts, productosPaginados]);
 
@@ -4075,7 +4102,7 @@ const ProductosPage = () => {
       const batch = writeBatch(db);
       
       selectedProducts.forEach(productId => {
-        const productRef = doc(db, "productos", productId);
+        const productRef = getProductDocRef(productId);
         batch.delete(productRef);
       });
       
@@ -4118,6 +4145,35 @@ const ProductosPage = () => {
       if (bulkEditForm.unidadMedida) {
         updates.unidadMedida = bulkEditForm.unidadMedida;
       }
+
+      if (bulkEditForm.stockOperation) {
+        const parsedStockValue = parseNumberInput(bulkEditForm.stockValue);
+        if (Number.isNaN(parsedStockValue)) {
+          setBulkEditMessage("El stock debe ser un número válido.");
+          setBulkEditLoading(false);
+          return;
+        }
+
+        if (bulkEditForm.stockOperation === "set") {
+          updates.stock = parsedStockValue;
+        } else if (bulkEditForm.stockOperation === "add") {
+          const delta = Math.abs(parsedStockValue);
+          if (delta === 0) {
+            setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
+            setBulkEditLoading(false);
+            return;
+          }
+          updates.stock = increment(delta);
+        } else if (bulkEditForm.stockOperation === "subtract") {
+          const delta = Math.abs(parsedStockValue);
+          if (delta === 0) {
+            setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
+            setBulkEditLoading(false);
+            return;
+          }
+          updates.stock = increment(-delta);
+        }
+      }
       
       // Si no hay campos para actualizar, mostrar mensaje
       if (Object.keys(updates).length === 0) {
@@ -4131,7 +4187,7 @@ const ProductosPage = () => {
       
       // Aplicar actualizaciones a todos los productos seleccionados
       selectedProducts.forEach(productId => {
-        const productRef = doc(db, "productos", productId);
+        const productRef = getProductDocRef(productId);
         batch.update(productRef, updates);
       });
       
@@ -4142,7 +4198,7 @@ const ProductosPage = () => {
       // Limpiar formulario y cerrar modal después de un delay
       setTimeout(() => {
         setBulkEditModalOpen(false);
-        setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "" });
+        setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "", stockOperation: "", stockValue: "" });
         setBulkEditMessage("");
         setSelectedProducts([]);
         setSelectAll(false);
@@ -4157,7 +4213,7 @@ const ProductosPage = () => {
 
   // Función para abrir modal de edición masiva
   const openBulkEditModal = () => {
-    setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "" });
+    setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "", stockOperation: "", stockValue: "" });
     setBulkEditMessage("");
     setBulkEditModalOpen(true);
   };
@@ -4800,6 +4856,7 @@ const ProductosPage = () => {
                       <div className="flex items-center justify-center">
                         <input
                           type="checkbox"
+                          ref={selectAllCheckboxRef}
                           checked={selectAll}
                           onChange={handleSelectAll}
                           className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
@@ -4874,7 +4931,9 @@ const ProductosPage = () => {
                           ? (p.imagenes && p.imagenes.length >= 3)
                             ? 'bg-red-50/50 border-red-300'
                             : 'bg-green-50/50 border-green-300'
-                          : 'hover:bg-gray-50'
+                          : selectedProducts.includes(p.id)
+                            ? 'bg-blue-50'
+                            : 'hover:bg-gray-50'
                       }`}
                       onDragOver={(e) => handleDragOver(e, p.id)}
                       onDragLeave={handleDragLeave}
@@ -6218,6 +6277,45 @@ const ProductosPage = () => {
                 )}
                 <p className="text-xs text-gray-500">
                   Selecciona una nueva unidad de medida para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Stock
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select
+                    value={bulkEditForm.stockOperation}
+                    onChange={(e) =>
+                      setBulkEditForm((prev) => ({
+                        ...prev,
+                        stockOperation: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">No cambiar stock</option>
+                    <option value="set">Fijar stock</option>
+                    <option value="add">Sumar</option>
+                    <option value="subtract">Restar</option>
+                  </select>
+                  <Input
+                    type="number"
+                    value={bulkEditForm.stockValue}
+                    onChange={(e) =>
+                      setBulkEditForm((prev) => ({
+                        ...prev,
+                        stockValue: e.target.value,
+                      }))
+                    }
+                    disabled={!bulkEditForm.stockOperation}
+                    placeholder={bulkEditForm.stockOperation === "set" ? "Nuevo stock" : "Cantidad a ajustar"}
+                    className="w-full"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Fijar reemplaza el stock. Sumar/Restar ajusta automáticamente usando operación atómica.
                 </p>
               </div>
 
