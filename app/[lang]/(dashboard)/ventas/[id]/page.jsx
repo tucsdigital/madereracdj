@@ -1,7 +1,12 @@
 "use client";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
-import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
+import {
+  computeLineBase,
+  computeLineSubtotal,
+  computeTotals,
+} from "@/lib/pricing";
+import QuantityMeasureControl, { MedidaValue } from "@/components/ui/quantity-measure-control";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
@@ -19,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
+import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
 
 const ModalCambiarCliente = dynamic(
   () => import("@/components/clientes/ModalCambiarCliente"),
@@ -76,6 +82,19 @@ function calcularPrecioMachimbre({
   const metrosCuadrados = alto * largo;
   const precio = metrosCuadrados * precioPorPie * cantidad;
   // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+function calcularPrecioMetroLineal({ largo, cantidad, precioPorPie }) {
+  if (
+    [largo, cantidad, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const metrosLineales = largo * cantidad;
+  const precio = metrosLineales * precioPorPie;
   return Math.round(precio / 100) * 100;
 }
 
@@ -660,6 +679,30 @@ const VentaDetalle = () => {
               cantidad: p.cantidad || 1,
               precioPorPie: p.precioPorPie,
             });
+          } else if (p.unidad === "ML") {
+            precioBase = calcularPrecioMetroLineal({
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: p.precioPorPie,
+            });
+          } else if (p.unidad === "Unidad") {
+            const unit = Math.round((Number(p.precioPorPie) || 0) / 100) * 100;
+            const cantidad = Number(p.cantidad) || 1;
+            return {
+              ...p,
+              ...cambios,
+              precio: unit,
+              precioIncluyeCantidad: false,
+              cepilladoAplicado: false,
+              calibradoAplicado: false,
+              cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+                cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+              ),
+              calibradoPorcentaje: normalizarCalibradoPorcentaje(
+                cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
+              ),
+              cantidad,
+            };
           } else {
             // Para otras maderas: usar la fórmula estándar
             precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
@@ -681,6 +724,7 @@ const VentaDetalle = () => {
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
+            precioIncluyeCantidad: p.unidad === "M2" || p.unidad === "ML",
           };
         }
         return p;
@@ -879,16 +923,24 @@ const VentaDetalle = () => {
       ...prev,
       productos: prev.productos.map((p) => {
         if (p.id === id) {
-          const nuevaCantidad = Math.max(1, p.cantidad - 1);
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = Math.max(1, current - 1);
           
           // Si es M2, recalcular precio por m²
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
-            const precioBase = calcularPrecioMachimbre({
-              alto: p.alto,
-              largo: p.largo,
-              cantidad: nuevaCantidad,
-              precioPorPie: p.precioPorPie,
-            });
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  });
 
             const precioRedondeado = calcularPrecioMaderaConTratamientos(
               p,
@@ -899,6 +951,7 @@ const VentaDetalle = () => {
               ...p,
               cantidad: nuevaCantidad,
               precio: precioRedondeado,
+              precioIncluyeCantidad: true,
             };
           }
           // Para otros productos, solo cambiar cantidad
@@ -914,16 +967,24 @@ const VentaDetalle = () => {
       ...prev,
       productos: prev.productos.map((p) => {
         if (p.id === id) {
-          const nuevaCantidad = p.cantidad + 1;
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = current + 1;
           
           // Si es M2, recalcular precio por m²
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
-            const precioBase = calcularPrecioMachimbre({
-              alto: p.alto,
-              largo: p.largo,
-              cantidad: nuevaCantidad,
-              precioPorPie: p.precioPorPie,
-            });
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  });
 
             const precioRedondeado = calcularPrecioMaderaConTratamientos(
               p,
@@ -934,6 +995,7 @@ const VentaDetalle = () => {
               ...p,
               cantidad: nuevaCantidad,
               precio: precioRedondeado,
+              precioIncluyeCantidad: true,
             };
           }
           // Para otros productos, solo cambiar cantidad
@@ -950,13 +1012,21 @@ const VentaDetalle = () => {
       productos: prev.productos.map((p) => {
         if (p.id === id) {
           // Si es M2, recalcular precio por m²
-          if (p.categoria === "Maderas" && p.unidad === "M2") {
-            const precioBase = calcularPrecioMachimbre({
-              alto: p.alto,
-              largo: p.largo,
-              cantidad: Number(cantidad),
-              precioPorPie: p.precioPorPie,
-            });
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const cantidadNum = Math.max(1, Math.ceil(Number(cantidad) || 1));
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: cantidadNum,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: cantidadNum,
+                    precioPorPie: p.precioPorPie,
+                  });
 
             const precioRedondeado = calcularPrecioMaderaConTratamientos(
               p,
@@ -965,12 +1035,13 @@ const VentaDetalle = () => {
 
             return {
               ...p,
-              cantidad: Number(cantidad),
+              cantidad: cantidadNum,
               precio: precioRedondeado,
+              precioIncluyeCantidad: true,
             };
           }
           // Para otros productos, solo cambiar cantidad
-          return { ...p, cantidad: Number(cantidad) };
+          return { ...p, cantidad: Math.max(1, Math.ceil(Number(cantidad) || 1)) };
         }
         return p;
       }),
@@ -1004,7 +1075,7 @@ const VentaDetalle = () => {
       productos: prev.productos.map((p) => {
         if (p.id !== id) return p;
         const precioNumerico = parsed === "" ? 0 : Number(parsed);
-        if (p.categoria === "Maderas" && p.unidad === "M2") {
+        if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
           const cantidad = Number(p.cantidad) || 1;
           return { ...p, precio: precioNumerico * cantidad, precioIncluyeCantidad: true };
         }
@@ -2504,122 +2575,11 @@ const VentaDetalle = () => {
             <h3 className="font-semibold text-lg mb-4 ">
               Productos y Servicios
             </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-card border-b">
-                    <th className="text-left p-3 font-medium">Producto</th>
-                    <th className="text-center p-3 font-medium">Cantidad</th>
-                    <th className="text-left p-3 font-medium">Descripción</th>
-                    <th className="text-center p-3 font-medium">Cepillado</th>
-                    <th className="text-center p-3 font-medium">Calibrado</th>
-                    <th className="text-right p-3 font-medium precio-empleado">
-                      Precio Unit.
-                    </th>
-                    <th className="text-right p-3 font-medium descuento-empleado">
-                      Descuento
-                    </th>
-                    <th className="text-right p-3 font-medium subtotal-empleado">
-                      Subtotal
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(venta.productos || venta.items).map((producto, idx) => (
-                    <tr key={idx} className="border-b hover:bg-card">
-                      <td className="p-3 font-medium">
-                        {producto.descripcion ||
-                          producto.nombre ||
-                          "Producto sin nombre"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {Number(producto.cantidad)}
-                      </td>
-                      <td className="p-3">
-                        {producto.detalle || "-"}
-                      </td>
-                      <td className="p-3 text-center">
-                        {producto.categoria === "Maderas" ? (
-                          producto.cepilladoAplicado ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                              </svg>
-                              {`Sí (${Number(producto.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE)}%)`}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                              </svg>
-                              No
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-gray-400 text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center">
-                        {producto.categoria === "Maderas" ? (
-                          producto.calibradoAplicado ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                              </svg>
-                              {Number(producto.calibradoPorcentaje ?? 3)}%
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                              </svg>
-                              No
-                            </span>
-                          )
-                        ) : (
-                          <span className="text-gray-400 text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right precio-empleado">
-                        ${formatearNumeroArgentino(
-                          producto.categoria === "Maderas" && (producto.unidad === "M2" || producto.unidadMedida === "M2")
-                            ? (Number(producto.precio) || 0) / (Number(producto.cantidad) || 1)
-                            : Number(producto.precio)
-                        )}
-                      </td>
-                      <td className="p-3 text-right descuento-empleado">
-                        {Number(producto.descuento || 0).toFixed(2)}%
-                      </td>
-                      <td className="p-3 text-right font-medium subtotal-empleado">
-                        $
-                        {formatearNumeroArgentino(
-                          (() => {
-                            // Para productos de categoría "Eventual", calcular directamente precio × cantidad
-                            if (producto.categoria === "Eventual") {
-                              return Number(producto.precio) * Number(producto.cantidad);
-                            }
-                            // Para otros productos, usar la función computeLineSubtotal
-                            return computeLineSubtotal({
-                              precio: producto.precio,
-                              cantidad: producto.cantidad,
-                              descuento: producto.descuento,
-                              subcategoria: producto.subcategoria,
-                              subCategoria: producto.subCategoria,
-                              nombre: producto.nombre,
-                              descripcion: producto.descripcion,
-                              categoria: producto.categoria,
-                              unidad: producto.unidad,
-                              unidadMedida: producto.unidadMedida,
-                              precioIncluyeCantidad: producto.precioIncluyeCantidad,
-                            });
-                          })()
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DetalleVentaPresupuestoItemsTable
+              items={venta.productos || venta.items}
+              formatearNumeroArgentino={formatearNumeroArgentino}
+              paraEmpleado={false}
+            />
             {/* Totales (recalculados desde items para consistencia) */}
             {(() => {
               const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
@@ -3477,7 +3437,7 @@ const VentaDetalle = () => {
                         <tr className="border-b border-default-200">
                           <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
                           <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
-                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cant.</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Medida</th>
                           <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
                           <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Calibrado</th>
                           <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
@@ -3599,15 +3559,14 @@ const VentaDetalle = () => {
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">
                               <div className="flex items-center justify-center">
-                                <div className="flex items-center bg-white dark:bg-gray-800 border border-default-300 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
-                                  <button type="button" onClick={() => handleDecrementarCantidad(p.id)} disabled={loadingPrecios || p.cantidad <= 1} className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg>
-                                  </button>
-                                  <input type="number" min={1} value={p.cantidad === "" ? "" : p.cantidad} onChange={(e) => handleCantidadChange(p.id, e.target.value)} className="w-16 text-center text-base md:text-lg font-bold border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-gray-100 tabular-nums" disabled={loadingPrecios} />
-                                  <button type="button" onClick={() => handleIncrementarCantidad(p.id)} disabled={loadingPrecios} className="px-3 py-2 text-default-500 hover:text-default-900 hover:bg-default-100 dark:hover:bg-gray-700 transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                                  </button>
-                                </div>
+                                <QuantityMeasureControl
+                                  product={p}
+                                  cantidad={p.cantidad === "" ? "" : p.cantidad}
+                                  disabled={loadingPrecios}
+                                  onCantidadChange={(next) => handleCantidadChange(p.id, next)}
+                                  onIncrement={() => handleIncrementarCantidad(p.id)}
+                                  onDecrement={() => handleDecrementarCantidad(p.id)}
+                                />
                                 <button
                                   type="button"
                                   onClick={() => handleClonarProducto(p.id)}
@@ -3617,6 +3576,18 @@ const VentaDetalle = () => {
                                 >
                                   Clonar
                                 </button>
+                              </div>
+                              <div className="mt-1 text-[11px] text-default-500 text-center tabular-nums">
+                                <MedidaValue
+                                  product={{
+                                    ...p,
+                                    cantidad: Math.max(
+                                      1,
+                                      Math.ceil(Number(p.cantidad) || 1)
+                                    ),
+                                  }}
+                                  className="text-[11px] text-default-500"
+                                />
                               </div>
                             </td>
                             <td className="p-4 align-middle text-sm text-default-600">

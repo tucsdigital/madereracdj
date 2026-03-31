@@ -2,6 +2,120 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { computeLineBase, computeLineSubtotal, computeQuantityDisplay } from "@/lib/pricing";
+
+export function DetalleVentaPresupuestoItemsTable({
+  items = [],
+  formatearNumeroArgentino,
+  paraEmpleado = false,
+}) {
+  const formatNumberAR2 = (value) => {
+    const v = Number(value);
+    if (!Number.isFinite(v)) return "-";
+    return new Intl.NumberFormat("es-AR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(v);
+  };
+
+  const formatMoney = (value) => {
+    const v = Number(value);
+    if (!Number.isFinite(v)) return "0";
+    return formatearNumeroArgentino ? formatearNumeroArgentino(v) : v.toLocaleString("es-AR");
+  };
+
+  if (!Array.isArray(items) || items.length === 0) return null;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-card border-b">
+            <th className="text-left p-3 font-medium">Producto</th>
+            <th className="text-center p-3 font-medium">Cantidad</th>
+            <th className="text-center p-3 font-medium">Cepillado</th>
+            <th className="text-center p-3 font-medium">Calibrado</th>
+            {!paraEmpleado && (
+              <th className="text-right p-3 font-medium precio-empleado">
+                Precio Unit.
+              </th>
+            )}
+            {!paraEmpleado && (
+              <th className="text-right p-3 font-medium descuento-empleado">
+                Descuento
+              </th>
+            )}
+            {!paraEmpleado && (
+              <th className="text-right p-3 font-medium subtotal-empleado">
+                Subtotal
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((producto, idx) => {
+            const qty = Math.max(1, Math.ceil(Number(producto?.cantidad) || 1));
+            const measure = computeQuantityDisplay({ ...producto, cantidad: qty });
+            const medidaUnidad = String(measure?.unit || "");
+            const medidaValor = Number(measure?.value);
+            const showMeasure =
+              Number.isFinite(medidaValor) &&
+              (medidaUnidad === "m²" || medidaUnidad === "m³" || medidaUnidad === "ml");
+
+            const base = computeLineBase({ ...producto, cantidad: qty });
+            const subtotal = computeLineSubtotal({ ...producto, cantidad: qty });
+            const unitPrice = qty > 0 ? base / qty : base;
+            const descuentoPct = Number(producto?.descuento) || 0;
+
+            return (
+              <tr key={producto?.id ?? idx} className="border-b hover:bg-card">
+                <td className="p-3">
+                  <div className="font-medium">
+                    {producto?.descripcion || producto?.nombre || "Producto sin nombre"}
+                  </div>
+                  {producto?.detalle ? (
+                    <div className="text-[12px] text-gray-600 mt-0.5">{producto.detalle}</div>
+                  ) : null}
+                </td>
+                <td className="p-3 text-center">
+                  <div className="font-extrabold tabular-nums">{qty}</div>
+                  {showMeasure ? (
+                    <div className="mt-0.5 text-[11px] font-semibold text-gray-800 tabular-nums">
+                      {formatNumberAR2(medidaValor)} {medidaUnidad}
+                    </div>
+                  ) : null}
+                </td>
+                <td className="p-3 text-center font-semibold">
+                  {producto?.categoria === "Maderas" && producto?.cepilladoAplicado ? "✓" : "No"}
+                </td>
+                <td className="p-3 text-center font-semibold">
+                  {producto?.categoria === "Maderas" && producto?.calibradoAplicado
+                    ? `✓ ${Number(producto?.calibradoPorcentaje ?? 3)}%`
+                    : "No"}
+                </td>
+                {!paraEmpleado && (
+                  <td className="p-3 text-right font-semibold tabular-nums precio-empleado">
+                    $ {formatMoney(unitPrice)}
+                  </td>
+                )}
+                {!paraEmpleado && (
+                  <td className="p-3 text-right font-semibold tabular-nums descuento-empleado">
+                    {formatNumberAR2(descuentoPct)}%
+                  </td>
+                )}
+                {!paraEmpleado && (
+                  <td className="p-3 text-right font-semibold tabular-nums subtotal-empleado">
+                    $ {formatMoney(subtotal)}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 const TablaProductosVentas = ({
   titulo = "Productos seleccionados",

@@ -10,7 +10,12 @@ import {
   safeText,
 } from "./formatters";
 // @ts-ignore - módulo JS sin tipos
-import { computeLineBase, computeLineSubtotal, computeTotals } from "../../../lib/pricing";
+import {
+  computeLineBase,
+  computeLineSubtotal,
+  computeTotals,
+  computeQuantityDisplay,
+} from "../../../lib/pricing";
 
 /**
  * Mapea productos a items del remito
@@ -21,7 +26,7 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
   }
 
   return productos.map((p) => {
-    const cantidad = Number(p.cantidad) || 1;
+    const cantidad = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
     const nombre = safeText(p.nombre || p.descripcion, "Producto sin nombre");
     const detalle = safeText(p.detalle || p.descripcion, "");
 
@@ -37,7 +42,7 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
     } else {
       const base = computeLineBase({
         precio: p.precio,
-        cantidad: p.cantidad,
+        cantidad,
         descuento: p.descuento,
         subcategoria: p.subcategoria,
         subCategoria: p.subCategoria,
@@ -55,7 +60,7 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
       precioUnitario = cantidad > 0 ? base / cantidad : base;
       subtotal = computeLineSubtotal({
         precio: p.precio,
-        cantidad: p.cantidad,
+        cantidad,
         descuento: p.descuento,
         subcategoria: p.subcategoria,
         subCategoria: p.subCategoria,
@@ -72,10 +77,19 @@ function mapItems(productos: any[] | undefined): RemitoItemModel[] {
       });
     }
 
+    const measure = computeQuantityDisplay({ ...p, cantidad });
+    const medidaUnidad = String(measure?.unit || "");
+    const medidaValor = Number(measure?.value);
+    const shouldShowMeasure =
+      Number.isFinite(medidaValor) &&
+      (medidaUnidad === "m²" || medidaUnidad === "m³" || medidaUnidad === "ml");
+
     return {
       nombre,
       detalle: detalle || undefined,
       cantidad,
+      medidaValor: shouldShowMeasure ? medidaValor : undefined,
+      medidaUnidad: shouldShowMeasure ? medidaUnidad : undefined,
       cepillado: p.cepilladoAplicado || false,
       cepilladoPorcentaje: p.cepilladoAplicado
         ? Math.max(0, Number(p.cepilladoPorcentaje ?? 6) || 6)
