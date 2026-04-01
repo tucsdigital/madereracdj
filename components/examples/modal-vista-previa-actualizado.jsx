@@ -1,14 +1,9 @@
 "use client";
-import React, { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import React from "react";
 import PrintDownloadButtons from "@/components/ui/print-download-buttons";
 
 // Ejemplo del modal de vista previa actualizado
 const ModalVistaPreviaActualizado = () => {
-  const [openPrint, setOpenPrint] = useState(false);
-
   // Datos de ejemplo para una obra
   const obraEjemplo = {
     tipo: "obra",
@@ -84,60 +79,24 @@ const ModalVistaPreviaActualizado = () => {
     <div className="p-6 space-y-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          Modal de Vista Previa Actualizado
+          Ejemplo de Impresión
         </h2>
         
         <p className="text-gray-600 mb-6">
-          Este es un ejemplo de cómo se ve el modal de vista previa después de agregar los botones de impresión y descarga PDF.
+          Este ejemplo muestra los botones de impresión sin modal de vista previa.
         </p>
-        
-        <Button onClick={() => setOpenPrint(true)} className="bg-blue-600 hover:bg-blue-700">
-          Abrir Modal de Vista Previa
-        </Button>
       </div>
 
-      {/* Modal de Vista Previa */}
-      <Dialog open={openPrint} onOpenChange={setOpenPrint}>
-        <DialogContent className="max-w-6xl max-h-[90vh] w-full">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Printer className="w-5 h-5" />
-              Vista Previa de Impresión - Obra
-            </DialogTitle>
-            <DialogDescription>
-              Revise el documento antes de imprimir. Use los botones de acción para imprimir, descargar PDF o cerrar.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 min-h-0">
-            {/* Simulación del iframe con contenido */}
-            <div className="w-full h-[70vh] border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <div className="text-4xl mb-4">📄</div>
-                <p className="text-lg font-medium">Vista Previa del Documento</p>
-                <p className="text-sm">Aquí se mostraría el contenido HTML generado</p>
-                <p className="text-xs mt-2">(Simulación del iframe)</p>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpenPrint(false)}>
-              Cerrar
-            </Button>
-            
-            {/* Botones de impresión y descarga PDF */}
-            <PrintDownloadButtons
-              obra={obraEjemplo}
-              presupuesto={presupuestoEjemplo}
-              modoCosto="venta"
-              movimientos={movimientosEjemplo}
-              variant="default"
-              size="sm"
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="flex items-center gap-2">
+        <PrintDownloadButtons
+          obra={obraEjemplo}
+          presupuesto={presupuestoEjemplo}
+          modoCosto="venta"
+          movimientos={movimientosEjemplo}
+          variant="default"
+          size="sm"
+        />
+      </div>
 
       <div className="bg-gray-50 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">

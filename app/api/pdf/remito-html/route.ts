@@ -6,6 +6,7 @@ import {
   mapPresupuestoToRemito,
 } from "@/src/lib/pdf/mappers";
 import { buildRemitoHtml } from "@/src/lib/pdf/generate-remito-pdf";
+import { generarContenidoImpresion } from "@/lib/obra-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { type, id, empleado } = body as {
-      type: "venta" | "presupuesto";
+      type: "venta" | "presupuesto" | "obra";
       id: string;
       empleado?: boolean;
     };
@@ -33,9 +34,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const collectionName = type === "venta" ? "ventas" : "presupuestos";
-    const docRef = doc(db, collectionName, id);
-    const snap = await getDoc(docRef);
+    const collectionName =
+      type === "venta" ? "ventas" : type === "presupuesto" ? "presupuestos" : "obras";
+    const snap = await getDoc(doc(db, collectionName, id));
 
     if (!snap.exists()) {
       return new Response(
@@ -47,15 +48,72 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = { id: snap.id, ...snap.data() };
-    const remito =
-      type === "venta"
-        ? mapVentaToRemito(data)
-        : mapPresupuestoToRemito(data);
+    const data: any = { id: snap.id, ...snap.data() };
 
-    // Generar HTML directamente (sin PDF) - sin scripts de auto-impresión
-    // autoPrint=false porque nosotros controlamos la impresión desde el cliente
-    const html = buildRemitoHtml(remito, empleado || false, false);
+    const html =
+      type === "obra"
+        ? await (async () => {
+            const obra = data;
+            const modoCosto =
+              obra?.tipo === "presupuesto"
+                ? "presupuesto"
+                : obra?.presupuestoInicialId
+                  ? "presupuesto"
+                  : "gasto";
+
+            let presupuesto: any = null;
+            if (obra?.tipo === "obra" && obra?.presupuestoInicialId) {
+              const presSnap = await getDoc(doc(db, "obras", obra.presupuestoInicialId));
+              if (presSnap.exists()) {
+                presupuesto = { id: presSnap.id, ...presSnap.data() };
+              }
+            }
+
+            const c = obra?.cobranzas || {};
+            const inicial: any[] = [];
+            const forma = c.formaPago || "efectivo";
+            const sen = Number(c.senia) || 0;
+            const mon = Number(c.monto) || 0;
+
+            if (sen > 0)
+              inicial.push({
+                fecha: c.fechaSenia || "",
+                tipo: "seña",
+                metodo: forma,
+                monto: sen,
+                nota: "Seña",
+              });
+
+            if (mon > 0)
+              inicial.push({
+                fecha: c.fechaMonto || "",
+                tipo: "pago",
+                metodo: forma,
+                monto: mon,
+                nota: "Pago",
+              });
+
+            const hist = Array.isArray(c.historialPagos) ? c.historialPagos : [];
+            hist.forEach((p: any) => {
+              inicial.push({
+                fecha: p.fecha || "",
+                tipo: p.tipo || "pago",
+                metodo: p.metodo || "efectivo",
+                monto: Number(p.monto) || 0,
+                nota: p.nota || "",
+              });
+            });
+
+            return generarContenidoImpresion(obra, presupuesto, modoCosto, inicial);
+          })()
+        : (() => {
+            const remito =
+              type === "venta"
+                ? mapVentaToRemito(data)
+                : mapPresupuestoToRemito(data);
+
+            return buildRemitoHtml(remito, empleado || false, false);
+          })();
 
     return new Response(html, {
       status: 200,

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+ 
 import { Icon } from "@iconify/react";
 import {
   Printer,
@@ -46,13 +39,12 @@ import { useObra } from "@/hooks/useObra";
 import {
   formatearNumeroArgentino,
   formatearFecha,
-  generarContenidoImpresion,
 } from "@/lib/obra-utils";
 import ObraHeader from "@/components/obras/ObraHeader";
 import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
-import PrintDownloadButtons from "@/components/ui/print-download-buttons";
+  const printingRef = useRef(false);
 import { useAuth } from "@/provider/auth.provider";
 import { useRouter } from "next/navigation";
 import WizardConversion from "@/components/obras/WizardConversion";
@@ -61,7 +53,7 @@ import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 const PresupuestoPage = () => {
   const params = useParams();
   const { id, lang } = params;
-  const [openPrint, setOpenPrint] = useState(false);
+ 
   const [showWizardConversion, setShowWizardConversion] = useState(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
@@ -101,7 +93,70 @@ const PresupuestoPage = () => {
 
 
   const handlePrint = () => {
-    setOpenPrint(true);
+    if (!obra?.id || printingRef.current) return;
+    printingRef.current = true;
+    try {
+      fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "obra",
+          id: obra.id,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            throw new Error("Error al generar el documento");
+          }
+          return res.text();
+        })
+        .then((html) => {
+          const iframe = document.createElement("iframe");
+          iframe.style.position = "fixed";
+          iframe.style.right = "0";
+          iframe.style.bottom = "0";
+          iframe.style.width = "0";
+          iframe.style.height = "0";
+          iframe.style.border = "none";
+          document.body.appendChild(iframe);
+
+          let printed = false;
+          let timeoutId = null;
+
+          const printOnce = () => {
+            if (printed) return;
+            printed = true;
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            try {
+              iframe.contentWindow?.focus();
+              iframe.contentWindow?.print();
+            } catch {}
+            printingRef.current = false;
+            setTimeout(() => {
+              try {
+                if (iframe.parentNode) document.body.removeChild(iframe);
+              } catch {}
+            }, 2000);
+          };
+
+          iframe.contentDocument?.open();
+          iframe.contentDocument?.write(html);
+          iframe.contentDocument?.close();
+
+          timeoutId = setTimeout(() => {
+            printOnce();
+          }, 500);
+        })
+        .catch(() => {
+          printingRef.current = false;
+          alert("Error al generar el documento. Por favor, intenta nuevamente.");
+        });
+    } catch {
+      printingRef.current = false;
+    }
   };
 
   const handleToggleEdit = async () => {
@@ -382,45 +437,7 @@ const PresupuestoPage = () => {
           )}
         </div>
       </div>
-
-      {/* Modal: Vista previa de impresión */}
-      <Dialog open={openPrint} onOpenChange={setOpenPrint}>
-        <DialogContent className="max-w-6xl max-h-[90vh] w-full">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Printer className="w-5 h-5" />
-              Vista Previa de Impresión - Presupuesto
-            </DialogTitle>
-            <DialogDescription>
-              Revise el documento antes de imprimir. Use los botones de acción
-              para imprimir, descargar PDF o cerrar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <iframe
-              srcDoc={generarContenidoImpresion(obra, null, "presupuesto")}
-              className="w-full h-[70vh] border border-gray-200 rounded-lg"
-              title="Vista previa de impresión"
-              sandbox="allow-scripts allow-same-origin allow-modals"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpenPrint(false)}>
-              Cerrar
-            </Button>
-
-            {/* Botones de impresión y descarga PDF */}
-            <PrintDownloadButtons
-              obra={obra}
-              presupuesto={null}
-              modoCosto="presupuesto"
-              movimientos={[]}
-              variant="default"
-              size="sm"
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+ 
 
       {/* Wizard de Conversión */}
       <WizardConversion

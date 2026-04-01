@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,14 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+ 
 import { Printer, Edit, User, MapPin, Calendar, ChevronUp, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
@@ -28,7 +21,6 @@ import { useObra } from "@/hooks/useObra";
 import {
   formatearNumeroArgentino,
   formatearFecha,
-  generarContenidoImpresion,
   parseNumericValue,
   calcularPrecioMachimbre,
   calcularPrecioCorteMadera,
@@ -37,7 +29,7 @@ import ObraHeader from "@/components/obras/ObraHeader";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import ObraCobranza from "@/components/obras/ObraCobranza";
 import ObraDocumentacion from "@/components/obras/ObraDocumentacion";
-import PrintDownloadButtons from "@/components/ui/print-download-buttons";
+ 
 import CatalogoVentas from "@/components/ventas/CatalogoVentas";
 import TablaProductosVentas from "@/components/ventas/TablaProductosVentas";
 import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
@@ -48,7 +40,7 @@ const ObraDetallePage = () => {
   const params = useParams();
   const router = useRouter();
   const { id, lang } = params;
-  const [openPrint, setOpenPrint] = useState(false);
+  const printingRef = useRef(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
   // Pago en dólares y comprobantes para la sección de documentación
   const [pagoEnDolares, setPagoEnDolares] = useState(false);
@@ -99,7 +91,70 @@ const ObraDetallePage = () => {
   }, [obra]);
 
   const handlePrint = () => {
-    setOpenPrint(true);
+    if (!obra?.id || printingRef.current) return;
+    printingRef.current = true;
+    try {
+      fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "obra",
+          id: obra.id,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            throw new Error("Error al generar el documento");
+          }
+          return res.text();
+        })
+        .then((html) => {
+          const iframe = document.createElement("iframe");
+          iframe.style.position = "fixed";
+          iframe.style.right = "0";
+          iframe.style.bottom = "0";
+          iframe.style.width = "0";
+          iframe.style.height = "0";
+          iframe.style.border = "none";
+          document.body.appendChild(iframe);
+
+          let printed = false;
+          let timeoutId = null;
+
+          const printOnce = () => {
+            if (printed) return;
+            printed = true;
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            try {
+              iframe.contentWindow?.focus();
+              iframe.contentWindow?.print();
+            } catch {}
+            printingRef.current = false;
+            setTimeout(() => {
+              try {
+                if (iframe.parentNode) document.body.removeChild(iframe);
+              } catch {}
+            }, 2000);
+          };
+
+          iframe.contentDocument?.open();
+          iframe.contentDocument?.write(html);
+          iframe.contentDocument?.close();
+
+          timeoutId = setTimeout(() => {
+            printOnce();
+          }, 500);
+        })
+        .catch(() => {
+          printingRef.current = false;
+          alert("Error al generar el documento. Por favor, intenta nuevamente.");
+        });
+    } catch {
+      printingRef.current = false;
+    }
   };
 
   const handleToggleEdit = async () => {
@@ -1229,45 +1284,7 @@ const ObraDetallePage = () => {
           </div> */}
         </div>
       </div>
-
-      {/* Modal: Vista previa de impresión */}
-      <Dialog open={openPrint} onOpenChange={setOpenPrint}>
-        <DialogContent className="max-w-6xl max-h-[90vh] w-full">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Printer className="w-5 h-5" />
-              Vista Previa de Impresión - Obra
-            </DialogTitle>
-            <DialogDescription>
-              Revise el documento antes de imprimir. Use los botones de acción
-              para imprimir, descargar PDF o cerrar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <iframe
-              srcDoc={generarContenidoImpresion(obra, presupuesto, modoCosto)}
-              className="w-full h-[70vh] border border-gray-200 rounded-lg"
-              title="Vista previa de impresión"
-              sandbox="allow-scripts allow-same-origin allow-modals"
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpenPrint(false)}>
-              Cerrar
-            </Button>
-
-            {/* Botones de impresión y descarga PDF */}
-            <PrintDownloadButtons
-              obra={obra}
-              presupuesto={presupuesto}
-              modoCosto={modoCosto}
-              movimientos={movimientos}
-              variant="default"
-              size="sm"
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+ 
 
       {/* Selector de Cliente */}
       <SelectorClienteObras
