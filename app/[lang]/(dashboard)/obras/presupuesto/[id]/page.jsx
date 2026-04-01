@@ -44,7 +44,6 @@ import ObraHeader from "@/components/obras/ObraHeader";
 import ObraInfoGeneral from "@/components/obras/ObraInfoGeneral";
 import ObraResumenFinanciero from "@/components/obras/ObraResumenFinanciero";
 import PresupuestoDetalle from "@/components/obras/PresupuestoDetalle";
-  const printingRef = useRef(false);
 import { useAuth } from "@/provider/auth.provider";
 import { useRouter } from "next/navigation";
 import WizardConversion from "@/components/obras/WizardConversion";
@@ -53,6 +52,7 @@ import SelectorClienteObras from "@/components/obras/SelectorClienteObras";
 const PresupuestoPage = () => {
   const params = useParams();
   const { id, lang } = params;
+  const printingRef = useRef(false);
  
   const [showWizardConversion, setShowWizardConversion] = useState(false);
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);

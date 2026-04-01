@@ -410,6 +410,15 @@ const VentaDetalle = () => {
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
           ? (() => {
+              const normalizarUnidadMadera = (raw) => {
+                const txt = String(raw || "").trim();
+                const up = txt.toUpperCase();
+                if (up === "M2") return "M2";
+                if (up === "ML") return "ML";
+                if (up === "UN" || up === "UNIDAD" || up === "UNIDADES" || up === "U")
+                  return "Unidad";
+                return txt;
+              };
               const cepilladoAplicado = p.cepilladoAplicado || false;
               const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
                 p.cepilladoPorcentaje
@@ -418,15 +427,28 @@ const VentaDetalle = () => {
               const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 p.calibradoPorcentaje
               );
-              const unidad = String(p.unidad || p.unidadMedida || "");
-              const alto = Number(p.alto) || 0;
-              const largo = Number(p.largo) || 0;
-              const precioPorPie = Number(p.precioPorPie) || 0;
-              const cantidad = Number(p.cantidad) || 1;
+              const unidad = normalizarUnidadMadera(p.unidad || p.unidadMedida || "");
+              const altoParsed = parseNumericValue(p.alto);
+              const anchoParsed = parseNumericValue(p.ancho);
+              const largoParsed = parseNumericValue(p.largo);
+              const cantidadParsed = parseNumericValue(p.cantidad);
+              let precioPorPieParsed = parseNumericValue(p.precioPorPie);
+              const alto = altoParsed === "" ? 0 : altoParsed;
+              const ancho = anchoParsed === "" ? 0 : anchoParsed;
+              const largo = largoParsed === "" ? 0 : largoParsed;
+              const cantidad = cantidadParsed === "" ? 1 : Math.max(1, Math.ceil(cantidadParsed));
+              if ((precioPorPieParsed === "" || precioPorPieParsed === 0) && unidad === "Unidad") {
+                const precioFallback = parseNumericValue(p.precio);
+                if (precioFallback !== "" && precioFallback > 0) {
+                  precioPorPieParsed = precioFallback;
+                }
+              }
+              const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+              const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
               const precioBaseM2 =
-                unidad === "M2" && alto > 0 && largo > 0 && precioPorPie > 0
+                unidad === "M2" && altoM2 > 0 && largo > 0 && precioPorPie > 0
                   ? calcularPrecioMachimbre({
-                      alto,
+                      alto: altoM2,
                       largo,
                       cantidad,
                       precioPorPie,
@@ -444,6 +466,12 @@ const VentaDetalle = () => {
                 ) * 100;
               return {
                 ...p,
+                unidad,
+                alto,
+                ancho,
+                largo,
+                cantidad,
+                precioPorPie,
                 precio: precioRecalculado,
                 cepilladoAplicado,
                 cepilladoPorcentaje,
@@ -564,15 +592,25 @@ const VentaDetalle = () => {
           if (productoActualizado) {
             let nuevoPrecio = 0;
             if (productoActualizado.categoria === "Maderas") {
-              const alto = Number(productoVenta.alto ?? productoActualizado.alto) || 0;
-              const ancho = Number(productoVenta.ancho ?? productoActualizado.ancho) || 0;
-              const largo = Number(productoVenta.largo ?? productoActualizado.largo) || 0;
-              const precioPorPie =
-                Number(productoVenta.precioPorPie ?? productoActualizado.precioPorPie) || 0;
+              const altoParsed = parseNumericValue(productoVenta.alto ?? productoActualizado.alto);
+              const anchoParsed = parseNumericValue(productoVenta.ancho ?? productoActualizado.ancho);
+              const largoParsed = parseNumericValue(productoVenta.largo ?? productoActualizado.largo);
+              const precioPorPieParsed = parseNumericValue(
+                productoVenta.precioPorPie ?? productoActualizado.precioPorPie
+              );
+              const alto = altoParsed === "" ? 0 : altoParsed;
+              const ancho = anchoParsed === "" ? 0 : anchoParsed;
+              const largo = largoParsed === "" ? 0 : largoParsed;
+              const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+              const unidadUp = String(
+                productoVenta.unidad || productoVenta.unidadMedida || ""
+              )
+                .trim()
+                .toUpperCase();
 
               if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
                 const precioBase =
-                  (productoVenta.unidad === "M2" || productoVenta.unidadMedida === "M2")
+                  unidadUp === "M2"
                     ? calcularPrecioMachimbre({
                         alto,
                         largo,
@@ -626,8 +664,16 @@ const VentaDetalle = () => {
     if (value === "" || value === null || value === undefined) {
       return "";
     }
-    const normalizedValue =
-      typeof value === "string" ? value.replace(",", ".") : value;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : "";
+    }
+    let normalizedValue = String(value).trim().replace(/\s/g, "");
+    if (!normalizedValue) return "";
+    if (normalizedValue.includes(",")) {
+      normalizedValue = normalizedValue.replace(/\./g, "").replace(",", ".");
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(normalizedValue)) {
+      normalizedValue = normalizedValue.replace(/\./g, "");
+    }
     const num = Number(normalizedValue);
     return Number.isNaN(num) ? "" : num;
   };

@@ -364,37 +364,62 @@ const PresupuestoDetalle = () => {
       }
 
       // Enriquecer productos con información de la base de datos
-      if (presupuestoClonado.productos && productos.length > 0) {
+      if (presupuestoClonado.productos) {
         presupuestoClonado.productos = presupuestoClonado.productos.map(
           (productoPresupuesto) => {
             const productoDB = productos.find(
               (p) => p.id === productoPresupuesto.id
             );
             if (productoDB) {
+              const normalizarUnidadMadera = (raw) => {
+                const txt = String(raw || "").trim();
+                const up = txt.toUpperCase();
+                if (up === "M2") return "M2";
+                if (up === "ML") return "ML";
+                if (up === "UN" || up === "UNIDAD" || up === "UNIDADES" || up === "U")
+                  return "Unidad";
+                return txt;
+              };
               const altoActual =
                 productoPresupuesto.alto !== undefined &&
                 productoPresupuesto.alto !== null &&
                 productoPresupuesto.alto !== ""
-                  ? Number(productoPresupuesto.alto)
-                  : Number(productoDB.alto) || 0;
+                  ? (parseNumericValue(productoPresupuesto.alto) === ""
+                      ? 0
+                      : parseNumericValue(productoPresupuesto.alto))
+                  : (parseNumericValue(productoDB.alto) === ""
+                      ? 0
+                      : parseNumericValue(productoDB.alto));
               const anchoActual =
                 productoPresupuesto.ancho !== undefined &&
                 productoPresupuesto.ancho !== null &&
                 productoPresupuesto.ancho !== ""
-                  ? Number(productoPresupuesto.ancho)
-                  : Number(productoDB.ancho) || 0;
+                  ? (parseNumericValue(productoPresupuesto.ancho) === ""
+                      ? 0
+                      : parseNumericValue(productoPresupuesto.ancho))
+                  : (parseNumericValue(productoDB.ancho) === ""
+                      ? 0
+                      : parseNumericValue(productoDB.ancho));
               const largoActual =
                 productoPresupuesto.largo !== undefined &&
                 productoPresupuesto.largo !== null &&
                 productoPresupuesto.largo !== ""
-                  ? Number(productoPresupuesto.largo)
-                  : Number(productoDB.largo) || 0;
+                  ? (parseNumericValue(productoPresupuesto.largo) === ""
+                      ? 0
+                      : parseNumericValue(productoPresupuesto.largo))
+                  : (parseNumericValue(productoDB.largo) === ""
+                      ? 0
+                      : parseNumericValue(productoDB.largo));
               const precioPorPieActual =
                 productoPresupuesto.precioPorPie !== undefined &&
                 productoPresupuesto.precioPorPie !== null &&
                 productoPresupuesto.precioPorPie !== ""
-                  ? Number(productoPresupuesto.precioPorPie)
-                  : Number(productoDB.precioPorPie) || 0;
+                  ? (parseNumericValue(productoPresupuesto.precioPorPie) === ""
+                      ? 0
+                      : parseNumericValue(productoPresupuesto.precioPorPie))
+                  : (parseNumericValue(productoDB.precioPorPie) === ""
+                      ? 0
+                      : parseNumericValue(productoDB.precioPorPie));
               const cepilladoAplicado =
                 productoPresupuesto.cepilladoAplicado || false;
               const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
@@ -405,24 +430,33 @@ const PresupuestoDetalle = () => {
               const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 productoPresupuesto.calibradoPorcentaje
               );
-              const unidadActual = String(
+              const unidadActual = normalizarUnidadMadera(
                 productoPresupuesto.unidad ||
                   productoPresupuesto.unidadMedida ||
                   productoDB.unidadMedida ||
                   productoDB.unidad ||
                   ""
               );
-              const cantidadActual = Number(productoPresupuesto.cantidad) || 1;
+              const cantidadParsed = parseNumericValue(productoPresupuesto.cantidad);
+              const cantidadActual =
+                cantidadParsed === "" ? 1 : Math.max(1, Math.ceil(cantidadParsed));
+              let precioPorPieFinal = precioPorPieActual;
+              if (precioPorPieFinal <= 0 && unidadActual === "Unidad") {
+                const precioFallback = parseNumericValue(productoPresupuesto.precio);
+                if (precioFallback !== "" && precioFallback > 0) {
+                  precioPorPieFinal = precioFallback;
+                }
+              }
               const precioBaseM2 =
                 unidadActual === "M2" &&
                 altoActual > 0 &&
                 largoActual > 0 &&
-                precioPorPieActual > 0
+                precioPorPieFinal > 0
                   ? calcularPrecioMachimbre({
                       alto: altoActual,
                       largo: largoActual,
                       cantidad: cantidadActual,
-                      precioPorPie: precioPorPieActual,
+                      precioPorPie: precioPorPieFinal,
                     })
                   : Number(productoPresupuesto.precio) || 0;
               const factorCepillado = cepilladoAplicado
@@ -456,7 +490,8 @@ const PresupuestoDetalle = () => {
                 alto: altoActual,
                 ancho: anchoActual,
                 largo: largoActual,
-                precioPorPie: precioPorPieActual,
+                unidad: unidadActual,
+                precioPorPie: precioPorPieFinal,
                 cepilladoAplicado,
                 cepilladoPorcentaje,
                 calibradoAplicado,
@@ -471,13 +506,33 @@ const PresupuestoDetalle = () => {
             const calibradoPorcentaje = normalizarCalibradoPorcentaje(
               productoPresupuesto.calibradoPorcentaje
             );
-            const unidadActual = String(
+            const normalizarUnidadMadera = (raw) => {
+              const txt = String(raw || "").trim();
+              const up = txt.toUpperCase();
+              if (up === "M2") return "M2";
+              if (up === "ML") return "ML";
+              if (up === "UN" || up === "UNIDAD" || up === "UNIDADES" || up === "U")
+                return "Unidad";
+              return txt;
+            };
+            const unidadActual = normalizarUnidadMadera(
               productoPresupuesto.unidad || productoPresupuesto.unidadMedida || ""
             );
-            const altoActual = Number(productoPresupuesto.alto) || 0;
-            const largoActual = Number(productoPresupuesto.largo) || 0;
-            const precioPorPieActual = Number(productoPresupuesto.precioPorPie) || 0;
-            const cantidadActual = Number(productoPresupuesto.cantidad) || 1;
+            const altoParsed = parseNumericValue(productoPresupuesto.alto);
+            const largoParsed = parseNumericValue(productoPresupuesto.largo);
+            const precioPorPieParsed = parseNumericValue(productoPresupuesto.precioPorPie);
+            const cantidadParsed = parseNumericValue(productoPresupuesto.cantidad);
+            const altoActual = altoParsed === "" ? 0 : altoParsed;
+            const largoActual = largoParsed === "" ? 0 : largoParsed;
+            let precioPorPieActual = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+            const cantidadActual =
+              cantidadParsed === "" ? 1 : Math.max(1, Math.ceil(cantidadParsed));
+            if (precioPorPieActual <= 0 && unidadActual === "Unidad") {
+              const precioFallback = parseNumericValue(productoPresupuesto.precio);
+              if (precioFallback !== "" && precioFallback > 0) {
+                precioPorPieActual = precioFallback;
+              }
+            }
             const precioBaseM2 =
               unidadActual === "M2" &&
               altoActual > 0 &&
@@ -503,6 +558,11 @@ const PresupuestoDetalle = () => {
             return {
               ...productoPresupuesto,
               precio: precioRecalculado,
+              unidad: unidadActual,
+              alto: altoActual,
+              largo: largoActual,
+              cantidad: cantidadActual,
+              precioPorPie: precioPorPieActual,
               cepilladoAplicado,
               cepilladoPorcentaje,
               calibradoAplicado,
@@ -551,17 +611,31 @@ const PresupuestoDetalle = () => {
         if (productoActualizado) {
           let nuevoPrecio = 0;
           if (productoActualizado.categoria === "Maderas") {
-            const alto = Number(productoPresupuesto.alto ?? productoActualizado.alto) || 0;
-            const ancho = Number(productoPresupuesto.ancho ?? productoActualizado.ancho) || 0;
-            const largo = Number(productoPresupuesto.largo ?? productoActualizado.largo) || 0;
-            const precioPorPie =
-              Number(
-                productoPresupuesto.precioPorPie ?? productoActualizado.precioPorPie
-              ) || 0;
+            const altoParsed = parseNumericValue(
+              productoPresupuesto.alto ?? productoActualizado.alto
+            );
+            const anchoParsed = parseNumericValue(
+              productoPresupuesto.ancho ?? productoActualizado.ancho
+            );
+            const largoParsed = parseNumericValue(
+              productoPresupuesto.largo ?? productoActualizado.largo
+            );
+            const precioPorPieParsed = parseNumericValue(
+              productoPresupuesto.precioPorPie ?? productoActualizado.precioPorPie
+            );
+            const alto = altoParsed === "" ? 0 : altoParsed;
+            const ancho = anchoParsed === "" ? 0 : anchoParsed;
+            const largo = largoParsed === "" ? 0 : largoParsed;
+            const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+            const unidadUp = String(
+              productoPresupuesto.unidad || productoPresupuesto.unidadMedida || ""
+            )
+              .trim()
+              .toUpperCase();
 
             if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
               const precioBase =
-                productoPresupuesto.unidad === "M2"
+                unidadUp === "M2"
                   ? calcularPrecioMachimbre({
                       alto,
                       largo,
@@ -603,16 +677,10 @@ const PresupuestoDetalle = () => {
               productoPresupuesto.subCategoria ||
               productoActualizado.subCategoria ||
               "",
-            alto:
-              Number(productoPresupuesto.alto ?? productoActualizado.alto) || 0,
-            ancho:
-              Number(productoPresupuesto.ancho ?? productoActualizado.ancho) || 0,
-            largo:
-              Number(productoPresupuesto.largo ?? productoActualizado.largo) || 0,
-            precioPorPie:
-              Number(
-                productoPresupuesto.precioPorPie ?? productoActualizado.precioPorPie
-              ) || 0,
+            alto: alto,
+            ancho: ancho,
+            largo: largo,
+            precioPorPie: precioPorPie,
           };
         }
         return productoPresupuesto;
@@ -639,10 +707,18 @@ const PresupuestoDetalle = () => {
     if (value === "" || value === null || value === undefined) {
       return "";
     }
-    const normalizedValue =
-      typeof value === "string" ? value.replace(",", ".") : value;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : "";
+    }
+    let normalizedValue = String(value).trim().replace(/\s/g, "");
+    if (!normalizedValue) return "";
+    if (normalizedValue.includes(",")) {
+      normalizedValue = normalizedValue.replace(/\./g, "").replace(",", ".");
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(normalizedValue)) {
+      normalizedValue = normalizedValue.replace(/\./g, "");
+    }
     const num = Number(normalizedValue);
-    return isNaN(num) ? "" : num;
+    return Number.isNaN(num) ? "" : num;
   };
   const normalizarCalibradoPorcentaje = (value) => {
     const num = Number(value);
