@@ -371,6 +371,12 @@ const PresupuestoDetalle = () => {
               (p) => p.id === productoPresupuesto.id
             );
             if (productoDB) {
+              const normalizarBool = (value) =>
+                value === true ||
+                value === "true" ||
+                value === 1 ||
+                value === "1" ||
+                value === "on";
               const normalizarUnidadMadera = (raw) => {
                 const txt = String(raw || "").trim();
                 const up = txt.toUpperCase();
@@ -421,12 +427,12 @@ const PresupuestoDetalle = () => {
                       ? 0
                       : parseNumericValue(productoDB.precioPorPie));
               const cepilladoAplicado =
-                productoPresupuesto.cepilladoAplicado || false;
+                normalizarBool(productoPresupuesto.cepilladoAplicado);
               const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
                 productoPresupuesto.cepilladoPorcentaje
               );
               const calibradoAplicado =
-                productoPresupuesto.calibradoAplicado || false;
+                normalizarBool(productoPresupuesto.calibradoAplicado);
               const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 productoPresupuesto.calibradoPorcentaje
               );
@@ -447,31 +453,21 @@ const PresupuestoDetalle = () => {
                   precioPorPieFinal = precioFallback;
                 }
               }
-              const precioBaseM2 =
-                unidadActual === "M2" &&
-                altoActual > 0 &&
-                largoActual > 0 &&
-                precioPorPieFinal > 0
-                  ? calcularPrecioMachimbre({
-                      alto: altoActual,
-                      largo: largoActual,
-                      cantidad: cantidadActual,
-                      precioPorPie: precioPorPieFinal,
-                    })
-                  : Number(productoPresupuesto.precio) || 0;
-              const factorCepillado = cepilladoAplicado
-                ? 1 + cepilladoPorcentaje / 100
-                : 1;
-              const factorCalibrado = calibradoAplicado
-                ? 1 + calibradoPorcentaje / 100
-                : 1;
-              const precioRecalculado =
-                Math.round(
-                  (precioBaseM2 * factorCepillado * factorCalibrado) / 100
-                ) * 100;
+              const precioStoredParsed = parseNumericValue(productoPresupuesto.precio);
+              let precio = precioStoredParsed === "" ? 0 : precioStoredParsed;
+              if (precio <= 0 && unidadActual === "M2") {
+                if (altoActual > 0 && largoActual > 0 && precioPorPieFinal > 0) {
+                  precio = calcularPrecioMachimbre({
+                    alto: altoActual,
+                    largo: largoActual,
+                    cantidad: cantidadActual,
+                    precioPorPie: precioPorPieFinal,
+                  });
+                }
+              }
               return {
                 ...productoPresupuesto,
-                precio: precioRecalculado,
+                precio,
                 // Preservar campos específicos de categoría
                 tipoMadera:
                   productoPresupuesto.tipoMadera || productoDB.tipoMadera || "",
@@ -498,11 +494,17 @@ const PresupuestoDetalle = () => {
                 calibradoPorcentaje,
               };
             }
-            const cepilladoAplicado = productoPresupuesto.cepilladoAplicado || false;
+            const normalizarBool = (value) =>
+              value === true ||
+              value === "true" ||
+              value === 1 ||
+              value === "1" ||
+              value === "on";
+            const cepilladoAplicado = normalizarBool(productoPresupuesto.cepilladoAplicado);
             const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
               productoPresupuesto.cepilladoPorcentaje
             );
-            const calibradoAplicado = productoPresupuesto.calibradoAplicado || false;
+            const calibradoAplicado = normalizarBool(productoPresupuesto.calibradoAplicado);
             const calibradoPorcentaje = normalizarCalibradoPorcentaje(
               productoPresupuesto.calibradoPorcentaje
             );
@@ -533,31 +535,21 @@ const PresupuestoDetalle = () => {
                 precioPorPieActual = precioFallback;
               }
             }
-            const precioBaseM2 =
-              unidadActual === "M2" &&
-              altoActual > 0 &&
-              largoActual > 0 &&
-              precioPorPieActual > 0
-                ? calcularPrecioMachimbre({
-                    alto: altoActual,
-                    largo: largoActual,
-                    cantidad: cantidadActual,
-                    precioPorPie: precioPorPieActual,
-                  })
-                : Number(productoPresupuesto.precio) || 0;
-            const factorCepillado = cepilladoAplicado
-              ? 1 + cepilladoPorcentaje / 100
-              : 1;
-            const factorCalibrado = calibradoAplicado
-              ? 1 + calibradoPorcentaje / 100
-              : 1;
-            const precioRecalculado =
-              Math.round(
-                (precioBaseM2 * factorCepillado * factorCalibrado) / 100
-              ) * 100;
+            const precioStoredParsed = parseNumericValue(productoPresupuesto.precio);
+            let precio = precioStoredParsed === "" ? 0 : precioStoredParsed;
+            if (precio <= 0 && unidadActual === "M2") {
+              if (altoActual > 0 && largoActual > 0 && precioPorPieActual > 0) {
+                precio = calcularPrecioMachimbre({
+                  alto: altoActual,
+                  largo: largoActual,
+                  cantidad: cantidadActual,
+                  precioPorPie: precioPorPieActual,
+                });
+              }
+            }
             return {
               ...productoPresupuesto,
-              precio: precioRecalculado,
+              precio,
               unidad: unidadActual,
               alto: altoActual,
               largo: largoActual,

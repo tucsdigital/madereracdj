@@ -410,6 +410,12 @@ const VentaDetalle = () => {
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
           ? (() => {
+              const normalizarBool = (value) =>
+                value === true ||
+                value === "true" ||
+                value === 1 ||
+                value === "1" ||
+                value === "on";
               const normalizarUnidadMadera = (raw) => {
                 const txt = String(raw || "").trim();
                 const up = txt.toUpperCase();
@@ -419,11 +425,11 @@ const VentaDetalle = () => {
                   return "Unidad";
                 return txt;
               };
-              const cepilladoAplicado = p.cepilladoAplicado || false;
+              const cepilladoAplicado = normalizarBool(p.cepilladoAplicado);
               const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
                 p.cepilladoPorcentaje
               );
-              const calibradoAplicado = p.calibradoAplicado || false;
+              const calibradoAplicado = normalizarBool(p.calibradoAplicado);
               const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 p.calibradoPorcentaje
               );
@@ -444,26 +450,19 @@ const VentaDetalle = () => {
                 }
               }
               const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
-              const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
-              const precioBaseM2 =
-                unidad === "M2" && altoM2 > 0 && largo > 0 && precioPorPie > 0
-                  ? calcularPrecioMachimbre({
-                      alto: altoM2,
-                      largo,
-                      cantidad,
-                      precioPorPie,
-                    })
-                  : Number(p.precio) || 0;
-              const factorCepillado = cepilladoAplicado
-                ? 1 + cepilladoPorcentaje / 100
-                : 1;
-              const factorCalibrado = calibradoAplicado
-                ? 1 + calibradoPorcentaje / 100
-                : 1;
-              const precioRecalculado =
-                Math.round(
-                  (precioBaseM2 * factorCepillado * factorCalibrado) / 100
-                ) * 100;
+              const precioStoredParsed = parseNumericValue(p.precio);
+              let precio = precioStoredParsed === "" ? 0 : precioStoredParsed;
+              if (precio <= 0 && unidad === "M2") {
+                const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
+                if (altoM2 > 0 && largo > 0 && precioPorPie > 0) {
+                  precio = calcularPrecioMachimbre({
+                    alto: altoM2,
+                    largo,
+                    cantidad,
+                    precioPorPie,
+                  });
+                }
+              }
               return {
                 ...p,
                 unidad,
@@ -472,7 +471,7 @@ const VentaDetalle = () => {
                 largo,
                 cantidad,
                 precioPorPie,
-                precio: precioRecalculado,
+                precio,
                 cepilladoAplicado,
                 cepilladoPorcentaje,
                 calibradoAplicado,
