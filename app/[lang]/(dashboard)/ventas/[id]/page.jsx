@@ -1467,12 +1467,34 @@ const VentaDetalle = () => {
     console.log("Productos originales:", productosOriginales);
     console.log("Productos nuevos:", productosNuevos);
 
-    // Crear mapas para comparación eficiente
+    const normalizarProductoIdStock = (p) => String(p?.originalId || p?.id || "").trim();
+    const normalizarCantidadStock = (p) =>
+      Math.max(1, Math.ceil(Number(p?.cantidad) || 1));
+
+    // Crear mapas agregados por producto real (originalId || id)
     const productosOriginalesMap = new Map();
-    productosOriginales.forEach((p) => productosOriginalesMap.set(p.id, p));
+    for (const p of productosOriginales) {
+      const productoId = normalizarProductoIdStock(p);
+      if (!productoId) continue;
+      const qty = normalizarCantidadStock(p);
+      const prev = productosOriginalesMap.get(productoId);
+      productosOriginalesMap.set(productoId, {
+        productoId,
+        cantidad: (prev?.cantidad || 0) + qty,
+      });
+    }
 
     const productosNuevosMap = new Map();
-    productosNuevos.forEach((p) => productosNuevosMap.set(p.id, p));
+    for (const p of productosNuevos) {
+      const productoId = normalizarProductoIdStock(p);
+      if (!productoId) continue;
+      const qty = normalizarCantidadStock(p);
+      const prev = productosNuevosMap.get(productoId);
+      productosNuevosMap.set(productoId, {
+        productoId,
+        cantidad: (prev?.cantidad || 0) + qty,
+      });
+    }
 
     // 2. Manejar cambios de stock y movimientos
     const cambiosStock = [];

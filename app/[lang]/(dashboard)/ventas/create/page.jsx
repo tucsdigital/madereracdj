@@ -54,22 +54,36 @@ export default function CreateVentaPage() {
 
       // Descontar stock y registrar movimientos (batch)
       const batch = writeBatch(db);
+      const porProductoId = new Map();
       for (const prod of cleanVenta.productos) {
-        const productoRef = doc(db, "productos", prod.id);
+        const productoId = String(prod?.originalId || prod?.id || "").trim();
+        if (!productoId) continue;
+        const cantidad = Math.max(0, Math.ceil(Number(prod?.cantidad) || 0));
+        if (cantidad === 0) continue;
+        const prev = porProductoId.get(productoId);
+        porProductoId.set(productoId, {
+          productoId,
+          cantidad: (prev?.cantidad || 0) + cantidad,
+          nombre: prev?.nombre || prod?.nombre || "",
+        });
+      }
+
+      for (const entry of porProductoId.values()) {
+        const productoRef = doc(db, "productos", entry.productoId);
         const productoSnap = await getDoc(productoRef);
         if (!productoSnap.exists()) continue;
-        batch.update(productoRef, { stock: increment(-Math.abs(prod.cantidad)) });
+        batch.update(productoRef, { stock: increment(-entry.cantidad) });
         const movRef = doc(collection(db, "movimientos"));
         batch.set(movRef, {
-          productoId: prod.id,
+          productoId: entry.productoId,
           tipo: "salida",
-          cantidad: prod.cantidad,
+          cantidad: entry.cantidad,
           usuario: user?.email || "Sistema",
           fecha: serverTimestamp(),
           referencia: "venta",
           referenciaId: docRef.id,
           observaciones: "Salida por venta",
-          productoNombre: prod.nombre,
+          productoNombre: entry.nombre,
         });
       }
       await batch.commit();
@@ -124,5 +138,4 @@ export default function CreateVentaPage() {
     </div>
   );
 }
-
 

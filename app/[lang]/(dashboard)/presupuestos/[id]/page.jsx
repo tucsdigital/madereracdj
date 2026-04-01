@@ -4019,7 +4019,8 @@ const PresupuestoDetalle = () => {
 
                   // Descontar stock y registrar movimientos (transaccional por producto)
                   for (const prod of cleanVentaData.productos) {
-                    const productoId = prod.id;
+                    const productoId = String(prod?.originalId || prod?.id || "").trim();
+                    if (!productoId) continue;
                     const productoRef = doc(db, "productos", productoId);
                     await runTransaction(db, async (t) => {
                       const snap = await t.get(productoRef);

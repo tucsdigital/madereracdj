@@ -40,8 +40,10 @@ export async function DELETE(request) {
       const movimientosBatch = [];
       
       for (const producto of documentData.productos) {
-        if (producto.id && producto.cantidad) {
-          const productoRef = doc(db, 'productos', producto.id);
+        const productoId = String(producto?.originalId || producto?.id || "").trim();
+        const cantidadRepuesta = Math.max(0, Math.ceil(Number(producto?.cantidad) || 0));
+        if (productoId && cantidadRepuesta > 0) {
+          const productoRef = doc(db, 'productos', productoId);
           
           // Reponer stock solo si el producto existe
           try {
@@ -49,7 +51,6 @@ export async function DELETE(request) {
             if (productoSnap.exists()) {
               const productoData = productoSnap.data();
               const stockActual = Number(productoData.stock) || 0;
-              const cantidadRepuesta = Number(producto.cantidad);
               const nuevoStock = stockActual + cantidadRepuesta;
               
               // Actualizar stock
@@ -63,7 +64,7 @@ export async function DELETE(request) {
               const movRef = doc(collection(db, "movimientos"));
               movimientosBatch.push(
                 addDoc(collection(db, "movimientos"), {
-                  productoId: producto.id,
+                  productoId,
                   tipo: "entrada",
                   cantidad: cantidadRepuesta,
                   usuario: userEmail,
@@ -83,7 +84,7 @@ export async function DELETE(request) {
               );
             }
           } catch (error) {
-            console.error(`Error al reponer stock del producto ${producto.id}:`, error);
+            console.error(`Error al reponer stock del producto ${productoId}:`, error);
           }
         }
       }
