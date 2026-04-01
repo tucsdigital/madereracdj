@@ -18,6 +18,7 @@ import {
   increment,
   serverTimestamp,
   addDoc,
+  runTransaction,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -1520,53 +1521,42 @@ const VentaDetalle = () => {
 
     console.log("Cambios de stock detectados:", cambiosStock);
 
-    // 3. Aplicar cambios de stock y registrar movimientos
+    // 3. Aplicar cambios de stock y registrar movimientos (transaccional por producto)
     for (const cambio of cambiosStock) {
       try {
-        const productoRef = doc(db, "productos", cambio.productoId);
-
-        // Verificar que el producto existe
-        const productoSnap = await getDocs(collection(db, "productos"));
-        const existe = productoSnap.docs.find(
-          (d) => d.id === cambio.productoId
-        );
-
-        if (!existe) {
-          console.warn(
-            `Producto ${cambio.productoId} no existe en el catálogo`
-          );
-          continue;
-        }
-
-        // Actualizar stock
-        await updateDoc(productoRef, {
-          stock: increment(-cambio.diferencia),
+        const delta = -cambio.diferencia; // si diferencia>0 (agregó), delta negativo (salida)
+        if (delta === 0) continue;
+        const productoId = cambio.productoId;
+        const productoRef = doc(db, "productos", productoId);
+        await runTransaction(db, async (t) => {
+          const snap = await t.get(productoRef);
+          if (!snap.exists()) throw new Error(`Producto ${productoId} no encontrado`);
+          const data = snap.data();
+          const stockActual = Number(data.stock) || 0;
+          const nuevoStock = stockActual + Number(delta);
+          if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || productoId}`);
+          t.update(productoRef, { stock: nuevoStock, fechaActualizacion: serverTimestamp() });
+          const movRef = doc(collection(db, "movimientos"));
+          t.set(movRef, {
+            productoId,
+            tipo: delta < 0 ? "salida" : "entrada",
+            cantidad: Math.abs(Number(delta)),
+            usuario: "Sistema",
+            fecha: serverTimestamp(),
+            referencia: "edicion_venta",
+            referenciaId: ventaEdit.id,
+            observaciones: `Ajuste por edición de venta - ${cambio.tipo}: ${cambio.cantidadOriginal} → ${cambio.cantidadNueva}`,
+            productoNombre: data.nombre || "Producto desconocido",
+            stockAntes: stockActual,
+            stockDelta: Number(delta),
+            stockDespues: nuevoStock,
+            categoria: data.categoria || "Sin categoría",
+            origen: "sistema_ventas",
+          });
         });
-
-        // Registrar movimiento
-        const tipoMovimiento = cambio.diferencia > 0 ? "salida" : "entrada";
-        const cantidadMovimiento = Math.abs(cambio.diferencia);
-
-        await addDoc(collection(db, "movimientos"), {
-          productoId: cambio.productoId,
-          tipo: tipoMovimiento,
-          cantidad: cantidadMovimiento,
-          usuario: "Sistema",
-          fecha: serverTimestamp(),
-          referencia: "edicion_venta",
-          referenciaId: ventaEdit.id,
-          observaciones: `Ajuste por edición de venta - ${cambio.tipo}: ${cambio.cantidadOriginal} → ${cambio.cantidadNueva}`,
-          productoNombre: existe.data().nombre || "Producto desconocido",
-        });
-
-        console.log(
-          `✅ Stock actualizado para producto ${cambio.productoId}: ${cambio.diferencia}`
-        );
+        console.log(`✅ Stock actualizado para producto ${productoId}: delta ${delta}`);
       } catch (error) {
-        console.error(
-          `Error actualizando stock para producto ${cambio.productoId}:`,
-          error
-        );
+        console.error(`Error actualizando stock para producto ${cambio.productoId}:`, error);
       }
     }
 

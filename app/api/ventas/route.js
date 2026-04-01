@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, query, where, getDocs, limit } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, limit, doc, getDoc, writeBatch, increment, serverTimestamp } from "firebase/firestore";
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
@@ -193,6 +193,33 @@ export async function POST(request) {
 
         // Guardar en Firestore
         const docRef = await addDoc(collection(db, "ventas"), ventaParaFirestore);
+        
+        // Descontar stock y registrar movimientos (batch atómico)
+        const batch = writeBatch(db);
+        for (const prod of ventaParaFirestore.productos) {
+          const productoRef = doc(db, "productos", prod.id);
+          const productoSnap = await getDoc(productoRef);
+          if (!productoSnap.exists()) {
+            console.warn(`Producto ${prod.id} no existe; se omite descuento de stock`);
+            continue;
+          }
+          const cant = Math.max(0, Math.ceil(Number(prod.cantidad) || 0));
+          if (cant === 0) continue;
+          batch.update(productoRef, { stock: increment(-cant), fechaActualizacion: serverTimestamp() });
+          const movRef = doc(collection(db, "movimientos"));
+          batch.set(movRef, {
+            productoId: prod.id,
+            tipo: "salida",
+            cantidad: cant,
+            usuario: emailUsuario,
+            fecha: serverTimestamp(),
+            referencia: "venta_ecommerce",
+            referenciaId: docRef.id,
+            observaciones: "Salida por venta integrada",
+            productoNombre: prod.nombre || "",
+          });
+        }
+        await batch.commit();
         
         console.log(`Venta ${ventaData.numeroPedido} guardada con ID:`, docRef.id);
         

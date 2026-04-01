@@ -19,6 +19,7 @@ import {
   addDoc,
   increment,
   serverTimestamp,
+  runTransaction,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, User, Loader2, Printer } from "lucide-react";
@@ -4016,38 +4017,36 @@ const PresupuestoDetalle = () => {
                     cleanVentaData
                   );
 
-                  // Descontar stock y registrar movimientos (igual que en ventas/page.jsx)
+                  // Descontar stock y registrar movimientos (transaccional por producto)
                   for (const prod of cleanVentaData.productos) {
-                    console.log(
-                      "[DEBUG] Intentando descontar stock para producto:",
-                      prod.id
-                    );
-                    const productoRef = doc(db, "productos", prod.id);
-                    const productoSnap = await getDocs(
-                      collection(db, "productos")
-                    );
-                    const existe = productoSnap.docs.find(
-                      (d) => d.id === prod.id
-                    );
-                    if (!existe) {
-                      alert(
-                        `El producto con ID ${prod.id} no existe en el catálogo. No se puede descontar stock ni registrar movimiento.`
-                      );
-                      return;
-                    }
-                    await updateDoc(productoRef, {
-                      stock: increment(-Math.abs(prod.cantidad)),
-                    });
-                    await addDoc(collection(db, "movimientos"), {
-                      productoId: prod.id,
-                      tipo: "salida",
-                      cantidad: prod.cantidad,
-                      usuario: "Sistema",
-                      fecha: serverTimestamp(),
-                      referencia: "venta",
-                      referenciaId: docRef.id,
-                      observaciones: `Salida por venta desde presupuesto`,
-                      productoNombre: prod.nombre,
+                    const productoId = prod.id;
+                    const productoRef = doc(db, "productos", productoId);
+                    await runTransaction(db, async (t) => {
+                      const snap = await t.get(productoRef);
+                      if (!snap.exists()) throw new Error(`Producto ${productoId} no encontrado`);
+                      const data = snap.data();
+                      const stockActual = Number(data.stock) || 0;
+                      const delta = -Math.abs(Number(prod.cantidad) || 0);
+                      const nuevoStock = stockActual + delta;
+                      if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || productoId}`);
+                      t.update(productoRef, { stock: nuevoStock, fechaActualizacion: serverTimestamp() });
+                      const movRef = doc(collection(db, "movimientos"));
+                      t.set(movRef, {
+                        productoId,
+                        tipo: "salida",
+                        cantidad: Math.abs(delta),
+                        usuario: "Sistema",
+                        fecha: serverTimestamp(),
+                        referencia: "venta",
+                        referenciaId: docRef.id,
+                        observaciones: `Salida por venta desde presupuesto`,
+                        productoNombre: data.nombre || prod.nombre || "",
+                        stockAntes: stockActual,
+                        stockDelta: delta,
+                        stockDespues: nuevoStock,
+                        categoria: data.categoria || "Sin categoría",
+                        origen: "sistema_presupuestos",
+                      });
                     });
                   }
 
