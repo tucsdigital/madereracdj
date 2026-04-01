@@ -4027,7 +4027,9 @@ const PresupuestoDetalle = () => {
                       if (!snap.exists()) throw new Error(`Producto ${productoId} no encontrado`);
                       const data = snap.data();
                       const stockActual = Number(data.stock) || 0;
-                      const delta = -Math.abs(Number(prod.cantidad) || 0);
+                      const cant = Math.max(0, Math.ceil(Number(prod.cantidad) || 0));
+                      if (cant === 0) return;
+                      const delta = -cant;
                       const nuevoStock = stockActual + delta;
                       if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || productoId}`);
                       t.update(productoRef, { stock: nuevoStock, fechaActualizacion: serverTimestamp() });
@@ -4035,7 +4037,7 @@ const PresupuestoDetalle = () => {
                       t.set(movRef, {
                         productoId,
                         tipo: "salida",
-                        cantidad: Math.abs(delta),
+                        cantidad: cant,
                         usuario: "Sistema",
                         fecha: serverTimestamp(),
                         referencia: "venta",

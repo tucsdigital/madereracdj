@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, query, where, getDocs, limit, doc, getDoc, writeBatch, increment, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, limit, doc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
@@ -194,32 +194,57 @@ export async function POST(request) {
         // Guardar en Firestore
         const docRef = await addDoc(collection(db, "ventas"), ventaParaFirestore);
         
-        // Descontar stock y registrar movimientos (batch atómico)
-        const batch = writeBatch(db);
+        // Descontar stock y registrar movimientos (transaccional por producto)
+        const porProductoId = new Map();
         for (const prod of ventaParaFirestore.productos) {
-          const productoRef = doc(db, "productos", prod.id);
-          const productoSnap = await getDoc(productoRef);
-          if (!productoSnap.exists()) {
-            console.warn(`Producto ${prod.id} no existe; se omite descuento de stock`);
-            continue;
-          }
-          const cant = Math.max(0, Math.ceil(Number(prod.cantidad) || 0));
+          const productoId = String(prod?.id || "").trim();
+          if (!productoId) continue;
+          const cant = Math.max(0, Math.ceil(Number(prod?.cantidad) || 0));
           if (cant === 0) continue;
-          batch.update(productoRef, { stock: increment(-cant), fechaActualizacion: serverTimestamp() });
-          const movRef = doc(collection(db, "movimientos"));
-          batch.set(movRef, {
-            productoId: prod.id,
-            tipo: "salida",
-            cantidad: cant,
-            usuario: emailUsuario,
-            fecha: serverTimestamp(),
-            referencia: "venta_ecommerce",
-            referenciaId: docRef.id,
-            observaciones: "Salida por venta integrada",
-            productoNombre: prod.nombre || "",
+          const prev = porProductoId.get(productoId);
+          porProductoId.set(productoId, {
+            productoId,
+            cantidad: (prev?.cantidad || 0) + cant,
+            nombre: prev?.nombre || prod?.nombre || "",
           });
         }
-        await batch.commit();
+
+        for (const entry of porProductoId.values()) {
+          const productoRef = doc(db, "productos", entry.productoId);
+          await runTransaction(db, async (t) => {
+            const snap = await t.get(productoRef);
+            if (!snap.exists()) {
+              console.warn(`Producto ${entry.productoId} no existe; se omite descuento de stock`);
+              return;
+            }
+            const data = snap.data() || {};
+            const stockActual = Number(data.stock) || 0;
+            const delta = -entry.cantidad;
+            const nuevoStock = stockActual + delta;
+            if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || entry.nombre || entry.productoId}`);
+            const nowTs = serverTimestamp();
+            t.update(productoRef, { stock: nuevoStock, fechaActualizacion: nowTs });
+            const movRef = doc(collection(db, "movimientos"));
+            t.set(movRef, {
+              productoId: entry.productoId,
+              tipo: "salida",
+              cantidad: entry.cantidad,
+              usuario: emailUsuario,
+              usuarioUid: "",
+              usuarioEmail: emailUsuario,
+              fecha: nowTs,
+              referencia: "venta_ecommerce",
+              referenciaId: docRef.id,
+              observaciones: "Salida por venta integrada",
+              productoNombre: data.nombre || entry.nombre || "",
+              stockAntes: stockActual,
+              stockDelta: delta,
+              stockDespues: nuevoStock,
+              categoria: data.categoria || "Sin categoría",
+              origen: "sistema_ecommerce",
+            });
+          });
+        }
         
         console.log(`Venta ${ventaData.numeroPedido} guardada con ID:`, docRef.id);
         

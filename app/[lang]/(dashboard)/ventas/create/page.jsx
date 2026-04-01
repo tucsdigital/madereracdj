@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, updateDoc, writeBatch, getDocs } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/provider/auth.provider";
 
@@ -52,8 +52,7 @@ export default function CreateVentaPage() {
       );
       const docRef = await addDoc(collection(db, "ventas"), cleanVenta);
 
-      // Descontar stock y registrar movimientos (batch)
-      const batch = writeBatch(db);
+      // Descontar stock y registrar movimientos (transaccional por producto)
       const porProductoId = new Map();
       for (const prod of cleanVenta.productos) {
         const productoId = String(prod?.originalId || prod?.id || "").trim();
@@ -70,23 +69,39 @@ export default function CreateVentaPage() {
 
       for (const entry of porProductoId.values()) {
         const productoRef = doc(db, "productos", entry.productoId);
-        const productoSnap = await getDoc(productoRef);
-        if (!productoSnap.exists()) continue;
-        batch.update(productoRef, { stock: increment(-entry.cantidad) });
-        const movRef = doc(collection(db, "movimientos"));
-        batch.set(movRef, {
-          productoId: entry.productoId,
-          tipo: "salida",
-          cantidad: entry.cantidad,
-          usuario: user?.email || "Sistema",
-          fecha: serverTimestamp(),
-          referencia: "venta",
-          referenciaId: docRef.id,
-          observaciones: "Salida por venta",
-          productoNombre: entry.nombre,
+        await runTransaction(db, async (t) => {
+          const snap = await t.get(productoRef);
+          if (!snap.exists()) return;
+          const data = snap.data() || {};
+          const stockActual = Number(data.stock) || 0;
+          const delta = -entry.cantidad;
+          const nuevoStock = stockActual + delta;
+          if (nuevoStock < 0) {
+            throw new Error(`Stock insuficiente para ${data.nombre || entry.nombre || entry.productoId}`);
+          }
+          const nowTs = serverTimestamp();
+          t.update(productoRef, { stock: nuevoStock, fechaActualizacion: nowTs });
+          const movRef = doc(collection(db, "movimientos"));
+          t.set(movRef, {
+            productoId: entry.productoId,
+            tipo: "salida",
+            cantidad: entry.cantidad,
+            usuario: user?.displayName || user?.email || "Sistema",
+            usuarioUid: user?.uid || "",
+            usuarioEmail: user?.email || "",
+            fecha: nowTs,
+            referencia: "venta",
+            referenciaId: docRef.id,
+            observaciones: "Salida por venta",
+            productoNombre: data.nombre || entry.nombre || "",
+            stockAntes: stockActual,
+            stockDelta: delta,
+            stockDespues: nuevoStock,
+            categoria: data.categoria || "Sin categoría",
+            origen: "sistema_ventas",
+          });
         });
       }
-      await batch.commit();
 
       // Crear envío si corresponde
       if (cleanVenta.tipoEnvio && cleanVenta.tipoEnvio !== "retiro_local") {
@@ -138,4 +153,3 @@ export default function CreateVentaPage() {
     </div>
   );
 }
-

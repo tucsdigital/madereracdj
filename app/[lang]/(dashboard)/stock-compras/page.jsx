@@ -66,6 +66,13 @@ function StockComprasPage() {
   const [movimientosPorPagina, setMovimientosPorPagina] = useState(15);
   const [isLoadingPaginationMov, setIsLoadingPaginationMov] = useState(false);
 
+  // Auditoría ventas vs movimientos
+  const [auditMes, setAuditMes] = useState(new Date().toISOString().slice(0, 7));
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState("");
+  const [auditResult, setAuditResult] = useState(null);
+  const minAuditMes = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
   // Cargar productos en tiempo real
   useEffect(() => {
     setLoadingProd(true);
@@ -592,6 +599,22 @@ function StockComprasPage() {
     }).format(fecha);
   }, []);
 
+  const ejecutarAuditoria = useCallback(async () => {
+    setAuditLoading(true);
+    setAuditError("");
+    try {
+      const resp = await fetch(`/api/v1/stock?auditVentasMes=${encodeURIComponent(auditMes)}&limitVentas=200`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Error al ejecutar auditoría");
+      setAuditResult(data);
+    } catch (e) {
+      setAuditResult(null);
+      setAuditError(e?.message || "Error al ejecutar auditoría");
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [auditMes]);
+
   return (
     <TooltipProvider>
       <div className="py-8 px-2 max-w-8xl mx-auto">
@@ -603,6 +626,7 @@ function StockComprasPage() {
           <TabsList className="mb-4">
             <TabsTrigger value="inventario">Inventario</TabsTrigger>
             <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
+            <TabsTrigger value="auditoria">Auditoría</TabsTrigger>
           </TabsList>
           <TabsContent value="inventario">
             <Card>
@@ -860,6 +884,9 @@ function StockComprasPage() {
                         <TableHead>Fecha</TableHead>
                         <TableHead>Producto</TableHead>
                         <TableHead>Tipo</TableHead>
+                        <TableHead>Stock antes</TableHead>
+                        <TableHead>Delta</TableHead>
+                        <TableHead>Stock después</TableHead>
                         <TableHead>Cantidad</TableHead>
                         <TableHead>Usuario</TableHead>
                         <TableHead>Observaciones</TableHead>
@@ -875,6 +902,17 @@ function StockComprasPage() {
                             {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
                             {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
                           </TableCell>
+                          <TableCell>{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
+                          <TableCell>
+                            {Number.isFinite(Number(m.stockDelta)) ? (
+                              <span className={Number(m.stockDelta) < 0 ? "text-red-700 font-semibold" : Number(m.stockDelta) > 0 ? "text-green-700 font-semibold" : ""}>
+                                {Number(m.stockDelta) > 0 ? `+${Number(m.stockDelta)}` : Number(m.stockDelta)}
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell>{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
                           <TableCell>{m.cantidad}</TableCell>
                           <TableCell>{m.usuario}</TableCell>
                           <TableCell>{m.observaciones}</TableCell>
@@ -904,6 +942,74 @@ function StockComprasPage() {
                         </Button>
                       </div>
                     )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="auditoria">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <CardTitle>Auditoría de Ventas vs Movimientos</CardTitle>
+                <div className="flex gap-2 items-center flex-wrap justify-end">
+                  <Input type="month" min={minAuditMes} value={auditMes} onChange={(e) => setAuditMes(e.target.value)} className="w-44" />
+                  <Button onClick={ejecutarAuditoria} disabled={auditLoading || !auditMes}>
+                    {auditLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Corroborar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                {auditError ? (
+                  <div className="text-red-600 py-4">{auditError}</div>
+                ) : auditResult ? (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Rango:</span> {auditResult.desde} → {auditResult.hasta} ·{" "}
+                      <span className="font-medium">Ventas auditadas:</span> {auditResult.ventasAuditadas} ·{" "}
+                      <span className="font-medium">Con problemas:</span> {auditResult.ventasConProblemas}
+                    </div>
+                    {auditResult.ventasConProblemas === 0 ? (
+                      <div className="p-3 rounded-lg border bg-green-50 text-green-800 flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4" />
+                        No se detectaron discrepancias entre ventas y movimientos.
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Venta</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Producto</TableHead>
+                            <TableHead>Cant. en venta</TableHead>
+                            <TableHead>Delta esperado</TableHead>
+                            <TableHead>Delta en mov.</TableHead>
+                            <TableHead>Mov.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {auditResult.problemas.flatMap((p) =>
+                            (p.discrepancias || []).map((d, idx) => (
+                              <TableRow key={`${p.ventaId}-${d.productoId}-${idx}`}>
+                                <TableCell className="font-mono text-xs">{p.numeroPedido || p.ventaId}</TableCell>
+                                <TableCell>{p.fecha || "-"}</TableCell>
+                                <TableCell>{d.nombre || d.productoId}</TableCell>
+                                <TableCell>{d.cantidadActualEnVenta}</TableCell>
+                                <TableCell className="text-red-700 font-semibold">{d.deltaEsperado}</TableCell>
+                                <TableCell className={d.deltaEnMovimientos === d.deltaEsperado ? "" : "text-amber-700 font-semibold"}>
+                                  {d.deltaEnMovimientos}
+                                </TableCell>
+                                <TableCell>{p.movimientosRelacionados}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">
+                    Ejecutá la auditoría para detectar ventas que no impactaron correctamente en movimientos/stock.
                   </div>
                 )}
               </CardContent>
@@ -1125,6 +1231,9 @@ function StockComprasPage() {
                         <TableRow>
                           <TableHead>Fecha</TableHead>
                           <TableHead>Tipo</TableHead>
+                          <TableHead>Stock antes</TableHead>
+                          <TableHead>Delta</TableHead>
+                          <TableHead>Stock después</TableHead>
                           <TableHead>Cantidad</TableHead>
                           <TableHead>Usuario</TableHead>
                           <TableHead>Observaciones</TableHead>
@@ -1139,6 +1248,17 @@ function StockComprasPage() {
                               {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
                               {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
                             </TableCell>
+                            <TableCell>{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
+                            <TableCell>
+                              {Number.isFinite(Number(m.stockDelta)) ? (
+                                <span className={Number(m.stockDelta) < 0 ? "text-red-700 font-semibold" : Number(m.stockDelta) > 0 ? "text-green-700 font-semibold" : ""}>
+                                  {Number(m.stockDelta) > 0 ? `+${Number(m.stockDelta)}` : Number(m.stockDelta)}
+                                </span>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
                             <TableCell>{m.cantidad}</TableCell>
                             <TableCell>{m.usuario}</TableCell>
                             <TableCell>{m.observaciones}</TableCell>

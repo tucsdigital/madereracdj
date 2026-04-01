@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, deleteDoc, getDoc, collection, serverTimestamp, runTransaction, updateDoc, increment, addDoc } from 'firebase/firestore';
 
 export async function DELETE(request) {
   try {
@@ -36,9 +36,6 @@ export async function DELETE(request) {
 
     // Si es una venta, reponer el stock de los productos y registrar movimientos
     if (collectionName === 'ventas' && documentData.productos) {
-      const batch = [];
-      const movimientosBatch = [];
-      
       for (const producto of documentData.productos) {
         const productoId = String(producto?.originalId || producto?.id || "").trim();
         const cantidadRepuesta = Math.max(0, Math.ceil(Number(producto?.cantidad) || 0));
@@ -47,67 +44,43 @@ export async function DELETE(request) {
           
           // Reponer stock solo si el producto existe
           try {
-            const productoSnap = await getDoc(productoRef);
-            if (productoSnap.exists()) {
-              const productoData = productoSnap.data();
+            await runTransaction(db, async (t) => {
+              const productoSnap = await t.get(productoRef);
+              if (!productoSnap.exists()) return;
+              const productoData = productoSnap.data() || {};
               const stockActual = Number(productoData.stock) || 0;
-              const nuevoStock = stockActual + cantidadRepuesta;
-              
-              // Actualizar stock
-              batch.push(
-                updateDoc(productoRef, {
-                  stock: increment(cantidadRepuesta)
-                })
-              );
-              
-              // Crear movimiento de entrada para reposición
+              const delta = cantidadRepuesta;
+              const nuevoStock = stockActual + delta;
+              const nowTs = serverTimestamp();
+
               const movRef = doc(collection(db, "movimientos"));
-              movimientosBatch.push(
-                addDoc(collection(db, "movimientos"), {
-                  productoId,
-                  tipo: "entrada",
-                  cantidad: cantidadRepuesta,
-                  usuario: userEmail,
-                  usuarioUid: userId,
-                  usuarioEmail: userEmail,
-                  fecha: serverTimestamp(),
-                  referencia: "reposicion_stock_venta_eliminada",
-                  referenciaId: documentId,
-                  observaciones: `Reposición automática de stock por eliminación de venta - Producto: ${producto.nombre || productoData.nombre}`,
-                  productoNombre: producto.nombre || productoData.nombre,
-                  stockAntes: stockActual,
-                  stockDelta: cantidadRepuesta,
-                  stockDespues: nuevoStock,
-                  categoria: productoData.categoria || "Sin categoría",
-                  origen: "sistema_eliminacion"
-                })
-              );
-            }
+              t.set(movRef, {
+                productoId,
+                tipo: "entrada",
+                cantidad: cantidadRepuesta,
+                usuario: userEmail,
+                usuarioUid: userId,
+                usuarioEmail: userEmail,
+                fecha: nowTs,
+                referencia: "reposicion_stock_venta_eliminada",
+                referenciaId: documentId,
+                observaciones: `Reposición automática de stock por eliminación de venta - Producto: ${producto.nombre || productoData.nombre}`,
+                productoNombre: producto.nombre || productoData.nombre,
+                stockAntes: stockActual,
+                stockDelta: delta,
+                stockDespues: nuevoStock,
+                categoria: productoData.categoria || "Sin categoría",
+                origen: "sistema_eliminacion",
+              });
+
+              t.update(productoRef, {
+                stock: nuevoStock,
+                fechaActualizacion: nowTs,
+              });
+            });
           } catch (error) {
             console.error(`Error al reponer stock del producto ${productoId}:`, error);
           }
-        }
-      }
-      
-      // Ejecutar todas las actualizaciones de stock
-      if (batch.length > 0) {
-        try {
-          await Promise.all(batch);
-          console.log(`✅ Stock repuesto para ${batch.length} productos`);
-        } catch (error) {
-          console.error('Error al reponer stock:', error);
-          // Continuar con el borrado aunque falle la reposición de stock
-        }
-      }
-      
-      // Registrar movimientos de reposición
-      if (movimientosBatch.length > 0) {
-        try {
-          await Promise.all(movimientosBatch);
-          console.log(`✅ Movimientos registrados para ${movimientosBatch.length} productos`);
-        } catch (error) {
-          console.error('Error al registrar movimientos:', error);
-          // Continuar aunque falle el registro de movimientos
         }
       }
     }

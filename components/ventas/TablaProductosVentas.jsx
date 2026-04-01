@@ -59,8 +59,7 @@ export function DetalleVentaPresupuestoItemsTable({
             const medidaUnidad = String(measure?.unit || "");
             const medidaValor = Number(measure?.value);
             const showMeasure =
-              Number.isFinite(medidaValor) &&
-              (medidaUnidad === "m²" || medidaUnidad === "m³" || medidaUnidad === "ml");
+              Number.isFinite(medidaValor) && medidaUnidad === "m²";
 
             const base = computeLineBase({ ...producto, cantidad: qty });
             const subtotal = computeLineSubtotal({ ...producto, cantidad: qty });
@@ -89,9 +88,7 @@ export function DetalleVentaPresupuestoItemsTable({
                   {producto?.categoria === "Maderas" && producto?.cepilladoAplicado ? "✓" : "No"}
                 </td>
                 <td className="p-3 text-center font-semibold">
-                  {producto?.categoria === "Maderas" && producto?.calibradoAplicado
-                    ? `✓ ${Number(producto?.calibradoPorcentaje ?? 3)}%`
-                    : "No"}
+                  {producto?.categoria === "Maderas" && producto?.calibradoAplicado ? "✓" : "No"}
                 </td>
                 {!paraEmpleado && (
                   <td className="p-3 text-right font-semibold tabular-nums precio-empleado">
