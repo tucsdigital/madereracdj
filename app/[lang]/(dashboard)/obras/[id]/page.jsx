@@ -90,6 +90,15 @@ const ObraDetallePage = () => {
     setNotasObra(Array.isArray(obra.notasObra) ? obra.notasObra : (Array.isArray(obra.notas) ? obra.notas : []));
   }, [obra]);
 
+  useEffect(() => {
+    if (obra?.numeroPedido) {
+      document.title = obra.numeroPedido;
+    }
+    return () => {
+      document.title = "Maderas Caballero - Panel Administrativo";
+    };
+  }, [obra?.numeroPedido]);
+
   const handlePrint = () => {
     if (!obra?.id || printingRef.current) return;
     printingRef.current = true;

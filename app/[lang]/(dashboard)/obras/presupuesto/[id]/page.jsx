@@ -89,13 +89,19 @@ const PresupuestoPage = () => {
     guardarEdicion,
   } = useObra(id);
 
+  useEffect(() => {
+    if (obra?.numeroPedido) {
+      document.title = obra.numeroPedido;
+    }
+    return () => {
+      document.title = "Maderas Caballero - Panel Administrativo";
+    };
+  }, [obra?.numeroPedido]);
 
-
-
-  const handlePrint = () => {
     if (!obra?.id || printingRef.current) return;
     printingRef.current = true;
     try {
+      fetch("/api/pdf/remito-html", {
       fetch("/api/pdf/remito-html", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
