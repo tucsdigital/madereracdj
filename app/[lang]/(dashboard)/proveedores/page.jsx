@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Save, X, Eye, Building2, Phone, Mail, FileText } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -61,6 +61,14 @@ const ProveedoresPage = () => {
     
     // Solo consultar si es un proveedor diferente al actualmente seleccionado
     if (selectedProveedor?.id !== proveedor.id) {
+      const proveedorSnap = await getDoc(doc(db, "proveedores", proveedor.id));
+      if (proveedorSnap.exists()) {
+        const proveedorActualizado = { id: proveedorSnap.id, ...proveedorSnap.data() };
+        setSelectedProveedor(proveedorActualizado);
+        setEditProveedor({ ...proveedorActualizado });
+        setProveedores((prev) => prev.map((p) => (p.id === proveedorActualizado.id ? proveedorActualizado : p)));
+      }
+
       // Consultar cuentas por pagar (gastos de tipo proveedor)
       const gastosSnap = await getDocs(
         query(collection(db, "gastos"), 
@@ -119,11 +127,13 @@ const ProveedoresPage = () => {
   };
 
   // Calcular totales del proveedor
-  const calcularTotales = (cuentas) => {
+  const calcularTotales = (cuentas, saldoAFavor) => {
     const total = cuentas.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
     const pagado = cuentas.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
-    const pendiente = total - pagado;
-    return { total, pagado, pendiente };
+    const pendienteBruto = total - pagado;
+    const saldoAFavorNum = Number(saldoAFavor) || 0;
+    const pendienteNeto = Math.max(pendienteBruto - saldoAFavorNum, 0);
+    return { total, pagado, pendienteBruto, saldoAFavor: saldoAFavorNum, pendienteNeto };
   };
 
   return (
@@ -603,12 +613,12 @@ const ProveedoresPage = () => {
                 {detalleTab === 'cuentas' && (
                   <div className="mt-4">
                     {/* Resumen financiero */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                       <Card>
                         <CardContent className="p-4">
                           <div className="text-sm text-gray-500">Total Compras</div>
                           <div className="text-2xl font-bold text-blue-600">
-                            ${calcularTotales(cuentasPorPagar).total.toLocaleString("es-AR")}
+                            ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).total.toLocaleString("es-AR")}
                           </div>
                           <div className="text-xs text-gray-400 mt-1">
                             {cuentasPorPagar.length} cuenta{cuentasPorPagar.length !== 1 ? 's' : ''} registrada{cuentasPorPagar.length !== 1 ? 's' : ''}
@@ -619,15 +629,26 @@ const ProveedoresPage = () => {
                         <CardContent className="p-4">
                           <div className="text-sm text-gray-500">Total Pagado</div>
                           <div className="text-2xl font-bold text-green-600">
-                            ${calcularTotales(cuentasPorPagar).pagado.toLocaleString("es-AR")}
+                            ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pagado.toLocaleString("es-AR")}
                           </div>
                         </CardContent>
                       </Card>
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-500">Saldo Pendiente</div>
+                          <div className="text-sm text-gray-500">Saldo Pendiente (neto)</div>
                           <div className="text-2xl font-bold text-red-600">
-                            ${calcularTotales(cuentasPorPagar).pendiente.toLocaleString("es-AR")}
+                            ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pendienteNeto.toLocaleString("es-AR")}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Bruto: ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pendienteBruto.toLocaleString("es-AR")}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="text-sm text-gray-500">Saldo a Favor</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).saldoAFavor.toLocaleString("es-AR")}
                           </div>
                         </CardContent>
                       </Card>
@@ -647,6 +668,12 @@ const ProveedoresPage = () => {
                             const montoTotal = Number(cuenta.monto) || 0;
                             const saldo = montoTotal - montoPagado;
                             const porcentajePagado = montoTotal > 0 ? (montoPagado / montoTotal) * 100 : 0;
+                            const estadoLabel =
+                              cuenta.estadoPago === "pagado"
+                                ? "Pagado"
+                                : cuenta.estadoPago === "parcial"
+                                ? "Pagado Parcial"
+                                : "Pendiente";
                             
                             return (
                               <div key={cuenta.id} className="bg-white p-3 rounded-lg border border-gray-200">
@@ -659,11 +686,11 @@ const ProveedoresPage = () => {
                                     </div>
                                   </div>
                                   <Badge className={
-                                    cuenta.estadoPago === "Pagado" ? "bg-green-100 text-green-800 border-green-200" :
-                                    cuenta.estadoPago === "Pagado Parcial" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                                    cuenta.estadoPago === "pagado" ? "bg-green-100 text-green-800 border-green-200" :
+                                    cuenta.estadoPago === "parcial" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
                                     "bg-red-100 text-red-800 border-red-200"
                                   }>
-                                    {cuenta.estadoPago || "Pendiente"}
+                                    {estadoLabel}
                                   </Badge>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 text-sm">
@@ -689,6 +716,26 @@ const ProveedoresPage = () => {
                                     />
                                   </div>
                                 </div>
+                                {cuenta.pagos && cuenta.pagos.length > 0 && (
+                                  <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-2">
+                                    <div className="text-xs text-gray-600 font-semibold mb-1">
+                                      Pagos ({cuenta.pagos.length})
+                                    </div>
+                                    <div className="space-y-1">
+                                      {[...cuenta.pagos].slice(-3).reverse().map((pago, idx) => (
+                                        <div key={idx} className="flex items-center justify-between text-xs">
+                                          <div className="text-gray-600">
+                                            {pago.fecha || "-"} · {pago.metodo || "Efectivo"}
+                                            {pago.pagoGlobalProveedor ? " · Pago global" : ""}
+                                          </div>
+                                          <div className="font-semibold text-green-700">
+                                            ${Number(pago.monto || 0).toLocaleString("es-AR")}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

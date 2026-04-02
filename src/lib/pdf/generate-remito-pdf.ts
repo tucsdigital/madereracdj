@@ -73,10 +73,15 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
               ${item.detalle ? `<div style="font-size: 10px; font-weight: 500; margin-top: 2px;">${safe(item.detalle, "")}</div>` : ""}
             </td>
             <td style="padding: 4px 6px; text-align: center; font-weight: 800; color: #000000; font-size: 12px;">
+              <div style="font-size: 12px; font-weight: 900; color: #000000;">
+                ${Math.max(1, Math.ceil(Number(item.cantidad) || 1))}
+              </div>
               ${
                 item.medidaUnidad === "m²" && item.medidaValor !== undefined
-                  ? `<div style="font-size: 12px; font-weight: 900; color: #000000;">${formatNumber(item.medidaValor)} ${escapeHtml(String(item.medidaUnidad))}</div>`
-                  : `<div>${Math.max(1, Math.ceil(Number(item.cantidad) || 1))}</div>`
+                  ? `<div style="margin-top: 1px; font-size: 10.5px; font-weight: 800; color: #000000;">
+                      ${formatNumber(item.medidaValor)} ${escapeHtml(String(item.medidaUnidad))}
+                    </div>`
+                  : ``
               }
             </td>
             <td style="padding: 4px 6px; text-align: center; color: #000000; font-size: 11px; font-weight: 700;">${item.cepillado ? "✓" : "No"}</td>

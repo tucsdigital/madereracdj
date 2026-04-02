@@ -113,11 +113,13 @@ const PresupuestoPage = () => {
         .then((html) => {
           const iframe = document.createElement("iframe");
           iframe.style.position = "fixed";
-          iframe.style.right = "0";
-          iframe.style.bottom = "0";
-          iframe.style.width = "0";
-          iframe.style.height = "0";
+          iframe.style.left = "0";
+          iframe.style.top = "0";
+          iframe.style.width = "1px";
+          iframe.style.height = "1px";
           iframe.style.border = "none";
+          iframe.style.opacity = "0";
+          iframe.style.pointerEvents = "none";
           document.body.appendChild(iframe);
 
           let printed = false;
@@ -142,13 +144,14 @@ const PresupuestoPage = () => {
             }, 2000);
           };
 
-          iframe.contentDocument?.open();
-          iframe.contentDocument?.write(html);
-          iframe.contentDocument?.close();
+          iframe.onload = () => {
+            printOnce();
+          };
+          iframe.srcdoc = html;
 
           timeoutId = setTimeout(() => {
             printOnce();
-          }, 500);
+          }, 1500);
         })
         .catch(() => {
           printingRef.current = false;
@@ -261,7 +264,7 @@ const PresupuestoPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="">
       <ObraHeader
         obra={obra}
         editando={editando}
