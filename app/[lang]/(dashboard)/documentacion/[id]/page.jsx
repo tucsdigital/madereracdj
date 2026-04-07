@@ -15,7 +15,7 @@ import { DOCUMENTO_ESTADOS, canEditarDocumento, canEmitirDocumento, canGenerarLi
 import { DOCUMENTACION_TEXTOS } from "@/lib/documentacion-texts";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Send } from "lucide-react";
 
 const safeJson = async (res) => {
   try {
@@ -193,6 +193,12 @@ export default function DocumentacionDetailPage() {
     }
   }, [user, id, load]);
 
+  const emitirUi = useCallback(async () => {
+    if (!canEmit || saving || acting) return;
+    await save();
+    await emitir();
+  }, [canEmit, saving, acting, save, emitir]);
+
   const generarLink = useCallback(async () => {
     if (!user) return;
     setActing(true);
@@ -350,6 +356,8 @@ export default function DocumentacionDetailPage() {
     );
   }
 
+  const isDraft = (item?.estado || DOCUMENTO_ESTADOS.BORRADOR) === DOCUMENTO_ESTADOS.BORRADOR;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -361,29 +369,61 @@ export default function DocumentacionDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/${lang}/documentacion`}>Volver</Link>
-          </Button>
-          <Button onClick={save} disabled={!canEdit || saving}>
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              "Guardar"
-            )}
-          </Button>
-          <Button variant="outline" onClick={emitir} disabled={!canEmit || acting}>
-            {acting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              "Emitir"
-            )}
-          </Button>
+          {isDraft ? (
+            <>
+              <Button variant="outline" asChild>
+                <Link href={`/${lang}/documentacion`} className="inline-flex items-center">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={emitirUi} disabled={!canEmit || acting || saving}>
+                {acting || saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Emitir
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" asChild>
+                <Link href={`/${lang}/documentacion`} className="inline-flex items-center">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver
+                </Link>
+              </Button>
+              <Button onClick={save} disabled={!canEdit || saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar"
+                )}
+              </Button>
+              <Button variant="outline" onClick={emitirUi} disabled={!canEmit || acting || saving}>
+                {acting || saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Emitir
+                  </>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
