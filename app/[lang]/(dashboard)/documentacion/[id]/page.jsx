@@ -53,6 +53,28 @@ const htmlToText = (html) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+const formatDateTimeAr = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "-";
+  const ms = Date.parse(raw);
+  if (!Number.isFinite(ms)) return raw;
+  try {
+    const formatted = new Intl.DateTimeFormat("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(new Date(ms));
+    return formatted.replace(",", "");
+  } catch {
+    return raw;
+  }
+};
+
 export default function DocumentacionDetailPage() {
   const { lang, id } = useParams();
   const router = useRouter();
@@ -576,33 +598,35 @@ export default function DocumentacionDetailPage() {
         <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Creación</div>
-            <div className="text-sm font-medium">{item.createdAt || "-"}</div>
+            <div className="text-sm font-medium">{formatDateTimeAr(item.createdAt)}</div>
             <div className="text-xs text-default-500">{item.createdByEmail || "-"}</div>
           </div>
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Última edición</div>
-            <div className="text-sm font-medium">{item.updatedAt || "-"}</div>
+            <div className="text-sm font-medium">{formatDateTimeAr(item.updatedAt)}</div>
             <div className="text-xs text-default-500">{item.updatedByEmail || "-"}</div>
           </div>
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Apertura link</div>
-            <div className="text-sm font-medium">{item?.public?.lastOpenedAt || "-"}</div>
+            <div className="text-sm font-medium">{formatDateTimeAr(item?.public?.lastOpenedAt)}</div>
             <div className="text-xs text-default-500">{item?.public?.lastIp || "-"}</div>
           </div>
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Lectura confirmada</div>
-            <div className="text-sm font-medium">{item?.public?.readConfirmedAt || "-"}</div>
+            <div className="text-sm font-medium">{formatDateTimeAr(item?.public?.readConfirmedAt)}</div>
           </div>
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Firma</div>
-            <div className="text-sm font-medium">{item?.public?.signedAt || "-"}</div>
+            <div className="text-sm font-medium">{formatDateTimeAr(item?.public?.signedAt)}</div>
             <div className="text-xs text-default-500">{item?.signed?.nombreApellido || "-"}</div>
           </div>
           <div className="rounded-md border border-default-200 p-3">
             <div className="text-xs text-default-500">Envíos</div>
             <div className="text-sm font-medium">{Array.isArray(item.envios) ? item.envios.length : 0}</div>
             <div className="text-xs text-default-500">
-              {Array.isArray(item.envios) && item.envios[0] ? `${item.envios[0].metodo} · ${item.envios[0].at}` : "-"}
+              {Array.isArray(item.envios) && item.envios[0]
+                ? `${item.envios[0].metodo} · ${formatDateTimeAr(item.envios[0].at)}`
+                : "-"}
             </div>
           </div>
         </CardContent>

@@ -20,6 +20,27 @@ const stripDataUrlPrefix = (dataUrl) => {
 
 const buildSignedHtml = ({ numero, titulo, cliente, obra, ubicacion, contentHtml, legalHtml, signed }) => {
   const safe = (v) => String(v || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const formatDateTimeAr = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const ms = Date.parse(raw);
+    if (!Number.isFinite(ms)) return raw;
+    try {
+      const formatted = new Intl.DateTimeFormat("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).format(new Date(ms));
+      return formatted.replace(",", "");
+    } catch {
+      return raw;
+    }
+  };
   const row = (label, value) =>
     `<div style="display:flex; gap:10px; margin: 2px 0;"><div style="width:170px; color:#374151; font-weight:700;">${safe(
       label
@@ -64,18 +85,6 @@ const buildSignedHtml = ({ numero, titulo, cliente, obra, ubicacion, contentHtml
       </div>
 
       <div style="background:#fff; margin-top: 12px; border-radius: 14px; border:1px solid #e5e7eb; overflow:hidden;">
-        <div style="padding: 14px 16px; border-bottom:1px solid #e5e7eb;">
-          <div style="font-weight: 900; color:#111827;">Datos</div>
-          <div style="margin-top: 8px; font-size: 13px;">
-            ${row("Cliente", cliente?.nombre || "")}
-            ${row("Teléfono", cliente?.telefono || "")}
-            ${row("Email", cliente?.email || "")}
-            ${row("DNI/CUIT", cliente?.cuit || "")}
-            ${row("Obra", obra?.numeroPedido || "")}
-            ${row("Ubicación", (ubicacion?.direccion || cliente?.direccion || "") + (ubicacion?.localidad ? `, ${ubicacion.localidad}` : ""))}
-          </div>
-        </div>
-
         <div style="padding: 16px;">
           <div style="font-weight: 900; color:#111827; margin-bottom: 10px;">Documento</div>
           <div style="font-size: 14px; color:#111827; line-height: 1.55;">${contentHtml || ""}</div>
@@ -100,7 +109,7 @@ const buildSignedHtml = ({ numero, titulo, cliente, obra, ubicacion, contentHtml
             ${row("Conformidad", signed?.conformeObra ? "Sí" : "No")}
             ${row("Nombre y apellido", signed?.nombreApellido || "")}
             ${row("DNI/CUIT", signed?.identificacion || "")}
-            ${row("Fecha y hora", signed?.at || "")}
+            ${row("Fecha y hora", formatDateTimeAr(signed?.at))}
           </div>
         </div>
         <div style="padding: 16px;">
