@@ -538,7 +538,7 @@ export default function DocumentacionDetailPage() {
                     className="w-full"
                     variant="outline"
                     onClick={() => enviar("email")}
-                    disabled={acting || !item?.cliente?.email}
+                    disabled={acting}
                   >
                     Enviar email
                   </Button>
@@ -546,7 +546,7 @@ export default function DocumentacionDetailPage() {
                     className="w-full"
                     variant="outline"
                     onClick={openWhatsapp}
-                    disabled={acting || !item?.cliente?.telefono}
+                    disabled={acting}
                   >
                     Abrir WhatsApp
                   </Button>
