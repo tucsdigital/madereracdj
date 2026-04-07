@@ -421,16 +421,6 @@ export default function DocumentacionDetailPage() {
                   Volver
                 </Link>
               </Button>
-              <Button onClick={save} disabled={!canEdit || saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  "Guardar"
-                )}
-              </Button>
               <Button variant="outline" onClick={emitirUi} disabled={!canEmit || acting || saving}>
                 {acting || saving ? (
                   <>
