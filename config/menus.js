@@ -4,7 +4,7 @@ import {
   Building,
   Settings,
 } from "@/components/svg";
-import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign } from "lucide-react";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign, FileText } from "lucide-react";
 
 export const menusConfig = {
   mainNav: [
@@ -52,6 +52,11 @@ export const menusConfig = {
       title: "Obras",
       icon: Briefcase,
       href: "/obras",
+    },
+    {
+      title: "Documentación",
+      icon: FileText,
+      href: "/documentacion",
     },
     {
       title: "Clientes",
@@ -120,6 +125,11 @@ export const menusConfig = {
         title: "Obras",
         icon: Briefcase,
         href: "/obras",
+      },
+      {
+        title: "Documentación",
+        icon: FileText,
+        href: "/documentacion",
       },
       {
         title: "Clientes",
@@ -191,6 +201,11 @@ export const menusConfig = {
         title: "Obras",
         icon: Briefcase,
         href: "/obras",
+      },
+      {
+        title: "Documentación",
+        icon: FileText,
+        href: "/documentacion",
       },
       {
         title: "Clientes",

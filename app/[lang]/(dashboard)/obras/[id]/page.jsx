@@ -1101,6 +1101,8 @@ const ObraDetallePage = () => {
             </CardHeader>
             <CardContent className="space-y-6">
                 <ObraDocumentacion
+                  obraId={obra?.id || id}
+                  lang={lang}
                   docLinks={docLinks}
                   onDocLinksChange={setDocLinks}
                   editando={editando}

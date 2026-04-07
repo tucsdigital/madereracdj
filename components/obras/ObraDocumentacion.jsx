@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,8 @@ import { Icon } from "@iconify/react";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
 
 const ObraDocumentacion = ({ 
+  obraId,
+  lang,
   docLinks, 
   onDocLinksChange, 
   editando 
@@ -40,9 +43,18 @@ const ObraDocumentacion = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon icon="heroicons:document-text" className="w-5 h-5" />
-          Documentación
+        <CardTitle className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Icon icon="heroicons:document-text" className="w-5 h-5" />
+            Documentación
+          </div>
+          {obraId ? (
+            <Button size="sm" asChild>
+              <Link href={`/${lang || "es"}/documentacion/create?obraId=${encodeURIComponent(String(obraId))}`}>
+                Crear documento
+              </Link>
+            </Button>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
