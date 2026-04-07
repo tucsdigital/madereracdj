@@ -343,8 +343,8 @@ export default function PublicDocumentoPage() {
   }
 
   const docTitle = `${docu?.numero || ""}${docu?.titulo ? ` - ${docu.titulo}` : ""}`.trim() || t.titulo;
-  const headerCliente = useMemo(() => getDocClienteNombre(docu) || "-", [docu]);
-  const headerObra = useMemo(() => getDocObraNumero(docu) || "-", [docu]);
+  const headerCliente = getDocClienteNombre(docu) || "-";
+  const headerObra = getDocObraNumero(docu) || "-";
 
   return (
     <div className="min-h-screen bg-default-50 py-10">
