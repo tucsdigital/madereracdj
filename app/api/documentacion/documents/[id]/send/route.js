@@ -47,7 +47,7 @@ export async function POST(request, { params }) {
     if (metodo !== "email" && metodo !== "whatsapp") {
       return NextResponse.json({ ok: false, error: "Método inválido" }, { status: 400 });
     }
-    const destinatario = String(body?.destinatario || "").trim();
+    const destinatarioRaw = String(body?.destinatario || "").trim();
     const lang = String(body?.lang || "es").trim() || "es";
     const ttlDays = Math.max(1, Math.min(60, Number(body?.ttlDays || 14)));
 
@@ -84,9 +84,15 @@ export async function POST(request, { params }) {
     const descripcionText = htmlToText(descripcionHtml);
     const cuerpoEmail = DOCUMENTACION_TEXTOS.envio.cuerpoEmail(clienteNombre, empresaNombre, publicUrl, descripcionText);
 
+    const destinatarioFallback =
+      metodo === "email"
+        ? String(current?.cliente?.email || current?.inputs?.clienteEmail || "").trim()
+        : String(current?.cliente?.telefono || current?.inputs?.clienteTelefono || "").trim();
+    const destinatario = destinatarioRaw || destinatarioFallback;
+
     let whatsappUrl = "";
     if (metodo === "whatsapp") {
-      const phone = normalizePhone(destinatario || current?.cliente?.telefono || "");
+      const phone = normalizePhone(destinatario);
       if (!phone) {
         return NextResponse.json({ ok: false, error: "Teléfono inválido" }, { status: 400 });
       }
@@ -137,6 +143,12 @@ export async function POST(request, { params }) {
     await ref.set(
       {
         estado: nextEstado,
+        inputs:
+          metodo === "email"
+            ? { ...(current.inputs || {}), clienteEmail: destinatario }
+            : metodo === "whatsapp"
+              ? { ...(current.inputs || {}), clienteTelefono: destinatario }
+              : current.inputs || null,
         public: {
           ...(current.public || {}),
           tokenHash,

@@ -84,6 +84,16 @@ export default function DocumentacionCreatePage() {
     if (obraIdQuery) loadObra().catch(() => {});
   }, [obraIdQuery, loadObra]);
 
+  useEffect(() => {
+    const email = String(form?.cliente?.email || "").trim();
+    if (!email) return;
+    setFieldValues((prev) => {
+      const current = String(prev?.clienteEmail || "").trim();
+      if (current) return prev;
+      return { ...(prev || {}), clienteEmail: email };
+    });
+  }, [form?.cliente?.email]);
+
   const selectedTemplate = useMemo(() => {
     return {
       id: "manual",
@@ -310,6 +320,16 @@ export default function DocumentacionCreatePage() {
                   <Input value={selectedTemplate?.nombre || form.titulo} readOnly />
                 </div>
               )}
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-default-700">Email del cliente (opcional)</div>
+                <Input
+                  type="email"
+                  inputMode="email"
+                  placeholder="cliente@ejemplo.com"
+                  value={String(fieldValues?.clienteEmail ?? "")}
+                  onChange={(e) => setFieldValues((p) => ({ ...(p || {}), clienteEmail: e.target.value }))}
+                />
+              </div>
               <div className="space-y-2">
                 <div className="text-sm font-medium text-default-700">Por Nº de Obra</div>
                 <div className="flex items-center gap-2">

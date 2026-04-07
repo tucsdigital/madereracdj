@@ -107,6 +107,7 @@ export default function DocumentacionDetailPage() {
   const [ttlDays, setTtlDays] = useState(7);
   const [includeLegal, setIncludeLegal] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
+  const [emailToSend, setEmailToSend] = useState("");
 
   const canEdit = useMemo(() => canEditarDocumento(item), [item]);
   const canEmit = useMemo(() => canEmitirDocumento(item), [item]);
@@ -140,6 +141,10 @@ export default function DocumentacionDetailPage() {
 
   useEffect(() => {
     setIncludeLegal(Boolean(String(item?.legalHtml || "").trim()));
+  }, [item?.id]);
+
+  useEffect(() => {
+    setEmailToSend(getDocClientEmail(item));
   }, [item?.id]);
 
   useEffect(() => {
@@ -302,9 +307,11 @@ export default function DocumentacionDetailPage() {
   }, []);
 
   const enviar = useCallback(
-    async (metodo) => {
+    async (metodo, overrideDestinatario) => {
       if (!user || !item) return;
-      const destinatario = metodo === "email" ? getDocClientEmail(item) : getDocClientPhoneRaw(item);
+      const destinatario =
+        String(overrideDestinatario || "").trim() ||
+        (metodo === "email" ? getDocClientEmail(item) : getDocClientPhoneRaw(item));
       if (metodo === "email" && !destinatario) {
         toast({ title: "Falta email del cliente", variant: "destructive" });
         return;
@@ -559,11 +566,22 @@ export default function DocumentacionDetailPage() {
 
               {canShare ? (
                 <div className="space-y-2">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-default-700">Email para envío</div>
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      placeholder="cliente@ejemplo.com"
+                      value={emailToSend}
+                      onChange={(e) => setEmailToSend(e.target.value)}
+                      disabled={acting}
+                    />
+                  </div>
                   <Button
                     className="w-full"
                     variant="outline"
-                    onClick={() => enviar("email")}
-                    disabled={acting || !getDocClientEmail(item)}
+                    onClick={() => enviar("email", emailToSend)}
+                    disabled={acting || !String(emailToSend || "").trim()}
                   >
                     Enviar email
                   </Button>
