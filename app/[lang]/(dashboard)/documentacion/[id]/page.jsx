@@ -75,6 +75,24 @@ const formatDateTimeAr = (value) => {
   }
 };
 
+const isExpired = (expiresAt) => {
+  const ms = Date.parse(String(expiresAt || ""));
+  if (!Number.isFinite(ms)) return false;
+  return ms < Date.now();
+};
+
+const getDocClientEmail = (doc) => String(doc?.cliente?.email || doc?.inputs?.clienteEmail || "").trim();
+
+const getDocClientPhoneRaw = (doc) => {
+  const fromCliente = String(doc?.cliente?.telefono || "").trim();
+  if (fromCliente) return fromCliente;
+  const fromInputs = String(doc?.inputs?.clienteTelefono || "").trim();
+  if (fromInputs) return fromInputs;
+  const text = htmlToText(doc?.contentHtml || "");
+  const m = text.match(/Tel[eé]fono:\s*([0-9+()\-\s]{6,})/i);
+  return String(m?.[1] || "").trim();
+};
+
 export default function DocumentacionDetailPage() {
   const { lang, id } = useParams();
   const router = useRouter();
@@ -286,8 +304,15 @@ export default function DocumentacionDetailPage() {
   const enviar = useCallback(
     async (metodo) => {
       if (!user || !item) return;
-      const destinatario =
-        metodo === "email" ? String(item?.cliente?.email || "") : String(item?.cliente?.telefono || "");
+      const destinatario = metodo === "email" ? getDocClientEmail(item) : getDocClientPhoneRaw(item);
+      if (metodo === "email" && !destinatario) {
+        toast({ title: "Falta email del cliente", variant: "destructive" });
+        return;
+      }
+      if (metodo === "whatsapp" && !normalizePhone(destinatario)) {
+        toast({ title: "Falta teléfono del cliente", variant: "destructive" });
+        return;
+      }
       setActing(true);
       try {
         const token = await user.getIdToken();
@@ -334,7 +359,7 @@ export default function DocumentacionDetailPage() {
   }, [item, publicUrl]);
 
   const waLink = useMemo(() => {
-    const phone = normalizePhone(item?.cliente?.telefono || "");
+    const phone = normalizePhone(getDocClientPhoneRaw(item));
     if (!phone || !publicUrl) return "";
     const text = encodeURIComponent(mensajes.mensajeWhatsapp);
     return `https://wa.me/${phone}?text=${text}`;
@@ -538,7 +563,7 @@ export default function DocumentacionDetailPage() {
                     className="w-full"
                     variant="outline"
                     onClick={() => enviar("email")}
-                    disabled={acting}
+                    disabled={acting || !getDocClientEmail(item)}
                   >
                     Enviar email
                   </Button>
@@ -546,7 +571,7 @@ export default function DocumentacionDetailPage() {
                     className="w-full"
                     variant="outline"
                     onClick={openWhatsapp}
-                    disabled={acting}
+                    disabled={acting || !normalizePhone(getDocClientPhoneRaw(item))}
                   >
                     Abrir WhatsApp
                   </Button>
