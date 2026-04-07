@@ -473,7 +473,6 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-}
 
 /* Estilos para la tabla con soporte dark/light */
 .table-custom {
@@ -905,3 +904,48 @@
     @apply w-80;
   }
 } 
+
+.documentacion-html {
+  line-height: 1.6;
+}
+
+.documentacion-html p,
+.documentacion-html div {
+  margin: 0 0 0.9rem !important;
+}
+
+.documentacion-html h1,
+.documentacion-html h2,
+.documentacion-html h3,
+.documentacion-html h4,
+.documentacion-html h5,
+.documentacion-html h6 {
+  margin: 1rem 0 0.6rem !important;
+}
+
+.documentacion-html ul,
+.documentacion-html ol {
+  margin: 0 0 0.9rem !important;
+  padding-left: 1.25rem !important;
+}
+
+.documentacion-html li {
+  margin: 0.25rem 0 !important;
+}
+
+.documentacion-html > :last-child {
+  margin-bottom: 0;
+}
+
+.snow-editor .ql-editor {
+  line-height: 1.6;
+}
+
+.snow-editor .ql-editor p,
+.snow-editor .ql-editor div {
+  margin: 0 0 0.9rem !important;
+}
+
+.snow-editor .ql-editor > :last-child {
+  margin-bottom: 0;
+}

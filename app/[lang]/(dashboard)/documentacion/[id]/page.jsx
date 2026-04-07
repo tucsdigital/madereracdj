@@ -512,7 +512,7 @@ export default function DocumentacionDetailPage() {
                 <div className="text-sm font-medium text-default-700">Descripción</div>
                 <div className="rounded-md border border-default-200 p-4 bg-background">
                   <div
-                    className="prose prose-sm max-w-none text-default-900"
+                    className="documentacion-html prose prose-sm max-w-none text-default-900"
                     dangerouslySetInnerHTML={{ __html: String(item.template.descripcionHtml || "") }}
                   />
                 </div>
@@ -523,7 +523,7 @@ export default function DocumentacionDetailPage() {
               <div className="rounded-md border border-default-200 p-4 bg-background">
                 {String(item?.contentHtml || "").trim() ? (
                   <div
-                    className="prose prose-sm max-w-none text-default-900"
+                    className="documentacion-html prose prose-sm max-w-none text-default-900"
                     dangerouslySetInnerHTML={{ __html: String(item.contentHtml || "") }}
                   />
                 ) : (

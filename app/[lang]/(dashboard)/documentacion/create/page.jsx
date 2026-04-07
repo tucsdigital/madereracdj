@@ -466,7 +466,10 @@ export default function DocumentacionCreatePage() {
                     </div>
                     {!editBody ? (
                       <div className="rounded-md border border-default-200 p-4 bg-background">
-                        <div className="prose prose-sm max-w-none text-default-900" dangerouslySetInnerHTML={{ __html: bodyPreviewHtml }} />
+                        <div
+                          className="documentacion-html prose prose-sm max-w-none text-default-900"
+                          dangerouslySetInnerHTML={{ __html: bodyPreviewHtml }}
+                        />
                       </div>
                     ) : null}
                   </div>

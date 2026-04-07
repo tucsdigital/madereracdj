@@ -16,6 +16,39 @@ const safeJson = async (res) => {
   }
 };
 
+const htmlToText = (html) =>
+  String(html || "")
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/\s*div\s*>/gi, "\n")
+    .replace(/<\/\s*p\s*>/gi, "\n")
+    .replace(/<\/\s*h[1-6]\s*>/gi, "\n")
+    .replace(/<\/\s*li\s*>/gi, "\n")
+    .replace(/<\/\s*tr\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+const getDocClienteNombre = (doc) => {
+  const fromDoc = String(doc?.cliente?.nombre || "").trim();
+  if (fromDoc) return fromDoc;
+  const fromInputs = String(doc?.inputs?.clienteNombre || "").trim();
+  if (fromInputs) return fromInputs;
+  const text = htmlToText(doc?.contentHtml || "");
+  const m = text.match(/Nombre y Apellido:\s*([^\n\r]+)/i);
+  return String(m?.[1] || "").trim();
+};
+
+const getDocObraNumero = (doc) => {
+  const fromDoc = String(doc?.obra?.numeroPedido || doc?.obra?.numero || "").trim();
+  if (fromDoc) return fromDoc;
+  const fromInputs = String(doc?.inputs?.obraNumero || "").trim();
+  if (fromInputs) return fromInputs;
+  const text = htmlToText(doc?.contentHtml || "");
+  const m = text.match(/OBRA\s*N[°ºo]?:\s*([^\n\r]+)/i);
+  return String(m?.[1] || "").trim();
+};
+
 const SignaturePad = ({ value, onChange }) => {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
@@ -310,6 +343,8 @@ export default function PublicDocumentoPage() {
   }
 
   const docTitle = `${docu?.numero || ""}${docu?.titulo ? ` - ${docu.titulo}` : ""}`.trim() || t.titulo;
+  const headerCliente = useMemo(() => getDocClienteNombre(docu) || "-", [docu]);
+  const headerObra = useMemo(() => getDocObraNumero(docu) || "-", [docu]);
 
   return (
     <div className="min-h-screen bg-default-50 py-10">
@@ -328,19 +363,25 @@ export default function PublicDocumentoPage() {
             <div className="grid grid-cols-1 gap-2 text-sm text-default-700 md:grid-cols-2">
               <div className="rounded-md border border-default-200 bg-background p-3">
                 <div className="text-xs text-default-500">Cliente</div>
-                <div className="font-medium">{docu?.cliente?.nombre || "-"}</div>
+                <div className="font-medium">{headerCliente}</div>
               </div>
               <div className="rounded-md border border-default-200 bg-background p-3">
                 <div className="text-xs text-default-500">Obra</div>
-                <div className="font-medium">{docu?.obra?.numeroPedido || "-"}</div>
+                <div className="font-medium">{headerObra}</div>
               </div>
             </div>
 
             <div className="rounded-xl border border-default-200 bg-background p-4">
-              <div className="prose prose-sm max-w-none text-default-900" dangerouslySetInnerHTML={{ __html: docu?.contentHtml || "" }} />
+              <div
+                className="documentacion-html prose prose-sm max-w-none text-default-900"
+                dangerouslySetInnerHTML={{ __html: docu?.contentHtml || "" }}
+              />
               {docu?.legalHtml ? (
                 <div className="mt-4 border-t border-default-200 pt-4">
-                  <div className="prose prose-sm max-w-none text-default-900" dangerouslySetInnerHTML={{ __html: docu?.legalHtml || "" }} />
+                  <div
+                    className="documentacion-html prose prose-sm max-w-none text-default-900"
+                    dangerouslySetInnerHTML={{ __html: docu?.legalHtml || "" }}
+                  />
                 </div>
               ) : null}
             </div>
