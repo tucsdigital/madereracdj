@@ -124,6 +124,32 @@ export default function DocumentacionDetailPage() {
     setIncludeLegal(Boolean(String(item?.legalHtml || "").trim()));
   }, [item?.id]);
 
+  useEffect(() => {
+    const d = item;
+    if (!d) {
+      setPublicUrl("");
+      setExpiresAt("");
+      return;
+    }
+    const expires = String(d?.public?.expiresAt || "");
+    const lastGenAtMs = Date.parse(String(d?.public?.lastLinkGeneratedAt || ""));
+    let lastEnvio = null;
+    if (Array.isArray(d?.envios) && d.envios.length > 0) {
+      lastEnvio = d.envios.slice().sort((a, b) => Date.parse(String(b?.at || "")) - Date.parse(String(a?.at || "")))[0];
+    }
+    const lastEnvioAtMs = Date.parse(String(lastEnvio?.at || ""));
+    const superseded = Number.isFinite(lastGenAtMs) && Number.isFinite(lastEnvioAtMs) && lastGenAtMs > lastEnvioAtMs;
+    const hasUrl = !!lastEnvio?.publicUrl;
+    const valid = !!expires && !isExpired(expires);
+    if (hasUrl && valid && !superseded) {
+      setPublicUrl(String(lastEnvio.publicUrl || ""));
+      setExpiresAt(expires);
+    } else {
+      setPublicUrl("");
+      setExpiresAt("");
+    }
+  }, [item]);
+
   const siteUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
     return window.location.origin;
@@ -496,7 +522,9 @@ export default function DocumentacionDetailPage() {
                       </a>
                     </Button>
                   </div>
-                  {expiresAt ? <div className="text-xs text-default-500">Vence: {expiresAt}</div> : null}
+                  {expiresAt ? (
+                    <div className="text-xs text-default-500">Vence: {formatDateTimeAr(expiresAt)}</div>
+                  ) : null}
                 </div>
               ) : canShare ? (
                 <div className="text-xs text-default-500">El link se generará automáticamente al enviar al cliente.</div>
