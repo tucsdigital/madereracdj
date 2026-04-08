@@ -81,6 +81,12 @@ const isExpired = (expiresAt) => {
   return ms < Date.now();
 };
 
+const getDocClientName = (doc) => {
+  const fromInputs = String(doc?.inputs?.clienteNombre || "").trim();
+  if (fromInputs) return fromInputs;
+  return String(doc?.cliente?.nombre || "").trim();
+};
+
 const getDocClientEmail = (doc) => String(doc?.cliente?.email || doc?.inputs?.clienteEmail || "").trim();
 
 const getDocClientPhoneRaw = (doc) => {
@@ -355,7 +361,7 @@ export default function DocumentacionDetailPage() {
   const mensajes = useMemo(() => {
     const numero = item?.numero || "";
     const titulo = item?.titulo || "";
-    const clienteNombre = item?.cliente?.nombre || "";
+    const clienteNombre = getDocClientName(item);
     const empresaNombre = "Maderas Caballero";
     const descripcionText = htmlToText(item?.template?.descripcionHtml || "");
     return {
@@ -625,7 +631,7 @@ export default function DocumentacionDetailPage() {
                     Copiar
                   </Button>
                   {canShare ? (
-                    <Button size="sm" variant="outline" onClick={openWhatsapp} disabled={acting || !item?.cliente?.telefono}>
+                    <Button size="sm" variant="outline" onClick={openWhatsapp} disabled={acting || !normalizePhone(getDocClientPhoneRaw(item))}>
                       Abrir WhatsApp
                     </Button>
                   ) : null}

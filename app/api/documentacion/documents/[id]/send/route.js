@@ -75,7 +75,7 @@ export async function POST(request, { params }) {
     const prevHashes = Array.isArray(current?.public?.tokenHashes) ? current.public.tokenHashes : [];
     const tokenHashes = Array.from(new Set([...(prevHashes || []), tokenHash].filter(Boolean)));
 
-    const clienteNombre = String(current?.cliente?.nombre || "");
+    const clienteNombre = String(current?.inputs?.clienteNombre || current?.cliente?.nombre || "");
     const numero = String(current?.numero || "");
     const titulo = String(current?.titulo || "");
     const empresaNombre = "Maderas Caballero";

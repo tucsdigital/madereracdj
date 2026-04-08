@@ -65,10 +65,96 @@ export async function POST(request) {
         )
       : null;
 
+    const inputValue = (key) => {
+      const v = String(inputs?.[key] ?? "").trim();
+      return v ? v : "";
+    };
+
+    const clienteNombreFromInputs = inputValue("clienteNombre");
+    const clienteTelefonoFromInputs = inputValue("clienteTelefono");
+    const clienteEmailFromInputs = inputValue("clienteEmail");
+    const clienteCuitFromInputs = inputValue("clienteDniCuit");
+    const ubicacionDireccionFromInputs = inputValue("ubicacionObra");
+
+    const hasClienteInputs =
+      Boolean(clienteNombreFromInputs) ||
+      Boolean(clienteTelefonoFromInputs) ||
+      Boolean(clienteEmailFromInputs) ||
+      Boolean(clienteCuitFromInputs);
+
+    const hasUbicacionInputs = Boolean(ubicacionDireccionFromInputs);
+
     const numero = await getNextDocumentacionNumber();
     const now = nowIso();
     const db = getAdminDb();
     const ref = db.collection("documentos").doc();
+
+    const clienteBase = cliente
+      ? {
+          id: String(cliente.id || ""),
+          nombre: String(cliente.nombre || ""),
+          telefono: String(cliente.telefono || ""),
+          email: String(cliente.email || ""),
+          cuit: String(cliente.cuit || ""),
+          direccion: String(cliente.direccion || ""),
+          localidad: String(cliente.localidad || ""),
+          provincia: String(cliente.provincia || ""),
+          partido: String(cliente.partido || ""),
+        }
+      : hasClienteInputs
+        ? {
+            id: "",
+            nombre: "",
+            telefono: "",
+            email: "",
+            cuit: "",
+            direccion: "",
+            localidad: "",
+            provincia: "",
+            partido: "",
+          }
+        : null;
+
+    const clienteFinal = clienteBase
+      ? {
+          ...clienteBase,
+          ...(clienteNombreFromInputs ? { nombre: clienteNombreFromInputs } : {}),
+          ...(clienteTelefonoFromInputs ? { telefono: clienteTelefonoFromInputs } : {}),
+          ...(clienteEmailFromInputs ? { email: clienteEmailFromInputs } : {}),
+          ...(clienteCuitFromInputs ? { cuit: clienteCuitFromInputs } : {}),
+        }
+      : null;
+
+    const ubicacionBase = ubicacion
+      ? {
+          direccion: String(ubicacion.direccion || ""),
+          localidad: String(ubicacion.localidad || ""),
+          provincia: String(ubicacion.provincia || ""),
+          partido: String(ubicacion.partido || ""),
+          barrio: String(ubicacion.barrio || ""),
+          area: String(ubicacion.area || ""),
+          lote: String(ubicacion.lote || ""),
+          descripcion: String(ubicacion.descripcion || ""),
+        }
+      : hasUbicacionInputs
+        ? {
+            direccion: "",
+            localidad: "",
+            provincia: "",
+            partido: "",
+            barrio: "",
+            area: "",
+            lote: "",
+            descripcion: "",
+          }
+        : null;
+
+    const ubicacionFinal = ubicacionBase
+      ? {
+          ...ubicacionBase,
+          ...(ubicacionDireccionFromInputs ? { direccion: ubicacionDireccionFromInputs } : {}),
+        }
+      : null;
 
     await ref.set({
       numero,
@@ -83,31 +169,8 @@ export async function POST(request) {
             tipo: String(obra.tipo || ""),
           }
         : null,
-      cliente: cliente
-        ? {
-            id: String(cliente.id || ""),
-            nombre: String(cliente.nombre || ""),
-            telefono: String(cliente.telefono || ""),
-            email: String(cliente.email || ""),
-            cuit: String(cliente.cuit || ""),
-            direccion: String(cliente.direccion || ""),
-            localidad: String(cliente.localidad || ""),
-            provincia: String(cliente.provincia || ""),
-            partido: String(cliente.partido || ""),
-          }
-        : null,
-      ubicacion: ubicacion
-        ? {
-            direccion: String(ubicacion.direccion || ""),
-            localidad: String(ubicacion.localidad || ""),
-            provincia: String(ubicacion.provincia || ""),
-            partido: String(ubicacion.partido || ""),
-            barrio: String(ubicacion.barrio || ""),
-            area: String(ubicacion.area || ""),
-            lote: String(ubicacion.lote || ""),
-            descripcion: String(ubicacion.descripcion || ""),
-          }
-        : null,
+      cliente: clienteFinal,
+      ubicacion: ubicacionFinal,
       responsable: responsable
         ? {
             uid: String(responsable.uid || ""),

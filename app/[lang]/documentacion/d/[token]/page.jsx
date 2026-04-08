@@ -75,10 +75,10 @@ const htmlToText = (html) =>
     .trim();
 
 const getDocClienteNombre = (doc) => {
-  const fromDoc = String(doc?.cliente?.nombre || "").trim();
-  if (fromDoc) return fromDoc;
   const fromInputs = String(doc?.inputs?.clienteNombre || "").trim();
   if (fromInputs) return fromInputs;
+  const fromDoc = String(doc?.cliente?.nombre || "").trim();
+  if (fromDoc) return fromDoc;
   const text = htmlToText(doc?.contentHtml || "");
   const m = text.match(/Nombre y Apellido:\s*([^\n\r]+)/i);
   return String(m?.[1] || "").trim();
