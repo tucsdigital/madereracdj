@@ -184,21 +184,30 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
   // Construir HTML de estado de pago (solo para ventas, se incrusta dentro del bloque de envío)
   const paymentStatusHtml =
-    esVenta && estadoPago
+    esVenta
       ? (() => {
+          const estadoPagoSafe = String(estadoPago || "pendiente").toLowerCase();
           const estadoLabel =
-            estadoPago === "pagado"
+            estadoPagoSafe === "pagado"
               ? "PAGADO"
-              : estadoPago === "parcial"
+              : estadoPagoSafe === "parcial"
               ? "PAGO PARCIAL"
               : "PENDIENTE";
+
+          if (paraEmpleado) {
+            return `
+        <div class="payment-inline">
+          <div class="payment-row"><strong>Estado de pago:</strong> <span class="payment-value">${estadoLabel}</span></div>
+        </div>
+      `;
+          }
 
           const total = pagos?.total ?? totales.total;
           const abonado = pagos?.montoAbonado ?? 0;
           const saldo = pagos?.saldoPendiente ?? Math.max(total - abonado, 0);
 
           const historyRows =
-            estadoPago === "parcial" && tieneHistorialPagos
+            estadoPagoSafe === "parcial" && tieneHistorialPagos
               ? pagos!.pagos!
                   .map(
                     (p) => `
@@ -801,22 +810,22 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     <!-- Footer -->
     <div class="bottom">
       ${
-        esPresupuesto
+        esVenta && paraEmpleado
           ? `
+      ${paymentStatusHtml ? `<div class="envio-info"><div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div></div>` : ""}
+      `
+          : `
       <div class="disclaimer">
         <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
       </div>
+      ${tipo === "venta" ? `
       <div class="firmas">
         <div class="firma-col">Firma</div>
         <div class="firma-col">Aclaración</div>
         <div class="firma-col">Documento N°</div>
       </div>
-      `
-          : ""
-      }
-      ${
-        esPresupuesto && !esRetiroLocal
-          ? `
+      ` : ""}
+      ${!esRetiroLocal ? `
       <div class="envio-info">
         <div class="envio-info-left">
           <div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoEnvio}</span></div>
@@ -831,15 +840,8 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
             : ""
         }
       </div>
+      ` : ""}
       `
-          : ""
-      }
-      ${
-        esVenta
-          ? `
-      ${paymentStatusHtml ? `<div class="envio-info"><div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div></div>` : ""}
-      `
-          : ""
       }
       <div class="footer-bottom">
         <div>ORIGINAL BLANCO / DUPLICADO COLOR</div>
