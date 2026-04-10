@@ -8,7 +8,7 @@ import { useDateRange } from "../context/date-range-context";
 import { useDashboardData } from "../context/dashboard-data-context";
 import { useAuth } from "@/provider/auth.provider";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import {
   Tooltip,
   TooltipContent,
@@ -36,6 +36,8 @@ const SalesStats = () => {
   const [reportDoc, setReportDoc] = useState(null);
   const [backfillLoading, setBackfillLoading] = useState(false);
   const [backfillResult, setBackfillResult] = useState(null);
+  const [obrasPendMes, setObrasPendMes] = useState([]);
+  const [obrasPendLoading, setObrasPendLoading] = useState(false);
 
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
@@ -248,6 +250,57 @@ const SalesStats = () => {
       cancelled = true;
     };
   }, [reportMonth]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadObras = async () => {
+      setObrasPendLoading(true);
+      try {
+        const [y, m] = String(reportMonth || "").split("-").map((n) => Number(n));
+        if (!y || !m) {
+          setObrasPendMes([]);
+          return;
+        }
+        const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+        const end = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1, 0, 0, 0));
+        const qRef = query(collection(db, "obras"), where("tipo", "==", "obra"));
+        const snap = await getDocs(qRef);
+        if (cancelled) return;
+        const toMs = (v) => {
+          const raw = String(v || "").trim();
+          if (!raw) return NaN;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return Date.parse(`${raw}T00:00:00-03:00`);
+          const ms = Date.parse(raw);
+          return Number.isFinite(ms) ? ms : NaN;
+        };
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const arr = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() || {}) }))
+          .filter((o) => {
+            const ms = toMs(o.fechaCreacion);
+            return Number.isFinite(ms) && ms >= startMs && ms < endMs;
+          })
+          .filter((o) => {
+            const e = String(o.estado || "").toLowerCase();
+            return !(e === "en_ejecucion" || e === "completada");
+          })
+          .sort((a, b) => toMs(a.fechaCreacion) - toMs(b.fechaCreacion));
+        setObrasPendMes(arr);
+      } catch (e) {
+        setObrasPendMes([]);
+      } finally {
+        if (!cancelled) setObrasPendLoading(false);
+      }
+    };
+    if (reportMonth && user?.email === "admin@admin.com") loadObras();
+    else {
+      setObrasPendMes([]);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [reportMonth, user?.email]);
 
   const handleGenerateMonthlyReport = useCallback(async () => {
     setReportError("");
@@ -817,79 +870,162 @@ const SalesStats = () => {
               ) : null}
 
               {reportDoc ? (
-                <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50/80 to-green-50/60 p-4 shadow-sm">
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700/80">Ventas</div>
-                    <div className="mt-1 text-xl font-extrabold text-emerald-800">
-                      ${nf.format(Math.round(Number(reportDoc?.kpis?.ventas?.monto || 0)))}
-                    </div>
-                    <div className="mt-1 text-xs text-emerald-700/80">
-                      Total: {Number(reportDoc?.kpis?.ventas?.count || 0)} | Pagadas: {Number(reportDoc?.kpis?.ventas?.estados?.pagado || 0)} | Parciales: {Number(reportDoc?.kpis?.ventas?.estados?.parcial || 0)} | Pendientes: {Number(reportDoc?.kpis?.ventas?.estados?.pendiente || 0)}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-gradient-to-br from-sky-50/80 to-blue-50/60 p-4 shadow-sm">
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700/80">Cobranzas</div>
-                    <div className="mt-1 text-xl font-extrabold text-sky-800">
-                      ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.ingresado || 0)))}
-                    </div>
-                    <div className="mt-1 text-xs text-sky-700/80">
-                      Pendiente: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pendienteTotal || 0)))} | Parcial pendiente: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.parcialPendiente || 0)))} | Pend+Parc: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pendienteParcialTotal || 0)))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-gradient-to-br from-amber-50/80 to-yellow-50/60 p-4 shadow-sm">
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700/80">Obras y comisiones</div>
-                    <div className="mt-1 text-xl font-extrabold text-amber-800">
-                      ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.ventasConfirmadas || 0) + Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
-                    </div>
-                    <div className="mt-1 text-xs text-amber-700/80">
-                      Obras: {Number(reportDoc?.kpis?.obras?.count || 0)} | Confirmadas: {Number(reportDoc?.kpis?.obras?.countConfirmadas || 0)} | Com. obras: ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-3 rounded-2xl bg-white/70 border border-slate-200/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-extrabold text-slate-900">
-                        Ventas con pagos pendientes / parciales (desde el 01)
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                    <div className="rounded-2xl bg-gradient-to-br from-emerald-50/90 to-green-50/70 p-5 shadow-sm border border-emerald-200/50">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700/90">Ventas</div>
+                      <div className="mt-1 text-2xl font-extrabold text-emerald-800">
+                        ${nf.format(Math.round(Number(reportDoc?.kpis?.ventas?.monto || 0)))}
                       </div>
-                      <div className="text-xs font-semibold text-default-600">
-                        {Number(reportDoc?.ventasPendientesParcialesCount || 0)} ventas
+                      <div className="mt-2 text-xs text-emerald-700/90">
+                        Total: {Number(reportDoc?.kpis?.ventas?.count || 0)} | Pagadas: {Number(reportDoc?.kpis?.ventas?.estados?.pagado || 0)} | Parciales: {Number(reportDoc?.kpis?.ventas?.estados?.parcial || 0)} | Pendientes: {Number(reportDoc?.kpis?.ventas?.estados?.pendiente || 0)}
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="text-[11px] font-semibold text-emerald-800 bg-white/60 rounded-xl px-3 py-2 border border-emerald-200/60">
+                          <div className="uppercase tracking-wide text-emerald-700/80">Total pagado</div>
+                          <div className="text-sm font-extrabold text-emerald-900">
+                            ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pagadoTotal || 0)))}
+                          </div>
+                        </div>
+                        <div className="text-[11px] font-semibold text-emerald-800 bg-white/60 rounded-xl px-3 py-2 border border-emerald-200/60">
+                          <div className="uppercase tracking-wide text-emerald-700/80">Total pendiente (Pend+Parc)</div>
+                          <div className="text-sm font-extrabold text-red-700">
+                            ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pendienteParcialTotal || 0)))}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-3 overflow-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-left text-default-600">
-                            <th className="py-2 pr-3 whitespace-nowrap">Pedido</th>
-                            <th className="py-2 pr-3 whitespace-nowrap">Cliente</th>
-                            <th className="py-2 pr-3 whitespace-nowrap">Estado</th>
-                            <th className="py-2 pr-3 whitespace-nowrap">Saldo</th>
-                            <th className="py-2 pr-3 whitespace-nowrap">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(Array.isArray(reportDoc?.ventasPendientesParciales) ? reportDoc.ventasPendientesParciales : []).slice(0, 50).map((v) => (
-                            <tr key={v.id} className="border-t border-slate-100">
-                              <td className="py-2 pr-3">
-                                <Link className="font-semibold text-slate-800 hover:underline" href={`/ventas/${v.id}`}>
-                                  {v.numeroPedido || v.id}
-                                </Link>
-                              </td>
-                              <td className="py-2 pr-3">{v.clienteNombre || "-"}</td>
-                              <td className="py-2 pr-3 capitalize">{v.estadoPago}</td>
-                              <td className="py-2 pr-3 font-semibold text-red-700">${nf.format(Math.round(Number(v.saldo || 0)))}</td>
-                              <td className="py-2 pr-3">${nf.format(Math.round(Number(v.total || 0)))}</td>
+
+                    <div className="rounded-2xl bg-gradient-to-br from-sky-50/90 to-blue-50/70 p-5 shadow-sm border border-sky-200/50">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700/90">Obras</div>
+                      <div className="mt-1 text-2xl font-extrabold text-sky-800">
+                        ${nf.format(Math.round(Number(reportDoc?.kpis?.obras?.monto || 0)))}
+                      </div>
+                      <div className="mt-2 text-xs text-sky-700/90">
+                        Total: {Number(reportDoc?.kpis?.obras?.count || 0)} | Confirmadas: {Number(reportDoc?.kpis?.obras?.countConfirmadas || 0)} | Pendientes: {Math.max(0, Number(reportDoc?.kpis?.obras?.count || 0) - Number(reportDoc?.kpis?.obras?.countConfirmadas || 0))}
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="text-[11px] font-semibold text-sky-800 bg-white/60 rounded-xl px-3 py-2 border border-sky-200/60">
+                          <div className="uppercase tracking-wide text-sky-700/80">Total pagado</div>
+                          <div className="text-sm font-extrabold text-sky-900">
+                            ${nf.format(Math.round(Number(reportDoc?.kpis?.obras?.montoConfirmadas || 0)))}
+                          </div>
+                        </div>
+                        <div className="text-[11px] font-semibold text-sky-800 bg-white/60 rounded-xl px-3 py-2 border border-sky-200/60">
+                          <div className="uppercase tracking-wide text-sky-700/80">Total pendiente</div>
+                          <div className="text-sm font-extrabold text-red-700">
+                            ${nf.format(Math.round(Math.max(0, Number(reportDoc?.kpis?.obras?.monto || 0) - Number(reportDoc?.kpis?.obras?.montoConfirmadas || 0))))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-50/90 to-yellow-50/70 p-5 shadow-sm border border-amber-200/50">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700/90">Comisiones</div>
+                      <div className="mt-1 text-2xl font-extrabold text-amber-800">
+                        ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.ventasConfirmadas || 0) + Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-2">
+                        <div className="text-[11px] font-semibold text-amber-800 bg-white/60 rounded-xl px-3 py-2 border border-amber-200/60">
+                          <div className="uppercase tracking-wide text-amber-700/80">Comisiones por ventas confirmadas</div>
+                          <div className="text-sm font-extrabold text-amber-900">
+                            ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.ventasConfirmadas || 0)))}
+                          </div>
+                        </div>
+                        <div className="text-[11px] font-semibold text-amber-800 bg-white/60 rounded-xl px-3 py-2 border border-amber-200/60">
+                          <div className="uppercase tracking-wide text-amber-700/80">Comisiones por obras confirmadas</div>
+                          <div className="text-sm font-extrabold text-amber-900">
+                            ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-white/70 border border-slate-200/70 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-extrabold text-slate-900">
+                          Ventas pendientes / parciales (desde el 01)
+                        </div>
+                        <div className="text-xs font-semibold text-default-600">
+                          {Number(reportDoc?.ventasPendientesParcialesCount || 0)} ventas
+                        </div>
+                      </div>
+                      <div className="mt-3 overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-default-600">
+                              <th className="py-2 pr-3 whitespace-nowrap">Pedido</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Cliente</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Estado</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Saldo</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Total</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {Array.isArray(reportDoc?.ventasPendientesParciales) && reportDoc.ventasPendientesParciales.length > 50 ? (
-                      <div className="mt-2 text-[11px] text-default-600">
-                        Mostrando 50 de {reportDoc.ventasPendientesParciales.length}.
+                          </thead>
+                          <tbody>
+                            {(Array.isArray(reportDoc?.ventasPendientesParciales) ? reportDoc.ventasPendientesParciales : []).slice(0, 50).map((v) => (
+                              <tr key={v.id} className="border-t border-slate-100">
+                                <td className="py-2 pr-3">
+                                  <Link className="font-semibold text-slate-800 hover:underline" href={`/ventas/${v.id}`}>
+                                    {v.numeroPedido || v.id}
+                                  </Link>
+                                </td>
+                                <td className="py-2 pr-3">{v.clienteNombre || "-"}</td>
+                                <td className="py-2 pr-3 capitalize">{v.estadoPago}</td>
+                                <td className="py-2 pr-3 font-semibold text-red-700">${nf.format(Math.round(Number(v.saldo || 0)))}</td>
+                                <td className="py-2 pr-3">${nf.format(Math.round(Number(v.total || 0)))}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    ) : null}
+                      {Array.isArray(reportDoc?.ventasPendientesParciales) && reportDoc.ventasPendientesParciales.length > 50 ? (
+                        <div className="mt-2 text-[11px] text-default-600">
+                          Mostrando 50 de {reportDoc.ventasPendientesParciales.length}.
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-2xl bg-white/70 border border-slate-200/70 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-extrabold text-slate-900">
+                          Obras pendientes a confirmar (desde el 01)
+                        </div>
+                        <div className="text-xs font-semibold text-default-600">
+                          {obrasPendMes.length} obras
+                        </div>
+                      </div>
+                      <div className="mt-3 overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-default-600">
+                              <th className="py-2 pr-3 whitespace-nowrap">Obra</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Cliente</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Estado</th>
+                              <th className="py-2 pr-3 whitespace-nowrap">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(obrasPendMes || []).slice(0, 50).map((o) => (
+                              <tr key={o.id} className="border-t border-slate-100">
+                                <td className="py-2 pr-3">
+                                  <Link className="font-semibold text-slate-800 hover:underline" href={`/obras/${o.id}`}>
+                                    {o.numero || o.id}
+                                  </Link>
+                                </td>
+                                <td className="py-2 pr-3">{o?.cliente?.nombre || "-"}</td>
+                                <td className="py-2 pr-3 capitalize">{String(o.estado || "-").replaceAll("_", " ")}</td>
+                                <td className="py-2 pr-3">${nf.format(Math.round(Number(o.total || o.subtotal || 0)))}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {obrasPendLoading ? (
+                        <div className="mt-2 text-[11px] text-default-600">Cargando…</div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : (
