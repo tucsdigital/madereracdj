@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@iconify/react";
 import { useDateRange } from "../context/date-range-context";
 import { useDashboardData } from "../context/dashboard-data-context";
+import { useAuth } from "@/provider/auth.provider";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +20,22 @@ import Link from "next/link";
 const SalesStats = () => {
   const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
   const { ventas: ventasFiltradas, presupuestos: presupuestosFiltrados, obras: obrasFromContext, clientes: clientesData, loading } = useDashboardData();
+  const { user } = useAuth();
+
+  const getPrevMonthKey = useCallback(() => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth() + 1;
+    const prev = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+    return `${String(prev.year).padStart(4, "0")}-${String(prev.month).padStart(2, "0")}`;
+  }, []);
+
+  const [reportMonth, setReportMonth] = useState(() => getPrevMonthKey());
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportDoc, setReportDoc] = useState(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
 
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
@@ -205,6 +224,81 @@ const SalesStats = () => {
   ]);
 
   const nf = useMemo(() => new Intl.NumberFormat("es-AR"), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setReportError("");
+      try {
+        const snap = await getDoc(doc(db, "reportes_mensuales", reportMonth));
+        if (cancelled) return;
+        if (!snap.exists()) {
+          setReportDoc(null);
+          return;
+        }
+        setReportDoc({ id: snap.id, ...(snap.data() || {}) });
+      } catch (e) {
+        if (cancelled) return;
+        setReportDoc(null);
+        setReportError(e?.message || "Error cargando reporte");
+      }
+    };
+    if (reportMonth) load();
+    return () => {
+      cancelled = true;
+    };
+  }, [reportMonth]);
+
+  const handleGenerateMonthlyReport = useCallback(async () => {
+    setReportError("");
+    setReportLoading(true);
+    try {
+      if (!user) throw new Error("Necesitás iniciar sesión");
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/reportes/mensual?month=${encodeURIComponent(reportMonth)}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "No se pudo generar el reporte");
+      }
+      const snap = await getDoc(doc(db, "reportes_mensuales", reportMonth));
+      if (snap.exists()) setReportDoc({ id: snap.id, ...(snap.data() || {}) });
+      else setReportDoc(null);
+    } catch (e) {
+      setReportError(e?.message || "Error generando reporte");
+    } finally {
+      setReportLoading(false);
+    }
+  }, [reportMonth, user]);
+
+  const handleBackfillPagados = useCallback(async () => {
+    setReportError("");
+    setBackfillResult(null);
+    setBackfillLoading(true);
+    try {
+      if (!user) throw new Error("Necesitás iniciar sesión");
+      const token = await user.getIdToken();
+      const res = await fetch("/api/ventas/pago-events/backfill", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ limit: 500, dryRun: false }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "No se pudo ejecutar el backfill");
+      setBackfillResult(json);
+    } catch (e) {
+      setReportError(e?.message || "Error ejecutando backfill");
+    } finally {
+      setBackfillLoading(false);
+    }
+  }, [user]);
 
   // Visual helpers
   const totalFormasPago = useMemo(() => {
@@ -662,6 +756,150 @@ const SalesStats = () => {
           <Skeleton />
         ) : (
           <>
+            {user?.email === "admin@admin.com" && (
+            <div className="p-4 md:p-5 rounded-2xl border-0 bg-white/60 shadow-lg backdrop-blur-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex w-8 h-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                    <Icon icon="heroicons:document-text" className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900">Reporte mensual (día 1)</div>
+                    <div className="text-xs text-default-600">Se guarda en Firebase (reportes_mensuales)</div>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <input
+                    type="month"
+                    value={reportMonth}
+                    onChange={(e) => setReportMonth(e.target.value)}
+                    className="border-0 rounded-xl px-3 py-2 h-9 bg-white/70 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerateMonthlyReport}
+                    disabled={reportLoading || !reportMonth}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all ${
+                      reportLoading
+                        ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                        : "bg-gradient-to-r from-slate-700 to-gray-700 text-white hover:shadow-lg"
+                    }`}
+                  >
+                    {reportLoading ? "Generando..." : "Generar"}
+                  </button>
+                  {user?.email === "admin@admin.com" && (
+                    <button
+                      type="button"
+                      onClick={handleBackfillPagados}
+                      disabled={backfillLoading}
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all ${
+                        backfillLoading
+                          ? "bg-amber-100 text-amber-800 cursor-not-allowed"
+                          : "bg-amber-200/70 text-amber-900 hover:shadow-lg"
+                      }`}
+                    >
+                      {backfillLoading ? "Backfill..." : "Backfill pagados"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {reportError ? (
+                <div className="mt-3 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  {reportError}
+                </div>
+              ) : null}
+
+              {backfillResult ? (
+                <div className="mt-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  Backfill: {backfillResult.created} creados, {backfillResult.skipped} ya existían (revisados: {backfillResult.checked})
+                </div>
+              ) : null}
+
+              {reportDoc ? (
+                <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50/80 to-green-50/60 p-4 shadow-sm">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700/80">Ventas</div>
+                    <div className="mt-1 text-xl font-extrabold text-emerald-800">
+                      ${nf.format(Math.round(Number(reportDoc?.kpis?.ventas?.monto || 0)))}
+                    </div>
+                    <div className="mt-1 text-xs text-emerald-700/80">
+                      Total: {Number(reportDoc?.kpis?.ventas?.count || 0)} | Pagadas: {Number(reportDoc?.kpis?.ventas?.estados?.pagado || 0)} | Parciales: {Number(reportDoc?.kpis?.ventas?.estados?.parcial || 0)} | Pendientes: {Number(reportDoc?.kpis?.ventas?.estados?.pendiente || 0)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-gradient-to-br from-sky-50/80 to-blue-50/60 p-4 shadow-sm">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700/80">Cobranzas</div>
+                    <div className="mt-1 text-xl font-extrabold text-sky-800">
+                      ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.ingresado || 0)))}
+                    </div>
+                    <div className="mt-1 text-xs text-sky-700/80">
+                      Pendiente: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pendienteTotal || 0)))} | Parcial pendiente: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.parcialPendiente || 0)))} | Pend+Parc: ${nf.format(Math.round(Number(reportDoc?.kpis?.cobranzas?.pendienteParcialTotal || 0)))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-gradient-to-br from-amber-50/80 to-yellow-50/60 p-4 shadow-sm">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700/80">Obras y comisiones</div>
+                    <div className="mt-1 text-xl font-extrabold text-amber-800">
+                      ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.ventasConfirmadas || 0) + Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
+                    </div>
+                    <div className="mt-1 text-xs text-amber-700/80">
+                      Obras: {Number(reportDoc?.kpis?.obras?.count || 0)} | Confirmadas: {Number(reportDoc?.kpis?.obras?.countConfirmadas || 0)} | Com. obras: ${nf.format(Math.round(Number(reportDoc?.kpis?.comisiones?.obrasConfirmadas || 0)))}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-3 rounded-2xl bg-white/70 border border-slate-200/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-extrabold text-slate-900">
+                        Ventas con pagos pendientes / parciales (desde el 01)
+                      </div>
+                      <div className="text-xs font-semibold text-default-600">
+                        {Number(reportDoc?.ventasPendientesParcialesCount || 0)} ventas
+                      </div>
+                    </div>
+                    <div className="mt-3 overflow-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-default-600">
+                            <th className="py-2 pr-3 whitespace-nowrap">Pedido</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Cliente</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Estado</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Saldo</th>
+                            <th className="py-2 pr-3 whitespace-nowrap">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(Array.isArray(reportDoc?.ventasPendientesParciales) ? reportDoc.ventasPendientesParciales : []).slice(0, 50).map((v) => (
+                            <tr key={v.id} className="border-t border-slate-100">
+                              <td className="py-2 pr-3">
+                                <Link className="font-semibold text-slate-800 hover:underline" href={`/ventas/${v.id}`}>
+                                  {v.numeroPedido || v.id}
+                                </Link>
+                              </td>
+                              <td className="py-2 pr-3">{v.clienteNombre || "-"}</td>
+                              <td className="py-2 pr-3 capitalize">{v.estadoPago}</td>
+                              <td className="py-2 pr-3 font-semibold text-red-700">${nf.format(Math.round(Number(v.saldo || 0)))}</td>
+                              <td className="py-2 pr-3">${nf.format(Math.round(Number(v.total || 0)))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {Array.isArray(reportDoc?.ventasPendientesParciales) && reportDoc.ventasPendientesParciales.length > 50 ? (
+                      <div className="mt-2 text-[11px] text-default-600">
+                        Mostrando 50 de {reportDoc.ventasPendientesParciales.length}.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 text-xs text-default-600">
+                  No hay reporte guardado para {reportMonth}. Podés generarlo con el botón.
+                </div>
+              )}
+            </div>
+            )}
+
             <TooltipProvider delayDuration={200}>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {/* Ventas */}

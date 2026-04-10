@@ -46,6 +46,30 @@ function formatFechaLocal(dateString) {
   return dateObj.toLocaleDateString("es-AR");
 }
 
+const calcAbonado = (ventaLike) => {
+  const pagosArr = Array.isArray(ventaLike?.pagos) ? ventaLike.pagos : [];
+  if (pagosArr.length > 0) return pagosArr.reduce((acc, p) => acc + (Number(p?.monto) || 0), 0);
+  return Number(ventaLike?.montoAbonado || 0);
+};
+
+const deriveEstadoPago = ({ estadoPago, total, abonado }) => {
+  const e = String(estadoPago || "").toLowerCase();
+  if (e === "pagado" || e === "parcial" || e === "pendiente") return e;
+  const t = Number(total) || 0;
+  const a = Number(abonado) || 0;
+  if (t > 0 && a >= t) return "pagado";
+  if (a > 0) return "parcial";
+  return "pendiente";
+};
+
+const buildPagoSnapshot = (ventaLike) => {
+  const total = Number(ventaLike?.total) || 0;
+  const abonado = calcAbonado(ventaLike);
+  const estadoPago = deriveEstadoPago({ estadoPago: ventaLike?.estadoPago, total, abonado });
+  const saldo = Math.max(total - abonado, 0);
+  return { estadoPago, total, abonado, saldo };
+};
+
 function calcularPrecioCorteMadera({
   alto,
   ancho,
@@ -1745,8 +1769,29 @@ const VentaDetalle = () => {
       }),
     };
 
+    const before = buildPagoSnapshot(venta);
+    const after = buildPagoSnapshot(ventaActualizada);
     const docRef = doc(db, "ventas", ventaEdit.id);
     await updateDoc(docRef, ventaActualizada);
+
+    if (before.estadoPago !== after.estadoPago && user) {
+      const numeroPedido = String(ventaActualizada?.numeroPedido || venta?.numeroPedido || ventaActualizada?.numero || venta?.numero || "");
+      await addDoc(collection(db, "ventas", ventaEdit.id, "pago_events"), {
+        type: "estado_pago_changed",
+        ventaId: String(ventaEdit.id || ""),
+        numeroPedido,
+        clienteId: String(ventaActualizada?.clienteId || ""),
+        clienteNombre: String(ventaActualizada?.cliente?.nombre || ""),
+        before,
+        after,
+        becamePagado:
+          (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+        at: serverTimestamp(),
+        byUid: String(user.uid || ""),
+        byEmail: String(user.email || ""),
+        source: "ventas_detail_save",
+      });
+    }
 
     // Actualizar el estado local
     setVenta(ventaActualizada);
@@ -1950,10 +1995,29 @@ const VentaDetalle = () => {
       };
 
       // Actualizar en Firebase
+      const before = buildPagoSnapshot(venta);
+      const after = buildPagoSnapshot(ventaActualizada);
       const docRef = doc(db, "ventas", venta.id);
-      await updateDoc(docRef, {
-        pagos: nuevosPagos,
-      });
+      await updateDoc(docRef, { pagos: nuevosPagos, estadoPago: after.estadoPago });
+
+      if (before.estadoPago !== after.estadoPago && user) {
+        const numeroPedido = String(venta?.numeroPedido || venta?.numero || "");
+        await addDoc(collection(db, "ventas", venta.id, "pago_events"), {
+          type: "estado_pago_changed",
+          ventaId: String(venta.id || ""),
+          numeroPedido,
+          clienteId: String(venta?.clienteId || ""),
+          clienteNombre: String(venta?.cliente?.nombre || ""),
+          before,
+          after,
+          becamePagado:
+            (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+          at: serverTimestamp(),
+          byUid: String(user.uid || ""),
+          byEmail: String(user.email || ""),
+          source: "ventas_detail_delete_pago",
+        });
+      }
 
       // Actualizar estado local
       setVenta(ventaActualizada);

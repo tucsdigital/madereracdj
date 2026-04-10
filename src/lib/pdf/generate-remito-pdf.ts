@@ -800,17 +800,23 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
     <!-- Footer -->
     <div class="bottom">
+      ${
+        esPresupuesto
+          ? `
       <div class="disclaimer">
         <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
       </div>
-      ${tipo === "venta" ? `
       <div class="firmas">
         <div class="firma-col">Firma</div>
         <div class="firma-col">Aclaración</div>
         <div class="firma-col">Documento N°</div>
       </div>
-      ` : ""}
-      ${!esRetiroLocal ? `
+      `
+          : ""
+      }
+      ${
+        esPresupuesto && !esRetiroLocal
+          ? `
       <div class="envio-info">
         <div class="envio-info-left">
           <div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoEnvio}</span></div>
@@ -825,8 +831,16 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
             : ""
         }
       </div>
-      ` : ""}
-
+      `
+          : ""
+      }
+      ${
+        esVenta
+          ? `
+      ${paymentStatusHtml ? `<div class="envio-info"><div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div></div>` : ""}
+      `
+          : ""
+      }
       <div class="footer-bottom">
         <div>ORIGINAL BLANCO / DUPLICADO COLOR</div>
         <div>1/1</div>
