@@ -90,6 +90,30 @@ const buildReconObservaciones = ({ ventaId, ventaNumeroPedido, productoId, produ
   return `${pedido}. Ajuste automático de stock para ${prod}. Motivo: ${motivo} Acción: ${tipo} de ${qtyLabel}.`;
 };
 
+const buildReconRechazoObservaciones = ({
+  ventaId,
+  ventaNumeroPedido,
+  productoNombre,
+  diff,
+  code,
+  details,
+}) => {
+  const pedido = ventaNumeroPedido ? `${ventaNumeroPedido}` : `${ventaId}`;
+  const prod = productoNombre ? `“${productoNombre}”` : "el producto";
+  const qty = Math.abs(Number(diff) || 0);
+  const qtyLabel = `${qty} ${qty === 1 ? "unidad" : "unidades"}`;
+
+  if (code === "STOCK_INSUFICIENTE") {
+    const stockActual = Number(details?.stockActual) || 0;
+    return `${pedido}. No se pudo aplicar el ajuste para ${prod} porque no hay stock suficiente para descontar ${qtyLabel}. Stock actual: ${stockActual}.`;
+  }
+  if (code === "PRODUCTO_NO_ENCONTRADO") {
+    return `${pedido}. No se pudo aplicar el ajuste para ${prod} porque el producto no está disponible.`;
+  }
+
+  return `${pedido}. No se pudo aplicar el ajuste para ${prod} por un problema al procesar la corrección.`;
+};
+
 export async function POST(request) {
   try {
     const secret = String(process.env.CRON_SECRET || "").trim();
@@ -224,9 +248,24 @@ export async function POST(request) {
       ventasEvaluadas: ventas.length,
       ventasConInconsistencias: 0,
       movimientosCreados: 0,
+      auditoriaStock: { aplicadas: 0, rechazadas: 0 },
       ventas: [],
       skipped: [],
       warnings: [],
+    };
+
+    let auditBatch = db.batch();
+    let auditOps = 0;
+    const auditBatches = [];
+    const queueAudit = (data) => {
+      const ref = db.collection("auditoria_stock").doc();
+      auditBatch.set(ref, data);
+      auditOps += 1;
+      if (auditOps >= 450) {
+        auditBatches.push(auditBatch);
+        auditBatch = db.batch();
+        auditOps = 0;
+      }
     };
 
     for (const venta of ventas) {
@@ -290,6 +329,8 @@ export async function POST(request) {
           const productoRef = db.collection("productos").doc(productoId);
           const movimientoId = buildReconMovimientoId({ ventaId, productoId, expectedDelta });
           const movRef = db.collection("movimientos").doc(movimientoId);
+          let applied = false;
+          let productoNombre = "";
 
           await db.runTransaction(async (t) => {
             const [prodSnap, movExistsSnap] = await Promise.all([t.get(productoRef), t.get(movRef)]);
@@ -301,6 +342,7 @@ export async function POST(request) {
             if (movExistsSnap.exists) return;
 
             const data = prodSnap.data() || {};
+            productoNombre = String(data.nombre || "");
             const stockActual = Number(data.stock) || 0;
             const nuevoStock = stockActual + diff;
             if (nuevoStock < 0) {
@@ -325,13 +367,13 @@ export async function POST(request) {
                 ventaId,
                 ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
                 productoId,
-                productoNombre: String(data.nombre || ""),
+                productoNombre,
                 expectedDelta,
                 actualDelta,
                 diff,
                 movimientoId,
               }),
-              productoNombre: String(data.nombre || ""),
+              productoNombre,
               stockAntes: stockActual,
               stockDelta: diff,
               stockDespues: nuevoStock,
@@ -343,34 +385,99 @@ export async function POST(request) {
             });
 
             t.update(productoRef, { stock: nuevoStock, fechaActualizacion: nowTs });
+            applied = true;
           });
 
-          resumen.movimientosCreados += 1;
           ventaResumen.fixes.push({
             productoId,
             stockDelta: diff,
             tipo: diff < 0 ? "salida" : "entrada",
             movimientoId,
-            applied: true,
+            applied,
           });
+          if (applied) {
+            resumen.movimientosCreados += 1;
+            resumen.auditoriaStock.aplicadas += 1;
+            queueAudit({
+              tipo: "reconciliacion_venta_aplicada",
+              fecha: FieldValue.serverTimestamp(),
+              authMode: actor.authMode,
+              actorEmail: actor.email || "",
+              ventaId,
+              ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
+              productoId,
+              productoNombre,
+              expectedDelta,
+              actualDeltaAntes: actualDelta,
+              stockDelta: diff,
+              movimientoId,
+              observaciones: buildReconObservaciones({
+                ventaId,
+                ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
+                productoId,
+                productoNombre,
+                expectedDelta,
+                actualDelta,
+                diff,
+                movimientoId,
+              }),
+            });
+          }
         } catch (e) {
           const msg = typeof e?.message === "string" ? e.message : "Error";
+          const code = e?.code || "";
           ventaResumen.errores.push({
             productoId,
             error: msg,
-            code: e?.code || "",
+            code,
             details: e?.details || null,
           });
           resumen.skipped.push({
             ventaId,
             productoId,
             reason: msg,
-            code: e?.code || "",
+            code,
+          });
+          resumen.auditoriaStock.rechazadas += 1;
+          queueAudit({
+            tipo: "reconciliacion_venta_rechazada",
+            fecha: FieldValue.serverTimestamp(),
+            authMode: actor.authMode,
+            actorEmail: actor.email || "",
+            ventaId,
+            ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
+            productoId,
+            expectedDelta,
+            actualDeltaAntes: actualDelta,
+            stockDelta: diff,
+            code,
+            details: e?.details || null,
+            observaciones: buildReconRechazoObservaciones({
+              ventaId,
+              ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
+              productoNombre: "",
+              diff,
+              code,
+              details: e?.details || null,
+            }),
+            error: msg,
           });
         }
       }
 
       resumen.ventas.push(ventaResumen);
+    }
+
+    if (auditOps > 0) auditBatches.push(auditBatch);
+    for (const b of auditBatches) {
+      await b.commit();
+    }
+
+    if (!dryRun && ventaIdFilter && productoIdFilter) {
+      const hasErrores = resumen.ventas.some((v) => Array.isArray(v?.errores) && v.errores.length > 0);
+      if (hasErrores && resumen.movimientosCreados === 0) {
+        return NextResponse.json({ ...resumen, ok: false }, { status: 409 });
+      }
     }
 
     return NextResponse.json(resumen, { status: 200 });

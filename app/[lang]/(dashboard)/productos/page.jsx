@@ -4876,28 +4876,7 @@ const ProductosPage = () => {
                       Subcategoría
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Tipo de Madera
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Unidad Medida
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Proveedor
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Stock
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Cantidad
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Precio unit.
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Precio Cepillado
-                    </th>
-                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                      Precio total
                     </th>
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       Estado
@@ -5061,158 +5040,12 @@ const ProductosPage = () => {
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="font-semibold text-default-900">
-                          {p.categoria === "Maderas" ? (p.tipoMadera || "-") : "-"}
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-semibold text-default-900">
                           {p.categoria === "Maderas" ? (p.subcategoria || "-") : (p.subCategoria || "-")}
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <div className="font-semibold text-default-900">
                           {p.unidadMedida || "-"}
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="font-semibold text-default-900">
-                          {p.proveedor || "-"}
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <span
-                          className={`font-bold ${
-                            p.stock > 10
-                              ? "text-green-600"
-                              : p.stock > 0
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {p.stock || 0}
-                        </span>
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="flex items-center justify-center">
-                          <input
-                            type="number"
-                            min="1"
-                            value={p.cantidad === null || p.cantidad === undefined ? "" : p.cantidad}
-                            onChange={(e) => {
-                              handleCantidadChange(p.id, e.target.value);
-                            }}
-                            placeholder="1"
-                            className="w-16 text-center border border-border rounded px-2 py-1 text-sm font-medium bg-background focus:bg-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
-                            title="Cantidad (default: 1)"
-                          />
-                        </div>
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        {p.categoria === "Maderas" ? (
-                          <div className="flex items-center justify-center font-semibold text-default-900">
-                            ${formatearNumeroArgentino((() => {
-                              const unidad = (p.unidadMedida || "").toString();
-                              if (unidad === "M2") {
-                                return calcularPrecioMachimbre({
-                                  alto: Number(p.alto) || 0,
-                                  largo: Number(p.largo) || 0,
-                                  cantidad: 1,
-                                  precioPorPie: Number(p.precioPorPie) || 0,
-                                });
-                              } else if (unidad === "Unidad") {
-                                const pUnit = Number(p.precioPorPie) || 0;
-                                return Math.round(pUnit / 100) * 100;
-                              }
-                              return calcularPrecioCorteMadera({
-                                alto: Number(p.alto) || 0,
-                                ancho: Number(p.ancho) || 0,
-                                largo: Number(p.largo) || 0,
-                                precioPorPie: Number(p.precioPorPie) || 0,
-                              });
-                            })())}
-                          </div>
-                        ) : p.categoria === "Obras" ? (
-                          <div className="flex items-center justify-center font-semibold text-default-900">
-                            ${formatearNumeroArgentino(Number(p.valorVenta) || 0)}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center font-semibold text-default-900">
-                            ${formatearNumeroArgentino(Number(p.valorVenta) || 0)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        {p.categoria === "Maderas" ? (
-                          <div className="flex items-center justify-center font-semibold text-default-900">
-                            ${formatearNumeroArgentino((() => {
-                              const unidad = (p.unidadMedida || "").toString();
-                              let precioBase = 0;
-                              if (unidad === "M2") {
-                                precioBase = calcularPrecioMachimbre({
-                                  alto: Number(p.alto) || 0,
-                                  largo: Number(p.largo) || 0,
-                                  cantidad: 1,
-                                  precioPorPie: Number(p.precioPorPie) || 0,
-                                });
-                              } else if (unidad === "Unidad") {
-                                const pUnit = Number(p.precioPorPie) || 0;
-                                precioBase = Math.round(pUnit / 100) * 100;
-                              } else {
-                                precioBase = calcularPrecioCorteMadera({
-                                  alto: Number(p.alto) || 0,
-                                  ancho: Number(p.ancho) || 0,
-                                  largo: Number(p.largo) || 0,
-                                  precioPorPie: Number(p.precioPorPie) || 0,
-                                });
-                              }
-                              const aplicaCepillado = unidad !== "Unidad";
-                              const precioConCepillado = aplicaCepillado ? precioBase * 1.06 : precioBase;
-                              return Math.round(precioConCepillado / 100) * 100;
-                            })())}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
-                        <div className="flex flex-col items-center">
-                          <span className="font-bold text-lg text-green-600">
-                            $
-                            {formatearNumeroArgentino(
-                              (() => {
-                                // Si cantidad es null/undefined, usar 1 por defecto
-                                const cantidadActual = p.cantidad === null || p.cantidad === undefined ? 1 : Number(p.cantidad) || 1;
-                                const precioUnitario =
-                                  p.categoria === "Maderas"
-                                    ? (() => {
-                                        const unidad = (p.unidadMedida || "").toString();
-                                        if (unidad === "M2") {
-                                          return calcularPrecioMachimbre({
-                                            alto: Number(p.alto) || 0,
-                                            largo: Number(p.largo) || 0,
-                                            cantidad: cantidadActual,
-                                            precioPorPie: Number(p.precioPorPie) || 0,
-                                          });
-                                        } else if (unidad === "Unidad") {
-                                          const pUnit = Math.round((Number(p.precioPorPie) || 0) / 100) * 100;
-                                          return Math.round((pUnit * cantidadActual) / 100) * 100;
-                                        }
-                                        const base = calcularPrecioCorteMadera({
-                                          alto: Number(p.alto) || 0,
-                                          ancho: Number(p.ancho) || 0,
-                                          largo: Number(p.largo) || 0,
-                                          precioPorPie: Number(p.precioPorPie) || 0,
-                                        });
-                                        return Math.round((base * cantidadActual) / 100) * 100;
-                                      })()
-                                    : p.categoria === "Obras"
-                                    ? (Number(p.valorVenta) || 0) * cantidadActual
-                                    : (Number(p.valorVenta) || 0) * cantidadActual;
-                                return precioUnitario;
-                              })()
-                            )}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Total</span>
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">

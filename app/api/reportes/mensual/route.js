@@ -7,7 +7,10 @@ import { generatePdfFromHtml } from "@/src/lib/pdf/generate-documento-firmado";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
-const REPORT_RECIPIENTS = ["mazalautaro.dev@gmail.com"];
+const REPORT_RECIPIENTS = ["mazalautaro.dev@gmail.com", "tucsdigital@gmail.com", "joantgord@gmail.com", "maderascaballero1@gmail.com"];
+
+
+
 
 const formatArs = (value) => {
   const n = Number(value) || 0;

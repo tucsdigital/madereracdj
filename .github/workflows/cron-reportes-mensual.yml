@@ -1,12 +1,24 @@
-name: Cron - Reporte Mensual
+name: Cron - Reporte Mensual y Stock
 
 on:
   schedule:
     - cron: "0 9 1 * *"
-  workflow_dispatch: {}
+    - cron: "15 9 * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Qué querés ejecutar"
+        required: true
+        default: "stock"
+        type: choice
+        options:
+          - stock
+          - mensual
+          - ambos
 
 jobs:
   reportes-mensual:
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 9 1 * *') || (github.event_name == 'workflow_dispatch' && (inputs.target == 'mensual' || inputs.target == 'ambos'))
     runs-on: ubuntu-latest
     steps:
       - name: Ejecutar reporte mensual (mes anterior)
@@ -18,6 +30,22 @@ jobs:
           BASE="${CRON_BASE_URL%/}"
           MONTH="$(date -u -d "last month" +%Y-%m)"
           curl -sS -X POST "${BASE}/api/reportes/mensual?month=${MONTH}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --data "{}"
+
+  stock-reconciliacion:
+    if: (github.event_name == 'schedule' && github.event.schedule == '15 9 * * *') || (github.event_name == 'workflow_dispatch' && (inputs.target == 'stock' || inputs.target == 'ambos'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar reconciliación automática de stock
+        env:
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE="${CRON_BASE_URL%/}"
+          curl -sS -X POST "${BASE}/api/stock/reconciliacion?dryRun=0&days=30&limit=300" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             --data "{}"
