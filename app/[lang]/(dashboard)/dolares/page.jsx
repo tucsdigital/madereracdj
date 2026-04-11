@@ -249,7 +249,7 @@ export default function DolaresPage() {
           <DollarSign className="w-9 h-9 text-amber-600" />
           <div>
             <h1 className="text-3xl font-bold">Dólares</h1>
-            <p className="text-gray-500">Comprobantes de pagos en dólares de ventas, obras, gastos y presupuestos</p>
+            <p className="text-muted-foreground">Comprobantes de pagos en dólares de ventas, obras, gastos y presupuestos</p>
           </div>
         </div>
         <Button variant="outline" onClick={cargarDatos} disabled={loading}>
@@ -338,10 +338,10 @@ export default function DolaresPage() {
             <Card key={key}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">{meta.label}</p>
+                  <p className="text-sm text-muted-foreground">{meta.label}</p>
                   <p className="text-2xl font-bold">{totalPorOrigen[key] || 0}</p>
                 </div>
-                <IconComp className="w-6 h-6 text-gray-500" />
+                <IconComp className="w-6 h-6 text-muted-foreground" />
               </CardContent>
             </Card>
           );
@@ -350,7 +350,7 @@ export default function DolaresPage() {
 
       {loading ? (
         <Card>
-          <CardContent className="py-16 text-center text-gray-500">Cargando comprobantes...</CardContent>
+          <CardContent className="py-16 text-center text-muted-foreground">Cargando comprobantes...</CardContent>
         </Card>
       ) : modoVista === "carpetas" ? (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
@@ -364,20 +364,20 @@ export default function DolaresPage() {
                       <img src={folder.cover} alt={folder.referencia} className="w-full object-cover max-h-[320px]" />
                     </a>
                   ) : (
-                    <div className="h-48 flex items-center justify-center bg-gray-100 text-gray-500">Sin preview</div>
+                    <div className="h-48 flex items-center justify-center bg-muted/50 text-muted-foreground">Sin preview</div>
                   )}
                   <div className="p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <Badge className={meta.color}>{meta.label}</Badge>
-                      <span className="text-xs text-gray-500">{folder.total} archivo{folder.total !== 1 ? "s" : ""}</span>
+                      <span className="text-xs text-muted-foreground">{folder.total} archivo{folder.total !== 1 ? "s" : ""}</span>
                     </div>
                     <div className="font-semibold">{folder.referencia}</div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formatDate(folder.fecha)}
                     </div>
-                    {!!folder.proveedor && <div className="text-xs text-gray-600">Proveedor: {folder.proveedor}</div>}
-                    {!!folder.cliente && <div className="text-xs text-gray-600">Cliente: {folder.cliente}</div>}
+                    {!!folder.proveedor && <div className="text-xs text-muted-foreground">Proveedor: {folder.proveedor}</div>}
+                    {!!folder.cliente && <div className="text-xs text-muted-foreground">Cliente: {folder.cliente}</div>}
                   </div>
                 </CardContent>
               </Card>
@@ -393,7 +393,7 @@ export default function DolaresPage() {
                 <CardContent className="p-0">
                   {item.tipo === "pdf" ? (
                     <a href={item.url} target="_blank" rel="noopener noreferrer" className="block">
-                      <div className="h-40 flex items-center justify-center bg-slate-100 text-slate-700 font-semibold">
+                      <div className="h-40 flex items-center justify-center bg-muted/50 text-foreground font-semibold">
                         PDF
                       </div>
                     </a>
@@ -408,15 +408,15 @@ export default function DolaresPage() {
                       {item.pagoEnDolares && <Badge variant="outline">USD</Badge>}
                     </div>
                     <div className="font-semibold text-sm">{item.referencia}</div>
-                    <div className="text-xs text-gray-500">{item.nombre}</div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <div className="text-xs text-muted-foreground">{item.nombre}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formatDate(item.fecha)}
                     </div>
-                    {!!item.proveedor && <div className="text-xs text-gray-600">Proveedor: {item.proveedor}</div>}
-                    {!!item.cliente && <div className="text-xs text-gray-600">Cliente: {item.cliente}</div>}
-                    {!!item.gastoConcepto && <div className="text-xs text-gray-600">Gasto: {item.gastoConcepto}</div>}
-                    {!!item.metodo && <div className="text-xs text-gray-600">Método: {item.metodo}</div>}
+                    {!!item.proveedor && <div className="text-xs text-muted-foreground">Proveedor: {item.proveedor}</div>}
+                    {!!item.cliente && <div className="text-xs text-muted-foreground">Cliente: {item.cliente}</div>}
+                    {!!item.gastoConcepto && <div className="text-xs text-muted-foreground">Gasto: {item.gastoConcepto}</div>}
+                    {!!item.metodo && <div className="text-xs text-muted-foreground">Método: {item.metodo}</div>}
                   </div>
                 </CardContent>
               </Card>
@@ -427,7 +427,7 @@ export default function DolaresPage() {
 
       {!loading && itemsFiltrados.length === 0 && (
         <Card>
-          <CardContent className="py-16 text-center text-gray-500">
+          <CardContent className="py-16 text-center text-muted-foreground">
             No se encontraron comprobantes para los filtros seleccionados.
           </CardContent>
         </Card>

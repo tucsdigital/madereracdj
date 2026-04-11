@@ -3,14 +3,15 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info } from "lucide-react";
 import { db, auth, onAuthStateChangedFirebase } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, serverTimestamp, onSnapshot, query, orderBy, getDoc, runTransaction } from "firebase/firestore";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function StockComprasPage() {
   const searchParams = useSearchParams();
@@ -68,9 +69,20 @@ function StockComprasPage() {
 
   // Auditoría ventas vs movimientos
   const [auditMes, setAuditMes] = useState(new Date().toISOString().slice(0, 7));
+  const [auditLimitVentas, setAuditLimitVentas] = useState(200);
+  const [auditFiltroTexto, setAuditFiltroTexto] = useState("");
+  const [auditFilasPorPagina, setAuditFilasPorPagina] = useState(25);
+  const [auditPagina, setAuditPagina] = useState(1);
+  const [auditSelectedKeys, setAuditSelectedKeys] = useState([]);
+  const [auditBulkRunning, setAuditBulkRunning] = useState(false);
+  const [auditBulkDone, setAuditBulkDone] = useState(0);
+  const [auditBulkTotal, setAuditBulkTotal] = useState(0);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState("");
   const [auditResult, setAuditResult] = useState(null);
+  const [auditFixingKey, setAuditFixingKey] = useState("");
+  const [auditFixStatus, setAuditFixStatus] = useState(null);
+  const [auditFixMsg, setAuditFixMsg] = useState("");
   const minAuditMes = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
   // Cargar productos en tiempo real
@@ -586,6 +598,22 @@ function StockComprasPage() {
 
   const formatFechaHora = useCallback((valor) => {
     if (!valor) return "-";
+    if (typeof valor === "string") {
+      const s = valor.trim();
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        const y = Number(m[1]);
+        const mo = Number(m[2]);
+        const d = Number(m[3]);
+        const fechaLocal = new Date(y, mo - 1, d, 0, 0, 0);
+        if (Number.isNaN(fechaLocal.getTime())) return "-";
+        return new Intl.DateTimeFormat("es-AR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).format(fechaLocal);
+      }
+    }
     const fecha = typeof valor?.toDate === "function" ? valor.toDate() : valor instanceof Date ? valor : new Date(valor);
     if (Number.isNaN(fecha.getTime())) return "-";
     return new Intl.DateTimeFormat("es-AR", {
@@ -599,28 +627,247 @@ function StockComprasPage() {
     }).format(fecha);
   }, []);
 
+  const formatUsuario = useCallback((usuario) => {
+    const value = String(usuario || "").trim().toLowerCase();
+    if (!value) return "-";
+    if (value === "luisdamian@maderascaballero.com") return "luis";
+    if (value === "ivan@maderascaballero.com") return "ivan";
+    if (value === "brian@maderascaballero.com") return "coco";
+    return usuario;
+  }, []);
+
   const ejecutarAuditoria = useCallback(async () => {
     setAuditLoading(true);
     setAuditError("");
     try {
-      const resp = await fetch(`/api/v1/stock?auditVentasMes=${encodeURIComponent(auditMes)}&limitVentas=200`);
+      const resp = await fetch(
+        `/api/v1/stock?auditVentasMes=${encodeURIComponent(auditMes)}&limitVentas=${encodeURIComponent(String(auditLimitVentas))}`
+      );
       const data = await resp.json();
       if (!resp.ok) throw new Error(data?.error || "Error al ejecutar auditoría");
       setAuditResult(data);
+      setAuditPagina(1);
+      setAuditSelectedKeys([]);
     } catch (e) {
       setAuditResult(null);
       setAuditError(e?.message || "Error al ejecutar auditoría");
     } finally {
       setAuditLoading(false);
     }
-  }, [auditMes]);
+  }, [auditMes, auditLimitVentas]);
+
+  const reconciliarVentaProducto = useCallback(
+    async (ventaId, productoId) => {
+      const vId = String(ventaId || "").trim();
+      const pId = String(productoId || "").trim();
+      if (!vId || !pId) return { ok: false, error: "Faltan datos" };
+      if (!usuario || typeof usuario?.getIdToken !== "function") return { ok: false, error: "No hay usuario autenticado." };
+      const idToken = await usuario.getIdToken();
+      const url = `/api/stock/reconciliacion?dryRun=0&ventaId=${encodeURIComponent(vId)}&productoId=${encodeURIComponent(pId)}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data?.ok) return { ok: false, error: data?.error || "Error al corregir" };
+      return { ok: true };
+    },
+    [usuario]
+  );
+
+  const corregirDiscrepancia = useCallback(
+    async (ventaId, productoId) => {
+      const vId = String(ventaId || "").trim();
+      const pId = String(productoId || "").trim();
+      if (!vId || !pId) return;
+      const key = `${vId}:${pId}`;
+      setAuditFixingKey(key);
+      setAuditFixStatus(null);
+      setAuditFixMsg("");
+      try {
+        const res = await reconciliarVentaProducto(vId, pId);
+        if (!res.ok) throw new Error(res.error || "Error al corregir");
+        setAuditFixStatus("success");
+        setAuditFixMsg("Corrección aplicada. Actualizando auditoría…");
+        await ejecutarAuditoria();
+        setAuditFixMsg("Corrección aplicada.");
+      } catch (e) {
+        setAuditFixStatus("error");
+        setAuditFixMsg(e?.message || "Error al corregir");
+      } finally {
+        setAuditFixingKey("");
+      }
+    },
+    [reconciliarVentaProducto, ejecutarAuditoria]
+  );
+
+  const auditRows = useMemo(() => {
+    const problemas = Array.isArray(auditResult?.problemas) ? auditResult.problemas : [];
+    const toMs = (v) => {
+      if (!v) return 0;
+      if (typeof v?.toDate === "function") {
+        const d = v.toDate();
+        const ms = d?.getTime?.();
+        return Number.isFinite(ms) ? ms : 0;
+      }
+      if (v instanceof Date) {
+        const ms = v.getTime();
+        return Number.isFinite(ms) ? ms : 0;
+      }
+      const s = String(v).trim();
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+        const ms = d.getTime();
+        return Number.isFinite(ms) ? ms : 0;
+      }
+      const d = new Date(s);
+      const ms = d.getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    };
+
+    const rows = [];
+    for (const p of problemas) {
+      const discrepancias = Array.isArray(p?.discrepancias) ? p.discrepancias : [];
+      for (const d of discrepancias) {
+        const deltaEsperado = Number(d?.deltaEsperado) || 0;
+        const deltaMov = Number(d?.deltaEnMovimientos) || 0;
+        const diff = deltaEsperado - deltaMov;
+        const registrado =
+          deltaMov < 0 ? `Descontó ${Math.abs(deltaMov)}` : deltaMov > 0 ? `Repuso ${deltaMov}` : "Sin impacto";
+        const pendiente = diff < 0 ? `Descontar ${Math.abs(diff)}` : diff > 0 ? `Reponer ${diff}` : "OK";
+        rows.push({
+          key: `${p.ventaId}:${d.productoId}`,
+          fecha: p.fecha,
+          ventaId: p.ventaId,
+          ventaLabel: p.numeroPedido || p.ventaId,
+          productoId: d.productoId,
+          productoLabel: d.nombre || d.productoId,
+          cantidadEnVenta: d.cantidadActualEnVenta,
+          registrado,
+          pendiente,
+          diff,
+          __ms: toMs(p.fecha),
+        });
+      }
+    }
+    rows.sort((a, b) => b.__ms - a.__ms || String(a.productoLabel).localeCompare(String(b.productoLabel)));
+    return rows;
+  }, [auditResult]);
+
+  const auditRowsFiltradas = useMemo(() => {
+    const f = String(auditFiltroTexto || "").trim().toLowerCase();
+    if (!f) return auditRows;
+    return auditRows.filter((r) => {
+      const venta = String(r.ventaLabel || "").toLowerCase();
+      const producto = String(r.productoLabel || "").toLowerCase();
+      return venta.includes(f) || producto.includes(f);
+    });
+  }, [auditRows, auditFiltroTexto]);
+
+  const auditSelectedSet = useMemo(() => new Set(auditSelectedKeys), [auditSelectedKeys]);
+  const auditRowsTotal = auditRowsFiltradas.length;
+  const auditTotalPaginas = Math.max(1, Math.ceil(auditRowsTotal / auditFilasPorPagina));
+  const auditPaginaActual = Math.min(auditPagina, auditTotalPaginas);
+  const auditRowsPagina = useMemo(() => {
+    const start = (auditPaginaActual - 1) * auditFilasPorPagina;
+    const end = start + auditFilasPorPagina;
+    return auditRowsFiltradas.slice(start, end);
+  }, [auditRowsFiltradas, auditPaginaActual, auditFilasPorPagina]);
+
+  useEffect(() => {
+    setAuditPagina(1);
+  }, [auditFiltroTexto, auditFilasPorPagina, auditResult]);
+
+  const auditSelectedCount = auditSelectedKeys.length;
+  const auditPageKeys = useMemo(() => auditRowsPagina.map((r) => r.key), [auditRowsPagina]);
+  const auditPageSelectedCount = useMemo(() => auditPageKeys.filter((k) => auditSelectedSet.has(k)).length, [auditPageKeys, auditSelectedSet]);
+  const auditPageAllSelected = auditPageKeys.length > 0 && auditPageSelectedCount === auditPageKeys.length;
+  const auditPageSomeSelected = auditPageSelectedCount > 0 && !auditPageAllSelected;
+
+  const toggleSeleccionFila = useCallback((key, checked) => {
+    const k = String(key || "");
+    if (!k) return;
+    setAuditSelectedKeys((prev) => {
+      const set = new Set(prev);
+      const isChecked = checked === true;
+      if (isChecked) set.add(k);
+      else set.delete(k);
+      return Array.from(set);
+    });
+  }, []);
+
+  const toggleSeleccionPagina = useCallback((checked) => {
+    setAuditSelectedKeys((prev) => {
+      const set = new Set(prev);
+      const isChecked = checked === true;
+      if (isChecked) {
+        for (const k of auditPageKeys) set.add(k);
+      } else {
+        for (const k of auditPageKeys) set.delete(k);
+      }
+      return Array.from(set);
+    });
+  }, [auditPageKeys]);
+
+  const seleccionarTodosFiltrados = useCallback(() => {
+    setAuditSelectedKeys(auditRowsFiltradas.map((r) => r.key));
+  }, [auditRowsFiltradas]);
+
+  const limpiarSeleccionAuditoria = useCallback(() => {
+    setAuditSelectedKeys([]);
+  }, []);
+
+  const corregirMultiples = useCallback(
+    async (rows) => {
+      const items = Array.isArray(rows) ? rows : [];
+      if (items.length === 0) return;
+      if (auditBulkRunning) return;
+      setAuditBulkRunning(true);
+      setAuditBulkTotal(items.length);
+      setAuditBulkDone(0);
+      setAuditFixStatus(null);
+      setAuditFixMsg("Iniciando correcciones…");
+
+      const errores = [];
+      for (let i = 0; i < items.length; i += 1) {
+        const it = items[i];
+        setAuditFixingKey(it.key);
+        setAuditFixStatus(null);
+        setAuditFixMsg(`Corrigiendo ${i + 1}/${items.length}…`);
+        try {
+          const res = await reconciliarVentaProducto(it.ventaId, it.productoId);
+          if (!res.ok) throw new Error(res.error || "Error al corregir");
+        } catch (e) {
+          errores.push({ key: it.key, error: e?.message || "Error" });
+        } finally {
+          setAuditBulkDone(i + 1);
+        }
+      }
+
+      setAuditFixingKey("");
+      await ejecutarAuditoria();
+      setAuditSelectedKeys([]);
+      if (errores.length === 0) {
+        setAuditFixStatus("success");
+        setAuditFixMsg(`Correcciones aplicadas: ${items.length}.`);
+      } else {
+        setAuditFixStatus("error");
+        setAuditFixMsg(`Se aplicaron ${items.length - errores.length}/${items.length}. Fallaron ${errores.length}.`);
+      }
+      setAuditBulkRunning(false);
+    },
+    [auditBulkRunning, reconciliarVentaProducto, ejecutarAuditoria]
+  );
 
   return (
     <TooltipProvider>
       <div className="py-8 px-2 max-w-8xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Stock y Compras</h1>
-          <p className="text-lg text-gray-500">Controla el inventario, repón productos y gestiona los movimientos de stock de tu maderera.</p>
+          <p className="text-lg text-muted-foreground">Controla el inventario, repón productos y gestiona los movimientos de stock de tu maderera.</p>
         </div>
         <Tabs value={tab} onValueChange={setTab} className="mb-6">
           <TabsList className="mb-4">
@@ -637,7 +884,7 @@ function StockComprasPage() {
                   <select
                     value={productosPorPagina}
                     onChange={(e) => setProductosPorPagina(Number(e.target.value))}
-                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
                   >
                     <option value={10}>10 / pág.</option>
                     <option value={20}>20 / pág.</option>
@@ -665,13 +912,13 @@ function StockComprasPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Filtro por categoría */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Categoría
                       </label>
                       <select
                         value={categoriaId}
                         onChange={(e) => setCategoriaId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                        className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Todas las categorías</option>
                         {categoriasUnicas.map((cat) => (
@@ -685,13 +932,13 @@ function StockComprasPage() {
                     {/* Filtro por tipo de madera */}
                     {categoriaId === "Maderas" && tiposMaderaUnicos.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Tipo de Madera
                         </label>
                         <select
                           value={filtroTipoMadera}
                           onChange={(e) => setFiltroTipoMadera(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                          className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Todos los tipos</option>
                           {tiposMaderaUnicos.map((tipo) => (
@@ -706,13 +953,13 @@ function StockComprasPage() {
                     {/* Filtro por subcategoría de ferretería */}
                     {categoriaId === "Ferretería" && subCategoriasFerreteria.length > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-foreground mb-1">
                           Subcategoría
                         </label>
                         <select
                           value={filtroSubCategoria}
                           onChange={(e) => setFiltroSubCategoria(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                          className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Todas las subcategorías</option>
                           {subCategoriasFerreteria.map((subCat) => (
@@ -726,13 +973,13 @@ function StockComprasPage() {
 
                     {/* Filtro por estado de stock */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Estado de Stock
                       </label>
                       <select
                         value={filtroEstado}
                         onChange={(e) => setFiltroEstado(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                        className="w-full px-3 py-2 border border-border/60 rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Todos los estados</option>
                         <option value="sin_stock">Sin stock</option>
@@ -743,7 +990,7 @@ function StockComprasPage() {
                   </div>
 
                   {/* Información de resultados */}
-                  <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <span>
                       Mostrando {totalProductos === 0 ? 0 : (paginaActual - 1) * productosPorPagina + 1}-{Math.min(paginaActual * productosPorPagina, totalProductos)} de {totalProductos} productos
                     </span>
@@ -757,7 +1004,7 @@ function StockComprasPage() {
                 {loadingProd ? (
                   <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                 ) : error ? (
-                  <div className="text-red-600 py-4 text-center">{error}</div>
+                  <div className="text-red-700 dark:text-red-300 py-4 text-center">{error}</div>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -772,24 +1019,29 @@ function StockComprasPage() {
                     </TableHeader>
                     <TableBody>
                       {productosPaginados.map(p => (
-                        <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-yellow-50" : ""}>
+                        <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-amber-500/10" : ""}>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">{p.nombre}</span>
-                              {p.stock === 0 && <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Sin stock</span>}
-                              {p.stock > 0 && p.stock <= (p.min || 0) && <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs">Bajo</span>}
-                              {p.stock > (p.min || 0) && <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">OK</span>}
+                              {p.stock === 0 && <span className="bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20 px-2 py-0.5 rounded text-xs">Sin stock</span>}
+                              {p.stock > 0 && p.stock <= (p.min || 0) && <span className="bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 px-2 py-0.5 rounded text-xs">Bajo</span>}
+                              {p.stock > (p.min || 0) && <span className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 px-2 py-0.5 rounded text-xs">OK</span>}
                             </div>
                           </TableCell>
                           <TableCell>{p.categoria}</TableCell>
                           <TableCell>
-                            <Tooltip content={`Última actualización: ${p.fechaActualizacion?.toDate ? p.fechaActualizacion.toDate().toLocaleString() : "-"}`}>
-                              <span>{p.stock}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{p.stock}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Última actualización: {p.fechaActualizacion?.toDate ? p.fechaActualizacion.toDate().toLocaleString() : "-"}
+                              </TooltipContent>
                             </Tooltip>
                           </TableCell>
                           <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
                           <TableCell>
-                            {p.stock === 0 ? <span className="text-red-700 font-semibold">Sin stock</span> : p.stock <= (p.min || 0) ? <span className="text-yellow-700 font-semibold">Bajo</span> : <span className="text-green-600 font-semibold">OK</span>}
+                            {p.stock === 0 ? <span className="text-red-700 dark:text-red-300 font-semibold">Sin stock</span> : p.stock <= (p.min || 0) ? <span className="text-amber-700 dark:text-amber-300 font-semibold">Bajo</span> : <span className="text-emerald-700 dark:text-emerald-300 font-semibold">OK</span>}
                           </TableCell>
                           <TableCell>
                             <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); handleSeleccionarProducto(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
@@ -802,7 +1054,7 @@ function StockComprasPage() {
                 )}
                 {!loadingProd && !error && totalPaginas > 1 && (
                   <div className="flex items-center justify-between mt-4 border-t pt-4">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Página {paginaActual} de {totalPaginas}
                     </div>
                     <div className="flex items-center gap-1">
@@ -833,7 +1085,7 @@ function StockComprasPage() {
                   <select
                     value={filtroMovTipo}
                     onChange={(e) => setFiltroMovTipo(e.target.value)}
-                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
                   >
                     <option value="">Todos los tipos</option>
                     <option value="entrada">Entradas</option>
@@ -843,7 +1095,7 @@ function StockComprasPage() {
                   <select
                     value={filtroMovUsuario}
                     onChange={(e) => setFiltroMovUsuario(e.target.value)}
-                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
                   >
                     <option value="">Todos los usuarios</option>
                     {usuariosMovUnicos.map((usuarioMov) => (
@@ -853,7 +1105,7 @@ function StockComprasPage() {
                   <select
                     value={movimientosPorPagina}
                     onChange={(e) => setMovimientosPorPagina(Number(e.target.value))}
-                    className="h-9 px-2 border border-gray-300 rounded-md bg-white text-sm"
+                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
                   >
                     <option value={15}>15 / pág.</option>
                     <option value={30}>30 / pág.</option>
@@ -876,7 +1128,7 @@ function StockComprasPage() {
                 {loadingMov ? (
                   <div className="flex justify-center items-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                 ) : error ? (
-                  <div className="text-red-600 py-4 text-center">{error}</div>
+                  <div className="text-red-700 dark:text-red-300 py-4 text-center">{error}</div>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -898,14 +1150,14 @@ function StockComprasPage() {
                           <TableCell>{formatFechaHora(m.fecha)}</TableCell>
                           <TableCell>{m.productoNombre}</TableCell>
                           <TableCell>
-                            {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
-                            {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
-                            {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
+                            {m.tipo === "entrada" && <span className="text-emerald-700 dark:text-emerald-300 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
+                            {m.tipo === "salida" && <span className="text-red-700 dark:text-red-300 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
+                            {m.tipo === "ajuste" && <span className="text-blue-700 dark:text-blue-300 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
                           </TableCell>
                           <TableCell>{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
                           <TableCell>
                             {Number.isFinite(Number(m.stockDelta)) ? (
-                              <span className={Number(m.stockDelta) < 0 ? "text-red-700 font-semibold" : Number(m.stockDelta) > 0 ? "text-green-700 font-semibold" : ""}>
+                              <span className={Number(m.stockDelta) < 0 ? "text-red-700 dark:text-red-300 font-semibold" : Number(m.stockDelta) > 0 ? "text-emerald-700 dark:text-emerald-300 font-semibold" : ""}>
                                 {Number(m.stockDelta) > 0 ? `+${Number(m.stockDelta)}` : Number(m.stockDelta)}
                               </span>
                             ) : (
@@ -923,7 +1175,7 @@ function StockComprasPage() {
                 )}
                 {!loadingMov && !error && (
                   <div className="flex items-center justify-between mt-4 border-t pt-4">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Mostrando {totalMovimientos === 0 ? 0 : (paginaActualMov - 1) * movimientosPorPagina + 1}-{Math.min(paginaActualMov * movimientosPorPagina, totalMovimientos)} de {totalMovimientos} movimientos
                     </div>
                     {totalPaginasMov > 1 && (
@@ -953,62 +1205,201 @@ function StockComprasPage() {
                 <CardTitle>Auditoría de Ventas vs Movimientos</CardTitle>
                 <div className="flex gap-2 items-center flex-wrap justify-end">
                   <Input type="month" min={minAuditMes} value={auditMes} onChange={(e) => setAuditMes(e.target.value)} className="w-44" />
+                  <select
+                    value={auditLimitVentas}
+                    onChange={(e) => setAuditLimitVentas(Number(e.target.value))}
+                    className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                  >
+                    <option value={50}>50 ventas</option>
+                    <option value={100}>100 ventas</option>
+                    <option value={200}>200 ventas</option>
+                    <option value={500}>500 ventas</option>
+                  </select>
                   <Button onClick={ejecutarAuditoria} disabled={auditLoading || !auditMes}>
                     {auditLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Corroborar
+                    Auditar
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="overflow-x-auto">
+                {auditFixMsg ? (
+                  <div
+                    className={`mb-3 p-3 rounded-lg border text-sm flex items-center gap-2 ${
+                      auditFixStatus === "success"
+                        ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20"
+                        : auditFixStatus === "error"
+                          ? "bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/20"
+                          : "bg-muted/50 text-foreground border-border/60"
+                    }`}
+                  >
+                    {auditFixStatus === "success" ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : auditFixStatus === "error" ? (
+                      <AlertCircle className="w-4 h-4" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    {auditFixMsg}
+                  </div>
+                ) : null}
                 {auditError ? (
-                  <div className="text-red-600 py-4">{auditError}</div>
+                  <div className="text-red-700 dark:text-red-300 py-4">{auditError}</div>
                 ) : auditResult ? (
                   <div className="space-y-4">
-                    <div className="text-sm text-gray-700">
+                    <div className="text-sm text-muted-foreground">
                       <span className="font-medium">Rango:</span> {auditResult.desde} → {auditResult.hasta} ·{" "}
                       <span className="font-medium">Ventas auditadas:</span> {auditResult.ventasAuditadas} ·{" "}
                       <span className="font-medium">Con problemas:</span> {auditResult.ventasConProblemas}
                     </div>
                     {auditResult.ventasConProblemas === 0 ? (
-                      <div className="p-3 rounded-lg border bg-green-50 text-green-800 flex items-center gap-2 text-sm">
+                      <div className="p-3 rounded-lg border bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20 flex items-center gap-2 text-sm">
                         <CheckCircle className="w-4 h-4" />
                         No se detectaron discrepancias entre ventas y movimientos.
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Venta</TableHead>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Producto</TableHead>
-                            <TableHead>Cant. en venta</TableHead>
-                            <TableHead>Delta esperado</TableHead>
-                            <TableHead>Delta en mov.</TableHead>
-                            <TableHead>Mov.</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {auditResult.problemas.flatMap((p) =>
-                            (p.discrepancias || []).map((d, idx) => (
-                              <TableRow key={`${p.ventaId}-${d.productoId}-${idx}`}>
-                                <TableCell className="font-mono text-xs">{p.numeroPedido || p.ventaId}</TableCell>
-                                <TableCell>{p.fecha || "-"}</TableCell>
-                                <TableCell>{d.nombre || d.productoId}</TableCell>
-                                <TableCell>{d.cantidadActualEnVenta}</TableCell>
-                                <TableCell className="text-red-700 font-semibold">{d.deltaEsperado}</TableCell>
-                                <TableCell className={d.deltaEnMovimientos === d.deltaEsperado ? "" : "text-amber-700 font-semibold"}>
-                                  {d.deltaEnMovimientos}
-                                </TableCell>
-                                <TableCell>{p.movimientosRelacionados}</TableCell>
-                              </TableRow>
-                            ))
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Input
+                              placeholder="Filtrar por producto o venta…"
+                              value={auditFiltroTexto}
+                              onChange={(e) => setAuditFiltroTexto(e.target.value)}
+                              className="w-72"
+                            />
+                            <select
+                              value={auditFilasPorPagina}
+                              onChange={(e) => setAuditFilasPorPagina(Number(e.target.value))}
+                              className="h-9 px-2 border border-border/60 rounded-md bg-background text-foreground text-sm"
+                            >
+                              <option value={10}>10 filas</option>
+                              <option value={25}>25 filas</option>
+                              <option value={50}>50 filas</option>
+                              <option value={100}>100 filas</option>
+                            </select>
+                            <Button size="sm" variant="outline" onClick={seleccionarTodosFiltrados} disabled={auditRowsTotal === 0 || auditBulkRunning || auditLoading}>
+                              Seleccionar todos
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={limpiarSeleccionAuditoria} disabled={auditSelectedCount === 0 || auditBulkRunning || auditLoading}>
+                              Limpiar
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                              Seleccionados: {auditSelectedCount}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <Button
+                              size="sm"
+                              color="destructive"
+                              disabled={auditSelectedCount === 0 || auditBulkRunning || auditLoading}
+                              onClick={() => {
+                                const map = new Map(auditRowsFiltradas.map((r) => [r.key, r]));
+                                const rows = auditSelectedKeys.map((k) => map.get(k)).filter(Boolean);
+                                corregirMultiples(rows);
+                              }}
+                            >
+                              {auditBulkRunning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                              Corregir seleccionados
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              color="destructive"
+                              disabled={auditRowsTotal === 0 || auditBulkRunning || auditLoading}
+                              onClick={() => corregirMultiples(auditRowsFiltradas)}
+                            >
+                              {auditBulkRunning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                              Corregir todos (filtrados)
+                            </Button>
+                          </div>
+                        </div>
+                        {auditBulkRunning ? (
+                          <div className="text-sm text-muted-foreground">
+                            Corrigiendo: {auditBulkDone}/{auditBulkTotal}
+                          </div>
+                        ) : null}
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10">
+                                <Checkbox
+                                  size="sm"
+                                  checked={auditPageAllSelected ? true : auditPageSomeSelected ? "indeterminate" : false}
+                                  onCheckedChange={toggleSeleccionPagina}
+                                  disabled={auditPageKeys.length === 0 || auditBulkRunning || auditLoading}
+                                />
+                              </TableHead>
+                              <TableHead>Fecha</TableHead>
+                              <TableHead>Producto</TableHead>
+                              <TableHead>Venta</TableHead>
+                              <TableHead>Cant. en venta</TableHead>
+                              <TableHead>Registrado</TableHead>
+                              <TableHead>Pendiente</TableHead>
+                              <TableHead className="text-right">Acción</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {auditRowsPagina.map((r) => {
+                              const tieneProblema = Number(r.diff) !== 0;
+                              const isFixing = auditFixingKey === r.key;
+                              return (
+                                <TableRow key={r.key} className={tieneProblema ? "bg-red-500/10" : ""}>
+                                  <TableCell>
+                                    <Checkbox
+                                      size="sm"
+                                      checked={auditSelectedSet.has(r.key)}
+                                      onCheckedChange={(v) => toggleSeleccionFila(r.key, v)}
+                                      disabled={auditBulkRunning || auditLoading}
+                                    />
+                                  </TableCell>
+                                  <TableCell>{formatFechaHora(r.fecha)}</TableCell>
+                                  <TableCell>{r.productoLabel}</TableCell>
+                                  <TableCell className="font-mono text-xs">{r.ventaLabel}</TableCell>
+                                  <TableCell>{r.cantidadEnVenta}</TableCell>
+                                  <TableCell className={tieneProblema ? "text-red-700 dark:text-red-300 font-semibold" : ""}>{r.registrado}</TableCell>
+                                  <TableCell className={tieneProblema ? "text-red-700 dark:text-red-300 font-semibold" : ""}>{r.pendiente}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      color="destructive"
+                                      disabled={!tieneProblema || isFixing || auditBulkRunning || auditLoading}
+                                      onClick={() => corregirDiscrepancia(r.ventaId, r.productoId)}
+                                    >
+                                      {isFixing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                      Corregir
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                        <div className="flex items-center justify-between mt-4 border-t pt-4">
+                          <div className="text-sm text-muted-foreground">
+                            Mostrando {auditRowsTotal === 0 ? 0 : (auditPaginaActual - 1) * auditFilasPorPagina + 1}-{Math.min(auditPaginaActual * auditFilasPorPagina, auditRowsTotal)} de {auditRowsTotal} filas
+                          </div>
+                          {auditTotalPaginas > 1 && (
+                            <div className="flex items-center gap-1">
+                              <Button size="icon" variant="outline" onClick={() => setAuditPagina(1)} disabled={auditPaginaActual === 1 || auditBulkRunning || auditLoading}>
+                                <ChevronsLeft className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => setAuditPagina(auditPaginaActual - 1)} disabled={auditPaginaActual === 1 || auditBulkRunning || auditLoading}>
+                                <ChevronLeft className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => setAuditPagina(auditPaginaActual + 1)} disabled={auditPaginaActual === auditTotalPaginas || auditBulkRunning || auditLoading}>
+                                <ChevronRight className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="outline" onClick={() => setAuditPagina(auditTotalPaginas)} disabled={auditPaginaActual === auditTotalPaginas || auditBulkRunning || auditLoading}>
+                                <ChevronsRight className="w-4 h-4" />
+                              </Button>
+                            </div>
                           )}
-                        </TableBody>
-                      </Table>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     Ejecutá la auditoría para detectar ventas que no impactaron correctamente en movimientos/stock.
                   </div>
                 )}
@@ -1018,14 +1409,14 @@ function StockComprasPage() {
         </Tabs>
         {/* Modal de Movimiento */}
         <Dialog open={openMov} onOpenChange={setOpenMov}>
-          <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogContent className="w-[95vw] max-w-[500px] border border-border/60 bg-card">
             <DialogHeader>
               <DialogTitle>Registrar Movimiento de Stock</DialogTitle>
               <DialogDescription>Gestiona el inventario del producto seleccionado.</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-2">
               {movStatus && (
-                <div className={`mb-2 p-3 rounded-lg flex items-center gap-2 text-sm ${movStatus === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                <div className={`mb-2 p-3 rounded-lg flex items-center gap-2 text-sm border ${movStatus === 'success' ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20' : 'bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/20'}`}>
                   {movStatus === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                   {movMsg}
                 </div>
@@ -1033,15 +1424,15 @@ function StockComprasPage() {
               
               {/* Información del producto seleccionado */}
               {movProductoId && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">Producto Seleccionado</h4>
+                    <h4 className="font-semibold text-blue-800 dark:text-blue-200">Producto Seleccionado</h4>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       productos.find(p => p.id === movProductoId)?.stock === 0 
-                        ? 'bg-red-100 text-red-800' 
+                        ? 'bg-red-500/15 text-red-800 dark:text-red-200' 
                         : productos.find(p => p.id === movProductoId)?.stock <= (productos.find(p => p.id === movProductoId)?.min || 0)
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-amber-500/10 text-amber-800 dark:text-amber-200'
+                        : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                     }`}>
                       {productos.find(p => p.id === movProductoId)?.stock === 0 
                         ? 'Sin stock' 
@@ -1064,7 +1455,7 @@ function StockComprasPage() {
               <div>
                 <label className="font-semibold text-sm mb-2 block">Tipo de movimiento</label>
                 <select 
-                  className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  className="border border-border/60 rounded-lg px-3 py-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary" 
                   value={movTipo} 
                   onChange={e => setMovTipo(e.target.value)}
                 >
@@ -1079,7 +1470,7 @@ function StockComprasPage() {
                 <label className="font-semibold text-sm mb-2 block">
                   Cantidad
                   {movTipo === "salida" && movProductoId && (
-                    <span className="text-xs text-gray-500 ml-2">
+                    <span className="text-xs text-muted-foreground ml-2">
                       (Máx: {productos.find(p => p.id === movProductoId)?.stock || 0})
                     </span>
                   )}
@@ -1099,7 +1490,7 @@ function StockComprasPage() {
                   placeholder={movTipo === "ajuste" ? "0" : "1"}
                 />
                 {movTipo === "salida" && Number(movCantidad || 0) > (productos.find(p => p.id === movProductoId)?.stock || 0) && (
-                  <p className="text-red-600 text-xs mt-1">⚠️ Cantidad excede el stock disponible</p>
+                  <p className="text-red-700 dark:text-red-300 text-xs mt-1">⚠️ Cantidad excede el stock disponible</p>
                 )}
               </div>
 
@@ -1124,7 +1515,7 @@ function StockComprasPage() {
                   <div className="md:col-span-2">
                     <label className="font-semibold text-sm mb-2 block">Motivo</label>
                     <select
-                      className="border rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="border border-border/60 bg-background text-foreground rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={movMotivo}
                       onChange={(e) => setMovMotivo(e.target.value)}
                     >
@@ -1153,7 +1544,7 @@ function StockComprasPage() {
 
               {/* Resumen del movimiento */}
               {movProductoId && ((movCantidad !== "" && Number(movCantidad) > 0) || movTipo === "ajuste") && (
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                <div className="bg-muted/50 p-3 rounded-lg border border-border/60">
                   <h5 className="font-medium text-sm mb-2">Resumen del movimiento:</h5>
                   <div className="text-sm">
                     <p><span className="font-medium">Stock actual:</span> {productos.find(p => p.id === movProductoId)?.stock || 0}</p>
@@ -1166,10 +1557,10 @@ function StockComprasPage() {
                     <p><span className="font-medium">Stock resultante:</span> 
                       <span className={`font-bold ml-1 ${
                         movTipo === "entrada" 
-                          ? "text-green-600" 
+                          ? "text-emerald-700 dark:text-emerald-300" 
                           : movTipo === "salida" 
-                          ? "text-red-600" 
-                          : "text-blue-600"
+                          ? "text-red-700 dark:text-red-300" 
+                          : "text-blue-700 dark:text-blue-300"
                       }`}>
                         {movTipo === "ajuste" && ajusteAbsoluto
                           ? (stockFinal === "" ? "?" : Number(stockFinal))
@@ -1206,12 +1597,12 @@ function StockComprasPage() {
         </Dialog>
         {/* Modal de detalle de producto */}
         <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
-          <DialogContent className="w-[95vw] max-w-[600px]">
+          <DialogContent className="w-[95vw] max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col border border-border/60 bg-card">
             <DialogHeader>
               <DialogTitle>Detalle del Producto</DialogTitle>
             </DialogHeader>
             {detalleProducto && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 flex-1 min-h-0">
                 <div className="font-bold text-lg mb-2">{detalleProducto.nombre}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
                   <div><b>Categoría:</b> {detalleProducto.categoria}</div>
@@ -1219,53 +1610,43 @@ function StockComprasPage() {
                   <div><b>Stock actual:</b> {detalleProducto.stock}</div>
                   <div><b>Mínimo:</b> {detalleProducto.min || "-"}</div>
                   <div><b>Estado:</b> {detalleProducto.stock === 0 ? "Sin stock" : detalleProducto.stock <= (detalleProducto.min || 0) ? "Bajo" : "OK"}</div>
-                  <div><b>Última actualización:</b> {detalleProducto.fechaActualizacion?.toDate ? detalleProducto.fechaActualizacion.toDate().toLocaleString() : "-"}</div>
+                  <div><b>Última actualización:</b> {detalleProducto.fechaActualizacion ? formatFechaHora(detalleProducto.fechaActualizacion) : "-"}</div>
                 </div>
-                <div className="mt-2">
+                <div className="mt-2 flex-1 min-h-0">
                   <b>Historial de movimientos:</b>
                   {detalleMovimientos.length === 0 ? (
-                    <div className="text-gray-500 text-sm">No hay movimientos registrados.</div>
+                    <div className="text-muted-foreground text-sm">No hay movimientos registrados.</div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Stock antes</TableHead>
-                          <TableHead>Delta</TableHead>
-                          <TableHead>Stock después</TableHead>
-                          <TableHead>Cantidad</TableHead>
-                          <TableHead>Usuario</TableHead>
-                          <TableHead>Observaciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detalleMovimientos.map(m => (
-                          <TableRow key={m.id}>
-                            <TableCell>{formatFechaHora(m.fecha)}</TableCell>
-                            <TableCell>
-                              {m.tipo === "entrada" && <span className="text-green-600 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
-                              {m.tipo === "salida" && <span className="text-red-600 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
-                              {m.tipo === "ajuste" && <span className="text-blue-600 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
-                            </TableCell>
-                            <TableCell>{Number.isFinite(Number(m.stockAntes)) ? Number(m.stockAntes) : "-"}</TableCell>
-                            <TableCell>
-                              {Number.isFinite(Number(m.stockDelta)) ? (
-                                <span className={Number(m.stockDelta) < 0 ? "text-red-700 font-semibold" : Number(m.stockDelta) > 0 ? "text-green-700 font-semibold" : ""}>
-                                  {Number(m.stockDelta) > 0 ? `+${Number(m.stockDelta)}` : Number(m.stockDelta)}
-                                </span>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell>{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
-                            <TableCell>{m.cantidad}</TableCell>
-                            <TableCell>{m.usuario}</TableCell>
-                            <TableCell>{m.observaciones}</TableCell>
+                    <div className="mt-2 border border-border/60 rounded-xl overflow-auto max-h-[50vh]">
+                      <Table className="min-w-[900px] table-fixed">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-44 whitespace-nowrap">Fecha</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Tipo</TableHead>
+                            <TableHead className="w-32 whitespace-nowrap text-right">Stock después</TableHead>
+                            <TableHead className="w-24 whitespace-nowrap text-right">Cantidad</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Usuario</TableHead>
+                            <TableHead className="w-[420px]">Observaciones</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {detalleMovimientos.map(m => (
+                            <TableRow key={m.id}>
+                              <TableCell className="whitespace-nowrap">{formatFechaHora(m.fecha)}</TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {m.tipo === "entrada" && <span className="text-emerald-700 dark:text-emerald-300 font-semibold flex items-center"><ArrowDown className="w-4 h-4 mr-1" />Entrada</span>}
+                                {m.tipo === "salida" && <span className="text-red-700 dark:text-red-300 font-semibold flex items-center"><ArrowUp className="w-4 h-4 mr-1" />Salida</span>}
+                                {m.tipo === "ajuste" && <span className="text-blue-700 dark:text-blue-300 font-semibold flex items-center"><RefreshCw className="w-4 h-4 mr-1" />Ajuste</span>}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-right">{Number.isFinite(Number(m.stockDespues)) ? Number(m.stockDespues) : "-"}</TableCell>
+                              <TableCell className="whitespace-nowrap text-right">{m.cantidad}</TableCell>
+                              <TableCell className="whitespace-nowrap">{formatUsuario(m.usuario)}</TableCell>
+                              <TableCell className="whitespace-normal break-words max-w-[420px]">{m.observaciones}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </div>
               </div>

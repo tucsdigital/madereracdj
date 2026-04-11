@@ -13,7 +13,7 @@ const DataTableEnhanced = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-64 rounded-xl bg-default-100/50 animate-pulse" aria-hidden />
+      <div className="h-64 rounded-xl bg-muted/50 animate-pulse" aria-hidden />
     ),
   }
 );
@@ -173,16 +173,16 @@ const VentasPage = () => {
       {deleteMessage && (
         <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border transition-all duration-500 ${
           deleteMessage.startsWith('✅') 
-            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-800 shadow-green-100" 
-            : "bg-gradient-to-r from-red-50 to-rose-50 border-red-200 text-red-800 shadow-red-100"
+            ? "bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-emerald-500/10" 
+            : "bg-gradient-to-r from-red-500/15 to-red-500/5 border-red-500/20 text-red-700 dark:text-red-300 shadow-red-500/10"
         }`}>
           {deleteMessage.startsWith('✅') ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-emerald-700 dark:text-emerald-300" />
             </div>
           ) : (
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-red-600" />
+            <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-700 dark:text-red-300" />
             </div>
           )}
           <span className="font-semibold">{deleteMessage}</span>
@@ -226,9 +226,10 @@ const VentasPage = () => {
           {/* Tablas mejoradas */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
       {/* Tabla de Presupuestos - IZQUIERDA */}
-      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
-          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+      <Card className="relative rounded-2xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 border-b border-border/60 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <Icon
                 icon="heroicons:document-text"
@@ -236,15 +237,15 @@ const VentasPage = () => {
               />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">Presupuestos</div>
-              <div className="text-sm font-medium text-gray-600">Gestión de cotizaciones</div>
+              <div className="text-2xl font-bold text-foreground">Presupuestos</div>
+              <div className="text-sm font-medium text-muted-foreground">Gestión de cotizaciones</div>
             </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <div className="w-6 h-6 bg-blue-500/10 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-700 dark:text-blue-300" />
                 </div>
-                <span className="text-sm font-medium text-blue-600">Procesando...</span>
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Procesando...</span>
                 </div>
               )}
             </CardTitle>
@@ -267,9 +268,10 @@ const VentasPage = () => {
         </Card>
 
       {/* Tabla de Ventas - DERECHA */}
-      <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-emerald-50/50 overflow-hidden">
-        <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-2xl">
-          <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+      <Card className="relative rounded-2xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
+        <CardHeader className="relative pb-4 border-b border-border/60 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-t-2xl">
+          <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
               <Icon
                 icon="heroicons:shopping-cart"
@@ -277,15 +279,15 @@ const VentasPage = () => {
               />
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-900">Ventas</div>
-              <div className="text-sm font-medium text-gray-600">Transacciones realizadas</div>
+              <div className="text-2xl font-bold text-foreground">Ventas</div>
+              <div className="text-sm font-medium text-muted-foreground">Transacciones realizadas</div>
             </div>
               {deleting && (
                 <div className="flex items-center gap-2 ml-auto">
-                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                <div className="w-6 h-6 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-700 dark:text-emerald-300" />
                 </div>
-                <span className="text-sm font-medium text-emerald-600">Procesando...</span>
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Procesando...</span>
                 </div>
               )}
             </CardTitle>
@@ -310,29 +312,29 @@ const VentasPage = () => {
 
       {/* Diálogo de confirmación de eliminación mejorado */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="w-[95vw] max-w-md rounded-2xl border-0 shadow-2xl bg-white">
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl border border-border/60 shadow-2xl bg-card">
           <DialogHeader className="text-center pb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div className="w-16 h-16 bg-gradient-to-br from-red-500/15 to-red-500/5 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-700 dark:text-red-300" />
             </div>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Confirmar Eliminación
             </DialogTitle>
-            <DialogDescription className="text-gray-600 mt-2">
+            <DialogDescription className="text-muted-foreground mt-2">
               ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 mb-6 border border-red-100">
+          <div className="bg-gradient-to-r from-red-500/15 to-red-500/5 rounded-xl p-4 mb-6 border border-red-500/20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Info className="w-5 h-5 text-red-600" />
+              <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center">
+                <Info className="w-5 h-5 text-red-700 dark:text-red-300" />
               </div>
               <div className="flex-1">
-                <div className="font-semibold text-red-800">
+                <div className="font-semibold text-red-800 dark:text-red-200">
                   {itemToDelete?.name || 'Elemento'}
                 </div>
-                <div className="text-sm text-red-700">
+                <div className="text-sm text-red-700 dark:text-red-300">
                   {deleteType === 'venta' 
                     ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
                     : 'Esta acción eliminará el presupuesto permanentemente.'
@@ -346,7 +348,7 @@ const VentasPage = () => {
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl border-border text-foreground hover:bg-muted/50 transition-all duration-200 font-medium"
               disabled={deleting}
             >
               <X className="w-4 h-4 mr-2" />

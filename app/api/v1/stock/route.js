@@ -26,6 +26,17 @@ export async function GET(request) {
     const idsParam = searchParams.get("ids");
     const now = Date.now();
 
+    const deltaFromMov = (m) => {
+      const sd = Number(m?.stockDelta);
+      if (Number.isFinite(sd) && sd !== 0) return sd;
+      const tipo = String(m?.tipo || "").toLowerCase();
+      const cantidad = Math.max(0, Math.ceil(Number(m?.cantidad) || 0));
+      if (cantidad === 0) return 0;
+      if (tipo === "entrada") return cantidad;
+      if (tipo === "salida") return -cantidad;
+      return 0;
+    };
+
     if (ventaId) {
       const ventaRef = doc(db, "ventas", ventaId);
       const ventaSnap = await getDoc(ventaRef);
@@ -53,27 +64,27 @@ export async function GET(request) {
       const movimientosSnap = await getDocs(movimientosQ);
 
       const deltaPorProducto = new Map();
+      const movsPorProducto = new Map();
       const movimientos = [];
       movimientosSnap.forEach((d) => {
         const m = d.data() || {};
         const productoId = String(m.productoId || "").trim();
-        const tipo = String(m.tipo || "").toLowerCase();
-        const cantidad = Math.max(0, Math.ceil(Number(m.cantidad) || 0));
-        if (!productoId || cantidad === 0) return;
-
-        const delta = tipo === "entrada" ? cantidad : tipo === "salida" ? -cantidad : 0;
+        if (!productoId) return;
+        const delta = deltaFromMov(m);
         if (delta === 0) return;
 
         deltaPorProducto.set(productoId, (deltaPorProducto.get(productoId) || 0) + delta);
+        movsPorProducto.set(productoId, (movsPorProducto.get(productoId) || 0) + 1);
         movimientos.push({
           id: d.id,
           productoId,
-          tipo,
-          cantidad,
+          tipo: String(m.tipo || "").toLowerCase(),
+          cantidad: Math.max(0, Math.ceil(Number(m.cantidad) || 0)),
           referencia: m.referencia || "",
           fecha: m.fecha || null,
           observaciones: m.observaciones || "",
           usuario: m.usuario || "",
+          stockDelta: Number.isFinite(Number(m.stockDelta)) ? Number(m.stockDelta) : null,
         });
       });
 
@@ -88,6 +99,7 @@ export async function GET(request) {
             cantidadActualEnVenta: entry.cantidad,
             deltaEsperado: esperadoDelta,
             deltaEnMovimientos: realDelta,
+            movimientosProducto: movsPorProducto.get(entry.productoId) || 0,
           });
         }
       }
@@ -100,6 +112,7 @@ export async function GET(request) {
             cantidadActualEnVenta: 0,
             deltaEsperado: 0,
             deltaEnMovimientos: realDelta,
+            movimientosProducto: movsPorProducto.get(productoId) || 0,
           });
         }
       }
@@ -198,15 +211,17 @@ export async function GET(request) {
         const movimientosQ = query(collection(db, "movimientos"), where("referenciaId", "==", vid));
         const movimientosSnap = await getDocs(movimientosQ);
         const deltaPorProducto = new Map();
+        const movsPorProducto = new Map();
+        let movimientosConImpacto = 0;
         movimientosSnap.forEach((d) => {
           const m = d.data() || {};
           const productoId = String(m.productoId || "").trim();
-          const tipo = String(m.tipo || "").toLowerCase();
-          const cantidad = Math.max(0, Math.ceil(Number(m.cantidad) || 0));
-          if (!productoId || cantidad === 0) return;
-          const delta = tipo === "entrada" ? cantidad : tipo === "salida" ? -cantidad : 0;
+          if (!productoId) return;
+          const delta = deltaFromMov(m);
           if (delta === 0) return;
           deltaPorProducto.set(productoId, (deltaPorProducto.get(productoId) || 0) + delta);
+          movsPorProducto.set(productoId, (movsPorProducto.get(productoId) || 0) + 1);
+          movimientosConImpacto += 1;
         });
 
         const discrepancias = [];
@@ -220,6 +235,7 @@ export async function GET(request) {
               cantidadActualEnVenta: entry.cantidad,
               deltaEsperado: esperadoDelta,
               deltaEnMovimientos: realDelta,
+              movimientosProducto: movsPorProducto.get(entry.productoId) || 0,
             });
           }
         }
@@ -232,6 +248,7 @@ export async function GET(request) {
               cantidadActualEnVenta: 0,
               deltaEsperado: 0,
               deltaEnMovimientos: realDelta,
+              movimientosProducto: movsPorProducto.get(productoId) || 0,
             });
           }
         }
@@ -242,7 +259,8 @@ export async function GET(request) {
             numeroPedido: venta.numeroPedido || "",
             fecha: venta.fecha || venta.fechaCreacion || "",
             discrepancias,
-            movimientosRelacionados: movimientosSnap.size,
+            movimientosVenta: movimientosSnap.size,
+            movimientosRelacionados: movimientosConImpacto,
           });
         }
       }

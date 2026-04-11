@@ -95,7 +95,7 @@ const ClientesPage = () => {
         <Users className="w-10 h-10 text-primary" />
         <div>
           <h1 className="text-3xl font-bold mb-1">Clientes</h1>
-          <p className="text-lg text-gray-500">Gestión de clientes de la maderera.</p>
+          <p className="text-lg text-muted-foreground">Gestión de clientes de la maderera.</p>
         </div>
       </div>
       <Card>
@@ -156,11 +156,11 @@ const ClientesPage = () => {
       />
       {/* Modal detalle cliente */}
       <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
-        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border-0 outline-none focus:outline-none bg-white">
-          <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b bg-gradient-to-r from-gray-50 to-white">
+        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card">
+          <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-border/60 bg-gradient-to-r from-muted/50 to-card">
             <DialogTitle className="text-xl font-bold tracking-tight">Detalle del Cliente</DialogTitle>
             <DialogClose asChild>
-              <button type="button" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-gray-200 bg-white hover:bg-gray-100 text-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500">
+              <button type="button" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border/60 bg-card hover:bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-blue-500/30">
                 <X className="w-5 h-5" />
               </button>
             </DialogClose>
@@ -172,14 +172,14 @@ const ClientesPage = () => {
                 <div className="font-bold text-2xl mb-2 leading-tight uppercase">{(editCliente.nombre || '').toString()}</div>
                 {/* Tabs del modal */}
                 <div className="flex gap-2 items-center">
-                  <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-1">
+                  <div className="inline-flex items-center gap-1 bg-muted/50 rounded-full p-1 border border-border/60">
                   {['datos','actividad'].map(tab => (
                     <button
                       key={tab}
                       type="button"
                       onClick={() => setDetalleTab(tab)}
                       className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
-                        detalleTab === tab ? 'bg-white text-blue-600 shadow border border-gray-200' : 'text-gray-600 hover:text-gray-800'
+                        detalleTab === tab ? 'bg-card text-blue-600 shadow border border-border/60' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {tab === 'datos' && 'Datos'}
@@ -196,8 +196,8 @@ const ClientesPage = () => {
                     {/* Datos personales + Datos de contacto (lado a lado en desktop) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {/* Datos personales */}
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Datos personales</h4>
+                      <div className="bg-card rounded-xl border border-border/60 shadow-sm p-3">
+                        <h4 className="text-sm font-semibold text-foreground mb-3">Datos personales</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <Label htmlFor="nombre">Nombre *</Label>
@@ -225,8 +225,8 @@ const ClientesPage = () => {
                       </div>
 
                       {/* Datos de contacto */}
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Datos de contacto</h4>
+                      <div className="bg-card rounded-xl border border-border/60 shadow-sm p-3">
+                        <h4 className="text-sm font-semibold text-foreground mb-3">Datos de contacto</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div className="md:max-w-sm">
                             <div className="flex items-center gap-1 mb-1">
@@ -265,8 +265,8 @@ const ClientesPage = () => {
                     </div>
 
                     {/* Ubicación */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Ubicación</h4>
+                    <div className="bg-card rounded-xl border border-border/60 shadow-sm p-3">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Ubicación</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor="direccion">Dirección *</Label>
@@ -332,16 +332,16 @@ const ClientesPage = () => {
                     </div>
 
                     {/* Información adicional */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Información adicional</h4>
+                    <div className="bg-card rounded-xl border border-border/60 shadow-sm p-3">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Información adicional</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg border border-border/60">
                           <div>
-                            <p className="text-sm font-medium text-gray-700">Estado</p>
-                            <p className="text-xs text-gray-500">Activa o desactiva al cliente</p>
+                            <p className="text-sm font-medium text-foreground">Estado</p>
+                            <p className="text-xs text-muted-foreground">Activa o desactiva al cliente</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs ${editCliente.estado === 'Activo' ? 'text-green-600' : 'text-gray-500'}`}>{editCliente.estado === 'Activo' ? 'Activo' : 'Inactivo'}</span>
+                            <span className={`text-xs ${editCliente.estado === 'Activo' ? 'text-green-600' : 'text-muted-foreground'}`}>{editCliente.estado === 'Activo' ? 'Activo' : 'Inactivo'}</span>
                             <Switch
                               color="success"
                               checked={true}
@@ -351,10 +351,10 @@ const ClientesPage = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg border border-border/60">
                           <div>
-                            <p className="text-sm font-medium text-gray-700">Cliente antiguo</p>
-                            <p className="text-xs text-gray-500">Marca si ya existía previo al sistema</p>
+                            <p className="text-sm font-medium text-foreground">Cliente antiguo</p>
+                            <p className="text-xs text-muted-foreground">Marca si ya existía previo al sistema</p>
                           </div>
                           <Switch
                             checked={editCliente.esClienteViejo || false}
@@ -382,40 +382,40 @@ const ClientesPage = () => {
                 {detalleTab === 'actividad' && (
                   <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Ventas */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">Ventas asociadas</h4>
+                    <div className="bg-muted/50 p-4 rounded-lg border border-border/60">
+                      <h4 className="font-semibold text-foreground mb-2">Ventas asociadas</h4>
                       {ventas.length === 0 ? (
-                        <div className="text-gray-500 text-sm">No hay ventas registradas.</div>
+                        <div className="text-muted-foreground text-sm">No hay ventas registradas.</div>
                       ) : (
-                        <ul className="divide-y divide-gray-200">
+                        <ul className="divide-y divide-border">
                           {ventas.map(v => (
                             <li key={v.id} className="py-2 flex items-center justify-between">
                               <div className="text-sm">
                                 <span className="font-medium">{v.numeroPedido || v.id}</span>
-                                <span className="text-gray-500 ml-2">{v.fecha}</span>
+                                <span className="text-muted-foreground ml-2">{v.fecha}</span>
                                 <span className="font-semibold text-primary ml-2">${v.total?.toFixed(2) || '-'}</span>
                               </div>
-                              <Link href={`/${lang}/ventas/${v.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-medium">Ver<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M12.293 2.293a1 1 0 011.414 0l4 4a1 1 0 01-.707 1.707H15a1 1 0 110-2h.586L13 4.414V7a1 1 0 11-2 0V3a1 1 0 011-1h.293z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V7a4 4 0 014-4h3a1 1 0 110 2H5z"/></svg></Link>
+                              <Link href={`/${lang}/ventas/${v.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/20 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 hover:bg-blue-500/10 text-sm font-medium">Ver<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M12.293 2.293a1 1 0 011.414 0l4 4a1 1 0 01-.707 1.707H15a1 1 0 110-2h.586L13 4.414V7a1 1 0 11-2 0V3a1 1 0 011-1h.293z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V7a4 4 0 014-4h3a1 1 0 110 2H5z"/></svg></Link>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
                     {/* Presupuestos */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">Presupuestos asociados</h4>
+                    <div className="bg-muted/50 p-4 rounded-lg border border-border/60">
+                      <h4 className="font-semibold text-foreground mb-2">Presupuestos asociados</h4>
                       {presupuestos.length === 0 ? (
-                        <div className="text-gray-500 text-sm">No hay presupuestos registrados.</div>
+                        <div className="text-muted-foreground text-sm">No hay presupuestos registrados.</div>
                       ) : (
-                        <ul className="divide-y divide-gray-200">
+                        <ul className="divide-y divide-border">
                           {presupuestos.map(p => (
                             <li key={p.id} className="py-2 flex items-center justify-between">
                               <div className="text-sm">
                                 <span className="font-medium">{p.numeroPedido || p.id}</span>
-                                <span className="text-gray-500 ml-2">{p.fecha}</span>
+                                <span className="text-muted-foreground ml-2">{p.fecha}</span>
                                 <span className="font-semibold text-primary ml-2">${p.total?.toFixed(2) || '-'}</span>
                               </div>
-                              <Link href={`/${lang}/presupuestos/${p.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-medium">Ver<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M12.293 2.293a1 1 0 011.414 0l4 4a1 1 0 01-.707 1.707H15a1 1 0 110-2h.586L13 4.414V7a1 1 0 11-2 0V3a1 1 0 011-1h.293z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V7a4 4 0 014-4h3a1 1 0 110 2H5z"/></svg></Link>
+                              <Link href={`/${lang}/presupuestos/${p.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-blue-500/20 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 hover:bg-blue-500/10 text-sm font-medium">Ver<svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M12.293 2.293a1 1 0 011.414 0l4 4a1 1 0 01-.707 1.707H15a1 1 0 110-2h.586L13 4.414V7a1 1 0 11-2 0V3a1 1 0 011-1h.293z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 112 0v3a4 4 0 01-4 4H5a4 4 0 01-4-4V7a4 4 0 014-4h3a1 1 0 110 2H5z"/></svg></Link>
                             </li>
                           ))}
                         </ul>
@@ -427,8 +427,8 @@ const ClientesPage = () => {
                 {editMsg && (
                   <div className={`p-3 rounded-lg text-sm mt-4 ${
                     editMsg.startsWith("Error") 
-                      ? "bg-red-50 text-red-800 border border-red-200" 
-                      : "bg-green-50 text-green-800 border border-green-200"
+                      ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20" 
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
                   }`}>
                     {editMsg}
                   </div>
@@ -436,8 +436,8 @@ const ClientesPage = () => {
               </div>
 
               {/* Footer fijo */}
-              <div className="flex justify-between items-center px-5 py-3 border-t bg-white sticky bottom-0">
-                <div className="text-xs text-gray-500">ID: {selectedCliente.id}</div>
+              <div className="flex justify-between items-center px-5 py-3 border-t border-border/60 bg-card sticky bottom-0">
+                <div className="text-xs text-muted-foreground">ID: {selectedCliente.id}</div>
                 <Button
                   onClick={handleGuardarEdicion}
                   disabled={editSaving || !editCliente.nombre || !editCliente.direccion || !editCliente.telefono}

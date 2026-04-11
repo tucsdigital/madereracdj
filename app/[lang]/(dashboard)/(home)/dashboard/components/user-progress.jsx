@@ -136,18 +136,18 @@ const UserProgress = () => {
     // Determinar nivel
     let nivel = "Principiante";
     let nivelColor = "text-blue-600";
-    let nivelBg = "bg-blue-50";
+    let nivelBg = "bg-blue-500/10";
     let siguienteNivel = "Intermedio";
 
     if (porcentajeGeneral >= 75) {
       nivel = "Avanzado";
       nivelColor = "text-purple-600";
-      nivelBg = "bg-purple-50";
+      nivelBg = "bg-purple-500/10";
       siguienteNivel = "Experto";
     } else if (porcentajeGeneral >= 50) {
       nivel = "Intermedio";
       nivelColor = "text-emerald-600";
-      nivelBg = "bg-emerald-50";
+      nivelBg = "bg-emerald-500/10";
       siguienteNivel = "Avanzado";
     }
 
@@ -169,11 +169,11 @@ const UserProgress = () => {
 
   if (loading || !progress) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-violet-200/50 to-purple-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:trophy" className="w-6 h-6 text-purple-600" />
             </div>
             Tu progreso
@@ -181,8 +181,8 @@ const UserProgress = () => {
         </CardHeader>
         <CardContent className="relative pt-2 px-6 pb-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-20 bg-white/60 rounded-2xl" />
-            <div className="h-4 bg-white/60 rounded w-3/4" />
+            <div className="h-20 bg-muted/60 rounded-2xl" />
+            <div className="h-4 bg-muted/60 rounded w-3/4" />
           </div>
         </CardContent>
       </Card>
@@ -190,11 +190,11 @@ const UserProgress = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-violet-50/80 via-purple-50/60 to-fuchsia-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600">
-          <div className="p-2 rounded-2xl bg-gradient-to-br from-violet-200/50 to-purple-200/50 shadow-lg">
+          <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
             <Icon icon="heroicons:trophy" className="w-6 h-6 text-purple-600" />
           </div>
           Tu progreso
@@ -205,7 +205,7 @@ const UserProgress = () => {
           {/* Nivel general */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.01] ${progress.nivelBg}`}>
+              <div className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border border-border/60 cursor-help transition-all hover:scale-[1.01] ${progress.nivelBg}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-sm font-medium text-default-600 mb-1">Nivel actual</p>
@@ -259,7 +259,7 @@ const UserProgress = () => {
           {progress.proximoPaso && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.01]">
+                <div className="p-4 rounded-2xl bg-card/60 border border-border/60 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.01]">
                   <p className="text-xs font-medium text-default-600 mb-2">Próximo paso:</p>
                   <div className="flex items-center gap-2">
                     <Icon icon={progress.proximoPaso.icon} className="w-4 h-4 text-primary" />
@@ -375,7 +375,7 @@ const UserProgress = () => {
               );
 
               const content = (
-                <div className="p-4 rounded-2xl bg-white/60 shadow-md backdrop-blur-sm border-0 hover:shadow-lg transition-all hover:scale-[1.01]">
+                <div className="p-4 rounded-2xl bg-card/60 border border-border/60 shadow-md backdrop-blur-sm hover:shadow-lg transition-all hover:scale-[1.01]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Icon

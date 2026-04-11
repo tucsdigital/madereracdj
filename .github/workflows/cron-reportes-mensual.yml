@@ -1,0 +1,23 @@
+name: Cron - Reporte Mensual
+
+on:
+  schedule:
+    - cron: "0 9 1 * *"
+  workflow_dispatch: {}
+
+jobs:
+  reportes-mensual:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar reporte mensual (mes anterior)
+        env:
+          CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE="${CRON_BASE_URL%/}"
+          MONTH="$(date -u -d "last month" +%Y-%m)"
+          curl -sS -X POST "${BASE}/api/reportes/mensual?month=${MONTH}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            --data "{}"

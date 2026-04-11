@@ -88,13 +88,13 @@ const PersonalSpace = () => {
   // Determinar estado del negocio
   const estado = useMemo(() => {
     if (stats.ventas === 0) {
-      return { label: "Comenzando", icon: "heroicons:rocket-launch", color: "text-blue-600", bg: "bg-blue-50" };
+      return { label: "Comenzando", icon: "heroicons:rocket-launch", color: "text-blue-600", bg: "bg-blue-500/10" };
     } else if (stats.ventas < 10) {
-      return { label: "En crecimiento", icon: "heroicons:chart-bar", color: "text-emerald-600", bg: "bg-emerald-50" };
+      return { label: "En crecimiento", icon: "heroicons:chart-bar", color: "text-emerald-600", bg: "bg-emerald-500/10" };
     } else if (stats.ventas < 50) {
-      return { label: "Establecido", icon: "heroicons:building-office", color: "text-purple-600", bg: "bg-purple-50" };
+      return { label: "Establecido", icon: "heroicons:building-office", color: "text-purple-600", bg: "bg-purple-500/10" };
     } else {
-      return { label: "Consolidado", icon: "heroicons:trophy", color: "text-yellow-600", bg: "bg-yellow-50" };
+      return { label: "Consolidado", icon: "heroicons:trophy", color: "text-yellow-600", bg: "bg-yellow-500/10" };
     }
   }, [stats.ventas]);
 
@@ -104,12 +104,12 @@ const PersonalSpace = () => {
   const inicial = nombreNegocio[0].toUpperCase();
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-rose-50/80 via-pink-50/60 to-orange-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
-      <div className="relative bg-gradient-to-r from-rose-100/60 via-pink-100/40 to-orange-100/60 backdrop-blur-sm p-6">
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
+      <div className="relative bg-muted/30 backdrop-blur-sm p-6">
         <div className="flex items-center gap-4">
           {/* Avatar/Logo */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-300/50 to-pink-300/50 flex items-center justify-center text-rose-700 text-2xl font-bold shadow-xl border-0 backdrop-blur-sm">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold shadow-xl border border-border/60 backdrop-blur-sm">
             {inicial}
           </div>
 
@@ -117,7 +117,7 @@ const PersonalSpace = () => {
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-default-900 mb-1 truncate">{nombreNegocio}</h2>
             {!loading && (
-              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl shadow-lg backdrop-blur-sm border-0 ${estado.bg}`}>
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl shadow-lg backdrop-blur-sm border border-border/60 ${estado.bg}`}>
                 <Icon icon={estado.icon} className={`w-4 h-4 ${estado.color}`} />
                 <span className={`text-xs font-bold ${estado.color}`}>{estado.label} 🚀</span>
               </div>

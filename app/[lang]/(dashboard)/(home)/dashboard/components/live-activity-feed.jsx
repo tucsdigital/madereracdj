@@ -35,7 +35,7 @@ const LiveActivityFeed = () => {
           message: `Nueva venta #${v.numeroPedido || v.id.slice(-6)}`,
           icon: "heroicons:shopping-cart",
           color: "text-emerald-600",
-          bgColor: "bg-emerald-50",
+          bgColor: "bg-emerald-500/10",
         })),
         ...presupuestos.map((p) => ({
           ...p,
@@ -44,7 +44,7 @@ const LiveActivityFeed = () => {
           message: `Nuevo presupuesto #${p.numeroPedido || p.id.slice(-6)}`,
           icon: "heroicons:document-text",
           color: "text-blue-600",
-          bgColor: "bg-blue-50",
+          bgColor: "bg-blue-500/10",
         })),
         // Productos recientes (últimos 3 agregados, sin filtrar por fecha)
         ...productos
@@ -56,7 +56,7 @@ const LiveActivityFeed = () => {
             message: `Producto agregado: ${pr.nombre}`,
             icon: "heroicons:cube",
             color: "text-purple-600",
-            bgColor: "bg-purple-50",
+            bgColor: "bg-purple-500/10",
           })),
       ]
         .filter((a) => a.timestamp)
@@ -87,11 +87,11 @@ const LiveActivityFeed = () => {
 
   if (loading) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-200/50 to-blue-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600" />
             </div>
             ¿Qué está pasando ahora?
@@ -101,10 +101,10 @@ const LiveActivityFeed = () => {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/60" />
+                <div className="w-10 h-10 rounded-full bg-muted/60" />
                 <div className="flex-1">
-                  <div className="h-4 w-3/4 bg-white/60 rounded mb-2" />
-                  <div className="h-3 w-1/2 bg-white/60 rounded" />
+                  <div className="h-4 w-3/4 bg-muted/60 rounded mb-2" />
+                  <div className="h-3 w-1/2 bg-muted/60 rounded" />
                 </div>
               </div>
             ))}
@@ -115,11 +115,11 @@ const LiveActivityFeed = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-cyan-50/80 via-blue-50/60 to-indigo-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600">
-          <div className="p-2 rounded-2xl bg-gradient-to-br from-cyan-200/50 to-blue-200/50 shadow-lg">
+          <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
             <Icon icon="heroicons:bolt" className="w-6 h-6 text-blue-600" />
           </div>
           ¿Qué está pasando ahora?
@@ -221,8 +221,8 @@ const LiveActivityFeed = () => {
                   <div
                     className={`flex items-start gap-3 p-3 rounded-2xl transition-all shadow-md backdrop-blur-sm ${
                       linkHref
-                        ? "bg-white/60 hover:bg-white/80 hover:shadow-lg cursor-pointer transform hover:scale-[1.01]"
-                        : "bg-white/60 hover:bg-white/80"
+                        ? "bg-card/60 border border-border/60 hover:bg-card/80 hover:shadow-lg cursor-pointer transform hover:scale-[1.01]"
+                        : "bg-card/60 border border-border/60 hover:bg-card/80"
                     }`}
                   >
                     <div

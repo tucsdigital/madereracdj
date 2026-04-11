@@ -90,13 +90,13 @@ export function DataTable({ columns, data }) {
       </div>
       <div className="overflow-x-auto">
         <Table className="w-full bg-card">
-          <TableHeader className="bg-gray-100 bg-card">
+          <TableHeader className="bg-muted/50">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-gray-100 bg-card">
+              <TableRow key={headerGroup.id} className="bg-muted/50">
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="px-4 py-2 text-left text-gray-700 dark:text-gray-200 font-semibold"
+                    className="px-4 py-2 text-left text-muted-foreground font-semibold"
                   >
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
@@ -110,13 +110,13 @@ export function DataTable({ columns, data }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-default-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 bg-card transition-colors"
+                  className="border-b border-border/50 cursor-pointer hover:bg-muted/30 bg-card transition-colors"
                   onClick={() => handleRowClick(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="px-4 py-2 text-gray-700 dark:text-gray-200"
+                      className="px-4 py-2 text-foreground"
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
@@ -125,7 +125,7 @@ export function DataTable({ columns, data }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400 dark:text-gray-500">
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                   No hay resultados.
                 </TableCell>
               </TableRow>

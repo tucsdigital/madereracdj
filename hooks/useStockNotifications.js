@@ -86,16 +86,16 @@ export const useStockNotifications = () => {
             return;
           }
 
-          const stockTotal = Number(productoData.stock) || 0;
+          const stockTotal = Number(productoData.stock);
+          if (!Number.isFinite(stockTotal)) return;
           const stockMinimo = Number(productoData.min) || 0;
           const reservadas = reservasMap.get(productoId) || 0;
-          const stockDisponible = Math.max(0, stockTotal - reservadas);
+          const stockDisponible = stockTotal - reservadas;
 
-          const sinStock = stockDisponible === 0;
-          const stockBajo = stockMinimo > 0 && stockDisponible <= stockMinimo;
+          const stockNegativo = stockDisponible < 0;
 
-          // Solo agregar productos con problemas
-          if (sinStock || stockBajo) {
+          // Solo agregar productos con stock negativo
+          if (stockNegativo) {
             productosConProblemas.push({
               id: productoId,
               nombre: productoData.nombre || "Producto sin nombre",
@@ -107,22 +107,16 @@ export const useStockNotifications = () => {
                 productoData.unidadMedida ||
                 productoData.unidad ||
                 "",
-              sinStock,
-              stockBajo,
-              faltante:
-                stockMinimo > 0
-                  ? Math.max(0, stockMinimo - stockDisponible)
-                  : 0,
+              stockNegativo,
+              reservadas,
             });
           }
         });
 
-        // Ordenar por prioridad
-        productosConProblemas.sort((a, b) => {
-          if (a.sinStock && !b.sinStock) return -1;
-          if (!a.sinStock && b.sinStock) return 1;
-          return (b.faltante || 0) - (a.faltante || 0);
-        });
+        // Ordenar por criticidad: más negativo primero
+        productosConProblemas.sort(
+          (a, b) => (Number(a.stockDisponible) || 0) - (Number(b.stockDisponible) || 0)
+        );
 
         // Actualizar caché
         cache.data = productosConProblemas;

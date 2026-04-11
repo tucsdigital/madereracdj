@@ -67,11 +67,11 @@ const AuditoriaPage = () => {
   const obtenerColorTipo = (tipo) => {
     switch (tipo) {
       case 'presupuestos':
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700';
+        return 'bg-blue-500/10 text-blue-800 dark:text-blue-300 border-blue-500/20';
       case 'ventas':
-        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700';
+        return 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/20';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/30 dark:text-gray-300 dark:border-gray-700';
+        return 'bg-muted/50 text-foreground border-border/60';
     }
   };
 
@@ -91,8 +91,8 @@ const AuditoriaPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">Debes iniciar sesión para ver esta página.</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Acceso Denegado</h2>
+          <p className="text-muted-foreground">Debes iniciar sesión para ver esta página.</p>
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ const AuditoriaPage = () => {
             />
             Historial de Auditoría
           </h1>
-          <p className="text-base text-default-600 mt-2">
+          <p className="text-base text-muted-foreground mt-2">
             Registro de todas las eliminaciones de presupuestos y ventas
           </p>
         </div>
@@ -143,7 +143,7 @@ const AuditoriaPage = () => {
 
       {/* Filtros */}
       <div className="px-2">
-        <Card className="rounded-xl shadow-lg border border-default-200">
+        <Card className="rounded-xl shadow-lg border border-border/60 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Icon icon="heroicons:funnel" className="w-5 h-5" />
@@ -184,8 +184,8 @@ const AuditoriaPage = () => {
       {/* Mensaje de error */}
       {error && (
         <div className="px-2">
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600" />
+          <div className="bg-red-500/15 border border-red-500/20 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-700 dark:text-red-300" />
             <span className="font-medium">Error: {error}</span>
           </div>
         </div>
@@ -193,7 +193,7 @@ const AuditoriaPage = () => {
 
       {/* Lista de auditoría */}
       <div className="px-2">
-        <Card className="rounded-xl shadow-lg border border-default-200">
+        <Card className="rounded-xl shadow-lg border border-border/60 bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Icon icon="heroicons:clock" className="w-5 h-5" />
@@ -208,18 +208,18 @@ const AuditoriaPage = () => {
               <div className="flex items-center justify-center py-12">
                 <div className="flex items-center gap-3">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  <span className="text-lg text-gray-600">Cargando auditoría...</span>
+                  <span className="text-lg text-muted-foreground">Cargando auditoría...</span>
                 </div>
               </div>
             ) : auditoria.length === 0 ? (
               <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                  <Icon icon="heroicons:clipboard-document-list" className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 mx-auto mb-4 bg-muted/50 rounded-full flex items-center justify-center">
+                  <Icon icon="heroicons:clipboard-document-list" className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <h3 className="text-lg font-medium text-foreground mb-2">
                   No hay registros de auditoría
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="text-muted-foreground">
                   {filtroTipo === "todos" 
                     ? "No se han eliminado documentos aún"
                     : `No se han eliminado ${filtroTipo} aún`
@@ -231,7 +231,7 @@ const AuditoriaPage = () => {
                 {auditoria.map((registro) => (
                   <div
                     key={registro.id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    className="border border-border/60 rounded-lg p-4 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -242,10 +242,10 @@ const AuditoriaPage = () => {
                           />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+                          <h4 className="font-semibold text-foreground">
                             {registro.coleccion === 'presupuestos' ? 'Presupuesto' : 'Venta'} Eliminado
                           </h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <p className="text-sm text-muted-foreground">
                             ID: {registro.documentoId?.slice(-8) || 'N/A'}
                           </p>
                         </div>
@@ -256,7 +256,7 @@ const AuditoriaPage = () => {
                           <Trash2 className="w-3 h-3 mr-1" />
                           Eliminado
                         </Badge>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {formatearFecha(registro.fechaEliminacion)}
                         </div>
                       </div>
@@ -264,22 +264,22 @@ const AuditoriaPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <h5 className="font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
                           <Icon icon="heroicons:user" className="w-4 h-4" />
                           Usuario Responsable
                         </h5>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-2">
+                        <div className="bg-muted/50 border border-border/60 rounded p-2">
                           <p className="font-medium">{registro.usuarioEmail || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">ID: {registro.usuarioId || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">ID: {registro.usuarioId || 'N/A'}</p>
                         </div>
                       </div>
 
                       <div>
-                        <h5 className="font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
+                        <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
                           <Icon icon="heroicons:information-circle" className="w-4 h-4" />
                           Información del Documento
                         </h5>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded p-2">
+                        <div className="bg-muted/50 border border-border/60 rounded p-2">
                           {registro.datosEliminados?.cliente?.nombre && (
                             <p className="font-medium">
                               Cliente: {registro.datosEliminados.cliente.nombre}
@@ -291,7 +291,7 @@ const AuditoriaPage = () => {
                             </p>
                           )}
                           {registro.datosEliminados?.vendedor && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-muted-foreground">
                               Vendedor: {registro.datosEliminados.vendedor}
                             </p>
                           )}
@@ -300,28 +300,28 @@ const AuditoriaPage = () => {
                     </div>
 
                                          {registro.coleccion === 'ventas' && (
-                       <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                         <div className="flex items-start gap-2 text-green-800 dark:text-green-200">
+                       <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                         <div className="flex items-start gap-2 text-emerald-800 dark:text-emerald-200">
                            <CheckCircle className="w-4 h-4 mt-0.5" />
                            <div className="flex flex-col gap-2 flex-1">
                              <div>
                                <span className="text-sm font-medium">
                                  Stock repuesto automáticamente para todos los productos
                                </span>
-                               <span className="text-xs text-green-700 dark:text-green-300 block mt-1">
+                               <span className="text-xs text-emerald-700 dark:text-emerald-300 block mt-1">
                                  Movimientos de entrada registrados en la colección "Movimientos"
                                </span>
                              </div>
                              
                              {/* Lista de productos repuestos */}
                              {registro.datosEliminados?.productos && (
-                               <div className="bg-green-100 dark:bg-green-800/30 rounded p-2 border border-green-200 dark:border-green-700">
-                                 <span className="text-xs font-medium text-green-800 dark:text-green-200 mb-2 block">
+                               <div className="bg-emerald-500/10 rounded p-2 border border-emerald-500/20">
+                                 <span className="text-xs font-medium text-emerald-800 dark:text-emerald-200 mb-2 block">
                                    Productos repuestos:
                                  </span>
                                  <div className="space-y-1">
                                    {registro.datosEliminados.productos.map((prod, idx) => (
-                                     <div key={idx} className="text-xs text-green-700 dark:text-green-300 flex justify-between">
+                                     <div key={idx} className="text-xs text-emerald-700 dark:text-emerald-300 flex justify-between">
                                        <span className="truncate max-w-[200px]">{prod.nombre || `Producto ${idx + 1}`}</span>
                                        <span className="font-medium">+{prod.cantidad || 0}</span>
                                      </div>
@@ -334,8 +334,8 @@ const AuditoriaPage = () => {
                        </div>
                      )}
 
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="mt-3 pt-3 border-t border-border/60">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>IP: {registro.ip || 'N/A'}</span>
                         <span>User Agent: {registro.userAgent?.substring(0, 50) || 'N/A'}...</span>
                       </div>

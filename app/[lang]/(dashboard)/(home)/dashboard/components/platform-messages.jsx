@@ -53,7 +53,7 @@ const PlatformMessages = () => {
         type: "celebration",
         icon: "heroicons:party-popper",
         color: "text-yellow-600",
-        bgColor: "bg-yellow-50",
+        bgColor: "bg-yellow-500/10",
         titulo: "¡Felicitaciones! 🎉",
         mensaje: `Tu negocio acaba de superar las ${totalVentas} ventas. ¡Sigue así!`,
       });
@@ -62,7 +62,7 @@ const PlatformMessages = () => {
         type: "achievement",
         icon: "heroicons:trophy",
         color: "text-emerald-600",
-        bgColor: "bg-emerald-50",
+        bgColor: "bg-emerald-500/10",
         titulo: "¡Gran logro!",
         mensaje: `Has alcanzado ${totalVentas} ventas. Estás en el camino correcto.`,
       });
@@ -82,7 +82,7 @@ const PlatformMessages = () => {
         type: "tip",
         icon: "heroicons:light-bulb",
         color: "text-blue-600",
-        bgColor: "bg-blue-50",
+        bgColor: "bg-blue-500/10",
         titulo: "Tip del día 💡",
         mensaje: "Las tiendas que suben 5 fotos más venden 40% más. ¡Agrega imágenes a tus productos!",
       });
@@ -94,7 +94,7 @@ const PlatformMessages = () => {
         type: "motivation",
         icon: "heroicons:rocket-launch",
         color: "text-purple-600",
-        bgColor: "bg-purple-50",
+        bgColor: "bg-purple-500/10",
         titulo: "¡Sigue creciendo! 🚀",
         mensaje: "Tu negocio está en movimiento. Cada acción cuenta.",
       });
@@ -105,11 +105,11 @@ const PlatformMessages = () => {
 
   if (loading) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-lime-200/50 to-green-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:chat-bubble-left-right" className="w-6 h-6 text-green-600" />
             </div>
             Mensajes de la plataforma
@@ -117,7 +117,7 @@ const PlatformMessages = () => {
         </CardHeader>
         <CardContent className="relative pt-2 px-6 pb-6">
           <div className="animate-pulse space-y-3">
-            <div className="h-20 bg-white/60 rounded-2xl" />
+            <div className="h-20 bg-muted/60 rounded-2xl" />
           </div>
         </CardContent>
       </Card>
@@ -129,11 +129,11 @@ const PlatformMessages = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-lime-50/80 via-green-50/60 to-emerald-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-lime-600 via-green-600 to-emerald-600">
-          <div className="p-2 rounded-2xl bg-gradient-to-br from-lime-200/50 to-green-200/50 shadow-lg">
+          <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
             <Icon icon="heroicons:chat-bubble-left-right" className="w-6 h-6 text-green-600" />
           </div>
           Mensajes de la plataforma
@@ -144,7 +144,7 @@ const PlatformMessages = () => {
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border-0 transition-all hover:scale-[1.01] ${msg.bgColor}`}
+              className={`p-5 rounded-2xl shadow-xl backdrop-blur-sm border border-border/60 transition-all hover:scale-[1.01] ${msg.bgColor}`}
             >
               <div className="flex items-start gap-3">
                 <Icon icon={msg.icon} className={`w-5 h-5 ${msg.color} flex-shrink-0 mt-0.5`} />

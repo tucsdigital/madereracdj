@@ -1,6 +1,6 @@
 "use client";
 import { Bell } from "@/components/svg";
-import { AlertTriangle, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -111,9 +111,9 @@ const NotificationMessage = () => {
           ) : notifications.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-2 text-center px-4">
-                <Package className="h-12 w-12 text-default-400" />
+                <AlertTriangle className="h-12 w-12 text-default-400" />
                 <p className="text-sm font-medium text-default-900">Sin notificaciones</p>
-                <p className="text-xs text-default-600">Todos los productos tienen stock disponible</p>
+                <p className="text-xs text-default-600">No hay productos con stock negativo</p>
               </div>
             </div>
           ) : (
@@ -127,16 +127,9 @@ const NotificationMessage = () => {
                   <div className="flex-1 flex items-start gap-3 min-w-0">
                     <Avatar className="h-10 w-10 rounded flex-shrink-0">
                       <AvatarFallback className={cn(
-                        "text-white font-semibold",
-                        producto.sinStock 
-                          ? "bg-red-500" 
-                          : "bg-orange-500"
+                        "text-white font-semibold bg-red-500"
                       )}>
-                        {producto.sinStock ? (
-                          <AlertTriangle className="h-5 w-5" />
-                        ) : (
-                          <Package className="h-5 w-5" />
-                        )}
+                        <AlertTriangle className="h-5 w-5" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -144,24 +137,17 @@ const NotificationMessage = () => {
                         <div className="text-sm font-semibold text-default-900 truncate flex-1">
                           {producto.nombre}
                         </div>
-                        {producto.stockBajo && !producto.sinStock && (
-                          <Badge variant="outline" className="text-xs flex-shrink-0 flex items-center justify-center bg-orange-50 text-orange-700 border-orange-200">
-                            Stock bajo
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className="text-xs flex-shrink-0 flex items-center justify-center bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                          Stock negativo
+                        </Badge>
                       </div>
                       <div className="text-xs text-default-600 space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             "font-medium",
-                            producto.sinStock ? "text-red-600" : "text-orange-600"
+                            "text-red-600"
                           )}>
-                            {producto.sinStock 
-                              ? "Sin stock disponible" 
-                              : producto.stockBajo
-                              ? `Stock bajo (faltan ${producto.faltante} ${producto.unidad || "unidades"})`
-                              : "Stock bajo"
-                            }
+                            Stock negativo (revisar movimientos / reservas)
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-default-500">
@@ -187,8 +173,7 @@ const NotificationMessage = () => {
                     </div>
                     <div
                       className={cn("w-2 h-2 rounded-full", {
-                        "bg-red-500": producto.sinStock,
-                        "bg-orange-500": !producto.sinStock,
+                        "bg-red-500": true,
                       })}
                     ></div>
                   </div>

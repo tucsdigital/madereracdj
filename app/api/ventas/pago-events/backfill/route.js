@@ -29,7 +29,7 @@ const findLastPagoMs = (ventaLike) => {
 export async function POST(request) {
   try {
     const authHeader = request.headers.get("authorization") || "";
-    const decoded = await verifyFirebaseToken(auth);
+    const decoded = await verifyFirebaseToken(authHeader);
     if (decoded?.email !== "admin@admin.com") {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }

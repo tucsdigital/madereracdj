@@ -424,7 +424,7 @@ export default function AsistenciaPage() {
   return (
     <div className="flex flex-col gap-6 py-8 mx-auto font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2 bg-white/70 backdrop-blur shadow-sm">
+      <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-2 bg-card/70 border border-border/60 backdrop-blur shadow-sm">
         <div className="flex items-center gap-2">
           <div className="text-base font-semibold">Asistencia</div>
           <div className="flex items-center gap-2 pl-2">
@@ -434,7 +434,7 @@ export default function AsistenciaPage() {
         </div>
         {vistaActiva === "asistencia" ? (
           <div className="flex items-center gap-2">
-            <span className={`px-2 py-1 rounded-full text-[11px] font-medium border ${cerrada ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+            <span className={`px-2 py-1 rounded-full text-[11px] font-medium border ${cerrada ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"}`}>
               {cerrada ? "Cerrada" : "Abierta"}
             </span>
             <Button variant="outline" onClick={() => setFechaBase(fmt(startOfWeek(new Date())))} className="h-8 px-2 text-xs">Hoy</Button>
@@ -442,7 +442,7 @@ export default function AsistenciaPage() {
             <div className="text-xs font-semibold">{rangoSemana}</div>
             <Button variant="outline" onClick={() => navSemana(1)} className="h-8 w-8 p-0"><Icon icon="lucide:chevron-right" /></Button>
             <Input placeholder="Buscar" value={filtroNombre} onChange={e=>setFiltroNombre(e.target.value)} className="h-8 w-40 text-xs" />
-            <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="h-8 border rounded-md px-2 text-xs">
+            <select value={filtroEstado} onChange={e=>setFiltroEstado(e.target.value)} className="h-8 border border-border/60 bg-background text-foreground rounded-md px-2 text-xs">
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
               <option value="todos">Todos</option>
@@ -452,7 +452,7 @@ export default function AsistenciaPage() {
         ) : (
           <div className="flex items-center gap-2">
             <Input placeholder="Buscar" value={buscadorEmp} onChange={(e)=>setBuscadorEmp(e.target.value)} className="h-8 w-48 text-xs" />
-            <select value={filtroEmp} onChange={(e)=>setFiltroEmp(e.target.value)} className="h-8 border rounded-md px-2 text-xs">
+            <select value={filtroEmp} onChange={(e)=>setFiltroEmp(e.target.value)} className="h-8 border border-border/60 bg-background text-foreground rounded-md px-2 text-xs">
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
               <option value="todos">Todos</option>
@@ -465,16 +465,16 @@ export default function AsistenciaPage() {
       {/* Contenido Principal */}
       {vistaActiva === "asistencia" ? (
       <div className="space-y-4">
-      <Card className="rounded-2xl border border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50/40 overflow-hidden">
+      <Card className="rounded-2xl border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/30 overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
                 <Icon icon="lucide:wallet-cards" className="w-4 h-4" />
               </div>
-              <span className="text-sm md:text-base font-semibold text-slate-900">Estadísticas de Cobro del Mes</span>
+              <span className="text-sm md:text-base font-semibold text-foreground">Estadísticas de Cobro del Mes</span>
             </div>
-            <span className="text-[11px] md:text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-2.5 py-1 capitalize">
+            <span className="text-[11px] md:text-xs font-semibold text-muted-foreground bg-card border border-border/60 rounded-full px-2.5 py-1 capitalize">
               {estadisticasMensuales.labelMes}
             </span>
           </CardTitle>
@@ -497,22 +497,22 @@ export default function AsistenciaPage() {
               <div className="text-[11px] text-violet-700/70 mt-1">Total adelantado a empleados</div>
             </div>
           </div>
-          <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-auto rounded-xl border border-border/60 bg-card">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-muted/50 border-b border-border/60">
                 <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Empleado</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Debería cobrar</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Lleva cobrado</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Adelantos</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-600 uppercase tracking-wide">Saldo a liquidar</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Empleado</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Debería cobrar</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lleva cobrado</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Adelantos</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saldo a liquidar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {estadisticasMensuales.porEmpleado.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-3 py-3 font-medium text-slate-900">{item.nombre}</td>
-                    <td className="px-3 py-3 text-right text-slate-700 font-medium">${item.objetivo.toLocaleString("es-AR")}</td>
+                  <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-3 py-3 font-medium text-foreground">{item.nombre}</td>
+                    <td className="px-3 py-3 text-right text-foreground font-medium">${item.objetivo.toLocaleString("es-AR")}</td>
                     <td className="px-3 py-3 text-right text-emerald-700 font-semibold">${item.cobrado.toLocaleString("es-AR")}</td>
                     <td className="px-3 py-3 text-right text-violet-700 font-medium">${item.adelanto.toLocaleString("es-AR")}</td>
                     <td className="px-3 py-3 text-right text-blue-700 font-semibold">${item.saldoALiquidar.toLocaleString("es-AR")}</td>
@@ -551,7 +551,7 @@ export default function AsistenciaPage() {
                     <tr key={emp.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-2 py-2">
                         <div className="flex items-center gap-2">
-                          <div className={`w-2.5 h-2.5 rounded-full ${emp.activo!==false?"bg-green-500":"bg-gray-400"}`} />
+                          <div className={`w-2.5 h-2.5 rounded-full ${emp.activo!==false?"bg-green-500":"bg-muted-foreground"}`} />
                           <div className="font-medium">{emp.nombre || ""}</div>
                         </div>
                       </td>
@@ -573,7 +573,7 @@ export default function AsistenciaPage() {
                                 <Icon icon="lucide:chevron-down" className="w-3 h-3 opacity-70" />
                               </button>
                               {pickerOpen===key && !cerrada && (
-                                <div className={`absolute ${dropUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 inline-flex items-center gap-1 rounded-full bg-white shadow-lg px-1 py-1 z-30`}>
+                                <div className={`absolute ${dropUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 inline-flex items-center gap-1 rounded-full bg-card border border-border/60 shadow-lg px-1 py-1 z-30`}>
                                   {estadoItems.map(item=>(
                                     <button
                                       key={item.value}
@@ -661,7 +661,7 @@ export default function AsistenciaPage() {
 
       {/* Modal Adelantos */}
       <Dialog open={Boolean(popoverEmpleado)} onOpenChange={()=>setPopoverEmpleado(null)}>
-        <DialogContent className="rounded-2xl max-w-lg shadow-2xl border-none">
+        <DialogContent className="rounded-2xl max-w-lg shadow-2xl border border-border/60 bg-card">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
               Adelantos: <span className="text-primary font-normal">{popoverEmpleado?.nombre || ""}</span>
@@ -675,7 +675,7 @@ export default function AsistenciaPage() {
                  <div className="text-xs text-center text-muted-foreground py-4 italic">Sin adelantos esta semana</div>
               ) : (
                 (adelantos[popoverEmpleado?.id]||[]).map(a=>(
-                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-white shadow-sm border border-border/50 transition-all hover:shadow-md">
+                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-card shadow-sm border border-border/60 transition-all hover:shadow-md">
                     <div className="flex flex-col">
                       <div className="text-sm font-semibold">${Number(a.monto||0).toLocaleString("es-AR")}</div>
                       <div className="text-xs text-muted-foreground flex gap-1">
@@ -683,7 +683,7 @@ export default function AsistenciaPage() {
                         {a.nota && <span>• {a.nota}</span>}
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={()=>eliminarAdelanto(a.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-500/10" onClick={()=>eliminarAdelanto(a.id)}>
                       <Icon icon="lucide:trash-2" className="w-4 h-4" />
                     </Button>
                   </div>
@@ -696,19 +696,19 @@ export default function AsistenciaPage() {
                <div className="grid grid-cols-2 gap-3">
                  <div className="space-y-1">
                    <Label className="text-xs">Fecha</Label>
-                   <Input type="date" className="h-9 bg-white" value={nuevoAdelanto.fecha} onChange={e=>setNuevoAdelanto(p=>({...p,fecha:e.target.value}))} />
+                   <Input type="date" className="h-9 bg-background" value={nuevoAdelanto.fecha} onChange={e=>setNuevoAdelanto(p=>({...p,fecha:e.target.value}))} />
                  </div>
                  <div className="space-y-1">
                    <Label className="text-xs">Monto</Label>
                    <div className="relative">
                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
-                     <Input type="number" min={0} placeholder="0" className="h-9 pl-6 bg-white" value={nuevoAdelanto.monto} onChange={e=>setNuevoAdelanto(p=>({...p,monto:e.target.value}))} />
+                     <Input type="number" min={0} placeholder="0" className="h-9 pl-6 bg-background" value={nuevoAdelanto.monto} onChange={e=>setNuevoAdelanto(p=>({...p,monto:e.target.value}))} />
                    </div>
                  </div>
                </div>
                <div className="space-y-1">
                  <Label className="text-xs">Nota (opcional)</Label>
-                 <Input placeholder="Ej: Vale por materiales" className="h-9 bg-white" value={nuevoAdelanto.nota} onChange={e=>setNuevoAdelanto(p=>({...p,nota:e.target.value}))} />
+                 <Input placeholder="Ej: Vale por materiales" className="h-9 bg-background" value={nuevoAdelanto.nota} onChange={e=>setNuevoAdelanto(p=>({...p,nota:e.target.value}))} />
                </div>
                <Button onClick={agregarAdelanto} disabled={!nuevoAdelanto.monto} className="w-full mt-2 h-9">
                  <Icon icon="lucide:plus" className="w-4 h-4 mr-2" /> Agregar Adelanto
@@ -720,7 +720,7 @@ export default function AsistenciaPage() {
 
       {/* Modal Empleado */}
       <Dialog open={openEmp} onOpenChange={setOpenEmp}>
-        <DialogContent className="rounded-2xl max-w-lg shadow-2xl border-none">
+        <DialogContent className="rounded-2xl max-w-lg shadow-2xl border border-border/60 bg-card">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">{editandoEmp ? "Editar Empleado" : "Nuevo Empleado"}</DialogTitle>
           </DialogHeader>

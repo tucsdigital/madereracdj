@@ -411,8 +411,8 @@ const ProductoDetailPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Producto no encontrado</h1>
-        <p className="text-gray-600 mb-6">El producto que buscas no existe o fue eliminado.</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Producto no encontrado</h1>
+        <p className="text-muted-foreground mb-6">El producto que buscas no existe o fue eliminado.</p>
         <Link href="/productos">
           <Button variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -435,8 +435,8 @@ const ProductoDetailPage = () => {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Editar Producto</h1>
-            <p className="text-lg text-gray-500">
+            <h1 className="text-3xl font-bold text-foreground">Editar Producto</h1>
+            <p className="text-lg text-muted-foreground">
               {producto.codigo} - {producto.nombre}
             </p>
           </div>
@@ -446,14 +446,14 @@ const ProductoDetailPage = () => {
         {message && (
           <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm shadow-lg ${
             messageType === "success"
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200"
-              : "bg-gradient-to-r from-red-50 to-pink-50 text-red-800 border border-red-200"
+              ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20"
+              : "bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20"
           }`}>
-            <div className={`p-2 rounded-full ${messageType === "success" ? "bg-green-100" : "bg-red-100"}`}>
+            <div className={`p-2 rounded-full ${messageType === "success" ? "bg-emerald-500/10" : "bg-red-500/15"}`}>
               {messageType === "success" ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                <CheckCircle className="w-5 h-5" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-red-600" />
+                <AlertCircle className="w-5 h-5" />
               )}
             </div>
             <div>
@@ -474,8 +474,8 @@ const ProductoDetailPage = () => {
               <CardTitle className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   producto.categoria === "Maderas" 
-                    ? "bg-orange-100 text-orange-600" 
-                    : "bg-blue-100 text-blue-600"
+                    ? "bg-orange-500/10 text-orange-700 dark:text-orange-300" 
+                    : "bg-blue-500/10 text-blue-700 dark:text-blue-300"
                 }`}>
                   {producto.categoria === "Maderas" ? "🌲" : "🔧"}
                 </div>
@@ -484,38 +484,38 @@ const ProductoDetailPage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <span className="font-medium text-gray-700">Código:</span>
-                <div className="font-bold text-lg text-gray-900">{producto.codigo}</div>
+                <span className="font-medium text-muted-foreground">Código:</span>
+                <div className="font-bold text-lg text-foreground">{producto.codigo}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-700">Categoría:</span>
-                <div className="font-semibold text-gray-900">{producto.categoria}</div>
+                <span className="font-medium text-muted-foreground">Categoría:</span>
+                <div className="font-semibold text-foreground">{producto.categoria}</div>
               </div>
               <div>
-                <span className="font-medium text-gray-700">Stock:</span>
+                <span className="font-medium text-muted-foreground">Stock:</span>
                 <span className={`ml-2 font-bold ${
-                  producto.stock > 10 ? "text-green-600" : 
-                  producto.stock > 0 ? "text-yellow-600" : "text-red-600"
+                  producto.stock > 10 ? "text-emerald-700 dark:text-emerald-300" : 
+                  producto.stock > 0 ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300"
                 }`}>
                   {producto.stock || 0}
                 </span>
               </div>
               <div>
-                <span className="font-medium text-gray-700">Estado:</span>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  producto.estado === "Activo" ? "bg-green-100 text-green-800" :
-                  producto.estado === "Inactivo" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-red-100 text-red-800"
+                <span className="font-medium text-muted-foreground">Estado:</span>
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold border ${
+                  producto.estado === "Activo" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20" :
+                  producto.estado === "Inactivo" ? "bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/20" :
+                  "bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/20"
                 }`}>
                   {producto.estado}
                 </span>
               </div>
               <div>
-                <span className="font-medium text-gray-700">Tienda:</span>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-                  producto.estadoTienda === "Activo" ? "bg-green-100 text-green-800" :
-                  producto.estadoTienda === "Inactivo" ? "bg-gray-200 text-gray-700" :
-                  "bg-yellow-100 text-yellow-700"
+                <span className="font-medium text-muted-foreground">Tienda:</span>
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold border ${
+                  producto.estadoTienda === "Activo" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20" :
+                  producto.estadoTienda === "Inactivo" ? "bg-muted/50 text-foreground border-border/60" :
+                  "bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/20"
                 }`}>
                   {producto.estadoTienda ? producto.estadoTienda : "No definido"}
                 </span>
@@ -529,12 +529,12 @@ const ProductoDetailPage = () => {
           {/* Campos básicos */}
           <Card>
             <CardHeader>
-              <CardTitle>Información Básica</CardTitle>
+              <CardTitle className="text-foreground">Información Básica</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-foreground">
                     Código del Producto *
                   </label>
                   <Input
@@ -545,7 +545,7 @@ const ProductoDetailPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-foreground">
                     Nombre del Producto *
                   </label>
                   <Input
@@ -558,13 +558,13 @@ const ProductoDetailPage = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-foreground">
                     Estado *
                   </label>
                   <select
                     value={editForm.estado}
                     onChange={(e) => setEditForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                   >
                     <option value="Activo">Activo</option>
                     <option value="Inactivo">Inactivo</option>
@@ -572,13 +572,13 @@ const ProductoDetailPage = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-foreground">
                     Estado de Tienda *
                   </label>
                   <select
                     value={editForm.estadoTienda}
                     onChange={(e) => setEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                   >
                     <option value="Activo">Activo</option>
                     <option value="Inactivo">Inactivo</option>
@@ -587,14 +587,14 @@ const ProductoDetailPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Unidad de Medida *
                 </label>
                 <div className="flex gap-2">
                   <select
                     value={editForm.unidadMedida}
                     onChange={(e) => setEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                   >
                     <option value="">Seleccionar unidad</option>
                     {unidadesMedida.map((unidad) => (
@@ -644,14 +644,14 @@ const ProductoDetailPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Descripción *
                 </label>
                 <textarea
                   value={editForm.descripcion}
                   onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
                   placeholder="Descripción detallada del producto"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none"
                   rows={3}
                 />
               </div>
@@ -662,19 +662,19 @@ const ProductoDetailPage = () => {
           {producto.categoria === "Maderas" && (
             <Card>
               <CardHeader>
-                <CardTitle>Especificaciones de Madera</CardTitle>
+                <CardTitle className="text-foreground">Especificaciones de Madera</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Subcategoría *
                     </label>
                     <div className="flex gap-2">
                       <select
                         value={editForm.subcategoria}
                         onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                       >
                         <option value="">Seleccionar subcategoría</option>
                         {subcategorias.map((subcat) => (
@@ -723,14 +723,14 @@ const ProductoDetailPage = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Tipo de Madera *
                     </label>
                     <div className="flex gap-2">
                       <select
                         value={editForm.tipoMadera}
                         onChange={(e) => setEditForm(prev => ({ ...prev, tipoMadera: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                       >
                         <option value="">Seleccionar tipo de madera</option>
                         {tiposMadera.map((tipo) => (
@@ -786,19 +786,19 @@ const ProductoDetailPage = () => {
           {producto.categoria === "Ferretería" && (
             <Card>
               <CardHeader>
-                <CardTitle>Especificaciones de Ferretería</CardTitle>
+                <CardTitle className="text-foreground">Especificaciones de Ferretería</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Subcategoría *
                     </label>
                     <div className="flex gap-2">
                       <select
                         value={editForm.subcategoria}
                         onChange={(e) => setEditForm(prev => ({ ...prev, subcategoria: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                       >
                         <option value="">Seleccionar subcategoría</option>
                         {subcategorias.map((subcat) => (
@@ -847,14 +847,14 @@ const ProductoDetailPage = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-foreground">
                       Proveedor *
                     </label>
                     <div className="flex gap-2">
                       <select
                         value={editForm.proveedor}
                         onChange={(e) => setEditForm(prev => ({ ...prev, proveedor: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                       >
                         <option value="">Seleccionar proveedor</option>
                         {proveedores.map((prov) => (
@@ -910,12 +910,12 @@ const ProductoDetailPage = () => {
           {/* Campos para tienda */}
           <Card>
             <CardHeader>
-              <CardTitle>Configuración de Tienda</CardTitle>
+              <CardTitle className="text-foreground">Configuración de Tienda</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Rating */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Calificación del Producto
                 </label>
                 <div className="flex gap-2">
@@ -924,43 +924,36 @@ const ProductoDetailPage = () => {
                       key={star}
                       type="button"
                       onClick={() => setEditForm(prev => ({ ...prev, rating: star }))}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-2 rounded-lg transition-colors border ${
                         editForm.rating >= star
-                          ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 hover:bg-amber-500/15"
+                          : "bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted"
                       }`}
                     >
                       <Star className="w-6 h-6 fill-current" />
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Selecciona la calificación del producto (1-5 estrellas)
                 </p>
               </div>
 
               {/* Galería de imágenes */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Galería de Imágenes
                 </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Selecciona múltiples imágenes para la galería del producto. Arrastra y suelta para reordenar. (Medida: 420px x 530px)
+                <p className="text-xs text-muted-foreground mb-2">
+                  Selecciona múltiples imágenes para la galería del producto. Arrastra y suelta para reordenar.
                 </p>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handleMultipleImageUpload(e.target.files)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('galleryInput').click()}
+                    onClick={() => document.getElementById("galleryInput")?.click()}
                     disabled={uploadingGallery}
+                    className="w-full sm:w-auto"
                   >
                     {uploadingGallery ? (
                       <>
@@ -968,16 +961,19 @@ const ProductoDetailPage = () => {
                         Subiendo...
                       </>
                     ) : (
-                      'Seleccionar'
+                      "Seleccionar imágenes"
                     )}
                   </Button>
+                  <div className="text-xs text-muted-foreground sm:ml-auto">
+                    {editForm.imagenes.length} {editForm.imagenes.length === 1 ? "imagen" : "imágenes"}
+                  </div>
                 </div>
                 {editForm.imagenes.length > 0 && (
                   <div className="space-y-3 mt-3">
                     {editForm.imagenes.map((url, index) => (
                       <div 
                         key={index} 
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-card/60 rounded-lg border border-border/60 shadow-lg backdrop-blur-sm"
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData('text/plain', index.toString());
@@ -989,32 +985,59 @@ const ProductoDetailPage = () => {
                           moveImage(fromIndex, index);
                         }}
                       >
-                        <div className="cursor-move text-gray-400 hover:text-gray-600">
-                          <GripVertical className="w-5 h-5" />
-                        </div>
-                        <img 
-                          src={url} 
-                          alt={`Imagen ${index + 1}`} 
-                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-700">
-                            Imagen {index + 1}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="cursor-move text-muted-foreground hover:text-foreground flex-shrink-0 hidden sm:block">
+                            <GripVertical className="w-5 h-5" />
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Posición: {index + 1} de {editForm.imagenes.length}
+                          <img 
+                            src={url} 
+                            alt={`Imagen ${index + 1}`} 
+                            className="w-20 h-20 object-cover rounded-lg border border-border/60 flex-shrink-0"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              Imagen {index + 1}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              Posición: {index + 1} de {editForm.imagenes.length}
+                            </div>
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeImage(index)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-between sm:justify-end gap-2">
+                          <div className="flex items-center gap-1 sm:hidden">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={index === 0}
+                              onClick={() => moveImage(index, index - 1)}
+                              className="px-2"
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={index === editForm.imagenes.length - 1}
+                              onClick={() => moveImage(index, index + 1)}
+                              className="px-2"
+                            >
+                              ↓
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeImage(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1031,12 +1054,12 @@ const ProductoDetailPage = () => {
 
               {/* Descuento */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Descuento
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs text-gray-500">Monto ($)</label>
+                    <label className="text-xs text-muted-foreground">Monto ($)</label>
                     <Input
                       value={editForm.discount.amount}
                       onChange={(e) => updateDiscount('amount', e.target.value)}
@@ -1046,7 +1069,7 @@ const ProductoDetailPage = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">Porcentaje (%)</label>
+                    <label className="text-xs text-muted-foreground">Porcentaje (%)</label>
                     <Input
                       value={editForm.discount.percentage}
                       onChange={(e) => updateDiscount('percentage', e.target.value)}
@@ -1062,7 +1085,7 @@ const ProductoDetailPage = () => {
 
               {/* Etiquetas */}
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Etiquetas de Tienda
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

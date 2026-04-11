@@ -139,7 +139,7 @@ export function DataTableEnhanced({
         compact ? "gap-2" : "gap-4"
       } ${
         compact ? "p-3" : "p-6"
-      } bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200`}>
+      } bg-card/70 border-b border-border/60`}>
         <div className={`flex items-center ${
           compact ? "gap-2" : "gap-3"
         }`}>
@@ -153,12 +153,12 @@ export function DataTableEnhanced({
           <div>
             <h3 className={`${
               compact ? "text-base" : "text-lg"
-            } font-semibold text-gray-900`}>
+            } font-semibold text-foreground`}>
               {totalRows} {totalRows === 1 ? 'registro' : 'registros'}
             </h3>
             <p className={`${
               compact ? "text-xs" : "text-sm"
-            } text-gray-600`}>
+            } text-muted-foreground`}>
               Página {currentPage} de {totalPages}
             </p>
           </div>
@@ -171,14 +171,14 @@ export function DataTableEnhanced({
             <div className="relative">
               <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
                 compact ? "w-3 h-3" : "w-4 h-4"
-              } text-gray-400`} />
+              } text-muted-foreground`} />
               <Input
                 placeholder={searchPlaceholder}
                 value={globalFilter ?? ""}
                 onChange={(event) => setGlobalFilter(event.target.value)}
                 className={`pl-10 ${
                   compact ? "w-48 h-8" : "w-64"
-                } bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500`}
+                } bg-background border-border/60`}
               />
             </div>
           )}
@@ -190,7 +190,7 @@ export function DataTableEnhanced({
               table.resetColumnFilters();
               setGlobalFilter("");
             }}
-            className={`bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 ${
+            className={`bg-card border-border/60 text-foreground hover:bg-muted/50 ${
               compact ? "h-8 px-3 text-xs" : ""
             }`}
           >
@@ -210,14 +210,14 @@ export function DataTableEnhanced({
           <Table className="w-full">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="bg-gradient-to-r from-gray-50 to-gray-100/50 hover:bg-gray-100/70">
+                <TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/70">
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
                       className={`${
                         compact 
-                          ? "px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200" 
-                          : "px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200"
+                          ? "px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60" 
+                          : "px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60"
                       }`}
                     >
                       {header.isPlaceholder ? null : (
@@ -232,7 +232,7 @@ export function DataTableEnhanced({
                             <div className="flex flex-col">
                               <button
                                 onClick={header.column.getToggleSortingHandler()}
-                                className="w-3 h-3 text-gray-400 hover:text-gray-600 transition-colors"
+                                className="w-3 h-3 text-muted-foreground/70 hover:text-foreground transition-colors"
                               >
                                 {{
                                   asc: "↑",
@@ -254,8 +254,8 @@ export function DataTableEnhanced({
                                      <TableRow
                      key={row.id}
                      data-state={row.getIsSelected() && "selected"}
-                     className={`border-b border-gray-100 transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/30 cursor-pointer ${
-                       rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                     className={`border-b border-border/50 transition-colors hover:bg-muted/30 cursor-pointer ${
+                       rowIndex % 2 === 0 ? "bg-card" : "bg-muted/20"
                      }`}
                      onClick={() => onRowClick && onRowClick(row.original)}
                    >
@@ -264,8 +264,8 @@ export function DataTableEnhanced({
                         key={cell.id}
                         className={`${
                           compact 
-                            ? "px-3 py-2 text-xs text-gray-900 border-r border-gray-100 last:border-r-0" 
-                            : "px-6 py-4 text-sm text-gray-900 border-r border-gray-100 last:border-r-0"
+                            ? "px-3 py-2 text-xs text-foreground border-r border-border/50 last:border-r-0" 
+                            : "px-6 py-4 text-sm text-foreground border-r border-border/50 last:border-r-0"
                         }`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -277,14 +277,14 @@ export function DataTableEnhanced({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center text-gray-500"
+                    className="h-24 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                        <Search className="w-6 h-6 text-gray-400" />
+                      <div className="w-12 h-12 bg-muted/50 rounded-full flex items-center justify-center">
+                        <Search className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <p className="text-sm font-medium">No se encontraron resultados</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground/80">
                         Intenta ajustar los filtros de búsqueda
                       </p>
                     </div>
@@ -302,10 +302,10 @@ export function DataTableEnhanced({
           compact ? "gap-2" : "gap-4"
         } ${
           compact ? "p-3" : "p-6"
-        } bg-gradient-to-r from-gray-50 to-gray-100/50 border-t border-gray-200`}>
+        } bg-card/70 border-t border-border/60`}>
           <div className={`flex items-center gap-4 ${
             compact ? "text-xs" : "text-sm"
-          } text-gray-700`}>
+          } text-foreground`}>
             <span>
               Mostrando {table.getState().pagination.pageIndex * pageSize + 1} a{" "}
               {Math.min(
@@ -319,7 +319,7 @@ export function DataTableEnhanced({
               <div className="flex items-center gap-2">
                 <span className={`${
                   compact ? "text-xs" : "text-sm"
-                } text-gray-600`}>Mostrar:</span>
+                } text-muted-foreground`}>Mostrar:</span>
                 <Select
                   value={`${pageSize}`}
                   onValueChange={(value) => {
@@ -328,7 +328,7 @@ export function DataTableEnhanced({
                 >
                   <SelectTrigger className={`${
                     compact ? "w-16 h-6" : "w-20 h-8"
-                  } bg-white border-gray-300`}>
+                  } bg-card border-border/60`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -351,7 +351,7 @@ export function DataTableEnhanced({
               size="sm"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
-              className={`bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`bg-card border-border/60 text-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed ${
                 compact ? "h-7 w-7" : ""
               }`}
             >
@@ -364,7 +364,7 @@ export function DataTableEnhanced({
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className={`bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`bg-card border-border/60 text-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed ${
                 compact ? "h-7 w-7" : ""
               }`}
             >
@@ -398,8 +398,8 @@ export function DataTableEnhanced({
                       compact ? "w-6 h-6 text-xs" : "w-8 h-8"
                     } ${
                       currentPage === pageNum
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-card border-border/60 text-foreground hover:bg-muted/50"
                     }`}
                   >
                     {pageNum}
@@ -413,7 +413,7 @@ export function DataTableEnhanced({
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className={`bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`bg-card border-border/60 text-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed ${
                 compact ? "h-7 w-7" : ""
               }`}
             >
@@ -426,7 +426,7 @@ export function DataTableEnhanced({
               size="sm"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
-              className={`bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`bg-card border-border/60 text-foreground hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed ${
                 compact ? "h-7 w-7" : ""
               }`}
             >

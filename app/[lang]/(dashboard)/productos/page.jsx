@@ -433,15 +433,15 @@ function FormularioProducto({ onClose, onSuccess }) {
         <div
           className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm shadow-lg transform transition-all duration-300 ${
             submitStatus === "success"
-              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border border-green-200"
-              : "bg-gradient-to-r from-red-50 to-pink-50 text-red-800 border border-red-200"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
           }`}
         >
-          <div className={`p-2 rounded-full ${submitStatus === "success" ? "bg-green-100" : "bg-red-100"}`}>
+          <div className={`p-2 rounded-full ${submitStatus === "success" ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
             {submitStatus === "success" ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <AlertCircle className="w-5 h-5 text-red-700 dark:text-red-300" />
             )}
           </div>
           <div>
@@ -459,7 +459,7 @@ function FormularioProducto({ onClose, onSuccess }) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <label className="text-lg font-semibold text-gray-800">Categoría del Producto</label>
+          <label className="text-lg font-semibold text-foreground">Categoría del Producto</label>
         </div>
         <div className="relative">
           <select
@@ -469,7 +469,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               setCategoria(e.target.value);
               setValue("categoria", e.target.value);
             }}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
             <option value="">Selecciona una categoría</option>
@@ -478,7 +478,7 @@ function FormularioProducto({ onClose, onSuccess }) {
             ))}
           </select>
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
@@ -495,7 +495,7 @@ function FormularioProducto({ onClose, onSuccess }) {
       {categoria && (
         <div className="space-y-8">
           {/* Sección: Datos generales */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+          <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-2xl p-6 border border-blue-500/20">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-blue-500 rounded-lg">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,14 +503,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </svg>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-800">Datos Generales</h3>
-                <p className="text-sm text-gray-600">Información básica del producto</p>
+                <h3 className="text-xl font-bold text-foreground">Datos Generales</h3>
+                <p className="text-sm text-muted-foreground">Información básica del producto</p>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Código del Producto
                 </label>
@@ -518,7 +518,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                   {...register("codigo")}
                   placeholder="Ej: MAD-001"
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                 />
                 {errors.codigo && (
                   <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -529,7 +529,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Nombre del Producto
                 </label>
@@ -537,7 +537,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                   {...register("nombre")}
                   placeholder="Ej: Tabla de Pino"
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                 />
                 {errors.nombre && (
                   <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -548,7 +548,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               </div>
               
               <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Descripción
                 </label>
@@ -557,7 +557,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                   placeholder="Describe las características del producto..."
                   disabled={isSubmitting}
                   rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50 resize-none"
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 resize-none"
                 />
                 {errors.descripcion && (
                   <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -568,14 +568,14 @@ function FormularioProducto({ onClose, onSuccess }) {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Subcategoría
                 </label>
                 <div className="flex gap-2">
                   <select
                     {...register("subcategoria")}
-                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                     disabled={isSubmitting}
                   >
                     <option value="">Seleccionar subcategoría</option>
@@ -590,19 +590,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAddSubcategoria(true)}
-                    className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
+                    className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200"
                     disabled={isSubmitting}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
                 {showAddSubcategoria && (
-                  <div className="flex gap-2 mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex gap-2 mt-3 p-3 bg-muted/50 rounded-xl border border-border/60">
                     <Input
                       value={newValue}
                       onChange={(e) => setNewValue(e.target.value)}
                       placeholder="Nueva subcategoría"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     />
                     <Button
                       type="button"
@@ -622,7 +622,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                         setNewValue("");
                       }}
                       disabled={isSubmitting}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 border border-border/60 rounded-lg hover:bg-muted transition-colors"
                     >
                       Cancelar
                     </Button>
@@ -637,13 +637,13 @@ function FormularioProducto({ onClose, onSuccess }) {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Estado
                 </label>
                 <select
                   {...register("estado")}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   disabled={isSubmitting}
                 >
                   <option value="Activo">Activo</option>
@@ -659,13 +659,13 @@ function FormularioProducto({ onClose, onSuccess }) {
               </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <span className="text-red-500">*</span>
                 Tienda
               </label>
               <select
                 {...register("estadoTienda")}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                 disabled={isSubmitting}
               >
                 <option value="Activo">Activo</option>
@@ -680,19 +680,19 @@ function FormularioProducto({ onClose, onSuccess }) {
             </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Costo Unitario
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
                   <Input
                     {...register("costo")}
                     type="number"
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                 </div>
                 {errors.costo && (
@@ -707,7 +707,7 @@ function FormularioProducto({ onClose, onSuccess }) {
 
           {/* Sección específica por categoría */}
           {categoria === "Maderas" && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
+            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 rounded-2xl p-6 border border-amber-500/20">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-amber-500 rounded-lg">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -715,21 +715,21 @@ function FormularioProducto({ onClose, onSuccess }) {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Madera</h3>
-                  <p className="text-sm text-gray-600">Dimensiones y características específicas</p>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Madera</h3>
+                  <p className="text-sm text-muted-foreground">Dimensiones y características específicas</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Tipo de Madera
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("tipoMadera")}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar tipo de madera</option>
@@ -744,19 +744,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddTipoMadera(true)}
-                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-amber-500 hover:bg-amber-50 transition-all duration-200"
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-amber-500 hover:bg-amber-500/10 transition-all duration-200"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                   {showAddTipoMadera && (
-                    <div className="flex gap-2 mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="flex gap-2 mt-3 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
                       <Input
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nuevo tipo de madera"
-                        className="flex-1 px-3 py-2 border border-amber-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                        className="flex-1 px-3 py-2 border border-amber-500/30 rounded-lg bg-background text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                       />
                       <Button
                         type="button"
@@ -776,7 +776,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
+                        className="px-4 py-2 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors"
                       >
                         Cancelar
                       </Button>
@@ -791,7 +791,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Largo (metros)
                   </label>
@@ -801,7 +801,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.largo && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -812,7 +812,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Ancho (cm)
                   </label>
@@ -822,7 +822,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.ancho && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -833,7 +833,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Alto (cm)
                   </label>
@@ -843,7 +843,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0.00"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.alto && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -854,14 +854,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar unidad</option>
@@ -881,19 +881,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Precio por Pie
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       {...register("precioPorPie")}
                       type="number"
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                     />
                   </div>
                   {errors.precioPorPie && (
@@ -905,7 +905,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Ubicación en Depósito
                   </label>
@@ -913,7 +913,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     {...register("ubicacion")}
                     placeholder="Ej: Estante A, Nivel 2"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.ubicacion && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -927,7 +927,7 @@ function FormularioProducto({ onClose, onSuccess }) {
           )}
 
           {categoria === "Ferretería" && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 rounded-2xl p-6 border border-green-500/20">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-green-500 rounded-lg">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -935,14 +935,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Ferretería</h3>
-                  <p className="text-sm text-gray-600">Información de stock y proveedores</p>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Ferretería</h3>
+                  <p className="text-sm text-muted-foreground">Información de stock y proveedores</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Stock Mínimo
                   </label>
@@ -952,7 +952,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="1"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.stockMinimo && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -963,14 +963,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar unidad</option>
@@ -985,19 +985,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-200"
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                   {showAddUnidadMedida && (
-                    <div className="flex gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex gap-2 mt-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20">
                       <Input
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nueva unidad de medida"
-                        className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                       />
                       <Button
                         type="button"
@@ -1017,7 +1017,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
                       >
                         Cancelar
                       </Button>
@@ -1032,19 +1032,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Valor de Compra
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       {...register("valorCompra")}
                       type="number"
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                     />
                   </div>
                   {errors.valorCompra && (
@@ -1056,19 +1056,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Valor de Venta
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
                     <Input
                       {...register("valorVenta")}
                       type="number"
                       step="0.01"
                       placeholder="0.00"
                       disabled={isSubmitting}
-                      className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                     />
                   </div>
                   {errors.valorVenta && (
@@ -1080,14 +1080,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Proveedor
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("proveedor")}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar proveedor</option>
@@ -1102,19 +1102,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddProveedor(true)}
-                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-200"
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                   {showAddProveedor && (
-                    <div className="flex gap-2 mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex gap-2 mt-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20">
                       <Input
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nuevo proveedor"
-                        className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                       />
                       <Button
                         type="button"
@@ -1134,7 +1134,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
                       >
                         Cancelar
                       </Button>
@@ -1152,7 +1152,7 @@ function FormularioProducto({ onClose, onSuccess }) {
           )}
 
           {categoria === "Obras" && (
-            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-100">
+            <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 rounded-2xl p-6 border border-purple-500/20">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-purple-500 rounded-lg">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1160,14 +1160,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">Especificaciones de Obras</h3>
-                  <p className="text-sm text-gray-600">Información específica para productos de obras</p>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Obras</h3>
+                  <p className="text-sm text-muted-foreground">Información específica para productos de obras</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Stock Mínimo
                   </label>
@@ -1177,7 +1177,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.stockMinimo && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -1188,7 +1188,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Valor de Venta
                   </label>
@@ -1198,7 +1198,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.valorVenta && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -1209,7 +1209,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Unidad
                   </label>
@@ -1219,7 +1219,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                     step="0.01"
                     placeholder="0"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                   />
                   {errors.unidad && (
                     <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -1230,14 +1230,14 @@ function FormularioProducto({ onClose, onSuccess }) {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="text-red-500">*</span>
                     Unidad de Medida
                   </label>
                   <div className="flex gap-2">
                     <select
                       {...register("unidadMedida")}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-200 bg-white shadow-sm hover:border-gray-300 disabled:bg-gray-50"
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
                       disabled={isSubmitting}
                     >
                       <option value="">Seleccionar unidad</option>
@@ -1252,19 +1252,19 @@ function FormularioProducto({ onClose, onSuccess }) {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddUnidadMedida(true)}
-                      className="px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-200"
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200"
                       disabled={isSubmitting}
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
                   {showAddUnidadMedida && (
-                    <div className="flex gap-2 mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                    <div className="flex gap-2 mt-3 p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
                       <Input
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
                         placeholder="Nueva unidad de medida"
-                        className="flex-1 px-3 py-2 border border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                        className="flex-1 px-3 py-2 border border-purple-500/30 rounded-lg bg-background text-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                       />
                       <Button
                         type="button"
@@ -1284,7 +1284,7 @@ function FormularioProducto({ onClose, onSuccess }) {
                           setNewValue("");
                         }}
                         disabled={isSubmitting}
-                        className="px-4 py-2 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                        className="px-4 py-2 border border-purple-500/30 rounded-lg hover:bg-purple-500/10 transition-colors"
                       >
                         Cancelar
                       </Button>
@@ -1302,13 +1302,13 @@ function FormularioProducto({ onClose, onSuccess }) {
           )}
 
           {/* Footer con botones modernos */}
-          <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+          <div className="flex justify-end gap-4 pt-6 border-t border-border/60">
             <Button
               variant="outline"
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+              className="px-6 py-3 border-2 border-border/60 rounded-xl hover:bg-muted transition-all duration-200"
             >
               Cancelar
             </Button>
@@ -4224,7 +4224,7 @@ const ProductosPage = () => {
         <Boxes className="w-10 h-10 text-primary" />
         <div>
           <h1 className="text-3xl font-bold mb-1">Productos</h1>
-          <p className="text-lg text-gray-500">
+          <p className="text-lg text-muted-foreground">
             Catálogo y stock de productos madereros.
           </p>
         </div>
@@ -4242,7 +4242,7 @@ const ProductosPage = () => {
                   setFiltroTipoMadera("");
                   setFiltroSubCategoria("");
                 }}
-                className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm hover:border-gray-400 transition-colors"
+                className="w-full sm:w-48 px-3 py-2 border border-border/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-background text-foreground shadow-sm hover:border-border transition-colors"
               >
                 <option value="">Todas las categorías</option>
                 {categorias.map((c) => (
@@ -4274,7 +4274,7 @@ const ProductosPage = () => {
                 <Button 
                   variant="outline" 
                   onClick={() => setImportDropdownOpen(!importDropdownOpen)}
-                  className="w-full sm:w-auto border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 font-medium"
+                  className="w-full sm:w-auto border-2 border-border/60 hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 font-medium"
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Importar
@@ -4285,9 +4285,9 @@ const ProductosPage = () => {
                 
                 {/* Dropdown de importación */}
                 {importDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-popover text-popover-foreground border border-border/60 rounded-lg shadow-xl z-50">
                     <div className="p-2">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-100">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-3 py-2 border-b border-border/60">
                         Seleccionar tipo de importación
                       </div>
                       <button
@@ -4295,16 +4295,16 @@ const ProductosPage = () => {
                           setOpenBulk(true);
                           setImportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-orange-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                          <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-orange-700 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Importar Maderas</div>
-                          <div className="text-xs text-gray-500">Productos de madera desde CSV</div>
+                          <div className="font-medium text-foreground">Importar Maderas</div>
+                          <div className="text-xs text-muted-foreground">Productos de madera desde CSV</div>
                         </div>
                       </button>
                       <button
@@ -4312,17 +4312,17 @@ const ProductosPage = () => {
                           setOpenBulkFerreteria(true);
                           setImportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-blue-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-blue-700 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Importar Ferretería</div>
-                          <div className="text-xs text-gray-500">Herramientas y accesorios</div>
+                          <div className="font-medium text-foreground">Importar Ferretería</div>
+                          <div className="text-xs text-muted-foreground">Herramientas y accesorios</div>
                         </div>
                       </button>
                       <button
@@ -4330,16 +4330,16 @@ const ProductosPage = () => {
                           setOpenBulkObras(true);
                           setImportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-green-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-green-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                          <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-green-700 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Importar Obras</div>
-                          <div className="text-xs text-gray-500">Productos para construcción</div>
+                          <div className="font-medium text-foreground">Importar Obras</div>
+                          <div className="text-xs text-muted-foreground">Productos para construcción</div>
                         </div>
                       </button>
                     </div>
@@ -4352,7 +4352,7 @@ const ProductosPage = () => {
                 <Button 
                   variant="outline" 
                   onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                  className="w-full sm:w-auto border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all duration-200 font-medium"
+                  className="w-full sm:w-auto border-2 border-border/60 hover:border-green-500 hover:bg-green-500/10 transition-all duration-200 font-medium"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Exportar
@@ -4363,9 +4363,9 @@ const ProductosPage = () => {
                 
                 {/* Dropdown de exportación */}
                 {exportDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-popover text-popover-foreground border border-border/60 rounded-lg shadow-xl z-50">
                     <div className="p-2">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-100">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-3 py-2 border-b border-border/60">
                         Seleccionar tipo de exportación
                       </div>
                       <button
@@ -4373,16 +4373,16 @@ const ProductosPage = () => {
                           exportarMaderasCSV();
                           setExportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-orange-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-orange-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                          <svg className="w-5 h-5 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-orange-700 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Exportar Maderas</div>
-                          <div className="text-xs text-gray-500">Descargar catálogo de maderas</div>
+                          <div className="font-medium text-foreground">Exportar Maderas</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de maderas</div>
                         </div>
                       </button>
                       <button
@@ -4390,17 +4390,17 @@ const ProductosPage = () => {
                           exportarFerreteriaCSV();
                           setExportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-blue-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-blue-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                          <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-blue-700 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Exportar Ferretería</div>
-                          <div className="text-xs text-gray-500">Descargar catálogo de ferretería</div>
+                          <div className="font-medium text-foreground">Exportar Ferretería</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de ferretería</div>
                         </div>
                       </button>
                       <button
@@ -4408,16 +4408,16 @@ const ProductosPage = () => {
                           exportarObrasCSV();
                           setExportDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-3 hover:bg-purple-50 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                        className="w-full text-left px-3 py-3 hover:bg-purple-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                          <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-purple-700 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">Exportar Obras</div>
-                          <div className="text-xs text-gray-500">Descargar catálogo de obras</div>
+                          <div className="font-medium text-foreground">Exportar Obras</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de obras</div>
                         </div>
                       </button>
                     </div>
@@ -4433,8 +4433,8 @@ const ProductosPage = () => {
                 disabled={selectedProducts.length === 0}
                 className={`w-full sm:w-auto border-2 transition-all duration-200 font-medium ${
                   selectedProducts.length > 0
-                    ? 'border-blue-200 hover:border-blue-500 hover:bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 text-blue-700 dark:text-blue-300'
+                    : 'border-border/60 text-muted-foreground cursor-not-allowed'
                 }`}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4451,7 +4451,7 @@ const ProductosPage = () => {
                 className={`w-full sm:w-auto transition-all duration-200 font-medium ${
                   selectedProducts.length > 0
                     ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed hover:bg-gray-200'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted'
                 }`}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4467,13 +4467,13 @@ const ProductosPage = () => {
             {/* Filtro de tipo de madera */}
             {cat === "Maderas" && tiposMaderaUnicos.length > 0 && (
               <div className="w-full">
-                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                   <button
                     type="button"
                     className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroTipoMadera === ""
                         ? "bg-orange-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                     onClick={() => setFiltroTipoMadera("")}
                   >
@@ -4486,7 +4486,7 @@ const ProductosPage = () => {
                       className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroTipoMadera === tipo
                           ? "bg-orange-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                       onClick={() => setFiltroTipoMadera(tipo)}
                     >
@@ -4500,13 +4500,13 @@ const ProductosPage = () => {
             {/* Filtro de subcategoría de ferretería */}
             {cat === "Ferretería" && subCategoriasFerreteria.length > 0 && (
               <div className="w-full">
-                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                   <button
                     type="button"
                     className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroSubCategoria === ""
                         ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                     onClick={() => setFiltroSubCategoria("")}
                   >
@@ -4519,7 +4519,7 @@ const ProductosPage = () => {
                       className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroSubCategoria === subCategoria
                           ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                       onClick={() => setFiltroSubCategoria(subCategoria)}
                     >
@@ -4533,13 +4533,13 @@ const ProductosPage = () => {
             {/* Filtro de subcategoría de obras */}
             {cat === "Obras" && subCategoriasObras.length > 0 && (
               <div className="w-full">
-                <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                   <button
                     type="button"
                     className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                       filtroSubCategoria === ""
                         ? "bg-purple-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                     onClick={() => setFiltroSubCategoria("")}
                   >
@@ -4552,7 +4552,7 @@ const ProductosPage = () => {
                       className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                         filtroSubCategoria === subCategoria
                           ? "bg-purple-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                       onClick={() => setFiltroSubCategoria(subCategoria)}
                     >
@@ -4565,13 +4565,13 @@ const ProductosPage = () => {
 
             {/* Filtro de estado de tienda - siempre visible */}
             <div className="w-full">
-              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                 <button
                   type="button"
                   className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === ""
                       ? "bg-purple-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroTienda("")}
                 >
@@ -4581,7 +4581,7 @@ const ProductosPage = () => {
                   <span className="hidden sm:inline">Todas las tiendas</span>
                   <span className="sm:hidden">Todas</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                    filtroTienda === "" ? "bg-white/20" : "bg-purple-100 text-purple-700"
+                    filtroTienda === "" ? "bg-white/20" : "bg-purple-500/10 text-purple-700 dark:text-purple-300"
                   }`}>
                     {productos.length}
                   </span>
@@ -4591,7 +4591,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === "Activo"
                       ? "bg-green-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroTienda("Activo")}
                 >
@@ -4603,7 +4603,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroTienda === "Activo"
                       ? "bg-white/20"
-                      : "bg-green-100 text-green-700"
+                      : "bg-green-500/10 text-green-700 dark:text-green-300"
                   }`}>
                     {productos.filter(p => p.estadoTienda === "Activo").length}
                   </span>
@@ -4613,7 +4613,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroTienda === "Inactivo"
                       ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroTienda("Inactivo")}
                 >
@@ -4625,7 +4625,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroTienda === "Inactivo"
                       ? "bg-white/20"
-                      : "bg-red-100 text-red-700"
+                      : "bg-red-500/10 text-red-700 dark:text-red-300"
                   }`}>
                     {productos.filter(p => !p.estadoTienda || p.estadoTienda === "Inactivo").length}
                   </span>
@@ -4635,13 +4635,13 @@ const ProductosPage = () => {
 
             {/* Filtro de stock - siempre visible */}
             <div className="w-full">
-              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                 <button
                   type="button"
                   className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === ""
                       ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroStock("")}
                 >
@@ -4651,7 +4651,7 @@ const ProductosPage = () => {
                   <span className="hidden sm:inline">Todos los productos</span>
                   <span className="sm:hidden">Todos</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                    filtroStock === "" ? "bg-white/20" : "bg-blue-100 text-blue-700"
+                    filtroStock === "" ? "bg-white/20" : "bg-blue-500/10 text-blue-700 dark:text-blue-300"
                   }`}>
                     {productos.length}
                   </span>
@@ -4661,7 +4661,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === "conStock"
                       ? "bg-green-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroStock("conStock")}
                 >
@@ -4673,7 +4673,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroStock === "conStock"
                       ? "bg-white/20"
-                      : "bg-green-100 text-green-700"
+                      : "bg-green-500/10 text-green-700 dark:text-green-300"
                   }`}>
                     {productos.filter(p => (Number(p.stock) || 0) > 0).length}
                   </span>
@@ -4683,7 +4683,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroStock === "sinStock"
                       ? "bg-orange-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroStock("sinStock")}
                 >
@@ -4695,7 +4695,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroStock === "sinStock"
                       ? "bg-white/20"
-                      : "bg-orange-100 text-orange-700"
+                      : "bg-orange-500/10 text-orange-700 dark:text-orange-300"
                   }`}>
                     {productos.filter(p => (Number(p.stock) || 0) <= 0).length}
                   </span>
@@ -4705,13 +4705,13 @@ const ProductosPage = () => {
 
             {/* Filtro de imágenes - siempre visible */}
             <div className="w-full">
-              <div className="flex flex-wrap gap-2 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
                 <button
                   type="button"
                   className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroImagenes === ""
                       ? "bg-purple-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroImagenes("")}
                 >
@@ -4721,7 +4721,7 @@ const ProductosPage = () => {
                   <span className="hidden sm:inline">Todos</span>
                   <span className="sm:hidden">Todos</span>
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                    filtroImagenes === "" ? "bg-white/20" : "bg-purple-100 text-purple-700"
+                    filtroImagenes === "" ? "bg-white/20" : "bg-purple-500/10 text-purple-700 dark:text-purple-300"
                   }`}>
                     {productos.length}
                   </span>
@@ -4731,7 +4731,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroImagenes === "conImagenes"
                       ? "bg-emerald-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroImagenes("conImagenes")}
                 >
@@ -4743,7 +4743,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroImagenes === "conImagenes"
                       ? "bg-white/20"
-                      : "bg-emerald-100 text-emerald-700"
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                   }`}>
                     {productos.filter(p => p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0).length}
                   </span>
@@ -4753,7 +4753,7 @@ const ProductosPage = () => {
                   className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
                     filtroImagenes === "sinImagenes"
                       ? "bg-amber-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-muted text-foreground hover:bg-muted/80"
                   }`}
                   onClick={() => setFiltroImagenes("sinImagenes")}
                 >
@@ -4766,7 +4766,7 @@ const ProductosPage = () => {
                   <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                     filtroImagenes === "sinImagenes"
                       ? "bg-white/20"
-                      : "bg-amber-100 text-amber-700"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                   }`}>
                     {productos.filter(p => !p.imagenes || !Array.isArray(p.imagenes) || p.imagenes.length === 0).length}
                   </span>
@@ -4798,22 +4798,22 @@ const ProductosPage = () => {
             
             {/* Banner informativo sobre drag & drop de imágenes */}
             {showDragDropBanner && (
-              <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm animate-fadeIn">
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 shadow-sm animate-fadeIn">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex-shrink-0 shadow-sm">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-background/60 rounded-lg flex-shrink-0 shadow-sm border border-border/60">
+                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-blue-900 mb-1 flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
                       <span className="text-lg">💡</span>
                       <span>Tip: Agregar imágenes a productos</span>
                     </h4>
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      Puedes <strong className="font-bold bg-blue-100 px-1.5 py-0.5 rounded">arrastrar y soltar</strong> imágenes (o múltiples imágenes a la vez) directamente sobre cualquier producto de la lista. 
-                      Cada producto puede tener hasta <strong className="font-bold text-blue-900">3 imágenes</strong>. 
-                      El <span className="inline-flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 font-medium">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Puedes <strong className="font-bold bg-primary/10 px-1.5 py-0.5 rounded">arrastrar y soltar</strong> imágenes (o múltiples imágenes a la vez) directamente sobre cualquier producto de la lista. 
+                      Cada producto puede tener hasta <strong className="font-bold text-foreground">3 imágenes</strong>. 
+                      El <span className="inline-flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-primary font-medium">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
@@ -4824,10 +4824,10 @@ const ProductosPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowDragDropBanner(false)}
-                    className="p-1.5 hover:bg-blue-200 rounded-lg transition-colors flex-shrink-0 group"
+                    className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0 group"
                     title="Cerrar"
                   >
-                    <svg className="w-4 h-4 text-blue-600 group-hover:text-blue-800 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-primary group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -4842,16 +4842,16 @@ const ProductosPage = () => {
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
           ) : error ? (
-            <div className="text-red-600 py-4 text-center">{error}</div>
+            <div className="text-destructive py-4 text-center">{error}</div>
           ) : productosFiltrados.length === 0 ? (
-            <div className="text-gray-500 py-4 text-center">
+            <div className="text-muted-foreground py-4 text-center">
               No hay productos para mostrar.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full caption-top text-sm overflow-hidden">
-                <thead className="[&_tr]:border-b bg-default-">
-                  <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                <thead className="bg-muted/30 [&_tr]:border-b [&_tr]:border-border/60">
+                  <tr className="border-b border-border/60 transition-colors data-[state=selected]:bg-muted">
                     <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                       <div className="flex items-center justify-center">
                         <input
@@ -4859,7 +4859,7 @@ const ProductosPage = () => {
                           ref={selectAllCheckboxRef}
                           checked={selectAll}
                           onChange={handleSelectAll}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
                         />
                       </div>
                     </th>
@@ -4913,10 +4913,10 @@ const ProductosPage = () => {
                 <tbody className="relative">
                   {/* Overlay de carga durante la paginación */}
                   {isLoadingPagination && (
-                    <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-                      <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                      <div className="flex items-center gap-3 bg-background px-4 py-3 rounded-lg shadow-lg border border-border">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <span className="text-sm font-medium text-muted-foreground">
                           Cargando productos...
                         </span>
                       </div>
@@ -4926,14 +4926,14 @@ const ProductosPage = () => {
                   {productosPaginados.map((p) => (
                     <tr
                       key={p.id}
-                      className={`border-b border-default-300 relative ${
+                      className={`border-b border-border/60 relative ${
                         dragOverProductId === p.id 
                           ? (p.imagenes && p.imagenes.length >= 3)
-                            ? 'bg-red-50/50 border-red-300'
-                            : 'bg-green-50/50 border-green-300'
+                            ? 'bg-red-500/5 border-red-500/30'
+                            : 'bg-green-500/5 border-green-500/30'
                           : selectedProducts.includes(p.id)
-                            ? 'bg-blue-50'
-                            : 'hover:bg-gray-50'
+                            ? 'bg-primary/10'
+                            : 'hover:bg-muted/50'
                       }`}
                       onDragOver={(e) => handleDragOver(e, p.id)}
                       onDragLeave={handleDragLeave}
@@ -4949,12 +4949,12 @@ const ProductosPage = () => {
                           }`}>
                             <div className={`flex items-center gap-3 px-6 py-3 rounded-lg shadow-lg border ${
                               (p.imagenes && p.imagenes.length >= 3)
-                                ? 'bg-red-50 border-red-200 text-red-700'
-                                : 'bg-green-50 border-green-200 text-green-700'
+                                ? 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300'
+                                : 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300'
                             }`}>
                               {(p.imagenes && p.imagenes.length >= 3) ? (
                                 <>
-                                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.64-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                   </svg>
                                   <div>
@@ -4964,7 +4964,7 @@ const ProductosPage = () => {
                                 </>
                               ) : (
                                 <>
-                                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
                                   <div>
@@ -4991,7 +4991,7 @@ const ProductosPage = () => {
                             type="checkbox"
                             checked={selectedProducts.includes(p.id)}
                             onChange={() => handleSelectProduct(p.id)}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                            className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
                           />
                         </div>
                       </td>
@@ -5009,46 +5009,46 @@ const ProductosPage = () => {
                             <div className="group relative flex-shrink-0">
                               <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${
                                 p.imagenes.length >= 3
-                                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300'
-                                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200'
+                                  ? 'bg-green-500/10 border border-green-500/20'
+                                  : 'bg-primary/10 border border-primary/20'
                               }`}>
                                 <svg className={`w-3.5 h-3.5 ${
-                                  p.imagenes.length >= 3 ? 'text-green-600' : 'text-blue-600'
+                                  p.imagenes.length >= 3 ? 'text-green-600 dark:text-green-400' : 'text-primary'
                                 }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <span className={`text-xs font-semibold ${
-                                  p.imagenes.length >= 3 ? 'text-green-700' : 'text-blue-700'
+                                  p.imagenes.length >= 3 ? 'text-green-700 dark:text-green-300' : 'text-primary'
                                 }`}>
                                   {p.imagenes.length}/3
                                 </span>
                                 {p.imagenes.length >= 3 && (
-                                  <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                                   </svg>
                                 )}
                               </div>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-popover text-popover-foreground border border-border shadow-md text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
                                 {p.imagenes.length >= 3 
                                   ? '✓ Límite alcanzado (3/3)'
                                   : `${p.imagenes.length} ${p.imagenes.length === 1 ? 'imagen' : 'imágenes'} - Puedes agregar ${3 - p.imagenes.length} más`
                                 }
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-popover"></div>
                               </div>
                             </div>
                           ) : (
                             <div className="group relative flex-shrink-0">
-                              <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-full opacity-40">
-                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex items-center gap-1 px-2 py-1 bg-muted/40 border border-border/60 rounded-full opacity-40">
+                                <svg className="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                <span className="text-xs font-semibold text-gray-400">
+                                <span className="text-xs font-semibold text-muted-foreground">
                                   0/3
                                 </span>
                               </div>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-popover text-popover-foreground border border-border shadow-md text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
                                 Sin imágenes - Arrastra una imagen aquí
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-popover"></div>
                               </div>
                             </div>
                           )}
@@ -5102,7 +5102,7 @@ const ProductosPage = () => {
                               handleCantidadChange(p.id, e.target.value);
                             }}
                             placeholder="1"
-                            className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-medium bg-white focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-400"
+                            className="w-16 text-center border border-border rounded px-2 py-1 text-sm font-medium bg-background focus:bg-background focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
                             title="Cantidad (default: 1)"
                           />
                         </div>
@@ -5171,7 +5171,7 @@ const ProductosPage = () => {
                             })())}
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
@@ -5212,17 +5212,17 @@ const ProductosPage = () => {
                               })()
                             )}
                           </span>
-                          <span className="text-xs text-gray-500">Total</span>
+                          <span className="text-xs text-muted-foreground">Total</span>
                         </div>
                       </td>
                       <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             p.estado === "Activo"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-green-500/10 text-green-700 dark:text-green-300"
                               : p.estado === "Inactivo"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
+                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+                              : "bg-red-500/10 text-red-700 dark:text-red-300"
                           }`}
                         >
                           {p.estado}
@@ -5232,15 +5232,15 @@ const ProductosPage = () => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleToggleEstadoTienda(p.id, p.estadoTienda || "Inactivo")}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${
                               p.estadoTienda === "Activo"
                                 ? "bg-green-500"
-                                : "bg-gray-300"
+                                : "bg-muted"
                             }`}
                             title={`Click para ${p.estadoTienda === "Activo" ? "desactivar" : "activar"} en tienda`}
                           >
                             <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
                                 p.estadoTienda === "Activo"
                                   ? "translate-x-6"
                                   : "translate-x-1"
@@ -5250,8 +5250,8 @@ const ProductosPage = () => {
                           <span
                             className={`text-xs font-semibold ${
                               p.estadoTienda === "Activo"
-                                ? "text-green-700"
-                                : "text-gray-600"
+                                ? "text-green-700 dark:text-green-300"
+                                : "text-muted-foreground"
                             }`}
                           >
                             {p.estadoTienda || "Inactivo"}
@@ -5264,7 +5264,7 @@ const ProductosPage = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                              className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
                             >
                               <svg
                                 className="w-4 h-4"
@@ -5293,9 +5293,9 @@ const ProductosPage = () => {
           
           {/* Paginación profesional */}
           {productosFiltrados.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
               <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Mostrando <span className="font-semibold">
                     {((paginaActual - 1) * productosPorPagina) + 1}
                   </span> a <span className="font-semibold">
@@ -5303,14 +5303,14 @@ const ProductosPage = () => {
                   </span> de <span className="font-semibold">{totalProductos}</span> productos
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Productos por página:</span>
+                  <span className="text-sm text-muted-foreground">Productos por página:</span>
                   <select
                     value={productosPorPagina}
                     onChange={(e) => {
                       setProductosPorPagina(Number(e.target.value));
                       setPaginaActual(1);
                     }}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-2 py-1 text-sm border border-border bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -5367,7 +5367,7 @@ const ProductosPage = () => {
                       );
                       if (inicio > 2) {
                         paginas.push(
-                          <span key="dots1" className="px-2 text-gray-500">...</span>
+                          <span key="dots1" className="px-2 text-muted-foreground">...</span>
                         );
                       }
                     }
@@ -5391,7 +5391,7 @@ const ProductosPage = () => {
                     if (fin < totalPaginas) {
                       if (fin < totalPaginas - 1) {
                         paginas.push(
-                          <span key="dots2" className="px-2 text-gray-500">...</span>
+                          <span key="dots2" className="px-2 text-muted-foreground">...</span>
                         );
                       }
                       paginas.push(
@@ -5467,7 +5467,7 @@ const ProductosPage = () => {
             </div>
             
             {/* Contenido del formulario con scroll suave */}
-            <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-muted/30">
               <div className="px-8 py-8">
                 <FormularioProducto
                   onClose={() => setOpen(false)}
@@ -5477,10 +5477,10 @@ const ProductosPage = () => {
             </div>
             
             {/* Footer con diseño moderno - solo información */}
-            <div className="bg-gradient-to-r from-gray-50 via-gray-100 to-gray-50 border-t border-gray-200 px-8 py-4">
-              <div className="flex items-center justify-center gap-3 text-sm text-gray-600">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-muted/30 border-t border-border px-8 py-4">
+              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
@@ -5502,8 +5502,8 @@ const ProductosPage = () => {
               <div
                 className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
                   bulkStatus === "success"
-                    ? "bg-green-50 text-green-800 border border-green-200"
-                    : "bg-red-50 text-red-800 border border-red-200"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
                 }`}
               >
                 {bulkStatus === "success" ? (
@@ -5517,16 +5517,16 @@ const ProductosPage = () => {
 
             {/* Barra de progreso */}
             {bulkLoading && bulkProgress.total > 0 && (
-              <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-primary/10 p-3 rounded-lg">
                 <div className="flex justify-between text-sm mb-2">
                   <span>Procesando productos...</span>
                   <span>
                     {bulkProgress.current} / {bulkProgress.total}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${
                         (bulkProgress.current / bulkProgress.total) * 100
@@ -5541,8 +5541,8 @@ const ProductosPage = () => {
               <label className="font-semibold text-sm mb-2 block">
                 Archivo Excel/CSV
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <input
                   type="file"
                   accept=".csv"
@@ -5561,69 +5561,69 @@ const ProductosPage = () => {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Seleccionar archivo CSV
                 </label>
                 {bulkFile && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-300">
                       Archivo seleccionado: <strong>{bulkFile.name}</strong>
                     </p>
                   </div>
                 )}
                 {bulkPreviewLoading && (
-                  <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                  <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
                     Analizando archivo...
                   </div>
                 )}
                 {bulkPreviewError && (
-                  <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-700 dark:text-red-300">
                     {bulkPreviewError}
                   </div>
                 )}
                 {bulkPreview && (
-                  <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm font-semibold text-gray-800">Previsualización</div>
-                      <div className="text-xs text-gray-500">Válidos: {bulkPreview.total} • Inválidos: {bulkPreview.invalidos}</div>
+                      <div className="text-sm font-semibold text-foreground">Previsualización</div>
+                      <div className="text-xs text-muted-foreground">Válidos: {bulkPreview.total} • Inválidos: {bulkPreview.invalidos}</div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="p-2 rounded-md bg-green-50 border border-green-200">
-                        <div className="font-medium text-green-800">Nuevos</div>
-                        <div className="text-2xl font-bold text-green-700">{bulkPreview.nuevos}</div>
+                      <div className="p-2 rounded-md bg-green-500/10 border border-green-500/20">
+                        <div className="font-medium text-green-700 dark:text-green-300">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700 dark:text-green-300">{bulkPreview.nuevos}</div>
                         {bulkPreview.muestrasNuevos.length > 0 && (
-                          <ul className="mt-1 text-xs text-green-900 space-y-0.5 max-h-24 overflow-auto">
+                          <ul className="mt-1 text-xs text-green-700 dark:text-green-300 space-y-0.5 max-h-24 overflow-auto">
                             {bulkPreview.muestrasNuevos.map((m, idx) => (
                               <li key={idx}>{m.codigo} — {m.nombre}</li>
                             ))}
                           </ul>
                         )}
                       </div>
-                      <div className="p-2 rounded-md bg-yellow-50 border border-yellow-200">
-                        <div className="font-medium text-yellow-800">Actualizaciones</div>
-                        <div className="text-2xl font-bold text-yellow-700">{bulkPreview.actualizaciones}</div>
+                      <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <div className="font-medium text-amber-700 dark:text-amber-300">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{bulkPreview.actualizaciones}</div>
                         {bulkPreview.muestrasUpdates.length > 0 && (
-                          <ul className="mt-1 text-xs text-yellow-900 space-y-0.5 max-h-24 overflow-auto">
+                          <ul className="mt-1 text-xs text-amber-700 dark:text-amber-300 space-y-0.5 max-h-24 overflow-auto">
                             {bulkPreview.muestrasUpdates.map((m, idx) => (
                               <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
                             ))}
                           </ul>
                         )}
                       </div>
-                      <div className="p-2 rounded-md bg-gray-100 border border-gray-200">
-                        <div className="font-medium text-gray-800">Ignorados</div>
-                        <div className="text-2xl font-bold text-gray-700">{bulkPreview.ignorados || 0}</div>
-                        <div className="mt-1 text-[11px] text-gray-600">
+                      <div className="p-2 rounded-md bg-muted/50 border border-border">
+                        <div className="font-medium text-foreground">Ignorados</div>
+                        <div className="text-2xl font-bold text-muted-foreground">{bulkPreview.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">
                           Productos válidos sin cambios detectados
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
                           className="rounded"
@@ -5659,20 +5659,20 @@ const ProductosPage = () => {
                           link.click();
                           document.body.removeChild(link);
                         }}
-                        className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50"
+                        className="text-xs bg-background border border-border text-foreground px-3 py-1.5 rounded-md hover:bg-muted/50"
                       >
                         Descargar reporte
                       </button>
                     </div>
                   </div>
                 )}
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   Formato soportado: CSV (guarda tu Excel como CSV)
                 </p>
                 <button
                   type="button"
                   onClick={downloadExampleCSV}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -5682,16 +5682,16 @@ const ProductosPage = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
                     <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <h4 className="font-semibold text-yellow-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
                   Instrucciones:
                 </h4>
               </div>
-              <ul className="text-sm text-yellow-700 space-y-1">
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
                       <li>• Si se incluye la columna "id", se usará para actualizar ese producto</li>
                 <li>• Solo se permiten productos de categoría "Maderas"</li>
                 <li>• Todos los campos obligatorios deben estar presentes</li>
@@ -5752,8 +5752,8 @@ const ProductosPage = () => {
               <div
                 className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
                   bulkStatusFerreteria === "success"
-                    ? "bg-green-50 text-green-800 border border-green-200"
-                    : "bg-red-50 text-red-800 border border-red-200"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
                 }`}
               >
                 {bulkStatusFerreteria === "success" ? (
@@ -5767,7 +5767,7 @@ const ProductosPage = () => {
 
             {/* Barra de progreso */}
             {bulkLoadingFerreteria && bulkProgressFerreteria.total > 0 && (
-              <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-primary/10 p-3 rounded-lg">
                 <div className="flex justify-between text-sm mb-2">
                   <span>Procesando productos...</span>
                   <span>
@@ -5775,9 +5775,9 @@ const ProductosPage = () => {
                     {bulkProgressFerreteria.total}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${
                         (bulkProgressFerreteria.current /
@@ -5794,8 +5794,8 @@ const ProductosPage = () => {
               <label className="font-semibold text-sm mb-2 block">
                 Archivo Excel/CSV
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <input
                   type="file"
                   accept=".csv"
@@ -5814,70 +5814,70 @@ const ProductosPage = () => {
                 />
                 <label
                   htmlFor="file-upload-ferreteria"
-                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Seleccionar archivo CSV
                 </label>
                 {bulkFileFerreteria && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-300">
                       Archivo seleccionado:{" "}
                       <strong>{bulkFileFerreteria.name}</strong>
                     </p>
                   </div>
                 )}
                 {bulkPreviewLoadingFerreteria && (
-                  <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                  <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
                     Analizando archivo...
                   </div>
                 )}
                 {bulkPreviewErrorFerreteria && (
-                  <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-700 dark:text-red-300">
                     {bulkPreviewErrorFerreteria}
                   </div>
                 )}
                 {bulkPreviewFerreteria && (
-                  <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm font-semibold text-gray-800">Previsualización</div>
-                      <div className="text-xs text-gray-500">Válidos: {bulkPreviewFerreteria.total} • Inválidos: {bulkPreviewFerreteria.invalidos}</div>
+                      <div className="text-sm font-semibold text-foreground">Previsualización</div>
+                      <div className="text-xs text-muted-foreground">Válidos: {bulkPreviewFerreteria.total} • Inválidos: {bulkPreviewFerreteria.invalidos}</div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="p-2 rounded-md bg-green-50 border border-green-200">
-                        <div className="font-medium text-green-800">Nuevos</div>
-                        <div className="text-2xl font-bold text-green-700">{bulkPreviewFerreteria.nuevos}</div>
+                      <div className="p-2 rounded-md bg-green-500/10 border border-green-500/20">
+                        <div className="font-medium text-green-700 dark:text-green-300">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700 dark:text-green-300">{bulkPreviewFerreteria.nuevos}</div>
                         {bulkPreviewFerreteria.muestrasNuevos.length > 0 && (
-                          <ul className="mt-1 text-xs text-green-900 space-y-0.5 max-h-24 overflow-auto">
+                          <ul className="mt-1 text-xs text-green-700 dark:text-green-300 space-y-0.5 max-h-24 overflow-auto">
                             {bulkPreviewFerreteria.muestrasNuevos.map((m, idx) => (
                               <li key={idx}>{m.codigo} — {m.nombre}</li>
                             ))}
                           </ul>
                         )}
                       </div>
-                      <div className="p-2 rounded-md bg-yellow-50 border border-yellow-200">
-                        <div className="font-medium text-yellow-800">Actualizaciones</div>
-                        <div className="text-2xl font-bold text-yellow-700">{bulkPreviewFerreteria.actualizaciones}</div>
+                      <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <div className="font-medium text-amber-700 dark:text-amber-300">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{bulkPreviewFerreteria.actualizaciones}</div>
                         {bulkPreviewFerreteria.muestrasUpdates.length > 0 && (
-                          <ul className="mt-1 text-xs text-yellow-900 space-y-0.5 max-h-24 overflow-auto">
+                          <ul className="mt-1 text-xs text-amber-700 dark:text-amber-300 space-y-0.5 max-h-24 overflow-auto">
                             {bulkPreviewFerreteria.muestrasUpdates.map((m, idx) => (
                               <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
                             ))}
                           </ul>
                         )}
                       </div>
-                      <div className="p-2 rounded-md bg-gray-100 border border-gray-200">
-                        <div className="font-medium text-gray-800">Ignorados</div>
-                        <div className="text-2xl font-bold text-gray-700">{bulkPreviewFerreteria.ignorados || 0}</div>
-                        <div className="mt-1 text-[11px] text-gray-600">
+                      <div className="p-2 rounded-md bg-muted/50 border border-border">
+                        <div className="font-medium text-foreground">Ignorados</div>
+                        <div className="text-2xl font-bold text-muted-foreground">{bulkPreviewFerreteria.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">
                           Productos válidos sin cambios detectados
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
                           className="rounded"
@@ -5913,20 +5913,20 @@ const ProductosPage = () => {
                           link.click();
                           document.body.removeChild(link);
                         }}
-                        className="text-xs bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-50"
+                        className="text-xs bg-background border border-border text-foreground px-3 py-1.5 rounded-md hover:bg-muted/50"
                       >
                         Descargar reporte
                       </button>
                     </div>
                   </div>
                 )}
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   Formato soportado: CSV (guarda tu Excel como CSV)
                 </p>
                 <button
                   type="button"
                   onClick={downloadExampleCSVFerreteria}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -5936,16 +5936,16 @@ const ProductosPage = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
                     <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <h4 className="font-semibold text-yellow-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
                   Instrucciones:
                 </h4>
               </div>
-              <ul className="text-sm text-yellow-700 space-y-1">
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
                 <li>• Solo se permiten productos de categoría "Ferretería"</li>
                 <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
                 <li>• <strong>Campos opcionales:</strong> stock (si no se proporciona, se establecerá en 0), estadoTienda</li>
@@ -6011,8 +6011,8 @@ const ProductosPage = () => {
               <div
                 className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
                   bulkStatusObras === "success"
-                    ? "bg-green-50 text-green-800 border border-green-200"
-                    : "bg-red-50 text-red-800 border border-red-200"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
                 }`}
               >
                 {bulkStatusObras === "success" ? (
@@ -6026,7 +6026,7 @@ const ProductosPage = () => {
 
             {/* Barra de progreso */}
             {bulkLoadingObras && bulkProgressObras.total > 0 && (
-              <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-primary/10 p-3 rounded-lg">
                 <div className="flex justify-between text-sm mb-2">
                   <span>Procesando productos...</span>
                   <span>
@@ -6034,9 +6034,9 @@ const ProductosPage = () => {
                     {bulkProgressObras.total}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${
                         (bulkProgressObras.current /
@@ -6053,8 +6053,8 @@ const ProductosPage = () => {
               <label className="font-semibold text-sm mb-2 block">
                 Archivo Excel/CSV
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <input
                   type="file"
                   accept=".csv"
@@ -6065,28 +6065,28 @@ const ProductosPage = () => {
                 />
                 <label
                   htmlFor="file-upload-obras"
-                  className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Seleccionar archivo CSV
                 </label>
                 {bulkFileObras && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-2">
-                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-green-800">
+                    <p className="text-sm text-green-700 dark:text-green-300">
                       Archivo seleccionado:{" "}
                       <strong>{bulkFileObras.name}</strong>
                     </p>
                   </div>
                 )}
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   Formato soportado: CSV (guarda tu Excel como CSV)
                 </p>
                 <button
                   type="button"
                   onClick={downloadExampleCSVObras}
-                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1.5 mx-auto"
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -6096,16 +6096,16 @@ const ProductosPage = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h4 className="font-semibold text-yellow-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
                   Formato requerido para Obras:
                 </h4>
               </div>
-              <ul className="text-sm text-yellow-700 space-y-1">
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
                 <li>• <strong>codigo</strong>: Código único del producto</li>
                 <li>• <strong>nombre</strong>: Nombre del producto</li>
                 <li>• <strong>descripcion</strong>: Descripción del producto</li>
@@ -6130,7 +6130,7 @@ const ProductosPage = () => {
               <Button
                 onClick={handleBulkUploadObras}
                 disabled={!bulkFileObras || bulkLoadingObras}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 {bulkLoadingObras ? (
                   <>
@@ -6155,7 +6155,7 @@ const ProductosPage = () => {
       <Dialog open={bulkEditModalOpen} onOpenChange={setBulkEditModalOpen}>
         <DialogContent className="w-[95vw] max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className="flex items-center gap-2 text-primary">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
@@ -6165,14 +6165,14 @@ const ProductosPage = () => {
           
           <div className="py-4">
             {/* Información de productos seleccionados */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-semibold text-blue-800">Productos Seleccionados</span>
+                <span className="font-semibold text-primary">Productos Seleccionados</span>
               </div>
-              <p className="text-blue-700">
+              <p className="text-foreground">
                 Se editarán <strong>{selectedProducts.length}</strong> producto(s) seleccionado(s).
                 Los cambios se aplicarán a todos los productos de la selección.
               </p>
@@ -6182,53 +6182,53 @@ const ProductosPage = () => {
             <div className="space-y-6">
               {/* Campo Estado */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Estado de los Productos
                 </label>
                 <select
                   value={bulkEditForm.estado}
                   onChange={(e) => setBulkEditForm(prev => ({ ...prev, estado: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="">No cambiar estado</option>
                   <option value="Activo">Activo</option>
                   <option value="Inactivo">Inactivo</option>
                   <option value="Descontinuado">Descontinuado</option>
                 </select>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Selecciona un nuevo estado para todos los productos o déjalo vacío para no modificar
                 </p>
               </div>
 
               {/* Campo Tienda */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Estado de Tienda
                 </label>
                 <select
                   value={bulkEditForm.estadoTienda}
                   onChange={(e) => setBulkEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="">No cambiar estado de tienda</option>
                   <option value="Activo">Activo</option>
                   <option value="Inactivo">Inactivo</option>
                 </select>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Selecciona un nuevo estado de tienda para todos los productos o déjalo vacío para no modificar
                 </p>
               </div>
 
               {/* Campo Unidad de Medida */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Unidad de Medida
                 </label>
                 <div className="flex gap-2">
                   <select
                     value={bulkEditForm.unidadMedida}
                     onChange={(e) => setBulkEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">No cambiar unidad de medida</option>
                     {unidadesMedida.map((unidad) => (
@@ -6275,13 +6275,13 @@ const ProductosPage = () => {
                     </Button>
                   </div>
                 )}
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Selecciona una nueva unidad de medida para todos los productos o déjalo vacío para no modificar
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Stock
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -6293,7 +6293,7 @@ const ProductosPage = () => {
                         stockOperation: e.target.value,
                       }))
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="">No cambiar stock</option>
                     <option value="set">Fijar stock</option>
@@ -6314,7 +6314,7 @@ const ProductosPage = () => {
                     className="w-full"
                   />
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Fijar reemplaza el stock. Sumar/Restar ajusta automáticamente usando operación atómica.
                 </p>
               </div>
@@ -6323,8 +6323,8 @@ const ProductosPage = () => {
               {bulkEditMessage && (
                 <div className={`p-3 rounded-lg text-sm ${
                   bulkEditMessage.startsWith("Error")
-                    ? "bg-red-50 text-red-800 border border-red-200"
-                    : "bg-green-50 text-green-800 border border-green-200"
+                    ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                    : "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
                 }`}>
                   {bulkEditMessage}
                 </div>
@@ -6344,7 +6344,7 @@ const ProductosPage = () => {
               variant="default"
               onClick={handleBulkEdit}
               disabled={bulkEditLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {bulkEditLoading ? (
                 <>
@@ -6368,7 +6368,7 @@ const ProductosPage = () => {
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent className="w-[95vw] max-w-[500px]">
           <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2 text-red-600">
+                          <DialogTitle className="flex items-center gap-2 text-destructive">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -6377,14 +6377,14 @@ const ProductosPage = () => {
           </DialogHeader>
           
           <div className="py-4">
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
-                    <span className="font-semibold text-red-800">¡Atención!</span>
+                    <span className="font-semibold text-destructive">¡Atención!</span>
                   </div>
-              <p className="text-red-700">
+              <p className="text-destructive">
                 Estás a punto de eliminar <strong>{selectedProducts.length}</strong> producto(s) de forma permanente.
                 Esta acción no se puede deshacer.
               </p>
@@ -6393,8 +6393,8 @@ const ProductosPage = () => {
             {deleteMessage && (
               <div className={`p-3 rounded-lg text-sm mb-4 ${
                 deleteMessage.startsWith("Error")
-                  ? "bg-red-50 text-red-800 border border-red-200"
-                  : "bg-green-50 text-green-800 border border-green-200"
+                  ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                  : "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
               }`}>
                 {deleteMessage}
               </div>
@@ -6413,7 +6413,7 @@ const ProductosPage = () => {
               variant="destructive"
               onClick={handleDeleteSelected}
               disabled={deleteLoading}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {deleteLoading ? (
                 <>

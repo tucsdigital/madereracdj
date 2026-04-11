@@ -142,7 +142,7 @@ const ProveedoresPage = () => {
         <Truck className="w-10 h-10 text-primary" />
         <div>
           <h1 className="text-3xl font-bold mb-1">Proveedores</h1>
-          <p className="text-lg text-gray-500">Gestión de proveedores y cuentas por pagar.</p>
+          <p className="text-lg text-muted-foreground">Gestión de proveedores y cuentas por pagar.</p>
         </div>
       </div>
 
@@ -192,9 +192,9 @@ const ProveedoresPage = () => {
                   <TableCell>{p.email || "-"}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={
-                      p.condicionPago === "Contado" ? "bg-green-50 text-green-700 border-green-200" :
-                      p.condicionPago === "Cuenta Corriente" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                      "bg-yellow-50 text-yellow-700 border-yellow-200"
+                      p.condicionPago === "Contado" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" :
+                      p.condicionPago === "Cuenta Corriente" ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" :
+                      "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20"
                     }>
                       {p.condicionPago || "Contado"}
                     </Badge>
@@ -218,20 +218,20 @@ const ProveedoresPage = () => {
 
       {/* Modal alta proveedor */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh]">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] border border-border/60 bg-card">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Agregar Proveedor</DialogTitle>
           </DialogHeader>
           
           <div className="flex flex-col h-full">
             {/* Pestañas */}
-            <div className="flex border-b border-gray-200 mb-4">
+            <div className="flex border-b border-border/60 mb-4">
               <button
                 type="button"
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'datos' 
                     ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setActiveTab('datos')}
               >
@@ -242,7 +242,7 @@ const ProveedoresPage = () => {
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'comercial' 
                     ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setActiveTab('comercial')}
               >
@@ -253,7 +253,7 @@ const ProveedoresPage = () => {
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'adicional' 
                     ? 'border-blue-500 text-blue-600' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setActiveTab('adicional')}
               >
@@ -267,7 +267,7 @@ const ProveedoresPage = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Nombre/Razón Social *
                       </label>
                       <Input 
@@ -278,7 +278,7 @@ const ProveedoresPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         CUIT
                       </label>
                       <Input 
@@ -288,7 +288,7 @@ const ProveedoresPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Rubro
                       </label>
                       <Input 
@@ -298,7 +298,7 @@ const ProveedoresPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Teléfono *
                       </label>
                       <Input 
@@ -309,7 +309,7 @@ const ProveedoresPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Email
                       </label>
                       <Input 
@@ -320,7 +320,7 @@ const ProveedoresPage = () => {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Persona de Contacto
                       </label>
                       <Input 
@@ -337,7 +337,7 @@ const ProveedoresPage = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Condición de Pago
                       </label>
                       <select 
@@ -354,7 +354,7 @@ const ProveedoresPage = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Estado
                       </label>
                       <select 
@@ -368,7 +368,7 @@ const ProveedoresPage = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Dirección
                     </label>
                     <Input 
@@ -383,7 +383,7 @@ const ProveedoresPage = () => {
               {activeTab === 'adicional' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Observaciones
                     </label>
                     <Textarea 
@@ -399,7 +399,7 @@ const ProveedoresPage = () => {
             </div>
 
             {/* Footer con navegación */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div className="flex justify-between items-center pt-4 border-t border-border/60">
               <div className="flex gap-2">
                 {activeTab !== 'datos' && (
                   <Button
@@ -446,11 +446,11 @@ const ProveedoresPage = () => {
 
       {/* Modal detalle proveedor */}
       <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
-        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border-0 outline-none focus:outline-none bg-white">
-          <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b bg-gradient-to-r from-gray-50 to-white">
+        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card">
+          <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-border/60 bg-gradient-to-r from-muted/50 to-card">
             <DialogTitle className="text-xl font-bold tracking-tight">Detalle del Proveedor</DialogTitle>
             <DialogClose asChild>
-              <button type="button" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-gray-200 bg-white hover:bg-gray-100 text-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500">
+              <button type="button" className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border/60 bg-card hover:bg-muted text-muted-foreground focus-visible:ring-2 focus-visible:ring-blue-500">
                 <X className="w-5 h-5" />
               </button>
             </DialogClose>
@@ -462,14 +462,14 @@ const ProveedoresPage = () => {
                 <div className="font-bold text-2xl mb-2 leading-tight uppercase">{editProveedor.nombre || ''}</div>
                 {/* Tabs del modal */}
                 <div className="flex gap-2 items-center">
-                  <div className="inline-flex items-center gap-1 bg-gray-100 rounded-full p-1">
+                  <div className="inline-flex items-center gap-1 bg-muted/50 rounded-full p-1 border border-border/60">
                   {['datos','cuentas'].map(tab => (
                     <button
                       key={tab}
                       type="button"
                       onClick={() => setDetalleTab(tab)}
                       className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
-                        detalleTab === tab ? 'bg-white text-blue-600 shadow border border-gray-200' : 'text-gray-600 hover:text-gray-800'
+                        detalleTab === tab ? 'bg-card text-blue-600 shadow border border-border/60' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {tab === 'datos' && 'Datos'}
@@ -484,8 +484,8 @@ const ProveedoresPage = () => {
                 {detalleTab === 'datos' && (
                   <div className="space-y-4 mt-4">
                     {/* Información del proveedor */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Información General</h4>
+                    <div className="bg-card rounded-xl border border-border/60 shadow-sm p-4">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Información General</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor="nombre">Nombre/Razón Social *</Label>
@@ -562,14 +562,14 @@ const ProveedoresPage = () => {
                     </div>
 
                     {/* Condiciones comerciales */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Condiciones Comerciales</h4>
+                    <div className="bg-card rounded-xl border border-border/60 shadow-sm p-4">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Condiciones Comerciales</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor="condicionPago">Condición de Pago</Label>
                           <select 
                             id="condicionPago"
-                            className="w-full border rounded-md px-3 py-2 h-9" 
+                            className="w-full border border-border/60 bg-background text-foreground rounded-md px-3 py-2 h-9" 
                             value={editProveedor.condicionPago || "Contado"} 
                             onChange={e => setEditProveedor(p => ({ ...p, condicionPago: e.target.value }))}
                           >
@@ -581,10 +581,10 @@ const ProveedoresPage = () => {
                             <option value="Cuenta Corriente">Cuenta Corriente</option>
                           </select>
                         </div>
-                        <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg border border-border/60">
                           <div>
-                            <p className="text-sm font-medium text-gray-700">Estado</p>
-                            <p className="text-xs text-gray-500">Activo o Inactivo</p>
+                            <p className="text-sm font-medium text-foreground">Estado</p>
+                            <p className="text-xs text-muted-foreground">Activo o Inactivo</p>
                           </div>
                           <Switch
                             checked={editProveedor.estado === 'Activo'}
@@ -596,8 +596,8 @@ const ProveedoresPage = () => {
                     </div>
 
                     {/* Observaciones */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Observaciones</h4>
+                    <div className="bg-card rounded-xl border border-border/60 shadow-sm p-4">
+                      <h4 className="text-sm font-semibold text-foreground mb-3">Observaciones</h4>
                       <Textarea
                         id="observaciones"
                         placeholder="Notas, condiciones especiales, horarios de entrega..."
@@ -616,18 +616,18 @@ const ProveedoresPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-500">Total Compras</div>
+                          <div className="text-sm text-muted-foreground">Total Compras</div>
                           <div className="text-2xl font-bold text-blue-600">
                             ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).total.toLocaleString("es-AR")}
                           </div>
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {cuentasPorPagar.length} cuenta{cuentasPorPagar.length !== 1 ? 's' : ''} registrada{cuentasPorPagar.length !== 1 ? 's' : ''}
                           </div>
                         </CardContent>
                       </Card>
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-500">Total Pagado</div>
+                          <div className="text-sm text-muted-foreground">Total Pagado</div>
                           <div className="text-2xl font-bold text-green-600">
                             ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pagado.toLocaleString("es-AR")}
                           </div>
@@ -635,18 +635,18 @@ const ProveedoresPage = () => {
                       </Card>
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-500">Saldo Pendiente (neto)</div>
+                          <div className="text-sm text-muted-foreground">Saldo Pendiente (neto)</div>
                           <div className="text-2xl font-bold text-red-600">
                             ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pendienteNeto.toLocaleString("es-AR")}
                           </div>
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             Bruto: ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).pendienteBruto.toLocaleString("es-AR")}
                           </div>
                         </CardContent>
                       </Card>
                       <Card>
                         <CardContent className="p-4">
-                          <div className="text-sm text-gray-500">Saldo a Favor</div>
+                          <div className="text-sm text-muted-foreground">Saldo a Favor</div>
                           <div className="text-2xl font-bold text-green-600">
                             ${calcularTotales(cuentasPorPagar, selectedProveedor?.saldoAFavor).saldoAFavor.toLocaleString("es-AR")}
                           </div>
@@ -655,10 +655,10 @@ const ProveedoresPage = () => {
                     </div>
 
                     {/* Listado de cuentas por pagar */}
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-3">Historial de Cuentas</h4>
+                    <div className="bg-muted/50 p-4 rounded-lg border border-border/60">
+                      <h4 className="font-semibold text-foreground mb-3">Historial de Cuentas</h4>
                       {cuentasPorPagar.length === 0 ? (
-                        <div className="text-gray-500 text-sm text-center py-8">
+                        <div className="text-muted-foreground text-sm text-center py-8">
                           No hay cuentas registradas para este proveedor.
                         </div>
                       ) : (
@@ -676,59 +676,59 @@ const ProveedoresPage = () => {
                                 : "Pendiente";
                             
                             return (
-                              <div key={cuenta.id} className="bg-white p-3 rounded-lg border border-gray-200">
+                              <div key={cuenta.id} className="bg-card p-3 rounded-lg border border-border/60">
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex-1">
-                                    <div className="font-medium text-gray-900">{cuenta.concepto}</div>
-                                    <div className="text-sm text-gray-500">
+                                    <div className="font-medium text-foreground">{cuenta.concepto}</div>
+                                    <div className="text-sm text-muted-foreground">
                                       Fecha: {cuenta.fecha || "-"}
                                       {cuenta.numeroComprobante && ` • Nº ${cuenta.numeroComprobante}`}
                                     </div>
                                   </div>
                                   <Badge className={
-                                    cuenta.estadoPago === "pagado" ? "bg-green-100 text-green-800 border-green-200" :
-                                    cuenta.estadoPago === "parcial" ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
-                                    "bg-red-100 text-red-800 border-red-200"
+                                    cuenta.estadoPago === "pagado" ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20" :
+                                    cuenta.estadoPago === "parcial" ? "bg-amber-500/10 text-amber-800 dark:text-amber-200 border-amber-500/20" :
+                                    "bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/20"
                                   }>
                                     {estadoLabel}
                                   </Badge>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 text-sm">
                                   <div>
-                                    <span className="text-gray-500">Total:</span>
+                                    <span className="text-muted-foreground">Total:</span>
                                     <span className="font-semibold ml-1">${montoTotal.toLocaleString("es-AR")}</span>
                                   </div>
                                   <div>
-                                    <span className="text-gray-500">Pagado:</span>
+                                    <span className="text-muted-foreground">Pagado:</span>
                                     <span className="font-semibold text-green-600 ml-1">${montoPagado.toLocaleString("es-AR")}</span>
                                   </div>
                                   <div>
-                                    <span className="text-gray-500">Saldo:</span>
+                                    <span className="text-muted-foreground">Saldo:</span>
                                     <span className="font-semibold text-red-600 ml-1">${saldo.toLocaleString("es-AR")}</span>
                                   </div>
                                 </div>
                                 {/* Barra de progreso */}
                                 <div className="mt-2">
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="w-full bg-muted rounded-full h-2">
                                     <div 
-                                      className="bg-green-600 h-2 rounded-full transition-all" 
+                                      className="bg-emerald-600 h-2 rounded-full transition-all" 
                                       style={{ width: `${porcentajePagado}%` }}
                                     />
                                   </div>
                                 </div>
                                 {cuenta.pagos && cuenta.pagos.length > 0 && (
-                                  <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-2">
-                                    <div className="text-xs text-gray-600 font-semibold mb-1">
+                                  <div className="mt-3 rounded-md border border-border/60 bg-muted/50 p-2">
+                                    <div className="text-xs text-muted-foreground font-semibold mb-1">
                                       Pagos ({cuenta.pagos.length})
                                     </div>
                                     <div className="space-y-1">
                                       {[...cuenta.pagos].slice(-3).reverse().map((pago, idx) => (
                                         <div key={idx} className="flex items-center justify-between text-xs">
-                                          <div className="text-gray-600">
+                                          <div className="text-muted-foreground">
                                             {pago.fecha || "-"} · {pago.metodo || "Efectivo"}
                                             {pago.pagoGlobalProveedor ? " · Pago global" : ""}
                                           </div>
-                                          <div className="font-semibold text-green-700">
+                                          <div className="font-semibold text-emerald-700 dark:text-emerald-300">
                                             ${Number(pago.monto || 0).toLocaleString("es-AR")}
                                           </div>
                                         </div>
@@ -748,8 +748,8 @@ const ProveedoresPage = () => {
                 {editMsg && (
                   <div className={`p-3 rounded-lg text-sm mt-4 ${
                     editMsg.startsWith("Error") 
-                      ? "bg-red-50 text-red-800 border border-red-200" 
-                      : "bg-green-50 text-green-800 border border-green-200"
+                      ? "bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20" 
+                      : "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20"
                   }`}>
                     {editMsg}
                   </div>
@@ -757,12 +757,12 @@ const ProveedoresPage = () => {
               </div>
 
               {/* Footer fijo */}
-              <div className="flex justify-between items-center px-5 py-3 border-t bg-white sticky bottom-0">
-                <div className="text-xs text-gray-500">ID: {selectedProveedor.id}</div>
+              <div className="flex justify-between items-center px-5 py-3 border-t border-border/60 bg-card sticky bottom-0">
+                <div className="text-xs text-muted-foreground">ID: {selectedProveedor.id}</div>
                 <Button
                   onClick={handleGuardarEdicion}
                   disabled={editSaving || !editProveedor.nombre || !editProveedor.telefono}
-                  className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 h-11 rounded-lg shadow-md"
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 h-11 rounded-lg shadow-md"
                 >
                   {editSaving ? (
                     <span>Guardando...</span>

@@ -115,7 +115,7 @@ export const columns = [
     cell: ({ row }) => {
       const fecha = row.getValue("fechaCreacion");
       return (
-        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
+        <span className="inline-block px-2 py-1 rounded bg-muted/50 text-muted-foreground font-semibold text-xs">
           {formatDate(fecha)}
         </span>
       );
@@ -164,21 +164,21 @@ export const columns = [
         <div className="flex gap-2 items-center justify-end">
           <Button
             size="icon"
-            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground hover:bg-primary hover:text-white"
+            className="h-8 w-8 rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
             title="Ver detalle"
           >
             <Icon icon="heroicons:eye" className="w-4 h-4" />
           </Button>
           <Button
             size="icon"
-            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
+            className="h-8 w-8 rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
             title="Editar"
           >
             <Icon icon="heroicons:pencil-square" className="w-4 h-4" />
           </Button>
           <Button
             size="icon"
-            className="h-8 w-8 rounded bg-default-100 dark:bg-default-200 text-default-500 hover:text-primary-foreground"
+            className="h-8 w-8 rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
             title="Eliminar"
           >
             <Icon icon="heroicons:trash" className="w-4 h-4" />
@@ -204,7 +204,7 @@ export const columnsPresupuestos = [
     accessorKey: "cliente",
     header: "Cliente",
     cell: ({ row }) => (
-      <span className="font-semibold text-gray-800 dark:text-gray-200">
+      <span className="font-semibold text-foreground">
         {(row.original.cliente?.nombre || "-").toUpperCase()}
       </span>
     ),
@@ -216,7 +216,7 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const fecha = row.getValue("fechaCreacion");
       return (
-        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
+        <span className="inline-block px-2 py-1 rounded bg-muted/50 text-muted-foreground font-semibold text-xs">
           {formatDate(fecha)}
         </span>
       );
@@ -228,7 +228,7 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const total = row.original.total ?? 0;
       return (
-        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
+        <span className="inline-block px-2 py-1 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-base">
           {`$${total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`}
         </span>
       );
@@ -241,11 +241,11 @@ export const columnsPresupuestos = [
     cell: ({ row }) => {
       const costo = row.getValue("costoEnvio");
       return costo && !isNaN(Number(costo)) ? (
-        <span className="inline-block px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400 font-medium">
+        <span className="inline-block px-2 py-1 rounded border border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-medium">
           ${Number(costo).toLocaleString("es-AR", { minimumFractionDigits: 2 })}
         </span>
       ) : (
-        <span className="inline-block px-2 py-1 rounded bg-card text-gray-400 dark:text-gray-500">
+        <span className="inline-block px-2 py-1 rounded bg-muted/30 text-muted-foreground">
           -
         </span>
       );
@@ -255,7 +255,7 @@ export const columnsPresupuestos = [
     accessorKey: "vendedor",
     header: "Vendedor",
     cell: ({ row }) => (
-      <span className="text-gray-700 dark:text-gray-300">
+      <span className="text-foreground">
         {row.getValue("vendedor") || "-"}
       </span>
     ),
@@ -289,7 +289,7 @@ export const columnsPresupuestos = [
                 }));
               }
             }}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-700 dark:text-red-300 hover:text-red-700 hover:bg-red-500/10"
           >
             <Icon icon="heroicons:trash" className="w-4 h-4" />
           </Button>
@@ -316,7 +316,7 @@ export const columnsVentas = [
     accessorKey: "cliente.nombre",
     header: "Cliente",
     cell: ({ row }) => (
-      <span className="font-semibold text-gray-800 dark:text-gray-200">
+      <span className="font-semibold text-foreground">
         {(row.original.cliente?.nombre || "-").toUpperCase()}
       </span>
     ),
@@ -328,7 +328,7 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const fecha = row.getValue("fechaCreacion");
       return (
-        <span className="inline-block px-2 py-1 rounded bg-card text-gray-700 dark:text-gray-200 font-semibold text-xs">
+        <span className="inline-block px-2 py-1 rounded bg-muted/50 text-muted-foreground font-semibold text-xs">
           {formatDate(fecha)}
         </span>
       );
@@ -341,7 +341,7 @@ export const columnsVentas = [
     cell: ({ row }) => {
       const total = row.original.total ?? 0;
       return (
-        <span className="inline-block px-2 py-1 rounded bg-green-600 text-white dark:bg-green-400 dark:text-green-900 font-semibold text-base">
+        <span className="inline-block px-2 py-1 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-base">
           {total
             ? `$${total.toLocaleString("es-AR", { minimumFractionDigits: 2 })}`
             : "-"}
@@ -371,17 +371,17 @@ export const columnsVentas = [
 
       if (montoAbonado >= total) {
         color =
-          "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-700";
+          "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
         texto = "Completo";
       } else if (montoAbonado > 0) {
         color =
-          "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-700";
+          "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
         texto = `Parcial (Falta $${saldoPendiente.toLocaleString("es-AR", {
           minimumFractionDigits: 2,
         })})`;
       } else {
         color =
-          "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
+          "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20";
         texto = `Pendiente ($${total.toLocaleString("es-AR", {
           minimumFractionDigits: 2,
         })})`;
@@ -408,7 +408,7 @@ export const columnsVentas = [
         transporte_propio: "Transporte Propio",
       };
       return (
-        <span className="inline-block px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium">
+        <span className="inline-block px-2 py-1 rounded border border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-medium">
           {tipos[tipo] || tipo}
         </span>
       );
@@ -418,7 +418,7 @@ export const columnsVentas = [
     accessorKey: "vendedor",
     header: "Vendedor",
     cell: ({ row }) => (
-      <span className="text-gray-700 dark:text-gray-300">
+      <span className="text-foreground">
         {row.getValue("vendedor") || "-"}
       </span>
     ),
@@ -428,7 +428,7 @@ export const columnsVentas = [
     accessorKey: "prioridad",
     header: "Prioridad",
     cell: ({ row }) => (
-      <span className="inline-block px-2 py-1 rounded bg-yellow-600 text-white dark:bg-yellow-400 dark:text-yellow-900 font-medium">
+      <span className="inline-block px-2 py-1 rounded border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium">
         {row.getValue("prioridad") || "-"}
       </span>
     ),
@@ -461,7 +461,7 @@ export const columnsVentas = [
                 }));
               }
             }}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-700 dark:text-red-300 hover:text-red-700 hover:bg-red-500/10"
           >
             <Icon icon="heroicons:trash" className="w-4 h-4" />
           </Button>

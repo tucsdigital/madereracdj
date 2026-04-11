@@ -87,8 +87,8 @@ export default function DocumentacionPage() {
     <div className="py-8 px-2 max-w-7xl mx-auto">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="text-2xl font-bold text-default-900">Documentación</div>
-          <div className="text-sm text-default-600">Cierre de obra, aceptación y firma con trazabilidad.</div>
+          <div className="text-2xl font-bold text-foreground">Documentación</div>
+          <div className="text-sm text-muted-foreground">Cierre de obra, aceptación y firma con trazabilidad.</div>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild>
@@ -101,45 +101,45 @@ export default function DocumentacionPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Pendientes</div>
+            <div className="text-xs text-muted-foreground">Pendientes</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.pendiente_de_aceptacion}</div>}
           </CardContent>
         </Card>
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Enviados</div>
+            <div className="text-xs text-muted-foreground">Enviados</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.enviado}</div>}
           </CardContent>
         </Card>
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Abiertos</div>
+            <div className="text-xs text-muted-foreground">Abiertos</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.abierto}</div>}
           </CardContent>
         </Card>
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Firmados</div>
+            <div className="text-xs text-muted-foreground">Firmados</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.firmado}</div>}
           </CardContent>
         </Card>
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Sin abrir</div>
+            <div className="text-xs text-muted-foreground">Sin abrir</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.enviado}</div>}
           </CardContent>
         </Card>
-        <Card className="border border-default-200">
+        <Card className="border border-border/60 bg-card">
           <CardContent className="p-4">
-            <div className="text-xs text-default-500">Borradores</div>
+            <div className="text-xs text-muted-foreground">Borradores</div>
             {loading ? <Skeleton className="mt-2 h-7 w-10" /> : <div className="text-xl font-bold">{counts.borrador}</div>}
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border border-default-200 mt-5">
+      <Card className="border border-border/60 bg-card mt-5">
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle>Listado</CardTitle>
           <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ export default function DocumentacionPage() {
                 ))
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-default-500">
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                     No hay documentos.
                   </TableCell>
                 </TableRow>

@@ -63,7 +63,7 @@ const Opportunities = () => {
         beneficio: "+40% más ventas en promedio",
         icon: "heroicons:photo",
         color: "text-blue-600",
-        bgColor: "bg-blue-50",
+        bgColor: "bg-blue-500/10",
         link: "/productos",
         accion: "Agregar imágenes",
       });
@@ -78,7 +78,7 @@ const Opportunities = () => {
         beneficio: "Más opciones = más ventas",
         icon: "heroicons:plus-circle",
         color: "text-emerald-600",
-        bgColor: "bg-emerald-50",
+        bgColor: "bg-emerald-500/10",
         link: "/productos",
         accion: "Agregar productos",
       });
@@ -93,7 +93,7 @@ const Opportunities = () => {
         beneficio: "Base de clientes más sólida",
         icon: "heroicons:user-plus",
         color: "text-purple-600",
-        bgColor: "bg-purple-50",
+        bgColor: "bg-purple-500/10",
         link: "/clientes",
         accion: "Agregar clientes",
       });
@@ -108,7 +108,7 @@ const Opportunities = () => {
         beneficio: "Mantén el flujo activo",
         icon: "heroicons:shopping-cart",
         color: "text-orange-600",
-        bgColor: "bg-orange-50",
+        bgColor: "bg-orange-500/10",
         link: "/ventas",
         accion: "Crear venta",
       });
@@ -119,11 +119,11 @@ const Opportunities = () => {
 
   if (loading) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-amber-50/80 via-yellow-50/60 to-orange-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-200/50 to-yellow-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:sparkles" className="w-6 h-6 text-yellow-600" />
             </div>
             Oportunidades
@@ -132,7 +132,7 @@ const Opportunities = () => {
         <CardContent className="relative pt-2 px-6 pb-6">
           <div className="space-y-3">
             {[1, 2].map((i) => (
-              <div key={i} className="animate-pulse p-4 rounded-2xl bg-white/60 h-24" />
+              <div key={i} className="animate-pulse p-4 rounded-2xl bg-muted/60 h-24" />
             ))}
           </div>
         </CardContent>
@@ -142,11 +142,11 @@ const Opportunities = () => {
 
   if (opportunities.length === 0) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-amber-50/80 via-yellow-50/60 to-orange-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-200/50 to-yellow-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:sparkles" className="w-6 h-6 text-yellow-600" />
             </div>
             Oportunidades
@@ -163,11 +163,11 @@ const Opportunities = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-amber-50/80 via-yellow-50/60 to-orange-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600">
-          <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-200/50 to-yellow-200/50 shadow-lg">
+          <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
             <Icon icon="heroicons:sparkles" className="w-6 h-6 text-yellow-600" />
           </div>
           Oportunidades
@@ -179,7 +179,7 @@ const Opportunities = () => {
             <Link
               key={op.id}
               href={op.link}
-              className="block p-5 rounded-2xl shadow-lg backdrop-blur-sm border-0 hover:shadow-xl transition-all bg-white/60 group transform hover:scale-[1.02]"
+              className="block p-5 rounded-2xl shadow-lg backdrop-blur-sm border border-border/60 hover:shadow-xl transition-all bg-card/60 group transform hover:scale-[1.02]"
             >
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-lg ${op.bgColor} flex items-center justify-center flex-shrink-0`}>

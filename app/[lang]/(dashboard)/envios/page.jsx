@@ -16,19 +16,19 @@ import { Clock, CheckCircle, AlertCircle, Filter, Search, RefreshCw, Download, P
 const estadosEnvio = {
   pendiente: { 
     label: "Pendiente", 
-    color: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    color: "bg-yellow-500/10 text-yellow-800 dark:text-yellow-300 border-yellow-500/20",
     icon: Clock,
     description: "Envío creado, pendiente de entrega"
   },
   entregado: { 
     label: "Entregado", 
-    color: "bg-green-100 text-green-800 border-green-200",
+    color: "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border-emerald-500/20",
     icon: CheckCircle,
     description: "Envío entregado exitosamente"
   },
   cancelado: { 
     label: "Cancelado", 
-    color: "bg-red-100 text-red-800 border-red-200",
+    color: "bg-red-500/10 text-red-800 dark:text-red-300 border-red-500/20",
     icon: AlertCircle,
     description: "Envío cancelado"
   },
@@ -229,24 +229,24 @@ function DetalleEnvio({ envio, onClose }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[800px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[800px] max-h-[80vh] overflow-y-auto bg-card border border-border/60">
         <DialogHeader>
           <DialogTitle>Detalle de Envío - N° {envio.numeroPedido}</DialogTitle>
         </DialogHeader>
         
         {/* Botones de descarga e impresión */}
         {envio.ventaId && (
-          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b">
+          <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-border/60">
             <Button
               onClick={() => handleDownloadPDF(false)}
               disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 hover:bg-card/80 border border-border/60 text-foreground shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
               {downloadingPDF ? (
-                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
               ) : (
-                <Download className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
+                <Download className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
               )}
               <span className="hidden sm:inline relative z-10 font-medium">Descargar</span>
               <span className="sm:hidden relative z-10">{downloadingPDF ? "⏳" : "📥"}</span>
@@ -254,13 +254,13 @@ function DetalleEnvio({ envio, onClose }) {
             <Button
               onClick={() => handleDownloadPDF(true)}
               disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-500/15 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
               {downloadingPDFEmpleado ? (
-                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-700 dark:text-blue-300 relative z-10" />
               ) : (
-                <User className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
+                <User className="w-4 h-4 mr-1 lg:mr-2 text-blue-700 dark:text-blue-300 group-hover:text-blue-800 dark:group-hover:text-blue-200 transition-colors duration-300 relative z-10" />
               )}
               <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
               <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
@@ -272,13 +272,13 @@ function DetalleEnvio({ envio, onClose }) {
                 handlePrintPDF(false, e);
               }}
               disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 border border-slate-200/60 text-slate-700 hover:text-slate-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 hover:bg-card/80 border border-border/60 text-foreground shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
               {printingPDF ? (
-                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-slate-600 relative z-10" />
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
               ) : (
-                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-slate-600 group-hover:text-slate-800 transition-colors duration-300 relative z-10" />
+                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
               )}
               <span className="hidden sm:inline relative z-10 font-medium">Imprimir</span>
               <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
@@ -290,13 +290,13 @@ function DetalleEnvio({ envio, onClose }) {
                 handlePrintPDF(true, e);
               }}
               disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
-              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/60 text-blue-700 hover:text-blue-900 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              className="flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-gradient-to-br from-blue-500/15 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/15 border border-blue-500/20 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
               {printingPDFEmpleado ? (
-                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-600 relative z-10" />
+                <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-blue-700 dark:text-blue-300 relative z-10" />
               ) : (
-                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-blue-600 group-hover:text-blue-800 transition-colors duration-300 relative z-10" />
+                <Printer className="w-4 h-4 mr-1 lg:mr-2 text-blue-700 dark:text-blue-300 group-hover:text-blue-800 dark:group-hover:text-blue-200 transition-colors duration-300 relative z-10" />
               )}
               <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
               <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
@@ -338,7 +338,7 @@ function DetalleEnvio({ envio, onClose }) {
                 </Badge>
               </div>
               
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 {estadosEnvio[envio.estado]?.description}
               </div>
             </div>
@@ -347,9 +347,9 @@ function DetalleEnvio({ envio, onClose }) {
           {/* Productos */}
           <div>
             <h3 className="font-semibold mb-2">Productos</h3>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border border-border/60 rounded-lg overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-muted/50">
                   <tr>
                     <th className="p-2 text-left">Producto</th>
                     <th className="p-2 text-center">Cantidad</th>
@@ -359,7 +359,7 @@ function DetalleEnvio({ envio, onClose }) {
                 </thead>
                 <tbody>
                   {envio.productos?.map((producto, index) => (
-                    <tr key={index} className="border-t">
+                    <tr key={index} className="border-t border-border/60">
                       <td className="p-2">{producto.nombre}</td>
                       <td className="p-2 text-center">{producto.cantidad}</td>
                       <td className="p-2 text-right">${producto.precio}</td>
@@ -376,13 +376,13 @@ function DetalleEnvio({ envio, onClose }) {
             <h3 className="font-semibold mb-2">Historial de Estados</h3>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {envio.historialEstados?.map((historial, index) => (
-                <div key={index} className="flex items-start gap-3 p-2 bg-gray-50 rounded">
+                <div key={index} className="flex items-start gap-3 p-2 bg-muted/50 border border-border/60 rounded">
                   <Badge variant="outline" className={estadosEnvio[historial.estado]?.color}>
                     {estadosEnvio[historial.estado]?.label}
                   </Badge>
                   <div className="flex-1">
                     <div className="text-sm font-medium">{historial.comentario}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {new Date(historial.fecha).toLocaleString('es-AR')}
                     </div>
                   </div>
@@ -512,7 +512,7 @@ const EnviosPage = () => {
         return (
           <div>
             <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
-            <div className="text-xs text-gray-500">{cliente?.cuit || "Sin CUIT"}</div>
+            <div className="text-xs text-muted-foreground">{cliente?.cuit || "Sin CUIT"}</div>
           </div>
         );
       },
@@ -523,7 +523,7 @@ const EnviosPage = () => {
       cell: ({ row }) => {
         const fecha = row.getValue("fechaEntrega");
         const fechaCreacion = row.original.fechaCreacion;
-        if (!fecha) return <span className="text-gray-400">Sin fecha</span>;
+        if (!fecha) return <span className="text-muted-foreground">Sin fecha</span>;
         
         // Corregir el cálculo de la fecha para evitar el problema de zona horaria
         const fechaEntrega = new Date(fecha + 'T00:00:00');
@@ -531,7 +531,7 @@ const EnviosPage = () => {
         hoy.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
         
         const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
-        let color = "text-gray-600";
+        let color = "text-muted-foreground";
         if (diasRestantes < 0) color = "text-red-600 font-semibold";
         else if (diasRestantes <= 2) color = "text-orange-600 font-semibold";
         else if (diasRestantes <= 7) color = "text-yellow-600";
@@ -553,7 +553,7 @@ const EnviosPage = () => {
         const estado = row.getValue("estado");
         const estadoInfo = estadosEnvio[estado] || { 
           label: estado, 
-          color: "bg-gray-100 text-gray-800 border-gray-200" 
+          color: "bg-muted/50 text-foreground border-border/60" 
         };
         const Icon = estadoInfo.icon || Clock;
         return (
@@ -591,7 +591,7 @@ const EnviosPage = () => {
           <div>
             <div className="font-medium">${parseFloat(total).toFixed(2)}</div>
             {costoEnvio > 0 && (
-              <div className="text-xs text-gray-500">+ ${costoEnvio.toFixed(2)} envío</div>
+              <div className="text-xs text-muted-foreground">+ ${costoEnvio.toFixed(2)} envío</div>
             )}
           </div>
         );
@@ -602,7 +602,7 @@ const EnviosPage = () => {
       header: "Vendedor",
       cell: ({ row }) => {
         const vendedor = row.getValue("vendedor");
-        return vendedor || <span className="text-gray-400">Sin asignar</span>;
+        return vendedor || <span className="text-muted-foreground">Sin asignar</span>;
       },
     },
     {
@@ -677,7 +677,7 @@ const EnviosPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando envíos...</p>
+          <p className="text-muted-foreground">Cargando envíos...</p>
         </div>
       </div>
     );
@@ -687,8 +687,8 @@ const EnviosPage = () => {
     <div className="flex flex-col gap-6 py-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Envíos</h1>
-          <p className="text-gray-600 mt-1">Administra y da seguimiento a todos los envíos</p>
+          <h1 className="text-3xl font-bold text-foreground">Gestión de Envíos</h1>
+          <p className="text-muted-foreground mt-1">Administra y da seguimiento a todos los envíos</p>
         </div>
         <Button variant="outline" onClick={cargarEnvios}>
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -701,25 +701,25 @@ const EnviosPage = () => {
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
-            <div className="text-sm text-gray-600">Total Envíos</div>
+            <div className="text-sm text-muted-foreground">Total Envíos</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</div>
-            <div className="text-sm text-gray-600">Pendientes</div>
+            <div className="text-sm text-muted-foreground">Pendientes</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">{estadisticas.entregados}</div>
-            <div className="text-sm text-gray-600">Entregados</div>
+            <div className="text-sm text-muted-foreground">Entregados</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-red-600">{estadisticas.cancelados}</div>
-            <div className="text-sm text-gray-600">Cancelados</div>
+            <div className="text-sm text-muted-foreground">Cancelados</div>
           </CardContent>
         </Card>
       </div>
@@ -737,7 +737,7 @@ const EnviosPage = () => {
             <div>
               <label className="text-sm font-medium">Buscar</label>
               <div className="relative mt-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Pedido, cliente, vendedor..."
                   value={busqueda}

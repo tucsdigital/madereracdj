@@ -35,15 +35,15 @@ const getStatusColor = (status) => {
     case "pagado":
     case "paid":
     case "confirmed":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
     case "pendiente":
     case "pending":
     case "closed":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
     case "parcial":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-muted/50 text-muted-foreground border-border/60";
   }
 };
 
@@ -81,17 +81,17 @@ export const columnsPresupuestos = [
     accessorKey: "numeroPedido",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <FileText className="w-4 h-4 text-blue-600" />
+        <FileText className="w-4 h-4 text-blue-700 dark:text-blue-300" />
         <span className="font-semibold">N° Pedido</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-          <FileText className="w-5 h-5 text-blue-600" />
+        <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+          <FileText className="w-5 h-5 text-blue-700 dark:text-blue-300" />
         </div>
         <div className="flex flex-col">
-          <span className="font-mono text-sm font-semibold text-gray-900">
+          <span className="font-mono text-sm font-semibold text-foreground">
             {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
           </span>
         </div>
@@ -103,22 +103,22 @@ export const columnsPresupuestos = [
     accessorKey: "cliente",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-indigo-600" />
+        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
         <span className="font-semibold">Cliente</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-full flex items-center justify-center">
-          <span className="text-sm font-semibold text-indigo-700">
+        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
+          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
             {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
             {(row?.original?.cliente?.nombre || "-").toUpperCase()}
           </span>
-          <span className="text-xs text-gray-500 whitespace-nowrap">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
           </span>
         </div>
@@ -130,7 +130,7 @@ export const columnsPresupuestos = [
     accessorKey: "fechaCreacion",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-green-600" />
+        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         <span className="font-semibold">Fecha</span>
       </div>
     ),
@@ -138,10 +138,10 @@ export const columnsPresupuestos = [
       const fecha = row.getValue("fechaCreacion");
       return (
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-green-600" />
+          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
           </div>
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-foreground">
             {formatDate(fecha)}
           </span>
         </div>
@@ -153,16 +153,16 @@ export const columnsPresupuestos = [
     accessorKey: "total",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-emerald-600" />
+        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         <span className="font-semibold">Total</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-1">
-        <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-          <DollarSign className="w-4 h-4 text-emerald-600" />
+        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         </div>
-        <span className="font-bold text-sm text-gray-900">
+        <span className="font-bold text-sm text-foreground">
           {formatCurrency(row.getValue("total") || 0)}
         </span>
       </div>
@@ -173,18 +173,18 @@ export const columnsPresupuestos = [
     accessorKey: "vendedor",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-purple-600" />
+        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
         <span className="font-semibold">Vendedor</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center">
-          <span className="text-xs font-semibold text-purple-700">
+        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
             {(row?.original?.vendedor || "V")[0].toUpperCase()}
           </span>
         </div>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-foreground">
           {row?.original?.vendedor || "-"}
         </span>
       </div>
@@ -199,7 +199,7 @@ export const columnsPresupuestos = [
           <Button
             size="sm"
             variant="outline"
-            className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
             title="Eliminar"
             onClick={(e) => {
               e.stopPropagation(); // Prevenir que se active el click de la fila
@@ -226,17 +226,17 @@ export const columnsVentas = [
     accessorKey: "numeroPedido",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <ShoppingCart className="w-4 h-4 text-emerald-600" />
+        <ShoppingCart className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         <span className="font-semibold">N° Pedido</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-          <ShoppingCart className="w-5 h-5 text-emerald-600" />
+        <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <ShoppingCart className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
         </div>
         <div className="flex flex-col">
-          <span className="font-mono text-sm font-semibold text-gray-900">
+          <span className="font-mono text-sm font-semibold text-foreground">
             {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
           </span>
         </div>
@@ -248,22 +248,22 @@ export const columnsVentas = [
     accessorKey: "cliente",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-indigo-600" />
+        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
         <span className="font-semibold">Cliente</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-full flex items-center justify-center">
-          <span className="text-sm font-semibold text-indigo-700">
+        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
+          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
             {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
           </span>
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
             {(row?.original?.cliente?.nombre || "-").toUpperCase()}
           </span>
-          <span className="text-xs text-gray-500 whitespace-nowrap">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
           </span>
         </div>
@@ -275,7 +275,7 @@ export const columnsVentas = [
     accessorKey: "fechaCreacion",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-green-600" />
+        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         <span className="font-semibold">Fecha</span>
       </div>
     ),
@@ -283,10 +283,10 @@ export const columnsVentas = [
       const fecha = row.getValue("fechaCreacion");
       return (
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-green-600" />
+          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
           </div>
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-foreground">
             {formatDate(fecha)}
           </span>
         </div>
@@ -298,16 +298,16 @@ export const columnsVentas = [
     accessorKey: "total",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-emerald-600" />
+        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         <span className="font-semibold">Total</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
-          <DollarSign className="w-4 h-4 text-emerald-600" />
+        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
         </div>
-        <span className="font-bold text-sm text-gray-900">
+        <span className="font-bold text-sm text-foreground">
           {formatCurrency(row.getValue("total") || 0)}
         </span>
       </div>
@@ -318,7 +318,7 @@ export const columnsVentas = [
     accessorKey: "estadoPago",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <CheckCircle className="w-4 h-4 text-purple-600" />
+        <CheckCircle className="w-4 h-4 text-violet-700 dark:text-violet-300" />
         <span className="font-semibold">Estado</span>
       </div>
     ),
@@ -326,7 +326,7 @@ export const columnsVentas = [
       const status = row.getValue("estadoPago") || row.getValue("status");
       return (
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center text-violet-700 dark:text-violet-300">
             {getStatusIcon(status)}
           </div>
           <Badge
@@ -359,24 +359,24 @@ export const columnsVentas = [
       
       // Determinar el color basado en el estado de pago
       const estadoPago = row.original.estadoPago;
-      let colorClase = "text-gray-900";
-      let porcentajeColor = "text-gray-500";
+      let colorClase = "text-foreground";
+      let porcentajeColor = "text-muted-foreground";
       
       if (estadoPago === "pagado") {
-        colorClase = "text-green-700";
-        porcentajeColor = "text-green-600";
+        colorClase = "text-emerald-700 dark:text-emerald-300";
+        porcentajeColor = "text-emerald-700/90 dark:text-emerald-300/90";
       } else if (estadoPago === "parcial") {
-        colorClase = "text-blue-700";
-        porcentajeColor = "text-blue-600";
+        colorClase = "text-sky-700 dark:text-sky-300";
+        porcentajeColor = "text-sky-700/90 dark:text-sky-300/90";
       } else if (estadoPago === "pendiente") {
-        colorClase = "text-red-700";
-        porcentajeColor = "text-red-600";
+        colorClase = "text-red-700 dark:text-red-300";
+        porcentajeColor = "text-red-700/90 dark:text-red-300/90";
       }
       
       return (
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-            <DollarSign className="w-4 h-4 text-blue-600" />
+          <div className="w-8 h-8 bg-sky-500/10 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-4 h-4 text-sky-700 dark:text-sky-300" />
           </div>
           <div className="flex flex-col">
             <span className={`font-semibold text-sm ${colorClase}`}>
@@ -395,18 +395,18 @@ export const columnsVentas = [
     accessorKey: "vendedor",
     header: ({ column }) => (
       <div className="flex items-center gap-2">
-        <User className="w-4 h-4 text-purple-600" />
+        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
         <span className="font-semibold">Vendedor</span>
       </div>
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 rounded-full flex items-center justify-center">
-          <span className="text-xs font-semibold text-purple-700">
+        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
             {(row?.original?.vendedor || "V")[0].toUpperCase()}
           </span>
         </div>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-foreground">
           {row?.original?.vendedor || "-"}
         </span>
       </div>
@@ -422,7 +422,7 @@ export const columnsVentas = [
           <Button
             size="sm"
             variant="outline"
-            className="h-8 px-3 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
             title="Eliminar"
             onClick={(e) => {
               e.stopPropagation(); // Prevenir que se active el click de la fila

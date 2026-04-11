@@ -33,18 +33,18 @@ const BusinessStatus = () => {
     // Determinar estado del negocio
     let nivel = "Inactivo";
     let nivelColor = "text-gray-600";
-    let nivelBg = "bg-gray-50";
+    let nivelBg = "bg-muted/60";
     let nivelIcon = "heroicons:pause-circle";
 
     if (ventasHoy.length > 0 || presupuestosHoy.length > 0) {
       nivel = "Activo";
       nivelColor = "text-emerald-600";
-      nivelBg = "bg-emerald-50";
+      nivelBg = "bg-emerald-500/10";
       nivelIcon = "heroicons:fire";
     } else if (totalVentasRango > 0) {
       nivel = "Estable";
       nivelColor = "text-blue-600";
-      nivelBg = "bg-blue-50";
+      nivelBg = "bg-blue-500/10";
       nivelIcon = "heroicons:chart-bar";
     }
 
@@ -108,11 +108,11 @@ const BusinessStatus = () => {
 
   if (loading || !status) {
     return (
-      <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-emerald-50/80 via-teal-50/60 to-cyan-50/80">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+      <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
         <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
           <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">
-            <div className="p-2 rounded-2xl bg-gradient-to-br from-emerald-200/50 to-teal-200/50 shadow-lg">
+            <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
               <Icon icon="heroicons:building-storefront" className="w-6 h-6 text-emerald-600" />
             </div>
             Tu negocio hoy
@@ -121,7 +121,7 @@ const BusinessStatus = () => {
         <CardContent className="relative pt-2 px-6 pb-6">
           <div className="grid grid-cols-2 gap-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="animate-pulse p-4 rounded-2xl bg-white/60 h-20" />
+              <div key={i} className="animate-pulse p-4 rounded-2xl bg-muted/60 h-20" />
             ))}
           </div>
         </CardContent>
@@ -130,11 +130,11 @@ const BusinessStatus = () => {
   }
 
   return (
-    <Card className="relative rounded-3xl shadow-2xl border-0 overflow-hidden bg-gradient-to-br from-emerald-50/80 via-teal-50/60 to-cyan-50/80">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none" />
+    <Card className="relative rounded-3xl shadow-2xl border border-border overflow-hidden bg-card">
+      <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
       <CardHeader className="relative pb-4 pt-6 px-6 border-0 bg-transparent">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">
-          <div className="p-2 rounded-2xl bg-gradient-to-br from-emerald-200/50 to-teal-200/50 shadow-lg">
+          <div className="p-2 rounded-2xl bg-muted/50 shadow-lg">
             <Icon icon="heroicons:building-storefront" className="w-6 h-6 text-emerald-600" />
           </div>
           Tu negocio hoy
@@ -146,7 +146,7 @@ const BusinessStatus = () => {
             {/* Nivel */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={`p-4 rounded-2xl shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02] ${status.nivel.bg} border-0`}>
+                <div className={`p-4 rounded-2xl shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02] ${status.nivel.bg} border border-border/60`}>
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.nivel.icon} className={`w-5 h-5 ${status.nivel.color}`} />
                     <span className="text-xs font-medium text-default-600">Nivel</span>
@@ -171,7 +171,7 @@ const BusinessStatus = () => {
             {/* Flujo */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
+                <div className="p-4 rounded-2xl bg-card/60 border border-border/60 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.flujo.icon} className={`w-5 h-5 ${status.flujo.color}`} />
                     <span className="text-xs font-medium text-default-600">Flujo</span>
@@ -199,7 +199,7 @@ const BusinessStatus = () => {
             {/* Stock */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
+                <div className="p-4 rounded-2xl bg-card/60 border border-border/60 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.stock.icon} className={`w-5 h-5 ${status.stock.color}`} />
                     <span className="text-xs font-medium text-default-600">Stock</span>
@@ -227,7 +227,7 @@ const BusinessStatus = () => {
             {/* Ingresos */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="p-4 rounded-2xl bg-white/60 shadow-lg backdrop-blur-sm border-0 cursor-help transition-all hover:scale-[1.02]">
+                <div className="p-4 rounded-2xl bg-card/60 border border-border/60 shadow-lg backdrop-blur-sm cursor-help transition-all hover:scale-[1.02]">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon icon={status.ingresos.icon} className={`w-5 h-5 ${status.ingresos.color}`} />
                     <span className="text-xs font-medium text-default-600">Ingresos</span>
