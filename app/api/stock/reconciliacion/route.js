@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
 
 const parseBool = (value, defaultValue) => {
@@ -67,6 +67,29 @@ const buildReconMovimientoId = ({ ventaId, productoId, expectedDelta }) => {
   return `recon_venta_${safeVenta}_${safeProducto}_${safeExpected}`;
 };
 
+const buildReconObservaciones = ({ ventaId, ventaNumeroPedido, productoId, productoNombre, expectedDelta, actualDelta, diff, movimientoId }) => {
+  const pedido = ventaNumeroPedido ? `${ventaNumeroPedido}` : `${ventaId}`;
+  const prod = productoNombre ? `“${productoNombre}”` : "el producto";
+  const tipo = diff < 0 ? "Salida" : "Ingreso";
+  const qty = Math.abs(Number(diff) || 0);
+  const qtyLabel = `${qty} ${qty === 1 ? "unidad" : "unidades"}`;
+  const exp = Number(expectedDelta) || 0;
+  const act = Number(actualDelta) || 0;
+
+  let motivo = "se detectó una diferencia entre la venta y el stock registrado.";
+  if (act === 0) {
+    motivo = "la venta no impactó el stock automáticamente.";
+  } else if (exp !== 0 && Math.sign(act) !== Math.sign(exp)) {
+    motivo = "se registró un movimiento en sentido contrario.";
+  } else if (Math.abs(act) < Math.abs(exp)) {
+    motivo = "el stock se había actualizado de forma parcial.";
+  } else if (Math.abs(act) > Math.abs(exp)) {
+    motivo = "se había registrado stock de más.";
+  }
+
+  return `${pedido}. Ajuste automático de stock para ${prod}. Motivo: ${motivo} Acción: ${tipo} de ${qtyLabel}.`;
+};
+
 export async function POST(request) {
   try {
     const secret = String(process.env.CRON_SECRET || "").trim();
@@ -86,6 +109,7 @@ export async function POST(request) {
     const url = new URL(request.url);
     const dryRun = parseBool(url.searchParams.get("dryRun"), true);
     const limit = Math.max(1, Math.min(300, Number(url.searchParams.get("limit") || 120)));
+    const backfillObservaciones = parseBool(url.searchParams.get("backfillObservaciones"), false);
     const ventaIdFilter = String(url.searchParams.get("ventaId") || "").trim();
     const productoIdFilter = String(url.searchParams.get("productoId") || "").trim();
 
@@ -95,6 +119,77 @@ export async function POST(request) {
     const sinceMs = Number.isFinite(sinceMsParam) ? sinceMsParam : Date.now() - days * 24 * 60 * 60 * 1000;
 
     const db = getAdminDb();
+
+    if (backfillObservaciones) {
+      const prefixStart = "recon_venta_";
+      const prefixEnd = "recon_venta_\uf8ff";
+      const cursor = String(url.searchParams.get("cursor") || "").trim();
+
+      let q = db
+        .collection("movimientos")
+        .orderBy(FieldPath.documentId())
+        .startAt(prefixStart)
+        .endAt(prefixEnd)
+        .limit(limit);
+
+      if (cursor) q = q.startAfter(cursor);
+
+      const snap = await q.get();
+      const docs = snap.docs;
+
+      const result = {
+        ok: true,
+        dryRun,
+        backfillObservaciones: true,
+        scanned: docs.length,
+        updated: 0,
+        skipped: 0,
+        nextCursor: docs.length > 0 ? docs[docs.length - 1].id : null,
+      };
+
+      if (docs.length === 0) return NextResponse.json(result, { status: 200 });
+
+      const batch = db.batch();
+      for (const d of docs) {
+        const data = d.data() || {};
+        const obs = String(data.observaciones || "");
+        const referencia = String(data.referencia || "");
+        if (referencia !== "reconciliacion_venta") {
+          result.skipped += 1;
+          continue;
+        }
+        if (obs && !obs.startsWith("Reconciliación automática:")) {
+          result.skipped += 1;
+          continue;
+        }
+
+        const ventaId = String(data.referenciaId || "");
+        const ventaNumeroPedido = String(data.ventaNumeroPedido || "");
+        const productoId = String(data.productoId || "");
+        const productoNombre = String(data.productoNombre || "");
+        const expectedDelta = Number(data.expectedDelta) || 0;
+        const actualDelta = Number(data.actualDeltaAntes) || 0;
+        const diff = Number(data.stockDelta) || 0;
+
+        const newObs = buildReconObservaciones({
+          ventaId,
+          ventaNumeroPedido,
+          productoId,
+          productoNombre,
+          expectedDelta,
+          actualDelta,
+          diff,
+          movimientoId: d.id,
+        });
+
+        result.updated += 1;
+        if (!dryRun) batch.update(d.ref, { observaciones: newObs });
+      }
+
+      if (!dryRun && result.updated > 0) await batch.commit();
+      return NextResponse.json(result, { status: 200 });
+    }
+
     let ventas = [];
     if (ventaIdFilter) {
       const snap = await db.collection("ventas").doc(ventaIdFilter).get();
@@ -226,7 +321,16 @@ export async function POST(request) {
               fecha: nowTs,
               referencia: "reconciliacion_venta",
               referenciaId: ventaId,
-              observaciones: `Reconciliación automática: expected ${expectedDelta}, actual ${actualDelta}, diff ${diff}`,
+              observaciones: buildReconObservaciones({
+                ventaId,
+                ventaNumeroPedido: String(venta?.numeroPedido || venta?.numero || ""),
+                productoId,
+                productoNombre: String(data.nombre || ""),
+                expectedDelta,
+                actualDelta,
+                diff,
+                movimientoId,
+              }),
               productoNombre: String(data.nombre || ""),
               stockAntes: stockActual,
               stockDelta: diff,
