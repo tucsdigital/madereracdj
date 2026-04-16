@@ -512,8 +512,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     if (value === "" || value === null || value === undefined) {
       return "";
     }
-    const num = Number(value);
-    return isNaN(num) ? "" : num;
+    const normalized = String(value).trim().replace(",", ".");
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : "";
   };
   const normalizarCalibradoPorcentaje = (value) => {
     const num = Number(value);
@@ -687,6 +688,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         const largo = Number(p.largo) || 0;
         const precioPorPie = Number(p.precioPorPie) || 0;
         const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
+        const precioIncluyeCantidad = unidad === "M2" || unidad === "ML";
 
         const base =
           unidad === "M2"
@@ -718,7 +720,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           ...p,
           unidad,
           alto: unidad === "M2" && alto <= 0 && ancho > 0 ? ancho : p.alto,
-          precioIncluyeCantidad: unidad === "M2" || unidad === "ML",
+          precioIncluyeCantidad,
+          subcategoria: precioIncluyeCantidad ? p.subcategoria : "",
+          subCategoria: precioIncluyeCantidad ? p.subCategoria : "",
           cepilladoAplicado: unidad === "Unidad" ? false : p.cepilladoAplicado,
           calibradoAplicado: unidad === "Unidad" ? false : p.calibradoAplicado,
           precio: precioFinal,
@@ -2616,6 +2620,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                         placeholder="0.00"
                                       />
                                     </div>
+                                    {p.unidad === "Pie" &&
+                                    (Number(p.alto) || 0) > 0 &&
+                                    (Number(p.ancho) || 0) > 0 &&
+                                    (Number(p.largo) || 0) > 0 &&
+                                    (Number(p.precioPorPie) || 0) > 0 &&
+                                    (Number(p.precio) || 0) <= 0 ? (
+                                      <div className="mt-1 text-[11px] font-semibold text-red-600">
+                                        Revisá dimensiones/valor: el cálculo está dando $0
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
                               </div>

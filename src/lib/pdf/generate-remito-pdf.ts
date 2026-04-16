@@ -252,6 +252,49 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       `;
         })()
       : "";
+
+  const empleadoEnvioHtml = (() => {
+    const tipoRaw = String(envio?.tipoEnvio || "").toLowerCase();
+    const esRetiro = !tipoRaw || tipoRaw === "retiro_local";
+    const tipoLabel = esRetiro ? "RETIRO EN LOCAL" : "DOMICILIO";
+    const direccion = esRetiro
+      ? safe(empresa.direccion || "", "-")
+      : safe(envio?.direccion || cliente.direccion || "", "-");
+    const localidad = esRetiro
+      ? ""
+      : safe(envio?.localidad || cliente.localidad || "", "");
+    const fechaEntregaEmpleado = esRetiro ? "" : safe(envio?.fechaEntrega || "", "");
+    const rangoHorarioEmpleado = esRetiro ? "" : safe(envio?.rangoHorario || "", "");
+    const costoEnvioEmpleado =
+      esRetiro || !envio?.costoEnvio || Number(envio.costoEnvio) <= 0
+        ? ""
+        : formatCurrency(Number(envio.costoEnvio) || 0);
+    const observacionesEmpleado =
+      observaciones && observaciones.trim() ? escapeHtml(observaciones.trim()) : "";
+
+    const leftItems = [
+      `<div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoLabel}</span></div>`,
+      direccion ? `<div class="envio-info-item"><strong>${esRetiro ? "Dirección retiro:" : "Dirección:"}</strong> <span class="envio-strong-value">${direccion}</span></div>` : "",
+      localidad ? `<div class="envio-info-item"><strong>Localidad:</strong> <span class="envio-strong-value">${localidad}</span></div>` : "",
+      fechaEntregaEmpleado ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> <span class="envio-strong-value">${fechaEntregaEmpleado}</span></div>` : "",
+      rangoHorarioEmpleado ? `<div class="envio-info-item"><strong>Rango horario:</strong> <span class="envio-strong-value">${rangoHorarioEmpleado}</span></div>` : "",
+      costoEnvioEmpleado ? `<div class="envio-info-item"><strong>Costo envío:</strong> <span class="envio-strong-value">${escapeHtml(costoEnvioEmpleado)}</span></div>` : "",
+      observacionesEmpleado ? `<div class="envio-info-item"><strong>Obs:</strong> <span class="envio-strong-value">${observacionesEmpleado}</span></div>` : "",
+    ]
+      .filter(Boolean)
+      .join("");
+
+    const right = esVenta && paymentStatusHtml ? `<div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div>` : "";
+
+    return `
+      <div class="envio-info">
+        <div class="envio-info-left">
+          ${leftItems}
+        </div>
+        ${right}
+      </div>
+    `;
+  })();
   const disclaimerTitle = esPresupuesto
     ? "DETALLE DE CONDICIONES DEL PRESUPUESTO:"
     : "CONDICIONES DE RETIRO Y DESCARGA:";
@@ -810,10 +853,8 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     <!-- Footer -->
     <div class="bottom">
       ${
-        esVenta && paraEmpleado
-          ? `
-      ${paymentStatusHtml ? `<div class="envio-info"><div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div></div>` : ""}
-      `
+        paraEmpleado
+          ? empleadoEnvioHtml
           : `
       <div class="disclaimer">
         <strong>${disclaimerTitle}</strong> ${escapeHtml(disclaimerText)}
