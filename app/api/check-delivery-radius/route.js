@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { aplicarCorsPublico, preflightCorsPublico, jsonPublico } from "@/lib/cors-publico";
+import { preflightCorsPublico, jsonPublico } from "@/lib/cors-publico";
 import { obtenerSettingsGeneral } from "@/lib/settings";
 
 function distanciaKm(lat1, lon1, lat2, lon2) {
@@ -19,8 +18,8 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(String(searchParams.get("lat") ?? ""));
   const lng = parseFloat(String(searchParams.get("lng") ?? ""));
-   const weightKg = parseFloat(String(searchParams.get("weightKg") ?? ""));
-   const maxWeightKg = 100;
+  const weightKg = parseFloat(String(searchParams.get("weightKg") ?? ""));
+  const maxWeightKg = 100;
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
     return jsonPublico({ error: "Coordenadas inválidas" }, { status: 400 }, request);
   }
@@ -50,6 +49,15 @@ export async function GET(request) {
   const isInRadius = distance <= maxRadius;
   const canShip = !(Number.isFinite(weightKg) && weightKg > maxWeightKg);
 
+  const nearestStore = {
+    nombre: masCercana.nombre,
+    direccion: masCercana.direccion,
+    lat: masCercana.lat,
+    lng: masCercana.lng,
+    radio: masCercana.radio,
+  };
+  if (masCercana.id) nearestStore.id = masCercana.id;
+
   const sortedTiers = Array.isArray(shippingTiers)
     ? [...shippingTiers]
         .filter((t) => Number.isFinite(t?.km) && Number.isFinite(t?.price))
@@ -75,27 +83,21 @@ export async function GET(request) {
     }
   }
 
-  const body = {
-    isInRadius,
-    canShip,
-    weightKg: Number.isFinite(weightKg) ? weightKg : null,
-    maxWeightKg,
-    distance,
-    maxRadius,
-    price,
-    tierKm,
-    matchedTier,
-    availableTiers,
-    nearestStore: {
-      nombre: masCercana.nombre,
-      direccion: masCercana.direccion,
-      lat: masCercana.lat,
-      lng: masCercana.lng,
-      radio: masCercana.radio,
-      ...(masCercana.id ? { id: masCercana.id } : {}),
+  return jsonPublico(
+    {
+      isInRadius,
+      canShip,
+      weightKg: Number.isFinite(weightKg) ? weightKg : null,
+      maxWeightKg,
+      distance,
+      maxRadius,
+      price,
+      tierKm,
+      matchedTier,
+      availableTiers,
+      nearestStore,
     },
-  };
-  return jsonPublico(body, {}, request);
+    {},
+    request
+  );
 }
-
-

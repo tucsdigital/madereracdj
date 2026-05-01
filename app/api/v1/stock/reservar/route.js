@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from "firebase/firestore";
+import crypto from "crypto";
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "POST,OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type,Idempotency-Key");
+  headers.set("Access-Control-Allow-Headers", "Content-Type,Idempotency-Key,X-Api-Key,X-Request-Timestamp,X-Request-Hash,X-Request-Signature");
   return new NextResponse(resp.body, { status: resp.status, headers });
 }
 
@@ -16,8 +17,37 @@ export function OPTIONS() {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
     const headers = request.headers || new Headers();
+    const apiKeyHeader = String(headers.get("X-Api-Key") || "").trim();
+    const tsHeader = String(headers.get("X-Request-Timestamp") || "").trim();
+    const hashHeader = String(headers.get("X-Request-Hash") || "").trim();
+    const sigHeader = String(headers.get("X-Request-Signature") || "").trim();
+    const expectedApiKey = String(process.env.EXTERNAL_API_API_KEY || "").trim();
+    const sharedSecret = String(process.env.EXTERNAL_API_SHARED_SECRET || "").trim();
+    if (!apiKeyHeader || !expectedApiKey || apiKeyHeader !== expectedApiKey) {
+      return withCors(NextResponse.json({ error: "invalid_api_key" }, { status: 401 }));
+    }
+    if (hashHeader !== "HMAC-SHA256") {
+      return withCors(NextResponse.json({ error: "invalid_hash_algo" }, { status: 400 }));
+    }
+    const ts = Number(tsHeader);
+    if (!Number.isFinite(ts)) {
+      return withCors(NextResponse.json({ error: "invalid_timestamp" }, { status: 400 }));
+    }
+    if (Math.abs(Date.now() - ts) > 300000) {
+      return withCors(NextResponse.json({ error: "timestamp_out_of_window" }, { status: 401 }));
+    }
+    if (!sharedSecret) {
+      return withCors(NextResponse.json({ error: "server_not_configured" }, { status: 500 }));
+    }
+    const computed = crypto.createHmac("sha256", sharedSecret).update(`${tsHeader}:${rawBody}`).digest("hex");
+    const equalLen = computed.length === sigHeader.length;
+    const validSig = equalLen && crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(sigHeader));
+    if (!validSig) {
+      return withCors(NextResponse.json({ error: "invalid_signature" }, { status: 401 }));
+    }
+    const body = JSON.parse(rawBody || "{}");
     const productoId = String(body?.productoId || "").trim();
     const carritoId = body?.carritoId ? String(body.carritoId) : null;
     const cantidad = Number(body?.cantidad || 0);
@@ -28,7 +58,6 @@ export async function POST(request) {
       return withCors(NextResponse.json({ error: "productoId y cantidad válidos requeridos" }, { status: 400 }));
     }
 
-    // Idempotencia: si llega una misma key, devolver la reserva existente
     if (idempotencyKey) {
       try {
         const qq = query(collection(db, "reservasStock"), where("idempotencyKey", "==", idempotencyKey));
@@ -36,12 +65,15 @@ export async function POST(request) {
         let existente = null;
         rs.forEach((d) => (existente = { id: d.id, ...d.data() }));
         if (existente) {
-          return withCors(NextResponse.json({ reserva: existente, idempotente: true }));
+          const now = Date.now();
+          const idemExp = existente.idempotencyExpiresAt ? Date.parse(existente.idempotencyExpiresAt) : 0;
+          if (Number.isFinite(idemExp) && idemExp > now) {
+            return withCors(NextResponse.json({ reserva: existente, idempotente: true }));
+          }
         }
       } catch (_) {}
     }
 
-    // Verificar stock disponible (stock - reservas activas no vencidas)
     const now = Date.now();
     const prodRef = doc(db, "productos", productoId);
     const prodSnap = await getDoc(prodRef);
@@ -69,6 +101,7 @@ export async function POST(request) {
     }
 
     const expiresAt = new Date(Date.now() + ttlSegundos * 1000).toISOString();
+    const idempotencyExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const reserva = {
       productoId,
       carritoId,
@@ -77,6 +110,7 @@ export async function POST(request) {
       createdAt: new Date().toISOString(),
       expiresAt,
       idempotencyKey: idempotencyKey || null,
+      idempotencyExpiresAt,
     };
     const ref = await addDoc(collection(db, "reservasStock"), reserva);
     return withCors(NextResponse.json({ reserva: { id: ref.id, ...reserva } }));

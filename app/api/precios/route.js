@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDoc, getDocs, query, where, limit } from "firebase/firestore";
 import { calcularPreciosProducto, normalizarProductoEntrada } from "@/lib/pricing";
+import { getExternalProductoFields } from "@/lib/producto-utils";
+
+function getIntegrationFields(prod) {
+  const { minimoCompra, minCompra, pack, packSize } = getExternalProductoFields(prod);
+  return { minimoCompra, minCompra, pack, packSize };
+}
 
 /**
  * API de Precios - IMPORTANTE: SOLO devuelve productos con estadoTienda: "Activo"
@@ -28,7 +34,7 @@ export function OPTIONS() {
   return withCors(new NextResponse(null, { status: 204 }));
 }
 
-// GET /api/precios?id=...&cantidad=1&cepillado=true|false
+// GET /api/precios?id=...&cantidad=1
 // GET /api/precios?codigo=ABC123 o ?nombre=...
 export async function GET(request) {
   try {
@@ -37,7 +43,6 @@ export async function GET(request) {
     const codigo = searchParams.get("codigo");
     const nombre = searchParams.get("nombre");
     const cantidad = parseFloat(searchParams.get("cantidad") || "1");
-    const cepillado = (searchParams.get("cepillado") || "false").toLowerCase() === "true";
     const redondearParam = searchParams.get("redondear");
     const redondear = redondearParam == null ? true : redondearParam.toLowerCase() !== "false";
     const modoRedondeo = (searchParams.get("modoRedondeo") || "total").toLowerCase();
@@ -56,8 +61,16 @@ export async function GET(request) {
       snap.forEach((d) => {
         const prod = { id: d.id, ...d.data() };
         const normalized = normalizarProductoEntrada(prod);
-        const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
-        items.push({ id: normalized.id, producto: normalized, pricing });
+        const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
+        const integration = getIntegrationFields(prod);
+        const external = getExternalProductoFields(prod);
+        items.push({
+          id: prod.id,
+          producto: { ...prod, ...integration },
+          pricing,
+          external,
+          ...integration,
+        });
       });
       return withCors(NextResponse.json({ 
         items, 
@@ -113,14 +126,24 @@ export async function GET(request) {
     }
 
     const normalized = normalizarProductoEntrada(producto);
-    const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
-    return withCors(NextResponse.json({ id: producto.id, producto: normalized, pricing }));
+    const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
+    const integration = getIntegrationFields(producto);
+    const external = getExternalProductoFields(producto);
+    return withCors(
+      NextResponse.json({
+        id: producto.id,
+        producto: { ...producto, ...integration },
+        pricing,
+        external,
+        ...integration,
+      })
+    );
   } catch (err) {
     return withCors(NextResponse.json({ error: err.message }, { status: 500 }));
   }
 }
 
-// POST /api/precios  Body: { items: [{ producto: {...}, cantidad, cepillado } | { id, cantidad, cepillado } ] }
+// POST /api/precios  Body: { items: [{ producto: {...}, cantidad } | { id, cantidad } ] }
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -168,10 +191,17 @@ export async function POST(request) {
         continue;
       }
       const cantidad = typeof it.cantidad === "number" ? it.cantidad : parseFloat(String(it.cantidad || "1"));
-      const cepillado = Boolean(it.cepillado);
       const normalized = normalizarProductoEntrada(prod);
-      const pricing = calcularPreciosProducto(normalized, { cantidad, cepillado, redondear, modoRedondeo });
-      out.push({ id: normalized.id, producto: normalized, pricing });
+      const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
+      const integration = getIntegrationFields(prod);
+      const external = getExternalProductoFields(prod);
+      out.push({
+        id: prod.id ?? normalized.id,
+        producto: { ...prod, ...integration },
+        pricing,
+        external,
+        ...integration,
+      });
     }
 
     return withCors(NextResponse.json({ items: out }));

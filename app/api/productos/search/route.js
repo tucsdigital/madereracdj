@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
+import { getExternalProductoFields } from "@/lib/producto-utils";
 import {
   collection,
   getDocs,
@@ -449,8 +450,19 @@ export async function GET(request) {
     });
 
     const result = uniq.slice(0, lim);
-    setCached(cacheKey, result);
-    return NextResponse.json({ items: result });
+    const enriched = result.map((p) => {
+      const { minimoCompra, minCompra, pack, packSize } = getExternalProductoFields(p);
+      return {
+        ...p,
+        minimoCompra,
+        minCompra,
+        pack,
+        packSize,
+        external: getExternalProductoFields(p),
+      };
+    });
+    setCached(cacheKey, enriched);
+    return NextResponse.json({ items: enriched });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

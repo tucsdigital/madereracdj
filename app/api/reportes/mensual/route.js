@@ -604,7 +604,9 @@ export async function POST(request) {
 
     const url = new URL(request.url);
     const monthKeyParam = url.searchParams.get("month");
-    const sendEmail = url.searchParams.get("email") !== "0";
+    const sendEmailRequested = url.searchParams.get("email") !== "0";
+    const pausedEnv = String(process.env.REPORTE_MENSUAL_PAUSED || "").trim().toLowerCase();
+    const sendEmail = sendEmailRequested && pausedEnv !== "1" && pausedEnv !== "true" && pausedEnv !== "yes";
     const force = url.searchParams.get("force") === "1";
     const parsed = monthKeyParam ? parseMonthKey(monthKeyParam) : defaultMonthKey();
     if (!parsed) {
@@ -726,6 +728,7 @@ export async function POST(request) {
         pendingCount,
         generated: shouldGenerate,
         emailed: false,
+        paused: sendEmailRequested,
       });
     }
 

@@ -16,9 +16,10 @@ export function OPTIONS() {
 
 // GET /api/orders/simple?userId={email} - Versión simplificada sin consultas complejas
 export async function GET(request) {
+  let userId = null;
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    userId = searchParams.get("userId");
 
     console.log("API /api/orders/simple llamada con userId:", userId);
 
@@ -66,6 +67,12 @@ export async function GET(request) {
         numeroPedido: venta.numeroPedido || doc.id,
         estado: venta.estadoPago || "pendiente",
         total: venta.total || 0,
+        subtotal: Number(venta.subtotal) || 0,
+        descuentos: Number(venta.descuentos ?? venta.descuentoTotal) || 0,
+        descuentoEfectivo: Number(venta.descuentoEfectivo) || 0,
+        totalSinEfectivo: venta.totalSinEfectivo ?? null,
+        totalConEfectivo: venta.totalConEfectivo ?? null,
+        motivoPendiente: venta.motivoPendiente || null,
         fecha: venta.fecha || null,
         fechaEntrega: venta.fechaEntrega || null,
         medioPago: venta.formaPago || "efectivo",
@@ -83,7 +90,6 @@ export async function GET(request) {
             alto: producto.alto || 0,
             ancho: producto.ancho || 0,
             largo: producto.largo || 0,
-            cepilladoAplicado: producto.cepilladoAplicado || false,
           }),
         })),
         
@@ -129,7 +135,7 @@ export async function GET(request) {
       message: err.message,
       code: err.code,
       stack: err.stack,
-      userId: searchParams.get("userId")
+      userId
     });
 
     // Manejar errores específicos de Firestore
@@ -139,7 +145,7 @@ export async function GET(request) {
           {
             error: "Error de permisos en la base de datos",
             message: "No se puede acceder a la colección de ventas",
-            userId: searchParams.get("userId")
+            userId
           },
           { status: 403 }
         )
@@ -152,7 +158,7 @@ export async function GET(request) {
           {
             error: "Base de datos no disponible",
             message: "Error de conectividad con Firestore",
-            userId: searchParams.get("userId")
+            userId
           },
           { status: 503 }
         )
@@ -165,7 +171,7 @@ export async function GET(request) {
           {
             error: "Error de índice en la base de datos",
             message: "La consulta requiere un índice que no existe",
-            userId: searchParams.get("userId")
+            userId
           },
           { status: 400 }
         )
@@ -179,7 +185,7 @@ export async function GET(request) {
           error: "Error interno del servidor",
           message: "Error al consultar las ventas del usuario",
           details: err.message,
-          userId: searchParams.get("userId")
+          userId
         },
         { status: 500 }
       )

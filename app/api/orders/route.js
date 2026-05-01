@@ -1,12 +1,27 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc } from "firebase/firestore";
+import crypto from "crypto";
+
+function normalizePaymentMethod(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (["efectivo", "cash"].includes(raw)) return "efectivo";
+  if (["transferencia", "transfer", "bank_transfer"].includes(raw)) return "transferencia";
+  return raw;
+}
+
+function parseNullableNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function withCors(resp) {
   const headers = new Headers(resp.headers);
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization,X-Api-Key,X-Request-Timestamp,X-Request-Hash,X-Request-Signature");
   return new NextResponse(resp.body, { status: resp.status, headers });
 }
 
@@ -16,9 +31,10 @@ export function OPTIONS() {
 
 // GET /api/orders?userId={email}
 export async function GET(request) {
+  let userId = null;
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    userId = searchParams.get("userId");
 
     console.log("API /api/orders llamada con userId:", userId);
 
@@ -105,6 +121,12 @@ export async function GET(request) {
         numeroPedido: venta.numeroPedido || doc.id,
         estado: venta.estadoPago || "pendiente",
         total: venta.total || 0,
+        subtotal: Number(venta.subtotal) || 0,
+        descuentos: Number(venta.descuentos ?? venta.descuentoTotal) || 0,
+        descuentoEfectivo: Number(venta.descuentoEfectivo) || 0,
+        totalSinEfectivo: parseNullableNumber(venta.totalSinEfectivo),
+        totalConEfectivo: parseNullableNumber(venta.totalConEfectivo),
+        motivoPendiente: venta.motivoPendiente || null,
         fecha: venta.fecha || null,
         fechaEntrega: venta.fechaEntrega || null,
         medioPago: venta.formaPago || "efectivo",
@@ -135,7 +157,8 @@ export async function GET(request) {
             nombre: producto.nombre || "",
             cantidad: producto.cantidad || 0,
             precio: producto.precio || 0,
-            unidad: producto.unidad || "",
+            unidad: producto.unidad || producto.unidadMedida || producto.unit || "",
+            unidadMedida: producto.unidadMedida || producto.unidad || producto.unit || "",
             categoria: producto.categoria || "",
             imagen: imagen,
             // Solo dimensiones para maderas
@@ -143,7 +166,6 @@ export async function GET(request) {
               alto: producto.alto || 0,
               ancho: producto.ancho || 0,
               largo: producto.largo || 0,
-              cepilladoAplicado: producto.cepilladoAplicado || false,
             }),
           };
         })),
@@ -257,7 +279,6 @@ export async function POST(request) {
   try {
     console.log("API POST /api/orders llamada");
 
-    // Validar Content-Type
     const contentType = request.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       return withCors(
@@ -272,11 +293,40 @@ export async function POST(request) {
       );
     }
 
-    // Parsear el body
-    const orderData = await request.json();
+    const rawBody = await request.text();
+    const headers = request.headers || new Headers();
+    const apiKeyHeader = String(headers.get("X-Api-Key") || "").trim();
+    const tsHeader = String(headers.get("X-Request-Timestamp") || "").trim();
+    const hashHeader = String(headers.get("X-Request-Hash") || "").trim();
+    const sigHeader = String(headers.get("X-Request-Signature") || "").trim();
+    const expectedApiKey = String(process.env.EXTERNAL_API_API_KEY || "").trim();
+    const sharedSecret = String(process.env.EXTERNAL_API_SHARED_SECRET || "").trim();
+    if (!apiKeyHeader || !expectedApiKey || apiKeyHeader !== expectedApiKey) {
+      return withCors(NextResponse.json({ success: false, error: "invalid_api_key", code: "INVALID_API_KEY" }, { status: 401 }));
+    }
+    if (hashHeader !== "HMAC-SHA256") {
+      return withCors(NextResponse.json({ success: false, error: "invalid_hash_algo", code: "INVALID_HASH" }, { status: 400 }));
+    }
+    const ts = Number(tsHeader);
+    if (!Number.isFinite(ts)) {
+      return withCors(NextResponse.json({ success: false, error: "invalid_timestamp", code: "INVALID_TIMESTAMP" }, { status: 400 }));
+    }
+    if (Math.abs(Date.now() - ts) > 300000) {
+      return withCors(NextResponse.json({ success: false, error: "timestamp_out_of_window", code: "TIMESTAMP_OUT_OF_WINDOW" }, { status: 401 }));
+    }
+    if (!sharedSecret) {
+      return withCors(NextResponse.json({ success: false, error: "server_not_configured", code: "SERVER_NOT_CONFIGURED" }, { status: 500 }));
+    }
+    const computed = crypto.createHmac("sha256", sharedSecret).update(`${tsHeader}:${rawBody}`).digest("hex");
+    const equalLen = computed.length === sigHeader.length;
+    const validSig = equalLen && crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(sigHeader));
+    if (!validSig) {
+      return withCors(NextResponse.json({ success: false, error: "invalid_signature", code: "INVALID_SIGNATURE" }, { status: 401 }));
+    }
+
+    const orderData = JSON.parse(rawBody || "{}");
     console.log("Datos de orden recibidos:", JSON.stringify(orderData, null, 2));
 
-    // Validar campos requeridos
     const camposRequeridos = ['orderId', 'userId', 'customerInfo', 'deliveryInfo', 'items', 'total', 'status'];
     const camposFaltantes = camposRequeridos.filter(campo => !orderData[campo]);
     
@@ -360,6 +410,30 @@ export async function POST(request) {
     }
 
     // Preparar datos para Firestore
+    const shippingPriceNumber = Number(
+      orderData?.deliveryInfo?.shippingPrice ?? orderData?.shippingPrice ?? 0
+    );
+    const shippingTierKmNumber = Number(
+      orderData?.deliveryInfo?.shippingTierKm ?? orderData?.shippingTierKm ?? 0
+    );
+    const shippingPrice = Number.isFinite(shippingPriceNumber) ? shippingPriceNumber : 0;
+    const shippingTierKm = Number.isFinite(shippingTierKmNumber) ? shippingTierKmNumber : 0;
+    const paymentMethod = normalizePaymentMethod(
+      orderData.paymentMethod || orderData.medioPago || ""
+    );
+    const pendingReason = orderData.pendingReason
+      ? String(orderData.pendingReason).trim().toLowerCase()
+      : null;
+    const pricing = orderData.pricing && typeof orderData.pricing === "object"
+      ? {
+          subtotal: Number(orderData.pricing.subtotal) || 0,
+          productDiscounts: Number(orderData.pricing.productDiscounts) || 0,
+          transferDiscount: Number(orderData.pricing.transferDiscount) || 0,
+          shipping: Number(orderData.pricing.shipping) || 0,
+          total: Number(orderData.pricing.total) || Number(orderData.total) || 0
+        }
+      : null;
+
     const orderForFirestore = {
       // Información básica
       orderId: orderData.orderId,
@@ -367,6 +441,11 @@ export async function POST(request) {
       total: orderData.total,
       status: orderData.status,
       createdAt: orderData.createdAt || new Date().toISOString(),
+      shippingPrice,
+      shippingTierKm,
+      paymentMethod: paymentMethod || null,
+      pendingReason,
+      pricing,
       
       // Información del cliente
       customerInfo: {
@@ -381,7 +460,9 @@ export async function POST(request) {
         direccion: orderData.deliveryInfo.direccion,
         ciudad: orderData.deliveryInfo.ciudad || "",
         codigoPostal: orderData.deliveryInfo.codigoPostal || "",
-        metodoEntrega: orderData.deliveryInfo.metodoEntrega || ""
+        metodoEntrega: orderData.deliveryInfo.metodoEntrega || "",
+        shippingPrice,
+        shippingTierKm
       },
       
       // Items de la orden
@@ -390,13 +471,20 @@ export async function POST(request) {
         name: item.name,
         price: item.price,
         quantity: item.quantity,
+        unidad: item.unidad || item.unidadMedida || item.unit || "",
+        unidadMedida: item.unidadMedida || item.unidad || item.unit || "",
         category: item.category || "",
         subcategory: item.subcategory || ""
       })),
       
       // Metadatos
       createdBy: "internal_api",
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      extras: {
+        paymentMethod: paymentMethod || null,
+        pricing,
+        pendingReason
+      }
     };
 
     // Guardar en Firestore
@@ -414,6 +502,9 @@ export async function POST(request) {
           userId: orderData.userId,
           status: orderData.status,
           total: orderData.total,
+          paymentMethod: paymentMethod || null,
+          pendingReason,
+          pricing,
           itemsCount: orderData.items.length
         }
       })

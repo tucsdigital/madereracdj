@@ -18,7 +18,7 @@ on:
 
 jobs:
   reportes-mensual:
-    if: (github.event_name == 'schedule' && github.event.schedule == '0 9 1 * *') || (github.event_name == 'workflow_dispatch' && (inputs.target == 'mensual' || inputs.target == 'ambos'))
+    if: (((github.event_name == 'schedule' && github.event.schedule == '0 9 1 * *') || (github.event_name == 'workflow_dispatch' && (inputs.target == 'mensual' || inputs.target == 'ambos'))) && vars.REPORTE_MENSUAL_ENABLED != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Ejecutar reporte mensual (mes anterior)
