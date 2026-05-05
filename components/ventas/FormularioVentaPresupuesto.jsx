@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import QuantityMeasureControl from "@/components/ui/quantity-measure-control";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DateInput } from "@/components/ui/date-input";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -912,6 +914,113 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       : 0;
   const total = totalesCalculados.total - descuentoEfectivo + costoEnvioCalculado;
 
+  const advertenciasVenta = useMemo(() => {
+    if (tipo !== "venta") {
+      return {
+        stockInsuficiente: [],
+        stockNegativo: [],
+        productosSinPrecio: [],
+        productosSinCosto: [],
+        requiereRevision: false,
+      };
+    }
+
+    const productoById = new Map(
+      (Array.isArray(productosState) ? productosState : []).map((p) => [
+        String(p.id),
+        p,
+      ])
+    );
+    const requiredById = new Map();
+    const productosSinPrecio = [];
+    const productosSinCosto = [];
+
+    const parseCosto = (prod) => {
+      const candidates = [
+        prod?.costo,
+        prod?.valorCompra,
+        prod?.costoCompra,
+        prod?.costoUnitario,
+        prod?.precioCosto,
+        prod?.costoPromedio,
+      ];
+      for (const c of candidates) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return NaN;
+    };
+
+    for (const p of Array.isArray(productosSeleccionados) ? productosSeleccionados : []) {
+      const pid = String(p?.originalId || p?.id || "").trim();
+      if (!pid) continue;
+      const qty = Math.max(0, Math.ceil(Number(p?.cantidad) || 0));
+      if (qty === 0) continue;
+      requiredById.set(pid, (requiredById.get(pid) || 0) + qty);
+
+      const precio = Number(p?.precio);
+      if (!Number.isFinite(precio) || precio <= 0) {
+        productosSinPrecio.push({
+          productoId: pid,
+          productoNombre: String(p?.nombre || pid),
+          precio: Number.isFinite(precio) ? precio : null,
+        });
+      }
+
+      const prod = productoById.get(pid);
+      if (prod) {
+        const costo = parseCosto(prod);
+        if (!Number.isFinite(costo) || costo <= 0) {
+          productosSinCosto.push({
+            productoId: pid,
+            productoNombre: String(prod?.nombre || p?.nombre || pid),
+            costo: Number.isFinite(costo) ? costo : null,
+          });
+        }
+      }
+    }
+
+    const stockInsuficiente = [];
+    const stockNegativo = [];
+    for (const [pid, requerido] of requiredById) {
+      const prod = productoById.get(pid);
+      const stock = Number(prod?.stock);
+      if (!Number.isFinite(stock)) continue;
+      const despues = stock - requerido;
+      if (stock < requerido) {
+        stockInsuficiente.push({
+          productoId: pid,
+          productoNombre: String(prod?.nombre || pid),
+          requerido,
+          stockAntes: stock,
+          stockDespues: despues,
+        });
+      }
+      if (despues < 0) {
+        stockNegativo.push({
+          productoId: pid,
+          productoNombre: String(prod?.nombre || pid),
+          stockAntes: stock,
+          stockDespues: despues,
+        });
+      }
+    }
+
+    const requiereRevision =
+      stockInsuficiente.length > 0 ||
+      stockNegativo.length > 0 ||
+      productosSinPrecio.length > 0 ||
+      productosSinCosto.length > 0;
+
+    return {
+      stockInsuficiente,
+      stockNegativo,
+      productosSinPrecio,
+      productosSinCosto,
+      requiereRevision,
+    };
+  }, [tipo, productosSeleccionados, productosState]);
+
   const handleClienteChange = (val) => {
     if (val === "nuevo") {
       setOpenNuevoCliente(true);
@@ -1016,7 +1125,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
   const handleFormSubmit = async (data) => {
     setHasSubmitted(true);
-    console.log("[DEBUG] handleFormSubmit - data recibida:", data);
     setSubmitStatus(null);
     setSubmitMessage("");
 
@@ -1165,7 +1273,6 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               tipo: tipo,
               vendedor: user?.email || "Usuario no identificado",
             };
-      console.log("Datos preparados para envío:", formData);
       await onSubmit(formData);
       // Dejar la navegación al onSubmit de la página caller; no cerrar aquí
       setSubmitStatus("success");
@@ -1680,6 +1787,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         categoria: "Maderas",
                         unidad: "M2",
                         precioIncluyeCantidad: true,
+                        noInventariable: true,
                         alto: altoEjemplo,
                         ancho: 0,
                         largo: largoEjemplo,
@@ -1934,6 +2042,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </p>
                   </div>
                 ) : productosFiltrados.length === 0 ? (
+                  productosLoading ? (
+                    <div className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Array.from({ length: 12 }).map((_, idx) => (
+                          <Skeleton key={idx} className="h-[220px] rounded-lg" />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
                       <svg
@@ -1957,6 +2074,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                       Intenta cambiar los filtros o la búsqueda
                     </p>
                   </div>
+                  )
                 ) : (
                   <div className="space-y-4">
                     {/* Grid de productos paginados */}
@@ -2945,19 +3063,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             {errors.costoEnvio.message}
                           </span>
                         )}
-                        <Input
-                          {...register("fechaEntrega")}
-                          placeholder="Fecha de entrega"
-                          type="date"
-                          className="w-full"
-                          disabled={isSubmitting}
+                        <input type="hidden" {...register("fechaEntrega")} />
+                        <DateInput
                           value={
                             watch("fechaEntrega")
-                              ? new Date(watch("fechaEntrega"))
-                                  .toISOString()
-                                  .split("T")[0]
+                              ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
                               : ""
                           }
+                          onChange={(v) =>
+                            setValue("fechaEntrega", v, {
+                              shouldDirty: true,
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          disabled={isSubmitting}
+                          buttonClassName="w-full"
                         />
                         {errors.fechaEntrega && (
                           <span className="text-red-500 dark:text-red-400 text-xs">
@@ -3112,6 +3233,36 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
         {/* Totales y acciones - bloque normal */}
         <div className="bg-card space-y-4 rounded-b-xl border-t border-default-100 p-3 md:p-4">
+          {advertenciasVenta.requiereRevision && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4" />
+                Advertencias (la operación seguirá igual)
+              </div>
+              <div className="mt-2 grid gap-1">
+                {advertenciasVenta.stockInsuficiente.length > 0 && (
+                  <div>
+                    Stock insuficiente: {advertenciasVenta.stockInsuficiente.length} producto(s)
+                  </div>
+                )}
+                {advertenciasVenta.stockNegativo.length > 0 && (
+                  <div>
+                    Esta venta dejará stock negativo: {advertenciasVenta.stockNegativo.length} producto(s)
+                  </div>
+                )}
+                {advertenciasVenta.productosSinPrecio.length > 0 && (
+                  <div>
+                    Producto(s) sin precio definido: {advertenciasVenta.productosSinPrecio.length}
+                  </div>
+                )}
+                {advertenciasVenta.productosSinCosto.length > 0 && (
+                  <div>
+                    Producto(s) sin costo definido: {advertenciasVenta.productosSinCosto.length}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>

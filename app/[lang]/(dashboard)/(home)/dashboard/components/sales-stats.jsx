@@ -13,6 +13,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const SalesStats = () => {
   const { fechaDesde, fechaHasta, rangoRapido, setFechaDesde, setFechaHasta, setRangoRapido, isInRange } = useDateRange();
@@ -20,6 +25,49 @@ const SalesStats = () => {
 
   const COMMISSION_RATE = 2.5; // % comisión fija para todos los clientes
   const OBRAS_COMMISSION_RATE = 2.5; // % comisión fija para obras
+
+  const isoToDate = (iso) => {
+    if (!iso || typeof iso !== "string") return null;
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!y || !mo || !d) return null;
+    const dt = new Date(y, mo - 1, d, 12, 0, 0);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  };
+
+  const dateToIso = (dt) => {
+    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return "";
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const d = String(dt.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const fromDate = useMemo(() => isoToDate(fechaDesde), [fechaDesde]);
+  const toDate = useMemo(() => isoToDate(fechaHasta), [fechaHasta]);
+
+  const setDesdeDate = (dt) => {
+    if (!dt) return;
+    const next = dateToIso(dt);
+    if (!next) return;
+    setFechaDesde(next);
+    if (fechaHasta && next > fechaHasta) {
+      setFechaHasta(next);
+    }
+  };
+
+  const setHastaDate = (dt) => {
+    if (!dt) return;
+    const next = dateToIso(dt);
+    if (!next) return;
+    setFechaHasta(next);
+    if (fechaDesde && next < fechaDesde) {
+      setFechaDesde(next);
+    }
+  };
 
   // Datos del contexto (ya filtrados por rango de fechas)
   const obrasFiltradas = useMemo(() => {
@@ -636,23 +684,48 @@ const SalesStats = () => {
               <span className="text-sm text-default-600 whitespace-nowrap font-medium">
                 Desde
               </span>
-              <input
-                type="date"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-                className="border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-auto bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-[160px] bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40 font-normal"
+                  >
+                    {fromDate ? format(fromDate, "dd/MM/yyyy", { locale: es }) : "Elegir fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate || undefined}
+                    onSelect={setDesdeDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-default-600 whitespace-nowrap font-medium">
                 Hasta
               </span>
-              <input
-                type="date"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-                className="border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-auto bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start border border-border/60 rounded-xl px-3 py-2 h-9 flex-1 sm:flex-initial w-full sm:w-[160px] bg-card/60 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/40 font-normal"
+                  >
+                    {toDate ? format(toDate, "dd/MM/yyyy", { locale: es }) : "Elegir fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate || undefined}
+                    onSelect={setHastaDate}
+                    initialFocus
+                    disabled={fromDate ? (d) => d < fromDate : undefined}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}

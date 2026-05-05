@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -151,8 +152,8 @@ const ObrasHeader = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="15dias">15 días</SelectItem>
                 <SelectItem value="semana">Semana</SelectItem>
-                <SelectItem value="mes">Mes</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -344,32 +345,31 @@ const ObrasHeader = ({
                     <label className="text-xs font-medium text-gray-700 mb-1 block">
                       Desde
                     </label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={filtros.fechaDesde || ""}
-                      onChange={(e) =>
+                      onChange={(v) =>
                         onFiltrosChange({
                           ...filtros,
-                          fechaDesde: e.target.value,
+                          fechaDesde: v,
                         })
                       }
-                      className="h-9"
+                      buttonClassName="h-9 w-full justify-start bg-white border-gray-300"
                     />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-700 mb-1 block">
                       Hasta
                     </label>
-                    <Input
-                      type="date"
+                    <DateInput
                       value={filtros.fechaHasta || ""}
-                      onChange={(e) =>
+                      min={filtros.fechaDesde || undefined}
+                      onChange={(v) =>
                         onFiltrosChange({
                           ...filtros,
-                          fechaHasta: e.target.value,
+                          fechaHasta: v,
                         })
                       }
-                      className="h-9"
+                      buttonClassName="h-9 w-full justify-start bg-white border-gray-300"
                     />
                   </div>
                 </div>

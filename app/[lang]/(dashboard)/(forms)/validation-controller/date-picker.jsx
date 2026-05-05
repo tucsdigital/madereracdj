@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -27,7 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 
 const FormSchema = z.object({
   dob: z.date({
-    required_error: "A date of birth is required.",
+    required_error: "La fecha de nacimiento es obligatoria.",
   }),
 });
 
@@ -38,7 +39,7 @@ const DatePickerForm = () => {
 
   function onSubmit(data) {
     toast({
-      title: "You submitted the following values:",
+      title: "Enviastes los siguientes valores:",
       description: (
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
@@ -55,7 +56,7 @@ const DatePickerForm = () => {
           name="dob"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-2">Date of birth</FormLabel>
+              <FormLabel className="mb-2">Fecha de nacimiento</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -67,9 +68,9 @@ const DatePickerForm = () => {
                       )}
                     >
                       {field.value ? (
-                        format(field.value, "PPP")
+                        format(field.value, "dd/MM/yyyy", { locale: es })
                       ) : (
-                        <span>Pick a date</span>
+                        <span>Elegir fecha</span>
                       )}
                       <CalendarIcon className="ltr:ml-auto rtl:mr-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -88,13 +89,13 @@ const DatePickerForm = () => {
                 </PopoverContent>
               </Popover>
               <FormDescription>
-                Your date of birth is used to calculate your age.
+                Tu fecha de nacimiento se usa para calcular tu edad.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit">Submit</Button>
+        <Button type="submit">Enviar</Button>
       </form>
     </Form>
   );

@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInput } from "@/components/ui/date-input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +14,7 @@ import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingU
 import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
+import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
@@ -125,11 +127,13 @@ const GastosPage = () => {
   const [openProveedor, setOpenProveedor] = useState(false);
   const [openPago, setOpenPago] = useState(false);
   const [openPagoGlobal, setOpenPagoGlobal] = useState(false);
+  const [openQuitarSaldoAFavor, setOpenQuitarSaldoAFavor] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
   const [openGestionCategorias, setOpenGestionCategorias] = useState(false);
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
   const [proveedorPagoGlobal, setProveedorPagoGlobal] = useState(null);
+  const [proveedorQuitarSaldo, setProveedorQuitarSaldo] = useState(null);
   const [guardando, setGuardando] = useState(false);
   
   // Estado para crear categoría rápida desde el formulario
@@ -310,9 +314,12 @@ const GastosPage = () => {
               id: d.id,
               ...data,
               fecha: formatFechaSegura(data.fecha),
+              fechaRegistro: data.fechaRegistro || null,
+              fechaCreacion: data.fechaCreacion || null,
+              fechaActualizacion: data.fechaActualizacion || null,
             };
           })
-          .filter((m) => m.tipo === "saldoAFavor");
+          .filter((m) => m.tipo === "saldoAFavor" || m.tipo === "pagoGlobal");
         setMovimientosSaldoAFavor(pagosProveedoresData.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
       } catch (err) {
         setMovimientosSaldoAFavor([]);
@@ -557,6 +564,11 @@ const GastosPage = () => {
   const [loadingDolarGlobal, setLoadingDolarGlobal] = useState(false);
   const [ultimaActualizacionDolarGlobal, setUltimaActualizacionDolarGlobal] = useState(null);
 
+  const [montoQuitarSaldo, setMontoQuitarSaldo] = useState("");
+  const [fechaQuitarSaldo, setFechaQuitarSaldo] = useState(new Date().toISOString().split("T")[0]);
+  const [metodoQuitarSaldo, setMetodoQuitarSaldo] = useState("Ajuste");
+  const [notasQuitarSaldo, setNotasQuitarSaldo] = useState("");
+
   // Editar / eliminar pagos individuales
   const [openEditarPago, setOpenEditarPago] = useState(false);
   const [pagoEdit, setPagoEdit] = useState(null); // { idx, monto, fecha, metodo, notas, pagoEnDolares, valorOficialDolar, comprobantesPago }
@@ -634,6 +646,13 @@ const GastosPage = () => {
     setComprobantesPagoGlobal([]);
   };
 
+  const limpiarEstadoQuitarSaldo = () => {
+    setMontoQuitarSaldo("");
+    setFechaQuitarSaldo(new Date().toISOString().split("T")[0]);
+    setMetodoQuitarSaldo("Ajuste");
+    setNotasQuitarSaldo("");
+  };
+
   const abrirPagoGlobalProveedor = (cuenta) => {
     if (!cuenta?.proveedorId) return;
     const proveedorDoc = proveedores.find((p) => p.id === cuenta.proveedorId) || null;
@@ -656,92 +675,91 @@ const GastosPage = () => {
     setOpenPagoGlobal(true);
   };
 
+  const abrirQuitarSaldoAFavor = (grupo) => {
+    const provId = grupo?.proveedor?.id || grupo?.proveedorId || "";
+    if (!provId) return;
+    const saldo = Number(grupo?.saldoAFavor || 0);
+    if (!(saldo > 0)) return;
+    setProveedorQuitarSaldo({
+      id: provId,
+      nombre: grupo?.proveedor?.nombre || "Proveedor",
+      saldoAFavor: saldo,
+    });
+    setMontoQuitarSaldo(String(saldo));
+    setOpenQuitarSaldoAFavor(true);
+  };
+
+  const handleQuitarSaldoAFavor = async () => {
+    if (!proveedorQuitarSaldo?.id) return;
+    const monto = Number(montoQuitarSaldo);
+    if (!Number.isFinite(monto) || monto <= 0) return;
+    setGuardando(true);
+    try {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(
+        `/api/erp/proveedores/${encodeURIComponent(String(proveedorQuitarSaldo.id))}/saldo-a-favor`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            monto,
+            fecha: fechaQuitarSaldo,
+            metodo: metodoQuitarSaldo,
+            notas: notasQuitarSaldo,
+            origen: "ui_gastos_quitar_saldo_a_favor",
+          }),
+        }
+      );
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al quitar saldo a favor");
+      await cargarDatos();
+      setOpenQuitarSaldoAFavor(false);
+      setProveedorQuitarSaldo(null);
+      limpiarEstadoQuitarSaldo();
+    } catch (e) {
+      alert("Error al quitar saldo a favor: " + (e?.message || "Error"));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const handleRegistrarPagoGlobal = async () => {
     if (!proveedorPagoGlobal?.id) return;
     const montoIngresado = Number(montoPagoGlobal);
     if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) return;
     setGuardando(true);
     try {
-      const cuentasDelProveedor = cuentasPorPagar
-        .filter((c) => c.proveedorId === proveedorPagoGlobal.id)
-        .sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0));
-      const proveedorDoc = proveedores.find((p) => p.id === proveedorPagoGlobal.id);
-      const saldoFavorActual = Number(proveedorDoc?.saldoAFavor || 0);
-      let restante = saldoFavorActual + montoIngresado;
-      let totalAplicado = 0;
-
-      for (const cuenta of cuentasDelProveedor) {
-        const totalCuenta = Number(cuenta.monto) || 0;
-        const pagadoCuenta = Number(cuenta.montoPagado) || 0;
-        const pendienteCuenta = Math.max(totalCuenta - pagadoCuenta, 0);
-        if (pendienteCuenta <= 0 || restante <= 0) continue;
-        const montoAplicado = Math.min(restante, pendienteCuenta);
-        if (montoAplicado <= 0) continue;
-        const nuevoMontoPagado = pagadoCuenta + montoAplicado;
-        const nuevoPago = {
-          monto: montoAplicado,
+      if (!user || typeof user.getIdToken !== "function") {
+        throw new Error("No hay usuario autenticado");
+      }
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/proveedores/${encodeURIComponent(String(proveedorPagoGlobal.id))}/pago-global`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          monto: montoIngresado,
           fecha: fechaPagoGlobal,
           metodo: metodoPagoGlobal,
           notas: notasPagoGlobal,
-          responsable: user?.email || "Usuario no identificado",
-          fechaRegistro: new Date().toISOString(),
           pagoEnDolares: !!pagoGlobalEnDolares,
           valorOficialDolar: pagoGlobalEnDolares ? (valorOficialDolarGlobal ?? null) : null,
           comprobantes: comprobantesPagoGlobal || [],
-          pagoGlobalProveedor: true,
-        };
-        await updateDoc(doc(db, "gastos", cuenta.id), {
-          montoPagado: nuevoMontoPagado,
-          estadoPago: calcularEstadoPago(nuevoMontoPagado, totalCuenta),
-          pagos: [...(cuenta.pagos || []), nuevoPago],
-          fechaActualizacion: serverTimestamp(),
-        });
-        totalAplicado += montoAplicado;
-        restante -= montoAplicado;
-      }
-
-      const saldoAFavorFinal = Number(restante.toFixed(2));
-      const saldoAFavorGenerado = Number((saldoAFavorFinal - saldoFavorActual).toFixed(2));
-
-      if (proveedorDoc?.id) {
-        await updateDoc(doc(db, "proveedores", proveedorDoc.id), {
-          saldoAFavor: saldoAFavorFinal,
-          fechaActualizacion: serverTimestamp(),
-        });
-      }
-
-      if (proveedorDoc?.id && saldoAFavorGenerado > 0) {
-        await addDoc(collection(db, "pagosProveedores"), {
-          tipo: "saldoAFavor",
-          proveedorId: proveedorDoc.id,
-          proveedor: {
-            id: proveedorDoc.id,
-            nombre: proveedorDoc.nombre || "Proveedor",
-            cuit: proveedorDoc.cuit || "",
-            telefono: proveedorDoc.telefono || "",
-          },
-          monto: saldoAFavorGenerado,
-          fecha: fechaPagoGlobal,
-          metodo: metodoPagoGlobal,
-          notas: notasPagoGlobal,
-          responsable: user?.email || "Usuario no identificado",
-          fechaRegistro: new Date().toISOString(),
-          pagoEnDolares: !!pagoGlobalEnDolares,
-          valorOficialDolar: pagoGlobalEnDolares ? (valorOficialDolarGlobal ?? null) : null,
-          comprobantes: comprobantesPagoGlobal || [],
-          pagoGlobalProveedor: true,
-          pagoIngresado: montoIngresado,
-          aplicadoACuentas: Number(totalAplicado.toFixed(2)),
-          saldoAFavorAntes: Number(saldoFavorActual.toFixed(2)),
-          saldoAFavorDespues: saldoAFavorFinal,
-          fechaCreacion: serverTimestamp(),
-          fechaActualizacion: serverTimestamp(),
-        });
-      }
+          origen: "ui_gastos_pago_global",
+        }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar pago global");
 
       await cargarDatos();
       alert(
-        `Pago global registrado.\nAplicado a cuentas: $${Math.round(totalAplicado).toLocaleString("es-AR")}\nSaldo a favor: $${Math.round(Math.max(restante, 0)).toLocaleString("es-AR")}`
+        `Pago global registrado.\nAplicado a cuentas: $${Math.round(Number(out.aplicadoACuentas || 0)).toLocaleString("es-AR")}\nSaldo a favor: $${Math.round(Number(out.saldoAFavorDespues || 0)).toLocaleString("es-AR")}`
       );
       setOpenPagoGlobal(false);
       setProveedorPagoGlobal(null);
@@ -995,7 +1013,14 @@ const GastosPage = () => {
   }, [cuentasPorPagar, isInRange]);
 
   const movimientosSaldoAFavorFiltradosPorFecha = useMemo(() => {
-    return movimientosSaldoAFavor.filter((m) => isInRange(m.fecha));
+    return movimientosSaldoAFavor
+      .filter((m) => isInRange(m.fecha))
+      .filter((m) => {
+        const tipo = String(m?.tipo || "");
+        if (tipo !== "saldoAFavor") return true;
+        if (m?.pagoGlobalProveedor === true && Number(m?.pagoIngresado || 0) > 0) return false;
+        return true;
+      });
   }, [movimientosSaldoAFavor, isInRange]);
 
   const detalleCuentasPorPagarFiltradasPorFecha = useMemo(() => {
@@ -1006,7 +1031,35 @@ const GastosPage = () => {
           id: m.proveedorId,
           nombre: "Proveedor",
         };
+      const tipoMov = String(m.tipo || "");
       const montoMovimiento = Number(m.monto) || 0;
+      const fechaMov = m.fechaRegistro || m.fechaCreacion || m.fecha;
+
+      if (tipoMov === "pagoGlobal") {
+        return {
+          id: `pagoGlobal_${m.id}`,
+          movimientoPagoGlobalProveedor: true,
+          tipo: "proveedor",
+          proveedorId: m.proveedorId,
+          proveedor: proveedorInfo,
+          monto: 0,
+          montoPagado: 0,
+          montoPagoGlobal: Number(m.pagoIngresado ?? m.monto ?? 0),
+          montoAplicado: Number(m.aplicadoACuentas ?? 0),
+          saldoAFavorAntes: Number(m.saldoAFavorAntes ?? 0),
+          saldoAFavorDespues: Number(m.saldoAFavorDespues ?? 0),
+          saldoAFavorDelta: Number(m.montoDeltaSaldoAFavor ?? 0),
+          estadoPago: "pagado",
+          fecha: fechaMov,
+          fechaVencimiento: null,
+          observaciones: m.notas || "",
+          responsable: m.responsable || "Usuario no identificado",
+          metodo: m.metodo || "Efectivo",
+          pagoEnDolares: !!m.pagoEnDolares,
+          valorOficialDolar: m.valorOficialDolar ?? null,
+          comprobantes: m.comprobantes || [],
+        };
+      }
 
       return {
         id: `saldoAFavor_${m.id}`,
@@ -1016,9 +1069,13 @@ const GastosPage = () => {
         proveedor: proveedorInfo,
         monto: 0,
         montoPagado: 0,
-        montoSaldoAFavor: montoMovimiento,
+        montoSaldoAFavor: Math.abs(Number(m.montoDelta ?? montoMovimiento)),
+        montoSaldoAFavorDelta: Number(m.montoDelta ?? montoMovimiento),
+        saldoAFavorDireccion: String(m.direccion || ""),
+        saldoAFavorAntes: Number(m.saldoAFavorAntes ?? 0),
+        saldoAFavorDespues: Number(m.saldoAFavorDespues ?? 0),
         estadoPago: "pagado",
-        fecha: m.fecha,
+        fecha: fechaMov,
         fechaVencimiento: null,
         observaciones: m.notas || "",
         responsable: m.responsable || "Usuario no identificado",
@@ -1266,22 +1323,21 @@ const GastosPage = () => {
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
                     Desde
                   </span>
-                  <input
-                    type="date"
+                  <DateInput
                     value={fechaDesde}
-                    onChange={(e) => setFechaDesde(e.target.value)}
-                    className="border border-border/60 bg-background text-foreground rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                    onChange={(v) => setFechaDesde(v)}
+                    buttonClassName="border border-border/60 bg-background text-foreground rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto justify-start"
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
                     Hasta
                   </span>
-                  <input
-                    type="date"
+                  <DateInput
                     value={fechaHasta}
-                    onChange={(e) => setFechaHasta(e.target.value)}
-                    className="border border-border/60 bg-background text-foreground rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto"
+                    min={fechaDesde || undefined}
+                    onChange={(v) => setFechaHasta(v)}
+                    buttonClassName="border border-border/60 bg-background text-foreground rounded-md px-2 py-1 h-9 flex-1 sm:flex-initial w-full sm:w-auto justify-start"
                   />
                 </div>
               </div>
@@ -1539,6 +1595,21 @@ const GastosPage = () => {
                               ${Number(grupo.saldoAFavor || 0).toLocaleString("es-AR")}
                             </span>
                           </div>
+                        {Number(grupo.saldoAFavor || 0) > 0 && (
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirQuitarSaldoAFavor(grupo);
+                              }}
+                            >
+                              Quitar saldo a favor
+                            </Button>
+                          </div>
+                        )}
                           <div className="flex justify-between border-t pt-2">
                             <span className="text-muted-foreground font-semibold">Pendiente neto:</span>
                             <span className={`font-bold ${grupo.pendienteNeto > 0 ? "text-red-600" : "text-muted-foreground"}`}>
@@ -1636,11 +1707,18 @@ const GastosPage = () => {
                 <TableBody>
                   {cuentasPorPagarFiltradas.map(c => {
                     const esMovimientoSaldoAFavor = !!c.movimientoSaldoAFavor;
-                    const saldo = esMovimientoSaldoAFavor
+                    const esPagoGlobalProveedor = !!c.movimientoPagoGlobalProveedor;
+                    const esMovimientoEspecial = esMovimientoSaldoAFavor || esPagoGlobalProveedor;
+                    const deltaSaldoAFavor = esMovimientoSaldoAFavor
+                      ? Number(c.montoSaldoAFavorDelta || 0)
+                      : esPagoGlobalProveedor
+                        ? Number(c.saldoAFavorDelta || 0)
+                        : 0;
+                    const saldo = esMovimientoEspecial
                       ? 0
                       : (Number(c.monto) || 0) - (Number(c.montoPagado) || 0);
                     const vencido =
-                      !esMovimientoSaldoAFavor &&
+                      !esMovimientoEspecial &&
                       c.fechaVencimiento &&
                       new Date(c.fechaVencimiento) < new Date();
                     
@@ -1649,25 +1727,39 @@ const GastosPage = () => {
                         <TableCell>{formatFechaHoraArgentina(c.fechaActualizacion || c.fechaCreacion || c.fecha)}</TableCell>
                         <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
                         <TableCell className="font-bold">
-                          {esMovimientoSaldoAFavor ? "-" : `$${Number(c.monto).toLocaleString("es-AR")}`}
+                          {esMovimientoEspecial ? "-" : `$${Number(c.monto).toLocaleString("es-AR")}`}
                         </TableCell>
                         <TableCell className="text-green-600 font-semibold">
                           $
                           {Number(
-                            esMovimientoSaldoAFavor ? c.montoSaldoAFavor : (c.montoPagado || 0)
+                            esMovimientoSaldoAFavor
+                              ? c.montoSaldoAFavor
+                              : esPagoGlobalProveedor
+                                ? c.montoPagoGlobal
+                                : (c.montoPagado || 0)
                           ).toLocaleString("es-AR")}
                         </TableCell>
                         <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
                           ${saldo.toLocaleString("es-AR")}
                         </TableCell>
                         <TableCell className={vencido && saldo > 0 ? "text-red-600 font-semibold" : ""}>
-                          {esMovimientoSaldoAFavor ? "-" : (c.fechaVencimiento || "-")}
+                          {esMovimientoEspecial ? "-" : (c.fechaVencimiento || "-")}
                           {vencido && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
                         </TableCell>
                         <TableCell>
-                          {esMovimientoSaldoAFavor ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
-                              Saldo a favor
+                          {esPagoGlobalProveedor ? (
+                            <Badge className="bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20">
+                              Pago global
+                            </Badge>
+                          ) : esMovimientoSaldoAFavor ? (
+                            <Badge
+                              className={
+                                deltaSaldoAFavor < 0
+                                  ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
+                                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
+                              }
+                            >
+                              {deltaSaldoAFavor < 0 ? "Saldo a favor quitado" : "Saldo a favor"}
                             </Badge>
                           ) : (
                             <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
@@ -1677,14 +1769,37 @@ const GastosPage = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            {(esMovimientoSaldoAFavor || (c.pagos && c.pagos.length > 0)) && (
+                            {(esMovimientoEspecial || (c.pagos && c.pagos.length > 0)) && (
                               <Button 
                                 size="sm" 
                                 variant="outline"
                                 className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
                                 onClick={() => {
-                                  if (esMovimientoSaldoAFavor) {
+                                  if (esPagoGlobalProveedor) {
+                                    const montoPago = Number(c.montoPagoGlobal) || 0;
+                                    setCuentaSeleccionada({
+                                      ...c,
+                                      monto: montoPago,
+                                      montoPagado: montoPago,
+                                      pagos: [
+                                        {
+                                          monto: montoPago,
+                                          fecha: c.fecha,
+                                          metodo: c.metodo || "Efectivo",
+                                          notas: c.observaciones || "",
+                                          responsable: c.responsable || "Usuario no identificado",
+                                          fechaRegistro: new Date().toISOString(),
+                                          pagoEnDolares: !!c.pagoEnDolares,
+                                          valorOficialDolar: c.valorOficialDolar ?? null,
+                                          comprobantes: c.comprobantes || [],
+                                          pagoGlobalProveedor: true,
+                                        },
+                                      ],
+                                    });
+                                  } else if (esMovimientoSaldoAFavor) {
                                     const montoMovimiento = Number(c.montoSaldoAFavor) || 0;
+                                    const delta = Number(c.montoSaldoAFavorDelta || 0);
+                                    const accion = delta < 0 ? "Quita saldo a favor" : "Saldo a favor";
                                     setCuentaSeleccionada({
                                       ...c,
                                       monto: montoMovimiento,
@@ -1694,7 +1809,7 @@ const GastosPage = () => {
                                           monto: montoMovimiento,
                                           fecha: c.fecha,
                                           metodo: c.metodo || "Efectivo",
-                                          notas: c.observaciones || "",
+                                          notas: `${accion}${c.observaciones ? `: ${c.observaciones}` : ""}`,
                                           responsable: c.responsable || "Usuario no identificado",
                                           fechaRegistro: new Date().toISOString(),
                                           pagoEnDolares: !!c.pagoEnDolares,
@@ -1714,7 +1829,7 @@ const GastosPage = () => {
                                 <Eye className="w-3 h-3" />
                               </Button>
                             )}
-                            {!esMovimientoSaldoAFavor && saldo > 0 && (
+                            {!esMovimientoEspecial && saldo > 0 && (
                               <Button 
                                 size="sm" 
                                 variant="outline"
@@ -1733,7 +1848,7 @@ const GastosPage = () => {
                                 <Wallet className="w-3 h-3" />
                               </Button>
                             )}
-                            {!esMovimientoSaldoAFavor && (
+                            {!esMovimientoEspecial && (
                               <>
                                 <Button
                                   size="sm"
@@ -1864,11 +1979,20 @@ const GastosPage = () => {
             </div>
             
             <div>
-              <Input 
-                placeholder="Fecha *" 
-                type="date" 
-                {...registerInterno("fecha")}
-                className={errorsInterno.fecha ? "border-red-500" : ""}
+              <input type="hidden" {...registerInterno("fecha")} />
+              <DateInput
+                value={watchInterno("fecha") || ""}
+                onChange={(v) =>
+                  setValueInterno("fecha", v, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
+                  })
+                }
+                buttonClassName={cn(
+                  "w-full justify-start",
+                  errorsInterno.fecha ? "border-red-500" : ""
+                )}
               />
             </div>
             
@@ -1996,18 +2120,37 @@ const GastosPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Fecha de Emisión *</Label>
-                <Input 
-                  type="date" 
-                  {...registerProveedor("fecha")}
-                  className={errorsProveedor.fecha ? "border-red-500" : ""}
+                <input type="hidden" {...registerProveedor("fecha")} />
+                <DateInput
+                  value={watchProveedor("fecha") || ""}
+                  onChange={(v) =>
+                    setValueProveedor("fecha", v, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  buttonClassName={cn(
+                    "w-full justify-start",
+                    errorsProveedor.fecha ? "border-red-500" : ""
+                  )}
                 />
               </div>
               
               <div>
                 <Label>Fecha de Vencimiento</Label>
-                <Input 
-                  type="date" 
-                  {...registerProveedor("fechaVencimiento")}
+                <input type="hidden" {...registerProveedor("fechaVencimiento")} />
+                <DateInput
+                  value={watchProveedor("fechaVencimiento") || ""}
+                  min={watchProveedor("fecha") || undefined}
+                  onChange={(v) =>
+                    setValueProveedor("fechaVencimiento", v, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  buttonClassName="w-full justify-start"
                 />
               </div>
             </div>
@@ -2152,10 +2295,10 @@ const GastosPage = () => {
 
               <div>
                 <Label>Fecha de Pago *</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={fechaPago}
-                  onChange={(e) => setFechaPago(e.target.value)}
+                  onChange={(v) => setFechaPago(v)}
+                  buttonClassName="w-full justify-start"
                 />
               </div>
 
@@ -2251,10 +2394,10 @@ const GastosPage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Fecha de Pago *</Label>
-                  <Input
-                    type="date"
+                  <DateInput
                     value={fechaPagoGlobal}
-                    onChange={(e) => setFechaPagoGlobal(e.target.value)}
+                    onChange={(v) => setFechaPagoGlobal(v)}
+                    buttonClassName="w-full justify-start"
                   />
                 </div>
                 <div>
@@ -2359,6 +2502,95 @@ const GastosPage = () => {
               disabled={guardando || !montoPagoGlobal || Number(montoPagoGlobal) <= 0}
             >
               {guardando ? "Guardando..." : "Registrar Pago Global"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openQuitarSaldoAFavor} onOpenChange={setOpenQuitarSaldoAFavor}>
+        <DialogContent className="w-[95vw] max-w-[520px] border border-border/60 bg-card">
+          <DialogHeader>
+            <DialogTitle>Quitar saldo a favor</DialogTitle>
+          </DialogHeader>
+          {proveedorQuitarSaldo && (
+            <div className="space-y-4 py-2">
+              <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <div className="font-semibold text-foreground">{proveedorQuitarSaldo.nombre}</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Saldo a favor actual:{" "}
+                  <span className="font-semibold text-green-600">
+                    ${Number(proveedorQuitarSaldo.saldoAFavor || 0).toLocaleString("es-AR")}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <Label>Monto a quitar *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={montoQuitarSaldo}
+                  onChange={(e) => setMontoQuitarSaldo(e.target.value)}
+                  max={Number(proveedorQuitarSaldo.saldoAFavor || 0)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Se descuenta del saldo a favor del proveedor (no afecta cuentas individuales).
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Fecha *</Label>
+                  <DateInput
+                    value={fechaQuitarSaldo}
+                    onChange={(v) => setFechaQuitarSaldo(v)}
+                    buttonClassName="w-full justify-start"
+                  />
+                </div>
+                <div>
+                  <Label>Método</Label>
+                  <select
+                    value={metodoQuitarSaldo}
+                    onChange={(e) => setMetodoQuitarSaldo(e.target.value)}
+                    className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
+                  >
+                    <option value="Ajuste">Ajuste</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label>Motivo / notas</Label>
+                <Textarea
+                  placeholder="Motivo del ajuste..."
+                  value={notasQuitarSaldo}
+                  onChange={(e) => setNotasQuitarSaldo(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenQuitarSaldoAFavor(false);
+                setProveedorQuitarSaldo(null);
+                limpiarEstadoQuitarSaldo();
+              }}
+              disabled={guardando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleQuitarSaldoAFavor}
+              disabled={guardando || !montoQuitarSaldo || Number(montoQuitarSaldo) <= 0}
+            >
+              {guardando ? "Guardando..." : "Quitar saldo"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2531,10 +2763,10 @@ const GastosPage = () => {
               </div>
               <div>
                 <Label>Fecha *</Label>
-                <Input
-                  type="date"
+                <DateInput
                   value={pagoEdit.fecha}
-                  onChange={(e) => setPagoEdit(prev => ({ ...prev, fecha: e.target.value }))}
+                  onChange={(v) => setPagoEdit((prev) => ({ ...prev, fecha: v }))}
+                  buttonClassName="w-full justify-start"
                 />
               </div>
               <div>

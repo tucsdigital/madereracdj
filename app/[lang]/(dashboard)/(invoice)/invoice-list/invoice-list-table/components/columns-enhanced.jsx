@@ -13,12 +13,14 @@ const formatDate = (dateString) => {
     const fecha = new Date(dateString);
     return (
       fecha.toLocaleDateString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
         day: "2-digit",
         month: "2-digit",
         year: "numeric"
       }) +
       " " +
       fecha.toLocaleTimeString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false
@@ -73,6 +75,27 @@ const formatCurrency = (amount) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+};
+
+const formatVendedorName = (value) => {
+  if (!value) return "-";
+  const raw = String(value).trim();
+  if (!raw) return "-";
+  if (!raw.includes("@")) return raw;
+  const local = raw.split("@")[0] || raw;
+  const parts = local
+    .split(/[._-]+/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const formatted = parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+  return formatted || local;
+};
+
+const isVentaAnulada = (venta) => {
+  if (!venta) return false;
+  return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
 };
 
 // Columnas para la tabla de presupuestos
@@ -181,11 +204,11 @@ export const columnsPresupuestos = [
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
           <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-            {(row?.original?.vendedor || "V")[0].toUpperCase()}
+            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
           </span>
         </div>
         <span className="text-sm font-medium text-foreground">
-          {row?.original?.vendedor || "-"}
+          {formatVendedorName(row?.original?.vendedor)}
         </span>
       </div>
     ),
@@ -323,6 +346,19 @@ export const columnsVentas = [
       </div>
     ),
     cell: ({ row }) => {
+      if (isVentaAnulada(row.original)) {
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center text-red-700 dark:text-red-300">
+              <XCircle className="w-4 h-4" />
+            </div>
+            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              Anulada
+            </Badge>
+          </div>
+        );
+      }
+
       const status = row.getValue("estadoPago") || row.getValue("status");
       return (
         <div className="flex items-center gap-2">
@@ -403,11 +439,11 @@ export const columnsVentas = [
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
           <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-            {(row?.original?.vendedor || "V")[0].toUpperCase()}
+            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
           </span>
         </div>
         <span className="text-sm font-medium text-foreground">
-          {row?.original?.vendedor || "-"}
+          {formatVendedorName(row?.original?.vendedor)}
         </span>
       </div>
     ),
@@ -417,24 +453,34 @@ export const columnsVentas = [
     id: "actions",
     header: "Acciones",
     cell: ({ row }) => {
+      if (isVentaAnulada(row.original)) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              Anulada
+            </Badge>
+          </div>
+        );
+      }
+
       return (
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="outline"
             className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
-            title="Eliminar"
+            title="Anular"
             onClick={(e) => {
               e.stopPropagation(); // Prevenir que se active el click de la fila
               window.dispatchEvent(
-                new CustomEvent("deleteVenta", {
+                new CustomEvent("anularVenta", {
                   detail: { id: row.original.id },
                 })
               );
             }}
           >
             <Trash2 className="w-4 h-4 mr-1" />
-            Eliminar
+            Anular
           </Button>
         </div>
       );

@@ -42,7 +42,7 @@ export const useStockNotifications = () => {
           setError(null);
         }
 
-        // Cargar productos y reservas en paralelo
+        // Cargar productos y reservas en paralelo (reservas no afectan el stock real del ERP)
         const [productosSnap, reservasSnap] = await Promise.all([
           getDocs(query(collection(db, "productos"), orderBy("nombre"))),
           getDocs(query(
@@ -88,11 +88,11 @@ export const useStockNotifications = () => {
 
           const stockTotal = Number(productoData.stock);
           if (!Number.isFinite(stockTotal)) return;
-          const stockMinimo = Number(productoData.min) || 0;
+          const stockMinimo = Number(productoData.stockMinimo ?? productoData.min) || 0;
           const reservadas = reservasMap.get(productoId) || 0;
-          const stockDisponible = stockTotal - reservadas;
+          const stockDisponible = stockTotal;
 
-          const stockNegativo = stockDisponible < 0;
+          const stockNegativo = stockTotal < 0;
 
           // Solo agregar productos con stock negativo
           if (stockNegativo) {

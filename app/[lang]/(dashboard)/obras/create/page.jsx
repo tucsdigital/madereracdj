@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Filter, Search, RefreshCw } from "lucide-react";
@@ -1159,7 +1160,11 @@ export default function CrearObraPage() {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
               <Input className="md:col-span-2" placeholder="Título" value={tareaDraft.titulo} onChange={(e) => setTareaDraft({ ...tareaDraft, titulo: e.target.value })} />
               <Input className="md:col-span-1" placeholder="Responsable" value={tareaDraft.responsable} onChange={(e) => setTareaDraft({ ...tareaDraft, responsable: e.target.value })} />
-              <Input className="md:col-span-1" type="date" value={tareaDraft.fechaVencimiento} onChange={(e) => setTareaDraft({ ...tareaDraft, fechaVencimiento: e.target.value })} />
+              <DateInput
+                value={tareaDraft.fechaVencimiento}
+                onChange={(v) => setTareaDraft({ ...tareaDraft, fechaVencimiento: v })}
+                buttonClassName="md:col-span-1 w-full justify-start"
+              />
               <Select value={tareaDraft.estado} onValueChange={(v) => setTareaDraft({ ...tareaDraft, estado: v })}>
                 <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
@@ -1200,7 +1205,11 @@ export default function CrearObraPage() {
           </div>
           <div className="md:col-span-3">
             <div className="flex items-center gap-2 mb-2">
-              <Input className="w-40" type="date" value={pagoDraft.fecha} onChange={(e) => setPagoDraft({ ...pagoDraft, fecha: e.target.value })} />
+              <DateInput
+                value={pagoDraft.fecha}
+                onChange={(v) => setPagoDraft({ ...pagoDraft, fecha: v })}
+                buttonClassName="w-40 justify-start"
+              />
               <Input className="w-40" type="number" placeholder="Monto" value={pagoDraft.monto} onChange={(e) => setPagoDraft({ ...pagoDraft, monto: e.target.value })} />
               <Input className="flex-1" placeholder="Método" value={pagoDraft.metodo} onChange={(e) => setPagoDraft({ ...pagoDraft, metodo: e.target.value })} />
               <Button onClick={agregarPago}>Agregar pago</Button>

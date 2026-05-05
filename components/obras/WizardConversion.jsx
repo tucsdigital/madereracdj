@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -825,13 +826,10 @@ const WizardConversion = ({
                   </div>
                   Fecha de Inicio <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  type="date"
+                <DateInput
                   value={datos.fechaInicio}
-                  onChange={(e) =>
-                    setDatos({ ...datos, fechaInicio: e.target.value })
-                  }
-                  className="w-full h-12 text-base"
+                  onChange={(v) => setDatos({ ...datos, fechaInicio: v })}
+                  buttonClassName="w-full h-12 text-base justify-start"
                 />
                 <p className="text-xs text-gray-500 mt-2">
                   La fecha de fin se puede configurar después en la edición de la obra.

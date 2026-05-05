@@ -11,12 +11,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Excluir paquetes del bundle del servidor (solo para API routes)
-  serverComponentsExternalPackages: [
-    "puppeteer",
-    "puppeteer-core",
-    "@sparticuz/chromium",
-  ],
+  experimental: {
+    serverComponentsExternalPackages: ["puppeteer", "puppeteer-core", "@sparticuz/chromium"],
+  },
   webpack(config, { isServer }) {
     // Resolver paths para @/*
     if (!config.resolve.alias) {

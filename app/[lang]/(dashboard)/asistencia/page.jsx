@@ -4,6 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -696,7 +697,11 @@ export default function AsistenciaPage() {
                <div className="grid grid-cols-2 gap-3">
                  <div className="space-y-1">
                    <Label className="text-xs">Fecha</Label>
-                   <Input type="date" className="h-9 bg-background" value={nuevoAdelanto.fecha} onChange={e=>setNuevoAdelanto(p=>({...p,fecha:e.target.value}))} />
+                  <DateInput
+                    value={nuevoAdelanto.fecha}
+                    onChange={(v) => setNuevoAdelanto((p) => ({ ...p, fecha: v }))}
+                    buttonClassName="h-9 bg-background justify-start"
+                  />
                  </div>
                  <div className="space-y-1">
                    <Label className="text-xs">Monto</Label>

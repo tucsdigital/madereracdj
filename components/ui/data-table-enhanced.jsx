@@ -46,6 +46,8 @@ export function DataTableEnhanced({
   defaultSorting = [],
   onRowClick,
   compact = false, // Nueva prop para tablas compactas
+  rowClassName,
+  cellClassName,
 }) {
   const [sorting, setSorting] = useState(defaultSorting);
   const [columnFilters, setColumnFilters] = useState([]);
@@ -251,11 +253,15 @@ export function DataTableEnhanced({
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row, rowIndex) => (
-                                     <TableRow
+                  <TableRow
                      key={row.id}
                      data-state={row.getIsSelected() && "selected"}
                      className={`border-b border-border/50 transition-colors hover:bg-muted/30 cursor-pointer ${
                        rowIndex % 2 === 0 ? "bg-card" : "bg-muted/20"
+                     } ${
+                       typeof rowClassName === "function"
+                         ? rowClassName(row.original) || ""
+                         : rowClassName || ""
                      }`}
                      onClick={() => onRowClick && onRowClick(row.original)}
                    >
@@ -266,6 +272,10 @@ export function DataTableEnhanced({
                           compact 
                             ? "px-3 py-2 text-xs text-foreground border-r border-border/50 last:border-r-0" 
                             : "px-6 py-4 text-sm text-foreground border-r border-border/50 last:border-r-0"
+                        } ${
+                          typeof cellClassName === "function"
+                            ? cellClassName(row.original, cell.column.id) || ""
+                            : cellClassName || ""
                         }`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

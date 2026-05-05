@@ -144,6 +144,16 @@ export async function POST(request) {
 
     const db = getAdminDb();
 
+    if (backfillObservaciones || !dryRun) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Reconciliación automática deshabilitada. Solo se permite auditoría (dryRun=1) y no se aplican correcciones ni backfills.",
+        },
+        { status: 410 }
+      );
+    }
+
     if (backfillObservaciones) {
       const prefixStart = "recon_venta_";
       const prefixEnd = "recon_venta_\uf8ff";
@@ -468,9 +478,11 @@ export async function POST(request) {
       resumen.ventas.push(ventaResumen);
     }
 
-    if (auditOps > 0) auditBatches.push(auditBatch);
-    for (const b of auditBatches) {
-      await b.commit();
+    if (!dryRun) {
+      if (auditOps > 0) auditBatches.push(auditBatch);
+      for (const b of auditBatches) {
+        await b.commit();
+      }
     }
 
     if (!dryRun && ventaIdFilter && productoIdFilter) {

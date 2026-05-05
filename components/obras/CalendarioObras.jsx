@@ -59,7 +59,7 @@ const coloresEstado = {
 const CalendarioObras = ({
   obras = [],
   notas = [],
-  vista = "semana", // "semana" | "mes"
+  vista = "15dias", // "15dias" | "semana" | "mes"
   fechaInicio,
   onFechaInicioChange,
   onObraClick,
@@ -77,6 +77,20 @@ const CalendarioObras = ({
   // Límites de items a mostrar
   const MAX_OBRAS_VISIBLES = 3;
   const MAX_NOTAS_VISIBLES = 2;
+  const DIAS_15 = 15;
+
+  const get15Days = useCallback(() => {
+    if (!fechaInicio) return [];
+    const days = [];
+    const start = new Date(fechaInicio);
+    start.setHours(0, 0, 0, 0);
+    for (let i = 0; i < DIAS_15; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  }, [fechaInicio]);
   // Obtener días de la semana
   const getWeekDays = useCallback(() => {
     if (!fechaInicio) return [];
@@ -158,7 +172,9 @@ const CalendarioObras = ({
   const goToPrevious = () => {
     if (!fechaInicio) return;
     const newDate = new Date(fechaInicio);
-    if (vista === "semana") {
+    if (vista === "15dias") {
+      newDate.setDate(newDate.getDate() - DIAS_15);
+    } else if (vista === "semana") {
       newDate.setDate(newDate.getDate() - 7);
     } else {
       newDate.setMonth(newDate.getMonth() - 1);
@@ -169,7 +185,9 @@ const CalendarioObras = ({
   const goToNext = () => {
     if (!fechaInicio) return;
     const newDate = new Date(fechaInicio);
-    if (vista === "semana") {
+    if (vista === "15dias") {
+      newDate.setDate(newDate.getDate() + DIAS_15);
+    } else if (vista === "semana") {
       newDate.setDate(newDate.getDate() + 7);
     } else {
       newDate.setMonth(newDate.getMonth() + 1);
@@ -179,7 +197,11 @@ const CalendarioObras = ({
 
   const goToToday = () => {
     const today = new Date();
-    if (vista === "semana") {
+    if (vista === "15dias") {
+      const start = new Date(today);
+      start.setHours(0, 0, 0, 0);
+      onFechaInicioChange(start);
+    } else if (vista === "semana") {
       const day = today.getDay();
       const diff = day === 0 ? -6 : 1 - day; // Lunes como primer día
       const monday = new Date(today);
@@ -195,17 +217,19 @@ const CalendarioObras = ({
   // Título del calendario
   const tituloCalendario = useMemo(() => {
     if (!fechaInicio) return "";
-    if (vista === "semana") {
-      return fechaInicio.toLocaleDateString("es-AR", {
-        month: "long",
-        year: "numeric",
-      });
-    } else {
-      return fechaInicio.toLocaleDateString("es-AR", {
-        month: "long",
-        year: "numeric",
-      });
+    if (vista === "15dias") {
+      const start = new Date(fechaInicio);
+      const end = new Date(fechaInicio);
+      end.setDate(end.getDate() + (DIAS_15 - 1));
+      const startStr = start.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+      const endStr = end.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+      const ym = start.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+      return `${startStr} → ${endStr} · ${ym}`;
     }
+    return fechaInicio.toLocaleDateString("es-AR", {
+      month: "long",
+      year: "numeric",
+    });
   }, [fechaInicio, vista]);
 
   const diasSemana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -241,7 +265,7 @@ const CalendarioObras = ({
               Calendario de Obras y Notas
             </div>
             <div className="text-xs font-medium text-gray-600">
-              Vista {vista === "semana" ? "Semanal" : "Mensual"}
+              Vista {vista === "15dias" ? "15 días" : vista === "semana" ? "Semanal" : "Mensual"}
             </div>
           </div>
         </CardTitle>
@@ -276,6 +300,190 @@ const CalendarioObras = ({
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* Vista 15 días */}
+        {vista === "15dias" && (
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+            {get15Days().map((day, index) => {
+              const dateKey = formatDateKey(day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              const dayObras = getObrasForDate(dateKey);
+              const dayNotas = getNotasForDate(dateKey);
+              const weekday = day.toLocaleDateString("es-AR", { weekday: "short" });
+
+              return (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-2 min-h-[140px] transition-all cursor-pointer ${
+                    isToday
+                      ? "bg-blue-50 border-blue-300 shadow-md"
+                      : "bg-white border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => {
+                    if (dayObras.length > 0 || dayNotas.length > 0) {
+                      abrirModalDia(dateKey, day);
+                    }
+                  }}
+                  title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
+                >
+                  <div className="text-center mb-2 pb-2 border-b border-gray-200">
+                    <div className="text-[10px] font-semibold text-gray-600 uppercase">
+                      {weekday}
+                    </div>
+                    <div className={`text-base font-bold ${isToday ? "text-blue-600" : "text-gray-800"}`}>
+                      {day.getDate()}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full mb-2 text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAgregarNota(dateKey);
+                    }}
+                  >
+                    <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
+                    Nota
+                  </Button>
+
+                  <div className="space-y-1.5 mb-2">
+                    {dayObras.slice(0, MAX_OBRAS_VISIBLES).map((obra) => {
+                      const estado = obra.estado || "pendiente_inicio";
+                      const colores = coloresEstado[estado] || coloresEstado.pendiente_inicio;
+                      const total = obra.presupuestoTotal || obra.total || 0;
+
+                      return (
+                        <div
+                          key={obra.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onObraClick(obra);
+                          }}
+                          className={`${colores.bg} ${colores.border} border rounded px-2 py-1.5 text-xs cursor-pointer hover:shadow-md transition-all group`}
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-[11px] truncate">
+                                {obra.numeroPedido || "Sin número"}
+                              </div>
+                              <div className="text-[10px] text-gray-600 truncate mt-0.5">
+                                {obra.cliente?.nombre || "Sin cliente"}
+                              </div>
+                              <div className="text-[10px] font-medium mt-0.5">
+                                {formatearNumeroArgentino(total)}
+                              </div>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`${colores.badge} text-[9px] px-1 py-0 shrink-0`}
+                            >
+                              <Building className="w-2.5 h-2.5 mr-0.5" />
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {dayObras.length > MAX_OBRAS_VISIBLES && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-[10px] h-6 px-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirModalDia(dateKey, day);
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver {dayObras.length - MAX_OBRAS_VISIBLES} más
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    {loadingNotas ? (
+                      <div className="flex items-center justify-center py-2">
+                        <Icon icon="heroicons:arrow-path" className="w-3 h-3 animate-spin text-gray-400" />
+                      </div>
+                    ) : dayNotas.length === 0 ? (
+                      <div className="text-center py-1 text-[9px] text-gray-400">Sin notas</div>
+                    ) : (
+                      dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
+                        <div
+                          key={nota.id}
+                          className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-[10px] relative group hover:shadow-sm transition-all ${
+                            deletingNota === nota.id ? "opacity-50 pointer-events-none" : "cursor-pointer"
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNotaClick(nota);
+                          }}
+                        >
+                          {deletingNota === nota.id && (
+                            <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded">
+                              <Icon icon="heroicons:arrow-path" className="w-3 h-3 animate-spin text-red-600" />
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-gray-800 truncate text-[10px]">
+                                {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
+                              </div>
+                              {(nota.detalle || nota.productos) && (
+                                <div className="text-gray-600 mt-0.5 line-clamp-1 text-[9px]">
+                                  {nota.detalle || nota.productos}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditNota(nota);
+                                }}
+                                className="w-4 h-4 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all"
+                                title="Editar nota"
+                                disabled={deletingNota === nota.id}
+                              >
+                                <Icon icon="heroicons:pencil" className="w-2 h-2" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteNota(nota);
+                                }}
+                                className="w-4 h-4 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all"
+                                title="Eliminar nota"
+                                disabled={deletingNota === nota.id}
+                              >
+                                <Icon icon="heroicons:trash" className="w-2 h-2" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {dayNotas.length > MAX_NOTAS_VISIBLES && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirModalDia(dateKey, day);
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver {dayNotas.length - MAX_NOTAS_VISIBLES} más
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Vista Semana */}
         {vista === "semana" && (
@@ -422,11 +630,11 @@ const CalendarioObras = ({
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-gray-800 truncate text-[10px]">
-                                {nota.nombreObra}
+                                {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                               </div>
-                              {nota.productos && (
+                              {(nota.detalle || nota.productos) && (
                                 <div className="text-gray-600 mt-0.5 line-clamp-1 text-[9px]">
-                                  {nota.productos}
+                                  {nota.detalle || nota.productos}
                                 </div>
                               )}
                             </div>
@@ -573,12 +781,27 @@ const CalendarioObras = ({
                               <div className="flex items-center gap-2 mb-2">
                                 <FileText className="w-5 h-5 text-yellow-700" />
                                 <span className="font-bold text-lg text-gray-900">
-                                  {nota.nombreObra}
+                                  {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                                 </span>
                               </div>
-                              {nota.productos && (
+                              {nota.empleadoNombre && (
+                                <div className="text-sm text-gray-700 mb-1">
+                                  <strong>Empleado:</strong> {nota.empleadoNombre}
+                                </div>
+                              )}
+                              {nota.barrioLote && (
+                                <div className="text-sm text-gray-700 mb-1">
+                                  <strong>Barrio / Lote:</strong> {nota.barrioLote}
+                                </div>
+                              )}
+                              {nota.telefono && (
+                                <div className="text-sm text-gray-700 mb-1">
+                                  <strong>Teléfono:</strong> {nota.telefono}
+                                </div>
+                              )}
+                              {(nota.detalle || nota.productos) && (
                                 <div className="text-sm text-gray-700 mb-2">
-                                  <strong>Productos:</strong> {nota.productos}
+                                  <strong>Detalle:</strong> {nota.detalle || nota.productos}
                                 </div>
                               )}
                               {nota.fecha && (
@@ -790,11 +1013,11 @@ const CalendarioObras = ({
                                 <div className="flex-1 min-w-0">
                                   <div className="font-bold text-[11px] truncate flex items-center gap-1">
                                     <FileText className="w-3 h-3 shrink-0 text-yellow-700" />
-                                    {nota.nombreObra}
+                                    {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                                   </div>
-                                  {nota.productos && (
+                                  {(nota.detalle || nota.productos) && (
                                     <div className="text-[9px] text-gray-600 mt-0.5 line-clamp-1">
-                                      {nota.productos}
+                                      {nota.detalle || nota.productos}
                                     </div>
                                   )}
                                 </div>

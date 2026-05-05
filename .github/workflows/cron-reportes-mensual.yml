@@ -38,14 +38,14 @@ jobs:
     if: (github.event_name == 'schedule' && github.event.schedule == '15 9 * * *') || (github.event_name == 'workflow_dispatch' && (inputs.target == 'stock' || inputs.target == 'ambos'))
     runs-on: ubuntu-latest
     steps:
-      - name: Ejecutar reconciliación automática de stock
+      - name: Ejecutar auditoría de stock (sin corrección)
         env:
           CRON_BASE_URL: ${{ secrets.CRON_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
           BASE="${CRON_BASE_URL%/}"
-          curl -sS -X POST "${BASE}/api/stock/reconciliacion?dryRun=0&days=30&limit=300" \
+          curl -sS -X POST "${BASE}/api/stock/reconciliacion?dryRun=1&days=30&limit=300" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             --data "{}"

@@ -194,7 +194,7 @@ const EventSheet = ({ open, onClose, categories, event, selectedDate }) => {
                             {startDate ? (
                               formatDate(startDate, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Elegir fecha</span>
                             )}
                             <CalendarIcon className="h-4 w-4 " />
                           </Button>
@@ -232,7 +232,7 @@ const EventSheet = ({ open, onClose, categories, event, selectedDate }) => {
                             {endDate ? (
                               formatDate(endDate, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Elegir fecha</span>
                             )}
                             <CalendarIcon className=" h-4 w-4" />
                           </Button>

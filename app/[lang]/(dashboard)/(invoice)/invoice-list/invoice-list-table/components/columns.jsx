@@ -14,16 +14,34 @@ const formatDate = (dateString) => {
   try {
     const fecha = new Date(dateString);
     return (
-      fecha.toLocaleDateString("es-AR") +
+      fecha.toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }) +
       " " +
       fecha.toLocaleTimeString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
         hour: "2-digit",
         minute: "2-digit",
+        hour12: false,
       })
     );
   } catch {
     return dateString;
   }
+};
+
+const formatVendedorName = (value) => {
+  if (!value) return "-";
+  const raw = String(value).trim();
+  if (!raw) return "-";
+  if (!raw.includes("@")) return raw;
+  const local = raw.split("@")[0] || raw;
+  const parts = local
+    .split(/[._-]+/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const formatted = parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+  return formatted || local;
 };
 
 // Función para obtener el color del estado
@@ -256,7 +274,7 @@ export const columnsPresupuestos = [
     header: "Vendedor",
     cell: ({ row }) => (
       <span className="text-foreground">
-        {row.getValue("vendedor") || "-"}
+        {formatVendedorName(row.getValue("vendedor"))}
       </span>
     ),
     enableSorting: true,
@@ -419,7 +437,7 @@ export const columnsVentas = [
     header: "Vendedor",
     cell: ({ row }) => (
       <span className="text-foreground">
-        {row.getValue("vendedor") || "-"}
+        {formatVendedorName(row.getValue("vendedor"))}
       </span>
     ),
     enableSorting: true,

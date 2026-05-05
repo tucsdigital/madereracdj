@@ -7,6 +7,7 @@ import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/componen
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInput } from "@/components/ui/date-input";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -368,22 +369,23 @@ function FormularioPresupuesto({ onClose, onSubmit }) {
                   {errors.nombre && <span className="text-red-500 text-xs">{errors.nombre.message}</span>}
                 </div>
                 <div>
-                  <Input 
-                    {...register("fecha")} 
-                    placeholder="Fecha de emisión" 
-                    type="date" 
-                    className="w-full" 
+                  <input type="hidden" {...register("fecha")} />
+                  <DateInput
+                    value={watch("fecha") || ""}
+                    onChange={(v) => setValue("fecha", v, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                     disabled={isSubmitting}
+                    buttonClassName="w-full justify-start"
                   />
                   {errors.fecha && <span className="text-red-500 text-xs">{errors.fecha.message}</span>}
                 </div>
                 <div>
-                  <Input 
-                    {...register("vencimiento")} 
-                    placeholder="Fecha de vencimiento" 
-                    type="date" 
-                    className="w-full" 
+                  <input type="hidden" {...register("vencimiento")} />
+                  <DateInput
+                    value={watch("vencimiento") || ""}
+                    min={watch("fecha") || undefined}
+                    onChange={(v) => setValue("vencimiento", v, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                     disabled={isSubmitting}
+                    buttonClassName="w-full justify-start"
                   />
                   {errors.vencimiento && <span className="text-red-500 text-xs">{errors.vencimiento.message}</span>}
                 </div>

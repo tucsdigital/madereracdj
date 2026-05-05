@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -791,12 +792,10 @@ const ObraDetallePage = () => {
                     Fecha Inicio
                   </label>
                   {editando ? (
-                    <Input
-                      type="date"
+                    <DateInput
                       value={fechasEdit?.inicio || ""}
-                      onChange={(e) =>
-                        setFechasEdit({ ...fechasEdit, inicio: e.target.value })
-                      }
+                      onChange={(v) => setFechasEdit({ ...fechasEdit, inicio: v })}
+                      buttonClassName="w-full justify-start"
                     />
                   ) : (
                     <p className="text-sm text-gray-900">
@@ -813,13 +812,13 @@ const ObraDetallePage = () => {
                     Fecha Fin <span className="text-gray-400 text-xs">(opcional)</span>
                   </label>
                   {editando ? (
-                    <Input
-                      type="date"
+                    <DateInput
                       value={fechasEdit?.fin || ""}
-                      onChange={(e) =>
-                        setFechasEdit({ ...fechasEdit, fin: e.target.value || null })
+                      min={fechasEdit?.inicio || obra?.fechas?.inicio || undefined}
+                      onChange={(v) =>
+                        setFechasEdit({ ...fechasEdit, fin: v || null })
                       }
-                      min={fechasEdit?.inicio || obra?.fechas?.inicio}
+                      buttonClassName="w-full justify-start"
                     />
                   ) : (
                     <p className="text-sm text-gray-900">

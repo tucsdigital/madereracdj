@@ -14,7 +14,7 @@ export async function DELETE(request) {
     }
 
     // Verificar que la colección sea válida
-    if (!['presupuestos', 'ventas', 'obras'].includes(collectionName)) {
+    if (!['presupuestos', 'obras'].includes(collectionName)) {
       return NextResponse.json(
         { error: 'Colección no válida' },
         { status: 400 }
@@ -34,55 +34,11 @@ export async function DELETE(request) {
 
     const documentData = docSnap.data();
 
-    // Si es una venta, reponer el stock de los productos y registrar movimientos
-    if (collectionName === 'ventas' && documentData.productos) {
-      for (const producto of documentData.productos) {
-        const productoId = String(producto?.originalId || producto?.id || "").trim();
-        const cantidadRepuesta = Math.max(0, Math.ceil(Number(producto?.cantidad) || 0));
-        if (productoId && cantidadRepuesta > 0) {
-          const productoRef = doc(db, 'productos', productoId);
-          
-          // Reponer stock solo si el producto existe
-          try {
-            await runTransaction(db, async (t) => {
-              const productoSnap = await t.get(productoRef);
-              if (!productoSnap.exists()) return;
-              const productoData = productoSnap.data() || {};
-              const stockActual = Number(productoData.stock) || 0;
-              const delta = cantidadRepuesta;
-              const nuevoStock = stockActual + delta;
-              const nowTs = serverTimestamp();
-
-              const movRef = doc(collection(db, "movimientos"));
-              t.set(movRef, {
-                productoId,
-                tipo: "entrada",
-                cantidad: cantidadRepuesta,
-                usuario: userEmail,
-                usuarioUid: userId,
-                usuarioEmail: userEmail,
-                fecha: nowTs,
-                referencia: "reposicion_stock_venta_eliminada",
-                referenciaId: documentId,
-                observaciones: `Reposición automática de stock por eliminación de venta - Producto: ${producto.nombre || productoData.nombre}`,
-                productoNombre: producto.nombre || productoData.nombre,
-                stockAntes: stockActual,
-                stockDelta: delta,
-                stockDespues: nuevoStock,
-                categoria: productoData.categoria || "Sin categoría",
-                origen: "sistema_eliminacion",
-              });
-
-              t.update(productoRef, {
-                stock: nuevoStock,
-                fechaActualizacion: nowTs,
-              });
-            });
-          } catch (error) {
-            console.error(`Error al reponer stock del producto ${productoId}:`, error);
-          }
-        }
-      }
+    if (collectionName === "ventas") {
+      return NextResponse.json(
+        { error: "Las ventas no se eliminan. Debe anularse la venta desde /api/erp/ventas/{id}/anular." },
+        { status: 400 }
+      );
     }
 
     // Si es una obra, verificar si tiene productos asociados y reponer stock si es necesario

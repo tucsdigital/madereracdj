@@ -18,11 +18,11 @@ import {
   increment,
   serverTimestamp,
   addDoc,
-  runTransaction,
 } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
+import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer, Truck, XCircle } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
@@ -138,11 +138,17 @@ const VentaDetalle = () => {
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const ventaAnulada = useMemo(() => {
+    if (!venta) return false;
+    return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
+  }, [venta]);
   const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
   const [printingPDF, setPrintingPDF] = useState(false);
   const [printingPDFEmpleado, setPrintingPDFEmpleado] = useState(false);
+  const [printingPDFEnvio, setPrintingPDFEnvio] = useState(false);
   const printingRef = useRef(false);
   const printingEmpleadoRef = useRef(false);
+  const printingEnvioRef = useRef(false);
 
   // Inicializar singleton global usando useEffect para evitar problemas con las reglas de hooks
   // DEBE estar antes de cualquier return temprano
@@ -272,6 +278,94 @@ const VentaDetalle = () => {
       } else {
         setPrintingPDF(false);
       }
+    }
+  }, [venta?.id]);
+
+  const handlePrintEnvio = useCallback(async (event = null) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!venta?.id) return;
+    if (printingEnvioRef.current) return;
+
+    printingEnvioRef.current = true;
+    setPrintingPDFEnvio(true);
+
+    try {
+      const res = await fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: false,
+          purpose: "envio",
+        }),
+      });
+
+      if (!res.ok) {
+        alert("Error al generar el documento de envío. Por favor, intenta nuevamente.");
+        printingEnvioRef.current = false;
+        setPrintingPDFEnvio(false);
+        return;
+      }
+
+      const html = await res.text();
+
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      let printed = false;
+      let timeoutId = null;
+
+      const printOnce = () => {
+        if (printed) return;
+        printed = true;
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Error al imprimir:", e);
+        }
+
+        printingEnvioRef.current = false;
+        setPrintingPDFEnvio(false);
+
+        setTimeout(() => {
+          try {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          } catch (e) {}
+        }, 2000);
+      };
+
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(html);
+      iframe.contentDocument?.close();
+
+      timeoutId = setTimeout(() => {
+        printOnce();
+      }, 500);
+    } catch (e) {
+      console.error("Error imprimiendo documento de envío", e);
+      alert("Error al generar el documento de envío. Por favor, intenta nuevamente.");
+      printingEnvioRef.current = false;
+      setPrintingPDFEnvio(false);
     }
   }, [venta?.id]);
 
@@ -1528,129 +1622,6 @@ const VentaDetalle = () => {
 
     // ===== LÓGICA PROFESIONAL PARA MANEJAR CAMBIOS =====
 
-    // 1. Detectar cambios en productos y cantidades
-    const productosOriginales = venta.productos || venta.items || [];
-    const productosNuevos = productosArr;
-
-    console.log("=== ANÁLISIS DE CAMBIOS ===");
-    console.log("Productos originales:", productosOriginales);
-    console.log("Productos nuevos:", productosNuevos);
-
-    const normalizarProductoIdStock = (p) => String(p?.originalId || p?.id || "").trim();
-    const normalizarCantidadStock = (p) =>
-      Math.max(1, Math.ceil(Number(p?.cantidad) || 1));
-
-    // Crear mapas agregados por producto real (originalId || id)
-    const productosOriginalesMap = new Map();
-    for (const p of productosOriginales) {
-      const productoId = normalizarProductoIdStock(p);
-      if (!productoId) continue;
-      const qty = normalizarCantidadStock(p);
-      const prev = productosOriginalesMap.get(productoId);
-      productosOriginalesMap.set(productoId, {
-        productoId,
-        cantidad: (prev?.cantidad || 0) + qty,
-      });
-    }
-
-    const productosNuevosMap = new Map();
-    for (const p of productosNuevos) {
-      const productoId = normalizarProductoIdStock(p);
-      if (!productoId) continue;
-      const qty = normalizarCantidadStock(p);
-      const prev = productosNuevosMap.get(productoId);
-      productosNuevosMap.set(productoId, {
-        productoId,
-        cantidad: (prev?.cantidad || 0) + qty,
-      });
-    }
-
-    // 2. Manejar cambios de stock y movimientos
-    const cambiosStock = [];
-
-    // Productos que se agregaron o aumentaron cantidad
-    for (const [productoId, productoNuevo] of productosNuevosMap) {
-      const productoOriginal = productosOriginalesMap.get(productoId);
-
-      if (!productoOriginal) {
-        // Producto nuevo agregado
-        cambiosStock.push({
-          productoId,
-          tipo: "nuevo",
-          cantidadOriginal: 0,
-          cantidadNueva: productoNuevo.cantidad,
-          diferencia: productoNuevo.cantidad,
-        });
-      } else {
-        // Producto existente con posible cambio de cantidad
-        const diferencia = productoNuevo.cantidad - productoOriginal.cantidad;
-        if (diferencia !== 0) {
-          cambiosStock.push({
-            productoId,
-            tipo: "modificado",
-            cantidadOriginal: productoOriginal.cantidad,
-            cantidadNueva: productoNuevo.cantidad,
-            diferencia,
-          });
-        }
-      }
-    }
-
-    // Productos que se eliminaron o redujeron cantidad
-    for (const [productoId, productoOriginal] of productosOriginalesMap) {
-      if (!productosNuevosMap.has(productoId)) {
-        // Producto eliminado
-        cambiosStock.push({
-          productoId,
-          tipo: "eliminado",
-          cantidadOriginal: productoOriginal.cantidad,
-          cantidadNueva: 0,
-          diferencia: -productoOriginal.cantidad,
-        });
-      }
-    }
-
-    console.log("Cambios de stock detectados:", cambiosStock);
-
-    // 3. Aplicar cambios de stock y registrar movimientos (transaccional por producto)
-    for (const cambio of cambiosStock) {
-      try {
-        const delta = -cambio.diferencia; // si diferencia>0 (agregó), delta negativo (salida)
-        if (delta === 0) continue;
-        const productoId = cambio.productoId;
-        const productoRef = doc(db, "productos", productoId);
-        await runTransaction(db, async (t) => {
-          const snap = await t.get(productoRef);
-          if (!snap.exists()) throw new Error(`Producto ${productoId} no encontrado`);
-          const data = snap.data();
-          const stockActual = Number(data.stock) || 0;
-          const nuevoStock = stockActual + Number(delta);
-          if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || productoId}`);
-          t.update(productoRef, { stock: nuevoStock, fechaActualizacion: serverTimestamp() });
-          const movRef = doc(collection(db, "movimientos"));
-          t.set(movRef, {
-            productoId,
-            tipo: delta < 0 ? "salida" : "entrada",
-            cantidad: Math.abs(Number(delta)),
-            usuario: "Sistema",
-            fecha: serverTimestamp(),
-            referencia: "edicion_venta",
-            referenciaId: ventaEdit.id,
-            observaciones: `Ajuste por edición de venta - ${cambio.tipo}: ${cambio.cantidadOriginal} → ${cambio.cantidadNueva}`,
-            productoNombre: data.nombre || "Producto desconocido",
-            stockAntes: stockActual,
-            stockDelta: Number(delta),
-            stockDespues: nuevoStock,
-            categoria: data.categoria || "Sin categoría",
-            origen: "sistema_ventas",
-          });
-        });
-        console.log(`✅ Stock actualizado para producto ${productoId}: delta ${delta}`);
-      } catch (error) {
-        console.error(`Error actualizando stock para producto ${cambio.productoId}:`, error);
-      }
-    }
-
     // 4. Manejar cambios de envío de manera más robusta
     const tipoEnvioOriginal = venta.tipoEnvio || "retiro_local";
     const tipoEnvioNuevo = ventaEdit.tipoEnvio || "retiro_local";
@@ -1758,6 +1729,7 @@ const VentaDetalle = () => {
       total,
       productos: productosArr,
       items: productosArr,
+      version: venta?.version ?? ventaEdit?.version ?? 1,
       // Asegurar que el costo de envío se guarde correctamente
       costoEnvio: costoEnvioNuevo,
       // Limpiar campos de envío si es retiro local
@@ -1771,11 +1743,33 @@ const VentaDetalle = () => {
 
     const before = buildPagoSnapshot(venta);
     const after = buildPagoSnapshot(ventaActualizada);
-    const docRef = doc(db, "ventas", ventaEdit.id);
-    await updateDoc(docRef, ventaActualizada);
+    if (!user || typeof user.getIdToken !== "function") {
+      throw new Error("No hay usuario autenticado");
+    }
+    const idToken = await user.getIdToken();
+    const resp = await fetch(`/api/erp/ventas/${encodeURIComponent(String(ventaEdit.id))}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ venta: ventaActualizada, origen: "ui_ventas_detail_edit" }),
+    });
+    const out = await resp.json().catch(() => ({}));
+    if (!resp.ok || !out?.ok) {
+      throw new Error(out?.error || "Error al actualizar la venta");
+    }
+    const flags = out?.flags || {};
+    const ventaActualizadaConFlags = {
+      ...ventaActualizada,
+      stockNegativo: Boolean(flags?.stockNegativo),
+      productosSinPrecio: Boolean(flags?.productosSinPrecio),
+      productosSinCosto: Boolean(flags?.productosSinCosto),
+      requiereRevision: Boolean(flags?.requiereRevision),
+    };
 
     if (before.estadoPago !== after.estadoPago && user) {
-      const numeroPedido = String(ventaActualizada?.numeroPedido || venta?.numeroPedido || ventaActualizada?.numero || venta?.numero || "");
+      const numeroPedido = String(ventaActualizadaConFlags?.numeroPedido || venta?.numeroPedido || ventaActualizadaConFlags?.numero || venta?.numero || "");
       await addDoc(collection(db, "ventas", ventaEdit.id, "pago_events"), {
         type: "estado_pago_changed",
         ventaId: String(ventaEdit.id || ""),
@@ -1794,7 +1788,7 @@ const VentaDetalle = () => {
     }
 
     // Actualizar el estado local
-    setVenta(ventaActualizada);
+    setVenta(ventaActualizadaConFlags);
     setEditando(false);
     
     // Limpiar campos de pago
@@ -2196,6 +2190,15 @@ const VentaDetalle = () => {
               <h1 className="text-2xl lg:text-3xl font-bold">
                 N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
               </h1>
+              {ventaAnulada && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+                  <XCircle className="w-4 h-4" />
+                  <span>Venta anulada</span>
+                  {venta?.anulacionMotivo ? (
+                    <span className="font-normal opacity-90">· {String(venta.anulacionMotivo)}</span>
+                  ) : null}
+                </div>
+              )}
               {/* Mostrar observaciones si existen */}
               {venta.observaciones && (
                 <p className="text-muted-foreground mt-1 whitespace-pre-line">
@@ -2214,7 +2217,7 @@ const VentaDetalle = () => {
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(false)}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
                 className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -2228,7 +2231,7 @@ const VentaDetalle = () => {
               </Button>
               <Button
                 onClick={() => handleDownloadPDF(true)}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
                 className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -2248,7 +2251,7 @@ const VentaDetalle = () => {
                   }
                   handlePrintPDF(false, e);
                 }}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -2266,9 +2269,29 @@ const VentaDetalle = () => {
                     e.preventDefault();
                     e.stopPropagation();
                   }
+                  handlePrintEnvio(e);
+                }}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 shadow-sm hover:bg-emerald-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDFEnvio ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-emerald-800 dark:text-emerald-200 relative z-10" />
+                ) : (
+                  <Truck className="w-4 h-4 mr-1 lg:mr-2 text-emerald-800 dark:text-emerald-200 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir Envío</span>
+                <span className="sm:hidden relative z-10">{printingPDFEnvio ? "⏳" : "🚚"}</span>
+              </Button>
+              <Button
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
                   handlePrintPDF(true, e);
                 }}
-                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
                 className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
@@ -2280,7 +2303,7 @@ const VentaDetalle = () => {
                 <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
                 <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
               </Button>
-              {!editando && (
+              {!editando && !ventaAnulada && (
                 <Button
                   onClick={() => setEditando(true)}
                   className="no-print flex-1 lg:flex-none text-sm lg:text-base"
@@ -2873,17 +2896,15 @@ const VentaDetalle = () => {
                         min="0"
                         step="0.01"
                       />
-                      <input
-                        className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                        type="date"
+                      <DateInput
                         value={ventaEdit.fechaEntrega || ""}
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setVentaEdit({
                             ...ventaEdit,
-                            fechaEntrega: e.target.value,
+                            fechaEntrega: v,
                           })
                         }
-                        placeholder="Fecha de entrega"
+                        buttonClassName="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg justify-start"
                       />
                       <input
                         className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"

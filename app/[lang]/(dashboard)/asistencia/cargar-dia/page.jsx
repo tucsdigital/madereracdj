@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { Icon } from "@iconify/react";
@@ -102,7 +103,11 @@ export default function CargarDiaPage() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Icon icon="lucide:calendar" className="w-5 h-5" />
-          <Input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} className="w-48" />
+          <DateInput
+            value={fecha}
+            onChange={(v) => setFecha(v)}
+            buttonClassName="w-48 justify-start"
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={()=>marcarTodos("presente")}>Marcar todos presentes</Button>

@@ -643,7 +643,10 @@ export async function POST(request) {
       const endMs = end.getTime();
 
       const [ventasSnap, obrasSnap] = await Promise.all([db.collection("ventas").get(), db.collection("obras").get()]);
-      const ventasAll = ventasSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+      const ventasAllRaw = ventasSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
+      const ventasAll = ventasAllRaw.filter(
+        (v) => !(String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true)
+      );
       const obrasAll = obrasSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
 
       const ventasPeriodo = ventasAll.filter((v) => isInRange(v.fechaCreacion || v.fecha, startMs, endMs));

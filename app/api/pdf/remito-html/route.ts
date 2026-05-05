@@ -18,10 +18,11 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, id, empleado } = body as {
+    const { type, id, empleado, purpose } = body as {
       type: "venta" | "presupuesto" | "obra";
       id: string;
       empleado?: boolean;
+      purpose?: "documento" | "envio";
     };
 
     if (!type || !id) {
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
                 ? mapVentaToRemito(data)
                 : mapPresupuestoToRemito(data);
 
-            return buildRemitoHtml(remito, empleado || false, false);
+            return buildRemitoHtml(remito, empleado || false, false, purpose || "documento");
           })();
 
     return new Response(html, {

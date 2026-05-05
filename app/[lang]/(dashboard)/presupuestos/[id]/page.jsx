@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -2358,16 +2359,15 @@ const PresupuestoDetalle = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Fecha de entrega
                         </label>
-                        <Input
-                          type="date"
+                        <DateInput
                           value={presupuestoEdit.fechaEntrega || ""}
-                          onChange={(e) =>
+                          onChange={(v) =>
                             setPresupuestoEdit({
                               ...presupuestoEdit,
-                              fechaEntrega: e.target.value,
+                              fechaEntrega: v,
                             })
                           }
-                          className="w-full"
+                          buttonClassName="w-full justify-start"
                         />
                       </div>
 
@@ -3979,7 +3979,6 @@ const PresupuestoDetalle = () => {
                         return subtotal * 0.1;
                       })() : 0;
                       const totalCorrecto = total + envio - descuentoEfectivo;
-                      console.log("[DEBUG] Total convertido desde computeTotals + envío - descuento efectivo:", totalCorrecto);
                       return totalCorrecto;
                     })(),
                     observaciones: presupuesto.observaciones,
@@ -3987,7 +3986,6 @@ const PresupuestoDetalle = () => {
                     // Datos específicos de venta
                     tipo: "venta",
                     fechaCreacion: new Date().toISOString(),
-                    numeroPedido: await getNextVentaNumber(),
 
                     // Campos de pago
                     formaPago: ventaCampos.formaPago,
@@ -4074,104 +4072,33 @@ const PresupuestoDetalle = () => {
                     })
                   );
 
-                  console.log(
-                    "[DEBUG] Datos limpios para guardar venta desde presupuesto:",
-                    cleanVentaData
-                  );
-
-                  // Guardar venta en Firestore
-                  const docRef = await addDoc(
-                    collection(db, "ventas"),
-                    cleanVentaData
-                  );
-
-                  // Descontar stock y registrar movimientos (transaccional por producto)
-                  for (const prod of cleanVentaData.productos) {
-                    const productoId = String(prod?.originalId || prod?.id || "").trim();
-                    if (!productoId) continue;
-                    const productoRef = doc(db, "productos", productoId);
-                    await runTransaction(db, async (t) => {
-                      const snap = await t.get(productoRef);
-                      if (!snap.exists()) throw new Error(`Producto ${productoId} no encontrado`);
-                      const data = snap.data();
-                      const stockActual = Number(data.stock) || 0;
-                      const cant = Math.max(0, Math.ceil(Number(prod.cantidad) || 0));
-                      if (cant === 0) return;
-                      const delta = -cant;
-                      const nuevoStock = stockActual + delta;
-                      if (nuevoStock < 0) throw new Error(`Stock insuficiente para ${data.nombre || productoId}`);
-                      t.update(productoRef, { stock: nuevoStock, fechaActualizacion: serverTimestamp() });
-                      const movRef = doc(collection(db, "movimientos"));
-                      t.set(movRef, {
-                        productoId,
-                        tipo: "salida",
-                        cantidad: cant,
-                        usuario: "Sistema",
-                        fecha: serverTimestamp(),
-                        referencia: "venta",
-                        referenciaId: docRef.id,
-                        observaciones: `Salida por venta desde presupuesto`,
-                        productoNombre: data.nombre || prod.nombre || "",
-                        stockAntes: stockActual,
-                        stockDelta: delta,
-                        stockDespues: nuevoStock,
-                        categoria: data.categoria || "Sin categoría",
-                        origen: "sistema_presupuestos",
-                      });
-                    });
+                  if (!user || typeof user.getIdToken !== "function") {
+                    throw new Error("No hay usuario autenticado");
                   }
-
-                  // Crear envío si corresponde (igual que en ventas/page.jsx)
-                  if (
-                    cleanVentaData.tipoEnvio &&
-                    cleanVentaData.tipoEnvio !== "retiro_local"
-                  ) {
-                    const envioData = {
-                      ventaId: docRef.id,
-                      clienteId: cleanVentaData.clienteId,
-                      cliente: cleanVentaData.cliente,
-                      fechaCreacion: new Date().toISOString(),
-                      fechaEntrega: cleanVentaData.fechaEntrega,
-                      estado: "pendiente",
-                      vendedor: user?.email || "Usuario no identificado",
-                      direccionEnvio: cleanVentaData.direccionEnvio,
-                      localidadEnvio: cleanVentaData.localidadEnvio,
-                      tipoEnvio: cleanVentaData.tipoEnvio,
-                      costoEnvio: parseFloat(cleanVentaData.costoEnvio) || 0,
-                      numeroPedido: cleanVentaData.numeroPedido,
-                      totalVenta: cleanVentaData.total,
-                      productos: cleanVentaData.productos,
-                      cantidadTotal: cleanVentaData.productos.reduce(
-                        (acc, p) => acc + p.cantidad,
-                        0
-                      ),
-                      historialEstados: [
-                        {
-                          estado: "pendiente",
-                          fecha: new Date().toISOString(),
-                          comentario:
-                            "Envío creado automáticamente desde la venta",
-                        },
-                      ],
-                      observaciones: cleanVentaData.observaciones,
-                      instruccionesEspeciales: "",
-                      fechaActualizacion: new Date().toISOString(),
-                      creadoPor: "sistema",
-                    };
-                    const cleanEnvioData = Object.fromEntries(
-                      Object.entries(envioData).filter(
-                        ([_, v]) => v !== undefined
-                      )
-                    );
-                    await addDoc(collection(db, "envios"), cleanEnvioData);
-                    console.log(
-                      "Envío creado automáticamente para la venta:",
-                      docRef.id
-                    );
-                  }
+                  const idToken = await user.getIdToken();
+                  const resp = await fetch("/api/erp/ventas", {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${idToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      venta: {
+                        ...cleanVentaData,
+                        idempotencyKey:
+                          (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
+                            ? globalThis.crypto.randomUUID()
+                            : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+                      },
+                      origen: "ui_presupuesto_convert",
+                    }),
+                  });
+                  const out = await resp.json().catch(() => ({}));
+                  if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al crear la venta");
+                  const ventaId = out.ventaId;
 
                   setConvirtiendoVenta(false);
-                  router.push(`/${lang}/ventas/${docRef.id}`);
+                  router.push(`/${lang}/ventas/${ventaId}`);
                 } catch (error) {
                   console.error(
                     "Error al guardar venta desde presupuesto:",
@@ -4468,20 +4395,23 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de entrega *
                   </label>
-                  <Input
-                    {...register("fechaEntrega")}
-                    placeholder="Fecha de entrega"
-                    type="date"
-                    className={`w-full ${
-                      errors.fechaEntrega ? "border-red-500" : ""
-                    }`}
+                  <input type="hidden" {...register("fechaEntrega")} />
+                  <DateInput
                     value={
                       watch("fechaEntrega")
-                        ? new Date(watch("fechaEntrega"))
-                            .toISOString()
-                            .split("T")[0]
+                        ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
                         : ""
                     }
+                    onChange={(v) =>
+                      setValue("fechaEntrega", v, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    buttonClassName={`w-full justify-start ${
+                      errors.fechaEntrega ? "border-red-500" : ""
+                    }`}
                   />
                   {errors.fechaEntrega && (
                     <span className="text-red-500 text-xs">
@@ -4647,31 +4577,3 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
 }
 
 export default PresupuestoDetalle;
-
-// Numeración autoincremental para presupuestos
-const getNextPresupuestoNumber = async () => {
-  const snap = await getDocs(collection(db, "presupuestos"));
-  let maxNum = 0;
-  snap.docs.forEach((doc) => {
-    const data = doc.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("PRESU-")) {
-      const num = parseInt(data.numeroPedido.replace("PRESU-", ""), 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `PRESU-${String(maxNum + 1).padStart(5, "0")}`;
-};
-
-// Numeración autoincremental para ventas
-const getNextVentaNumber = async () => {
-  const snap = await getDocs(collection(db, "ventas"));
-  let maxNum = 0;
-  snap.docs.forEach((doc) => {
-    const data = doc.data();
-    if (data.numeroPedido && data.numeroPedido.startsWith("VENTA-")) {
-      const num = parseInt(data.numeroPedido.replace("VENTA-", ""), 10);
-      if (!isNaN(num) && num > maxNum) maxNum = num;
-    }
-  });
-  return `VENTA-${String(maxNum + 1).padStart(5, "0")}`;
-};

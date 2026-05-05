@@ -1,7 +1,9 @@
 "use client";
+import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Sheet,
   SheetClose,
@@ -26,6 +28,7 @@ import Link from "next/link";
 import { SiteLogo } from "@/components/svg";
 import { ScrollArea } from "@/components/ui/scroll-area";
 export default function SubmitFormInDrawer() {
+  const [dateTime, setDateTime] = useState("");
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -112,7 +115,7 @@ export default function SubmitFormInDrawer() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="datetime">Date Time</Label>
-                <Input type="date" id="url" />
+                <DateInput value={dateTime} onChange={setDateTime} buttonClassName="w-full justify-start" />
               </div>
               <div className="md:col-span-2">
                 <div className="flex flex-col gap-2">

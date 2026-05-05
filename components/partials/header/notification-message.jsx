@@ -151,7 +151,7 @@ const NotificationMessage = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-default-500">
-                          <span>Stock: <strong>{producto.stockDisponible}</strong></span>
+                          <span>Stock: <strong>{producto.stockTotal}</strong></span>
                           {producto.stockMinimo > 0 && (
                             <>
                               <span>•</span>

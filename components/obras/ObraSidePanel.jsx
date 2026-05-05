@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Icon } from "@iconify/react";
 import {
   Building,
@@ -653,12 +654,10 @@ const ObraSidePanel = ({
               <label className="text-sm font-medium text-gray-700 mb-1 block">
                 Fecha
               </label>
-              <Input
-                type="date"
+              <DateInput
                 value={notaForm.fecha}
-                onChange={(e) =>
-                  setNotaForm({ ...notaForm, fecha: e.target.value })
-                }
+                onChange={(v) => setNotaForm({ ...notaForm, fecha: v })}
+                buttonClassName="w-full justify-start"
               />
             </div>
           </div>

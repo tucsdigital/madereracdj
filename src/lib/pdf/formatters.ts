@@ -55,6 +55,42 @@ export function formatFechaLocal(dateString: string | undefined | null): string 
   }
 }
 
+export function formatFechaLocalConDia(dateString: string | undefined | null): string {
+  if (!dateString) return "-";
+  try {
+    let date: Date;
+    if (dateString.includes("T")) {
+      date = new Date(dateString);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split("-");
+      date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+    } else {
+      const parsed = new Date(dateString);
+      if (isNaN(parsed.getTime())) return dateString;
+      date = parsed;
+    }
+
+    if (isNaN(date.getTime())) return dateString;
+
+    const fecha = date.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires",
+    });
+    const dia = date
+      .toLocaleDateString("es-AR", {
+        weekday: "long",
+        timeZone: "America/Argentina/Buenos_Aires",
+      })
+      .toLowerCase();
+
+    return `${fecha} (${dia})`;
+  } catch {
+    return dateString;
+  }
+}
+
 /**
  * Calcula fecha de vencimiento (30 días después de la fecha)
  */

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateInput } from "@/components/ui/date-input";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { Calendar, DollarSign, FolderOpen, Image as ImageIcon, Receipt, Briefcase, Wallet, Filter, RefreshCw } from "lucide-react";
@@ -295,8 +296,17 @@ export default function DolaresPage() {
               <SelectItem value="pdf">PDF</SelectItem>
             </SelectContent>
           </Select>
-          <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
-          <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+          <DateInput
+            value={fechaDesde}
+            onChange={(v) => setFechaDesde(v)}
+            buttonClassName="w-full justify-start"
+          />
+          <DateInput
+            value={fechaHasta}
+            min={fechaDesde || undefined}
+            onChange={(v) => setFechaHasta(v)}
+            buttonClassName="w-full justify-start"
+          />
           <div className="lg:col-span-6 flex flex-wrap items-center gap-2">
             <Button
               variant={modoVista === "imagenes" ? "default" : "outline"}

@@ -41,13 +41,13 @@ import {
   updateDoc,
   getDocs,
   writeBatch,
-  increment,
 } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import DragDropImageModal from "@/components/productos/DragDropImageModal";
 import ToastNotification from "@/components/ui/toast-notification";
+import { useAuth } from "@/provider/auth.provider";
 
 const categorias = ["Maderas", "Ferretería", "Obras"];
 
@@ -1335,6 +1335,7 @@ function FormularioProducto({ onClose, onSuccess }) {
 }
 
 const ProductosPage = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [openBulk, setOpenBulk] = useState(false);
   const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
@@ -4132,6 +4133,11 @@ const ProductosPage = () => {
     setBulkEditMessage("");
     
     try {
+      if (!user || typeof user.getIdToken !== "function") {
+        setBulkEditMessage("No hay usuario autenticado.");
+        setBulkEditLoading(false);
+        return;
+      }
       const batch = writeBatch(db);
       const updates = {};
       
@@ -4154,25 +4160,52 @@ const ProductosPage = () => {
           return;
         }
 
-        if (bulkEditForm.stockOperation === "set") {
-          updates.stock = parsedStockValue;
-        } else if (bulkEditForm.stockOperation === "add") {
-          const delta = Math.abs(parsedStockValue);
-          if (delta === 0) {
-            setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
-            setBulkEditLoading(false);
-            return;
-          }
-          updates.stock = increment(delta);
-        } else if (bulkEditForm.stockOperation === "subtract") {
-          const delta = Math.abs(parsedStockValue);
-          if (delta === 0) {
-            setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
-            setBulkEditLoading(false);
-            return;
-          }
-          updates.stock = increment(-delta);
+        const op = String(bulkEditForm.stockOperation || "");
+        const abs = Math.abs(parsedStockValue);
+        if ((op === "add" || op === "subtract") && abs === 0) {
+          setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
+          setBulkEditLoading(false);
+          return;
         }
+
+        const idToken = await user.getIdToken();
+        await Promise.all(
+          selectedProducts.map(async (productId) => {
+            const payload =
+              op === "set"
+                ? {
+                    productoId: productId,
+                    tipo: "ajuste",
+                    modoAjuste: "absoluto",
+                    stockFinalDeseado: parsedStockValue,
+                    motivo: "Edición masiva de productos",
+                    observaciones: `Set stock = ${parsedStockValue}`,
+                    origen: "ui_productos_bulk_edit",
+                  }
+                : {
+                    productoId: productId,
+                    tipo: "ajuste",
+                    modoAjuste: "delta",
+                    cantidad: op === "add" ? abs : -abs,
+                    motivo: "Edición masiva de productos",
+                    observaciones: `Delta stock = ${op === "add" ? "+" : "-"}${abs}`,
+                    origen: "ui_productos_bulk_edit",
+                  };
+
+            const resp = await fetch("/api/erp/stock/movimientos", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const out = await resp.json().catch(() => ({}));
+            if (!resp.ok || !out?.ok) {
+              throw new Error(out?.error || `Error ajustando stock del producto ${productId}`);
+            }
+          })
+        );
       }
       
       // Si no hay campos para actualizar, mostrar mensaje

@@ -312,7 +312,7 @@ const ProjectsSheet = ({ open, project, onClose, selectedId }) => {
                           {startDate ? (
                             formatDate(startDate, "PPP")
                           ) : (
-                            <span>Pick a date</span>
+                            <span>Elegir fecha</span>
                           )}
                           <CalendarIcon className="h-4 w-4 " />
                         </Button>
@@ -349,7 +349,7 @@ const ProjectsSheet = ({ open, project, onClose, selectedId }) => {
                           {endDate ? (
                             formatDate(endDate, "PPP")
                           ) : (
-                            <span>Pick a date</span>
+                            <span>Elegir fecha</span>
                           )}
                           <CalendarIcon className=" h-4 w-4" />
                         </Button>

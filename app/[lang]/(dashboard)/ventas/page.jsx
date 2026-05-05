@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, CheckCircle, AlertCircle, Trash2, X, AlertTriangle, Info } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
@@ -56,9 +57,15 @@ const VentasPage = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
+  const [motivoAnulacion, setMotivoAnulacion] = useState("");
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
+
+  const isVentaAnulada = useCallback((v) => {
+    if (!v) return false;
+    return String(v.estado || "").toLowerCase() === "anulada" || v.anulada === true;
+  }, []);
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -83,6 +90,7 @@ const VentasPage = () => {
   const showDeleteConfirmation = (id, type, itemName) => {
     setItemToDelete({ id, name: itemName });
     setDeleteType(type);
+    setMotivoAnulacion("");
     setShowDeleteDialog(true);
   };
 
@@ -97,16 +105,52 @@ const VentasPage = () => {
       setDeleting(true);
       setDeleteMessage("");
 
-      const response = await fetch('/api/delete-document', {
-        method: 'DELETE',
+      if (deleteType === "venta") {
+        const motivo = String(motivoAnulacion || "").trim();
+        if (typeof user.getIdToken !== "function") {
+          throw new Error("No hay sesión válida");
+        }
+        const idToken = await user.getIdToken();
+        const response = await fetch(`/api/erp/ventas/${encodeURIComponent(itemToDelete.id)}/anular`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ motivo, origen: "ui_ventas_list" }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result?.ok) {
+          throw new Error(result?.error || "Error al anular la venta");
+        }
+        setVentasData((prev) =>
+          prev.map((v) =>
+            v.id === itemToDelete.id
+              ? {
+                  ...v,
+                  estado: "anulada",
+                  anulada: true,
+                  anuladoEn: new Date().toISOString(),
+                  anulacionMotivo: motivo,
+                }
+              : v
+          )
+        );
+        setDeleteMessage("✅ Venta anulada exitosamente");
+        setTimeout(() => setDeleteMessage(""), 3000);
+        return;
+      }
+
+      const response = await fetch("/api/delete-document", {
+        method: "DELETE",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           documentId: itemToDelete.id,
-          collectionName: deleteType === 'venta' ? 'ventas' : 'presupuestos',
+          collectionName: "presupuestos",
           userId: user.uid,
-          userEmail: user.email
+          userEmail: user.email,
         }),
       });
 
@@ -118,11 +162,7 @@ const VentasPage = () => {
       const result = await response.json();
       
       // Actualizar la lista local
-      if (deleteType === 'venta') {
-        setVentasData(prev => prev.filter(v => v.id !== itemToDelete.id));
-      } else {
-        setPresupuestosData(prev => prev.filter(p => p.id !== itemToDelete.id));
-      }
+      setPresupuestosData(prev => prev.filter(p => p.id !== itemToDelete.id));
       
       setDeleteMessage(`✅ ${result.message}`);
       
@@ -151,7 +191,7 @@ const VentasPage = () => {
       }
     };
 
-    const handleDeleteVentaEvent = (event) => {
+    const handleAnularVentaEvent = (event) => {
       const venta = ventasData.find(v => v.id === event.detail.id);
       if (venta) {
         showDeleteConfirmation(event.detail.id, 'venta', venta.cliente?.nombre || 'Venta');
@@ -159,11 +199,11 @@ const VentasPage = () => {
     };
 
     window.addEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
-    window.addEventListener('deleteVenta', handleDeleteVentaEvent);
+    window.addEventListener('anularVenta', handleAnularVentaEvent);
 
     return () => {
       window.removeEventListener('deletePresupuesto', handleDeletePresupuestoEvent);
-      window.removeEventListener('deleteVenta', handleDeleteVentaEvent);
+      window.removeEventListener('anularVenta', handleAnularVentaEvent);
     };
   }, [presupuestosData, ventasData]);
 
@@ -303,6 +343,16 @@ const VentasPage = () => {
               onRowClick={(venta) => {
                 router.push(`/${lang}/ventas/${venta.id}`);
               }}
+              rowClassName={(row) =>
+                isVentaAnulada(row)
+                  ? "bg-red-50/70 hover:bg-red-50/80"
+                  : ""
+              }
+              cellClassName={(row, columnId) => {
+                if (!isVentaAnulada(row)) return "";
+                if (String(columnId) === "actions") return "text-red-700";
+                return "text-red-700 line-through";
+              }}
               compact={true}
             />
           </div>
@@ -318,10 +368,12 @@ const VentasPage = () => {
               <AlertTriangle className="w-8 h-8 text-red-700 dark:text-red-300" />
             </div>
             <DialogTitle className="text-xl font-bold text-foreground">
-              Confirmar Eliminación
+              {deleteType === "venta" ? "Confirmar Anulación" : "Confirmar Eliminación"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground mt-2">
-              ¿Estás seguro de que quieres eliminar este {deleteType === 'venta' ? 'venta' : 'presupuesto'}?
+              {deleteType === "venta"
+                ? "La venta quedará anulada (no se elimina) y se repondrá el stock."
+                : "¿Estás seguro de que quieres eliminar este presupuesto?"}
             </DialogDescription>
           </DialogHeader>
 
@@ -336,13 +388,28 @@ const VentasPage = () => {
                 </div>
                 <div className="text-sm text-red-700 dark:text-red-300">
                   {deleteType === 'venta' 
-                    ? 'Esta acción eliminará la venta y restaurará el stock de productos.'
+                    ? 'Esta acción anulará la venta y restaurará el stock de productos.'
                     : 'Esta acción eliminará el presupuesto permanentemente.'
                   }
                 </div>
               </div>
             </div>
           </div>
+
+          {deleteType === "venta" && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Motivo de anulación
+              </label>
+              <Textarea
+                value={motivoAnulacion}
+                onChange={(e) => setMotivoAnulacion(e.target.value)}
+                placeholder="Ej: Pedido cancelado / error de carga / cambio de productos…"
+                className="min-h-[90px]"
+                disabled={deleting}
+              />
+            </div>
+          )}
 
           <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
             <Button
@@ -363,12 +430,12 @@ const VentasPage = () => {
               {deleting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
+                  Procesando...
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
+                  {deleteType === "venta" ? "Anular" : "Eliminar"}
                 </>
               )}
             </Button>

@@ -39,7 +39,11 @@ export const DashboardDataProvider = ({ children }) => {
     const useCache = cached.key === rangeKey && cached.raw && (now - cached.ts) < CACHE_MAX_AGE_MS;
 
     const applyFilter = (raw) => {
-      const allVentas = raw.ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+      const isVentaAnulada = (v) =>
+        String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true;
+
+      const allVentasRaw = raw.ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+      const allVentas = allVentasRaw.filter((v) => !isVentaAnulada(v));
       const ventas = allVentas.filter((v) => isInRange(v.fechaCreacion || v.fecha));
       const presupuestos = raw.presupuestosSnap.docs
         .map((doc) => ({ ...doc.data(), id: doc.id }))

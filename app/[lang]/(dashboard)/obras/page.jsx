@@ -38,6 +38,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
 import { useAuth } from "@/provider/auth.provider";
+import { DateInput } from "@/components/ui/date-input";
 import ObrasHeader from "@/components/obras/ObrasHeader";
 import CalendarioObras from "@/components/obras/CalendarioObras";
 import ObraSidePanel from "@/components/obras/ObraSidePanel";
@@ -184,7 +185,7 @@ const ObrasPage = () => {
   const [deleteType, setDeleteType] = useState("");
   
   // Estados para el nuevo header (deben ir antes de los useMemo que los usan)
-  const [vistaCalendario, setVistaCalendario] = useState("mes");
+  const [vistaCalendario, setVistaCalendario] = useState("15dias");
   const [busquedaGlobal, setBusquedaGlobal] = useState("");
   const [filtros, setFiltros] = useState({
     estado: "",
@@ -203,6 +204,12 @@ const ObrasPage = () => {
     monday.setDate(today.getDate() + diff);
     monday.setHours(0, 0, 0, 0);
     return monday;
+  });
+
+  const [current15Start, setCurrent15Start] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
   });
   
   // Estado para fecha de inicio del mes (cuando vista es "mes")
@@ -273,15 +280,19 @@ const ObrasPage = () => {
   
   // Obtener fecha de inicio según la vista
   const fechaInicioCalendario = useMemo(() => {
-    return vistaCalendario === "semana" ? currentWeekStart : currentMonthStart;
-  }, [vistaCalendario, currentWeekStart, currentMonthStart]);
+    if (vistaCalendario === "mes") return currentMonthStart;
+    if (vistaCalendario === "semana") return currentWeekStart;
+    return current15Start;
+  }, [vistaCalendario, currentWeekStart, currentMonthStart, current15Start]);
   
   // Handler para cambiar fecha de inicio del calendario
   const handleFechaInicioChange = (nuevaFecha) => {
-    if (vistaCalendario === "semana") {
+    if (vistaCalendario === "mes") {
+      setCurrentMonthStart(nuevaFecha);
+    } else if (vistaCalendario === "semana") {
       setCurrentWeekStart(nuevaFecha);
     } else {
-      setCurrentMonthStart(nuevaFecha);
+      setCurrent15Start(nuevaFecha);
     }
   };
   
@@ -289,10 +300,16 @@ const ObrasPage = () => {
   const [showNotaDialog, setShowNotaDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [editingNotaId, setEditingNotaId] = useState(null);
+  const [editingNotaGroupId, setEditingNotaGroupId] = useState(null);
   const [notaForm, setNotaForm] = useState({
-    nombreObra: "",
-    productos: "",
-    fecha: "",
+    empleadoId: "",
+    empleadoNombre: "",
+    barrioLote: "",
+    numObra: "",
+    telefono: "",
+    detalle: "",
+    fechaDesde: "",
+    fechaHasta: "",
   });
   const [savingNota, setSavingNota] = useState(false);
   const [deletingNota, setDeletingNota] = useState(null);
@@ -300,11 +317,22 @@ const ObrasPage = () => {
   const [notaToDelete, setNotaToDelete] = useState(null);
   const [loadingNotas, setLoadingNotas] = useState(true);
   const [clientes, setClientes] = useState([]);
+  const [empleados, setEmpleados] = useState([]);
   
   const router = useRouter();
   const params = useParams();
   const { lang } = params || {};
   const { user } = useAuth();
+
+  const formatNombreEmpleado = useCallback((value) => {
+    const s = String(value || "").trim();
+    if (!s) return "";
+    return s
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => (w ? w.slice(0, 1).toUpperCase() + w.slice(1) : ""))
+      .join(" ");
+  }, []);
 
   // Funciones del calendario ahora están en CalendarioObras component
 
@@ -349,10 +377,32 @@ const ObrasPage = () => {
     fetchClientes();
   }, []);
 
+  useEffect(() => {
+    const fetchEmpleados = async () => {
+      try {
+        const snap = await getDocs(collection(db, "empleados"));
+        const data = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((e) => e?.activo !== false);
+        data.sort((a, b) => String(a?.nombre || "").localeCompare(String(b?.nombre || ""), "es", { sensitivity: "base" }));
+        setEmpleados(data);
+      } catch (error) {
+        console.error("Error al cargar empleados:", error);
+      }
+    };
+    fetchEmpleados();
+  }, []);
+
   // Guardar o actualizar nota
   const saveNota = async () => {
-    if (!notaForm.nombreObra || !notaForm.fecha || !user) {
+    if (!notaForm.empleadoId || !notaForm.fechaDesde || !notaForm.fechaHasta || !notaForm.detalle || !user) {
       setDeleteMessage("⚠️ Por favor completa todos los campos obligatorios");
+      setTimeout(() => setDeleteMessage(""), 3000);
+      return;
+    }
+
+    if (String(notaForm.fechaHasta) < String(notaForm.fechaDesde)) {
+      setDeleteMessage("⚠️ La fecha hasta no puede ser menor que la fecha desde");
       setTimeout(() => setDeleteMessage(""), 3000);
       return;
     }
@@ -367,24 +417,15 @@ const ObrasPage = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             notaId: editingNotaId,
+            groupId: editingNotaGroupId,
             ...notaForm,
             userId: user.uid,
           }),
         });
 
         if (!response.ok) throw new Error("Error al actualizar nota");
-
-        const result = await response.json();
-        
-        // Actualizar el estado local con animación
-        setNotas(
-          notas.map((nota) =>
-            nota.id === editingNotaId
-              ? { ...nota, ...notaForm, updatedAt: result.nota.updatedAt }
-              : nota
-          )
-        );
-        
+        await response.json().catch(() => ({}));
+        await loadNotas();
         setDeleteMessage("✅ Nota actualizada exitosamente");
       } else {
         // Crear nueva nota
@@ -399,18 +440,24 @@ const ObrasPage = () => {
         });
 
         if (!response.ok) throw new Error("Error al crear nota");
-
-        const result = await response.json();
-        
-        // Agregar al estado local con animación
-        setNotas([...notas, { id: result.id, ...notaForm }]);
-        
+        await response.json().catch(() => ({}));
+        await loadNotas();
         setDeleteMessage("✅ Nota creada exitosamente");
       }
 
       setShowNotaDialog(false);
-      setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+      setNotaForm({
+        empleadoId: "",
+        empleadoNombre: "",
+        barrioLote: "",
+        numObra: "",
+        telefono: "",
+        detalle: "",
+        fechaDesde: "",
+        fechaHasta: "",
+      });
       setEditingNotaId(null);
+      setEditingNotaGroupId(null);
       setTimeout(() => setDeleteMessage(""), 3000);
     } catch (error) {
       console.error("Error al guardar nota:", error);
@@ -424,10 +471,16 @@ const ObrasPage = () => {
   // Abrir diálogo para editar nota
   const openEditDialog = (nota) => {
     setEditingNotaId(nota.id);
+    setEditingNotaGroupId(nota.groupId || null);
     setNotaForm({
-      nombreObra: nota.nombreObra,
-      productos: nota.productos || "",
-      fecha: nota.fecha,
+      empleadoId: nota.empleadoId || "",
+      empleadoNombre: nota.empleadoNombre || "",
+      barrioLote: nota.barrioLote || "",
+      numObra: nota.numObra || "",
+      telefono: nota.telefono || "",
+      detalle: nota.detalle || nota.productos || "",
+      fechaDesde: nota.fechaDesde || nota.fecha || "",
+      fechaHasta: nota.fechaHasta || nota.fecha || "",
     });
     setShowNotaDialog(true);
   };
@@ -450,14 +503,14 @@ const ObrasPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           notaId: notaToDelete.id,
+          groupId: notaToDelete.groupId || null,
           userId: user.uid,
         }),
       });
 
       if (!response.ok) throw new Error("Error al eliminar nota");
-
-      // Actualizar estado local con animación
-      setNotas(notas.filter((n) => n.id !== notaToDelete.id));
+      await response.json().catch(() => ({}));
+      await loadNotas();
       
       setDeleteMessage("✅ Nota eliminada exitosamente");
       setTimeout(() => setDeleteMessage(""), 3000);
@@ -647,7 +700,7 @@ const ObrasPage = () => {
         const tieneDocumentacion = obra.documentacion?.links && Array.isArray(obra.documentacion.links) && obra.documentacion.links.length > 0;
         // Verificar si hay notas asociadas (por número de obra o nombre de cliente)
         const tieneNotas = notas.some(n => {
-          const nombreNota = (n.nombreObra || "").toLowerCase();
+          const nombreNota = (n.numObra || n.nombreObra || "").toLowerCase();
           const numeroObra = (numero || "").toLowerCase();
           const nombreCliente = (obra.cliente?.nombre || "").toLowerCase();
           return nombreNota === numeroObra || nombreNota === nombreCliente;
@@ -1379,14 +1432,20 @@ const ObrasPage = () => {
         }}
         onAgregarNota={(dateKey) => {
           setSelectedDate(dateKey);
-                      setEditingNotaId(null);
-                      setNotaForm({
-                        nombreObra: "",
-                        productos: "",
-            fecha: dateKey,
-                      });
-                      setShowNotaDialog(true);
-                    }}
+          setEditingNotaId(null);
+          setEditingNotaGroupId(null);
+          setNotaForm({
+            empleadoId: "",
+            empleadoNombre: "",
+            barrioLote: "",
+            numObra: "",
+            telefono: "",
+            detalle: "",
+            fechaDesde: dateKey,
+            fechaHasta: dateKey,
+          });
+          setShowNotaDialog(true);
+        }}
         loadingNotas={loadingNotas}
         deletingNota={deletingNota}
         onEditNota={openEditDialog}
@@ -1559,7 +1618,17 @@ const ObrasPage = () => {
         setShowNotaDialog(open);
         if (!open) {
           setEditingNotaId(null);
-          setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+          setEditingNotaGroupId(null);
+          setNotaForm({
+            empleadoId: "",
+            empleadoNombre: "",
+            barrioLote: "",
+            numObra: "",
+            telefono: "",
+            detalle: "",
+            fechaDesde: "",
+            fechaHasta: "",
+          });
         }
       }}>
         <DialogContent className="w-[95vw] max-w-lg rounded-2xl border-0 shadow-2xl bg-white">
@@ -1580,44 +1649,114 @@ const ObrasPage = () => {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Nombre de Obra <span className="text-red-500">*</span>
+                ¿Quién va a hacer la obra? <span className="text-red-500">*</span>
               </label>
-              <Input
-                placeholder="Ej: Casa Rodriguez"
-                value={notaForm.nombreObra}
-                onChange={(e) =>
-                  setNotaForm({ ...notaForm, nombreObra: e.target.value })
-                }
-                className="w-full"
-              />
+              <select
+                value={notaForm.empleadoId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const emp = empleados.find((x) => x.id === id);
+                  const empleadoNombre = formatNombreEmpleado(emp?.nombre || "");
+                  setNotaForm((prev) => ({
+                    ...prev,
+                    empleadoId: id,
+                    empleadoNombre,
+                  }));
+                }}
+                className="w-full h-10 px-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Seleccionar empleado</option>
+                {empleados.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {formatNombreEmpleado(emp.nombre)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Barrio y Lote
+                </label>
+                <Input
+                  placeholder="Ej: Barrio Norte - Lote 12"
+                  value={notaForm.barrioLote}
+                  onChange={(e) => setNotaForm({ ...notaForm, barrioLote: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  N° Obra
+                </label>
+                <Input
+                  placeholder="Ej: 1023"
+                  value={notaForm.numObra}
+                  onChange={(e) => setNotaForm({ ...notaForm, numObra: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  N° Teléfono
+                </label>
+                <Input
+                  placeholder="Ej: 3794..."
+                  value={notaForm.telefono}
+                  onChange={(e) => setNotaForm({ ...notaForm, telefono: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+              <div className="hidden sm:block" />
             </div>
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Productos / Detalles
+                Detalle <span className="text-red-500">*</span>
               </label>
               <textarea
-                placeholder="Ej: 10 tablas de pino, 5kg de clavos..."
-                value={notaForm.productos}
-                onChange={(e) =>
-                  setNotaForm({ ...notaForm, productos: e.target.value })
-                }
+                placeholder="Ej: Entregar materiales / medir / avanzar con estructura..."
+                value={notaForm.detalle}
+                onChange={(e) => setNotaForm({ ...notaForm, detalle: e.target.value })}
                 className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Fecha <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="date"
-                value={notaForm.fecha}
-                onChange={(e) =>
-                  setNotaForm({ ...notaForm, fecha: e.target.value })
-                }
-                className="w-full"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Fecha desde <span className="text-red-500">*</span>
+                </label>
+                <DateInput
+                  value={notaForm.fechaDesde}
+                  onChange={(v) => {
+                    setNotaForm((prev) => ({
+                      ...prev,
+                      fechaDesde: v,
+                      fechaHasta: String(prev.fechaHasta || "") < String(v) ? v : prev.fechaHasta,
+                    }));
+                  }}
+                  buttonClassName="w-full h-10 px-3 border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Fecha hasta <span className="text-red-500">*</span>
+                </label>
+                <DateInput
+                  value={notaForm.fechaHasta}
+                  min={notaForm.fechaDesde || undefined}
+                  onChange={(v) => setNotaForm({ ...notaForm, fechaHasta: v })}
+                  buttonClassName="w-full h-10 px-3 border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div className="sm:col-span-2 text-xs text-gray-500">
+                Se duplica la nota en cada día del rango.
+              </div>
             </div>
           </div>
 
@@ -1627,7 +1766,17 @@ const ObrasPage = () => {
               onClick={() => {
                 setShowNotaDialog(false);
                 setEditingNotaId(null);
-                setNotaForm({ nombreObra: "", productos: "", fecha: "" });
+                setEditingNotaGroupId(null);
+                setNotaForm({
+                  empleadoId: "",
+                  empleadoNombre: "",
+                  barrioLote: "",
+                  numObra: "",
+                  telefono: "",
+                  detalle: "",
+                  fechaDesde: "",
+                  fechaHasta: "",
+                });
               }}
               className="w-full sm:w-auto px-6 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium cursor-pointer"
               disabled={savingNota}
@@ -1683,11 +1832,11 @@ const ObrasPage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-800 text-sm truncate">
-                    {notaToDelete.nombreObra}
+                    {notaToDelete.numObra || notaToDelete.nombreObra || notaToDelete.barrioLote || "Nota"}
                   </div>
-                  {notaToDelete.productos && (
+                  {(notaToDelete.detalle || notaToDelete.productos) && (
                     <div className="text-xs text-gray-600 truncate">
-                      {notaToDelete.productos}
+                      {notaToDelete.detalle || notaToDelete.productos}
                     </div>
                   )}
                 </div>

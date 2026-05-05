@@ -6,6 +6,7 @@ import { RemitoModel, RemitoItemModel } from "./models";
 import {
   buildNumeroComprobante,
   formatFechaLocal,
+  formatFechaLocalConDia,
   calcularFechaVencimiento,
   safeText,
 } from "./formatters";
@@ -192,7 +193,7 @@ export function mapVentaToRemito(venta: any): RemitoModel {
           tipoEnvio: venta.tipoEnvio,
           direccion: direccionEnvio,
           localidad: localidadEnvio,
-          fechaEntrega: venta.fechaEntrega ? formatFechaLocal(venta.fechaEntrega) : undefined,
+          fechaEntrega: venta.fechaEntrega ? formatFechaLocalConDia(venta.fechaEntrega) : undefined,
           rangoHorario: venta.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
         }
@@ -283,9 +284,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
           tipoEnvio: presupuesto.tipoEnvio,
           direccion: direccionEnvio,
           localidad: localidadEnvio,
-          fechaEntrega: presupuesto.fechaEntrega
-            ? formatFechaLocal(presupuesto.fechaEntrega)
-            : undefined,
+          fechaEntrega: presupuesto.fechaEntrega ? formatFechaLocalConDia(presupuesto.fechaEntrega) : undefined,
           rangoHorario: presupuesto.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
         }

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import {  format } from "date-fns";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -31,14 +32,14 @@ export default function DatePickerWithRange({ className }) {
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(date.from, "dd/MM/yyyy", { locale: es })} -{" "}
+                  {format(date.to, "dd/MM/yyyy", { locale: es })}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(date.from, "dd/MM/yyyy", { locale: es })
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Elegir fecha</span>
             )}
           </Button>
         </PopoverTrigger>

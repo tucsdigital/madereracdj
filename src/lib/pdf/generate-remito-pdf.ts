@@ -14,8 +14,14 @@ import { getBrowser } from "./browser-pool";
  * @param remito - Datos del remito
  * @param paraEmpleado - Si es true, oculta precios
  * @param autoPrint - Si es true, incluye scripts para imprimir automáticamente (solo para PDF, no para impresión directa)
+ * @param purpose - Tipo de documento a renderizar (por defecto: "documento")
  */
-export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = false, autoPrint: boolean = false): string {
+export function buildRemitoHtml(
+  remito: RemitoModel,
+  paraEmpleado: boolean = false,
+  autoPrint: boolean = false,
+  purpose: "documento" | "envio" = "documento"
+): string {
   const {
     numero,
     fecha,
@@ -34,6 +40,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 
   const esVenta = tipo === "venta";
   const esPresupuesto = tipo === "presupuesto";
+  const esEnvioDoc = purpose === "envio";
 
   // Información de pagos para ventas
   const estadoPago = pagos?.estadoPago;
@@ -164,9 +171,13 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
   const esRetiroLocal = !envio || !envio.tipoEnvio || envio.tipoEnvio === "retiro_local";
   const tipoEnvio = esRetiroLocal ? "RETIRO EN LOCAL" : "DOMICILIO";
   const fechaEntrega = esRetiroLocal ? null : (envio?.fechaEntrega || null);
-  const lugarEntrega = esRetiroLocal ? null : (envio?.direccion || cliente.direccion || null);
+  const lugarEntrega = esRetiroLocal
+    ? (esEnvioDoc ? (empresa.direccion || cliente.direccion || null) : null)
+    : (envio?.direccion || cliente.direccion || null);
   const entreCalles = esRetiroLocal ? null : "-"; // No está en el modelo actual
-  const telEnvio = esRetiroLocal ? null : (cliente.telefono || null);
+  const telEnvio = esRetiroLocal
+    ? (esEnvioDoc ? (empresa.telefono || cliente.telefono || null) : null)
+    : (cliente.telefono || null);
 
   // Combinar localidad y provincia
   const provinciaCompleta = cliente.localidad && cliente.partido
@@ -181,6 +192,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
   const direccionCompleta = provinciaCompleta && provinciaCompleta !== "-"
     ? `${safe(cliente.direccion)} - ${provinciaCompleta}`
     : safe(cliente.direccion);
+
+  const direccionEnvioParaDocumento = esEnvioDoc
+    ? (esRetiroLocal ? (empresa.direccion || cliente.direccion || "") : (envio?.direccion || cliente.direccion || ""))
+    : (cliente.direccion || "");
+
+  const localidadEnvioParaDocumento = esEnvioDoc
+    ? (String(envio?.localidad || cliente.localidad || "").trim() || "")
+    : "";
 
   // Construir HTML de estado de pago (solo para ventas, se incrusta dentro del bloque de envío)
   const paymentStatusHtml =
@@ -295,17 +314,53 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       </div>
     `;
   })();
+
+  const documentoLabel = esEnvioDoc ? "ENVÍO" : esVenta ? "REMITO" : "PRESUPUESTO / COTIZACIÓN";
+
+  const headerIconHtml = esEnvioDoc
+    ? `
+      <div class="doc-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7.5V17a2 2 0 0 0 2 2h1" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 17V8.5A1 1 0 0 1 7 7.5h9a1 1 0 0 1 1 1V17" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+          <path d="M17 10h2.2a1 1 0 0 1 .8.4l1.6 2.1a1 1 0 0 1 .2.6V17a2 2 0 0 1-2 2h-1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="#000" stroke-width="2"/>
+          <path d="M18.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="#000" stroke-width="2"/>
+        </svg>
+      </div>
+    `
+    : "";
+
+  const saldoPendienteEnvioHtml = (() => {
+    if (!esEnvioDoc || !esVenta || paraEmpleado) return "";
+    const total = Number(pagos?.total ?? totales.total) || 0;
+    const abonado = Number(pagos?.montoAbonado ?? 0) || 0;
+    const saldo = Number(pagos?.saldoPendiente ?? Math.max(total - abonado, 0)) || 0;
+    const estado = String(estadoPago || "").toLowerCase();
+    const tieneSaldo = saldo > 0 && (estado === "pendiente" || estado === "parcial" || !estado);
+    if (!tieneSaldo) return "";
+    return `<div class="saldo-envio">SALDO PENDIENTE: ${formatCurrency(saldo)}</div>`;
+  })();
+
   const disclaimerTitle = esPresupuesto
     ? "DETALLE DE CONDICIONES DEL PRESUPUESTO:"
-    : "CONDICIONES DE RETIRO Y DESCARGA:";
-  const disclaimerText = [
-    "EL PROPIETARIO/CLIENTE DEBE RETIRAR Y DESCARGAR SU MERCADERÍA COMPRADA.",
-    "LA MERCADERÍA DEBE SER REVISADA ANTES DE SU DESCARGA.",
-    "UNA VEZ DESCARGADA, NO TIENE DEVOLUCIÓN.",
-    "LA COMPRA NO INCLUYE DESCARGA NI ACARREO.",
-    "EL RETIRO DEBE REALIZARSE DENTRO DE LOS 7 (SIETE) DÍAS CORRIDOS DESDE EL PAGO.",
-    "VENCIDO ESE PLAZO, NO CORRESPONDE DEVOLUCIÓN.",
-  ].join(" ");
+    : esEnvioDoc
+      ? "CONDICIONES DE ENVÍO:"
+      : "CONDICIONES DE RETIRO Y DESCARGA:";
+  const disclaimerText = esEnvioDoc
+    ? [
+        "LA MERCADERÍA DEBE SER REVISADA AL RECIBIR.",
+        "CUALQUIER DIFERENCIA DEBE INFORMARSE AL MOMENTO DE LA ENTREGA.",
+        "UNA VEZ ENTREGADA Y RECEPCIONADA, NO TIENE DEVOLUCIÓN.",
+      ].join(" ")
+    : [
+        "EL PROPIETARIO/CLIENTE DEBE RETIRAR Y DESCARGAR SU MERCADERÍA COMPRADA.",
+        "LA MERCADERÍA DEBE SER REVISADA ANTES DE SU DESCARGA.",
+        "UNA VEZ DESCARGADA, NO TIENE DEVOLUCIÓN.",
+        "LA COMPRA NO INCLUYE DESCARGA NI ACARREO.",
+        "EL RETIRO DEBE REALIZARSE DENTRO DE LOS 7 (SIETE) DÍAS CORRIDOS DESDE EL PAGO.",
+        "VENCIDO ESE PLAZO, NO CORRESPONDE DEVOLUCIÓN.",
+      ].join(" ");
 
   // Generar HTML completo - Diseño minimalista UI/UX moderno
   return `
@@ -314,7 +369,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${esVenta ? "REMITO" : "PRESUPUESTO / COTIZACIÓN"} - ${numero}</title>
+  <title>${documentoLabel} - ${numero}</title>
   <style>
     @page {
       margin: 0;
@@ -458,6 +513,11 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
       padding: 10px;
       text-align: center;
       background: #fff;
+    }
+    .header-right .doc-icon {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 6px;
     }
     .header-right .remito-title {
       font-size: 16px;
@@ -695,6 +755,18 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
     .payment-history-table td:first-child {
       font-weight: 800;
     }
+    .saldo-envio {
+      margin-top: 10px;
+      border: 2px solid #000000;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 900;
+      font-size: 14px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      background: #fff;
+    }
     .footer-bottom {
       display: flex;
       justify-content: flex-end;
@@ -769,8 +841,9 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           </div>
         </div>
         <div class="header-right">
+          ${headerIconHtml}
           <div class="remito-title">
-            ${esVenta ? "REMITO" : "PRESUPUESTO / COTIZACIÓN"}
+            ${documentoLabel}
           </div>
           <div class="remito-numero">N° ${safe(numero)}</div>
           <div class="remito-fecha">FECHA ${safe(fecha)}</div>
@@ -796,12 +869,12 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
           </div>
           <div class="client-col">
             <div class="client-row">
-              <span class="client-label">Dirección:</span>
-              <span class="client-value">${safe(cliente.direccion)}</span>
+              <span class="client-label">${esEnvioDoc ? "Dirección envío:" : "Dirección:"}</span>
+              <span class="client-value">${safe(direccionEnvioParaDocumento)}</span>
             </div>
             <div class="client-row">
-              <span class="client-label">Provincia:</span>
-              <span class="client-value">${provinciaCompleta}</span>
+              <span class="client-label">${esEnvioDoc ? "Localidad:" : "Provincia:"}</span>
+              <span class="client-value">${esEnvioDoc ? (localidadEnvioParaDocumento ? safe(localidadEnvioParaDocumento) : provinciaCompleta) : provinciaCompleta}</span>
             </div>
             <div class="client-row">
               <span class="client-label">Teléfono:</span>
@@ -866,12 +939,14 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         <div class="firma-col">Documento N°</div>
       </div>
       ` : ""}
-      ${!esRetiroLocal ? `
+      ${(!esRetiroLocal || esEnvioDoc) ? `
       <div class="envio-info">
         <div class="envio-info-left">
           <div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoEnvio}</span></div>
           ${fechaEntrega ? `<div class="envio-info-item"><strong>Fecha entrega:</strong> <span class="envio-strong-value">${safe(fechaEntrega)}</span></div>` : ""}
-          ${lugarEntrega ? `<div class="envio-info-item"><strong>Lugar entrega:</strong> <span class="envio-strong-value">${safe(lugarEntrega)}</span></div>` : ""}
+          ${lugarEntrega ? `<div class="envio-info-item"><strong>${esEnvioDoc ? "Dirección de envío:" : "Lugar entrega:"}</strong> <span class="envio-strong-value">${safe(lugarEntrega)}</span></div>` : ""}
+          ${envio?.localidad ? `<div class="envio-info-item"><strong>Localidad:</strong> <span class="envio-strong-value">${safe(envio.localidad)}</span></div>` : ""}
+          ${envio?.rangoHorario ? `<div class="envio-info-item"><strong>Rango horario:</strong> <span class="envio-strong-value">${safe(envio.rangoHorario)}</span></div>` : ""}
           ${entreCalles && entreCalles !== "-" ? `<div class="envio-info-item"><strong>Entre calles:</strong> ${safe(entreCalles)}</div>` : ""}
           ${telEnvio ? `<div class="envio-info-item"><strong>Tel:</strong> ${safe(telEnvio)}</div>` : ""}
         </div>
@@ -882,6 +957,7 @@ export function buildRemitoHtml(remito: RemitoModel, paraEmpleado: boolean = fal
         }
       </div>
       ` : ""}
+      ${saldoPendienteEnvioHtml}
       `
       }
       <div class="footer-bottom">

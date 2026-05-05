@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@iconify/react";
@@ -150,12 +151,10 @@ const ObraCobranza = ({
             <h4 className="font-medium text-gray-900 mb-3">Agregar Nuevo Pago</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-              <Input
-                type="date"
+              <DateInput
                 value={nuevoMovimiento.fecha}
-                onChange={(e) => setNuevoMovimiento(prev => ({ ...prev, fecha: e.target.value }))}
-                placeholder="Fecha"
-                className="h-10"
+                onChange={(v) => setNuevoMovimiento((prev) => ({ ...prev, fecha: v }))}
+                buttonClassName="h-10 w-full justify-start"
               />
               
               <Select

@@ -35,7 +35,7 @@ export const metadata = {
         alt: "Maderas Caballero",
       },
     ],
-    locale: "es_ES",
+    locale: "es-AR",
     type: "website",
   },
   twitter: {

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon } from "@iconify/react";
@@ -182,10 +183,10 @@ const ObraInfoGeneral = ({
                 <div>
                   <p className="text-sm text-gray-500">Fecha de Inicio</p>
                   {editando ? (
-                    <Input
-                      type="date"
+                    <DateInput
                       value={fechasEdit.inicio}
-                      onChange={(e) => setFechasEdit(prev => ({ ...prev, inicio: e.target.value }))}
+                      onChange={(v) => setFechasEdit((prev) => ({ ...prev, inicio: v }))}
+                      buttonClassName="w-full justify-start"
                     />
                   ) : (
                     <p className="font-medium">
@@ -196,10 +197,11 @@ const ObraInfoGeneral = ({
                 <div>
                   <p className="text-sm text-gray-500">Fecha de Finalización</p>
                   {editando ? (
-                    <Input
-                      type="date"
+                    <DateInput
                       value={fechasEdit.fin}
-                      onChange={(e) => setFechasEdit(prev => ({ ...prev, fin: e.target.value }))}
+                      min={fechasEdit.inicio || undefined}
+                      onChange={(v) => setFechasEdit((prev) => ({ ...prev, fin: v }))}
+                      buttonClassName="w-full justify-start"
                     />
                   ) : (
                     <p className="font-medium">
