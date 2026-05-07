@@ -204,7 +204,7 @@ function FormularioProducto({ onClose, onSuccess }) {
   const cargarDatosPrecargados = async () => {
     try {
       const productosSnap = await getDocs(collection(db, "productos"));
-      const productos = productosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const productos = productosSnap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }));
       
       const productosCategoria = productos.filter(p => p.categoria === categoria);
       
@@ -1824,9 +1824,9 @@ const ProductosPage = () => {
       productosQuery,
       (snapshot) => {
         const productosNormales = snapshot.docs.map((doc) => ({
-          id: doc.id,
           __collection: "productos",
-          ...doc.data(),
+          ...(doc.data() || {}),
+          id: doc.id,
         }));
         
         // Cargar productos de obras
@@ -1834,9 +1834,9 @@ const ProductosPage = () => {
           productosObrasQuery,
           (obrasSnapshot) => {
             const productosObras = obrasSnapshot.docs.map((doc) => ({ 
-              id: doc.id, 
               __collection: "productos_obras",
-              ...doc.data(),
+              ...(doc.data() || {}),
+              id: doc.id, 
               categoria: "Obras" // Asegurar que tengan la categoría correcta
             }));
             
@@ -2772,6 +2772,9 @@ const ProductosPage = () => {
                 : existente.data?.discount?.percentage || 0,
             };
           }
+          if (!String(existente.data?.id || "").trim()) {
+            updates.id = existente.id;
+          }
           if (Object.keys(updates).length > 0 || !bulkOnlyChanges) {
             updates.fechaActualizacion = new Date().toISOString();
             toUpdate.push({ id: existente.id, updates });
@@ -2804,7 +2807,7 @@ const ProductosPage = () => {
         for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
           const data = toCreate[indexC];
           const ref = doc(collection(db, "productos"));
-          batch.set(ref, data);
+          batch.set(ref, { ...data, id: ref.id });
         }
         if (ops > 0) {
           await batch.commit();
@@ -3067,6 +3070,9 @@ const ProductosPage = () => {
                 : existente.data?.discount?.percentage || 0,
             };
           }
+          if (!String(existente.data?.id || "").trim()) {
+            updates.id = existente.id;
+          }
           if (Object.keys(updates).length > 0 || !bulkOnlyChangesFerreteria) {
             updates.fechaActualizacion = new Date().toISOString();
             toUpdate.push({ id: existente.id, updates });
@@ -3097,7 +3103,7 @@ const ProductosPage = () => {
         for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
           const data = toCreate[indexC];
           const ref = doc(collection(db, "productos"));
-          batch.set(ref, data);
+          batch.set(ref, { ...data, id: ref.id });
         }
         if (ops > 0) {
           await batch.commit();
@@ -3250,14 +3256,15 @@ const ProductosPage = () => {
           
           if (existentePorId) {
             const docRef = doc(db, "productos_obras", id);
-            await updateDoc(docRef, { ...productoData, fechaActualizacion: new Date().toISOString() });
+            await updateDoc(docRef, { ...productoData, id, fechaActualizacion: new Date().toISOString() });
             actualizados++;
           } else if (existentePorCodigo) {
             const docRef = doc(db, "productos_obras", existentePorCodigo.id);
-            await updateDoc(docRef, { ...productoData, fechaActualizacion: new Date().toISOString() });
+            await updateDoc(docRef, { ...productoData, id: existentePorCodigo.id, fechaActualizacion: new Date().toISOString() });
             actualizados++;
           } else {
-            await addDoc(collection(db, "productos_obras"), productoData);
+            const createdRef = await addDoc(collection(db, "productos_obras"), productoData);
+            await updateDoc(createdRef, { id: createdRef.id });
             creados++;
           }
 

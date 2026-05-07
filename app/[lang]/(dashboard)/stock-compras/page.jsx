@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, ArrowDown, ArrowUp, RefreshCw, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { db, onAuthStateChangedFirebase } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -41,6 +42,18 @@ function StockComprasPage() {
   // Usuario autenticado
   const [usuario, setUsuario] = useState(null);
 
+  const [selectedProductoIds, setSelectedProductoIds] = useState(() => new Set());
+  const [openBulkAjuste, setOpenBulkAjuste] = useState(false);
+  const [bulkTipo, setBulkTipo] = useState("ajuste");
+  const [bulkCantidad, setBulkCantidad] = useState("");
+  const [bulkAjusteAbsoluto, setBulkAjusteAbsoluto] = useState(false);
+  const [bulkStockFinal, setBulkStockFinal] = useState("");
+  const [bulkMotivo, setBulkMotivo] = useState("");
+  const [bulkObs, setBulkObs] = useState("");
+  const [bulkStatus, setBulkStatus] = useState(null);
+  const [bulkMsg, setBulkMsg] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   // Estado para proveedores y buscador dinámico
   const [proveedores, setProveedores] = useState([]);
   const [buscadorMov, setBuscadorMov] = useState("");
@@ -71,7 +84,7 @@ function StockComprasPage() {
     setLoadingProd(true);
     const q = query(collection(db, "productos"), orderBy("nombre"));
     const unsub = onSnapshot(q, (snap) => {
-      setProductos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setProductos(snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id })));
       setLoadingProd(false);
     }, (err) => {
       setError("Error al cargar productos: " + err.message);
@@ -120,7 +133,13 @@ function StockComprasPage() {
     setLoadingMov(true);
     const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
     const unsub = onSnapshot(q, (snap) => {
-      setMovimientos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setMovimientos(
+        snap.docs.map((doc) => {
+          const data = doc.data() || {};
+          const fechaFallback = data?.fecha ?? doc.updateTime ?? doc.createTime ?? null;
+          return { id: doc.id, ...data, fecha: fechaFallback };
+        })
+      );
       setLoadingMov(false);
     }, (err) => {
       setError("Error al cargar movimientos: " + err.message);
@@ -292,6 +311,23 @@ function StockComprasPage() {
     const fin = inicio + productosPorPagina;
     return productosFiltrados.slice(inicio, fin);
   }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  const productosById = useMemo(() => {
+    const map = new Map();
+    for (const p of productos) map.set(p.id, p);
+    return map;
+  }, [productos]);
+
+  const selectedCount = useMemo(() => selectedProductoIds.size, [selectedProductoIds]);
+
+  const pageIds = useMemo(() => productosPaginados.map((p) => p.id), [productosPaginados]);
+  const pageSelectedCount = useMemo(() => {
+    let count = 0;
+    for (const id of pageIds) if (selectedProductoIds.has(id)) count += 1;
+    return count;
+  }, [pageIds, selectedProductoIds]);
+  const pageAllSelected = pageIds.length > 0 && pageSelectedCount === pageIds.length;
+  const pageSomeSelected = pageSelectedCount > 0 && pageSelectedCount < pageIds.length;
 
   // Cálculo de totales optimizados
   const totalProductos = productosFiltrados.length;
@@ -546,6 +582,159 @@ function StockComprasPage() {
     setDetalleOpen(true);
   };
 
+  const setProductoSelected = useCallback((productoId, checked) => {
+    setSelectedProductoIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(productoId);
+      else next.delete(productoId);
+      return next;
+    });
+  }, []);
+
+  const setPageSelected = useCallback((checked) => {
+    setSelectedProductoIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        for (const id of pageIds) next.add(id);
+      } else {
+        for (const id of pageIds) next.delete(id);
+      }
+      return next;
+    });
+  }, [pageIds]);
+
+  const selectAllFiltrados = useCallback(() => {
+    setSelectedProductoIds(new Set(productosFiltrados.map((p) => p.id)));
+  }, [productosFiltrados]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedProductoIds(new Set());
+  }, []);
+
+  const handleBulkGuardar = async () => {
+    setBulkStatus(null);
+    setBulkMsg("");
+
+    if (selectedCount === 0) {
+      setBulkStatus("error");
+      setBulkMsg("No hay productos seleccionados.");
+      return;
+    }
+
+    if (!usuario || typeof usuario?.getIdToken !== "function") {
+      setBulkStatus("error");
+      setBulkMsg("No hay sesión válida. Cerrá sesión y volvé a ingresar.");
+      return;
+    }
+
+    const qty = bulkCantidad === "" ? NaN : Number(bulkCantidad);
+    if (bulkTipo !== "ajuste" && !(qty > 0)) {
+      setBulkStatus("error");
+      setBulkMsg("La cantidad debe ser mayor a 0.");
+      return;
+    }
+
+    if (bulkTipo === "ajuste") {
+      if (!bulkAjusteAbsoluto) {
+        if (Number.isNaN(qty)) {
+          setBulkStatus("error");
+          setBulkMsg("La cantidad del ajuste es inválida.");
+          return;
+        }
+        const ids = Array.from(selectedProductoIds);
+        for (const id of ids) {
+          const prod = productosById.get(id);
+          const stockAct = Number(prod?.stock) || 0;
+          const nuevoStock = calcularStockResultante(stockAct, "ajuste", Number(qty || 0));
+          if (nuevoStock < 0) {
+            setBulkStatus("error");
+            setBulkMsg(`Ajuste inválido: el stock no puede quedar negativo (${prod?.nombre || id}).`);
+            return;
+          }
+        }
+      } else {
+        const finalNum = bulkStockFinal === "" ? NaN : Number(bulkStockFinal);
+        if (Number.isNaN(finalNum) || finalNum < 0) {
+          setBulkStatus("error");
+          setBulkMsg("Stock final inválido para ajuste absoluto.");
+          return;
+        }
+      }
+      if (!bulkMotivo) {
+        setBulkStatus("error");
+        setBulkMsg("Seleccione un motivo para el ajuste.");
+        return;
+      }
+    }
+
+    setBulkLoading(true);
+    const ids = Array.from(selectedProductoIds);
+    const failures = [];
+
+    try {
+      for (const id of ids) {
+        try {
+          await registrarMovimiento({
+            productoId: id,
+            tipo: bulkTipo,
+            cantidad: bulkTipo === "ajuste" && bulkAjusteAbsoluto ? 0 : Number(bulkCantidad || 0),
+            usuario,
+            observaciones:
+              bulkObs ||
+              `Ajuste masivo (${bulkTipo}) · ${ids.length} producto(s)`,
+            modoAjuste:
+              bulkTipo === "ajuste"
+                ? bulkAjusteAbsoluto
+                  ? "absoluto"
+                  : "delta"
+                : undefined,
+            stockFinalDeseado:
+              bulkTipo === "ajuste" && bulkAjusteAbsoluto
+                ? Number(bulkStockFinal || 0)
+                : undefined,
+            motivo: bulkTipo === "ajuste" ? bulkMotivo : "",
+          });
+        } catch (e) {
+          failures.push({ id, error: e?.message || String(e) });
+        }
+      }
+
+      if (failures.length > 0) {
+        const firstNames = failures
+          .slice(0, 3)
+          .map((f) => productosById.get(f.id)?.nombre || f.id)
+          .join(", ");
+        const firstError = failures[0]?.error ? ` (${failures[0].error})` : "";
+        setBulkStatus("error");
+        setBulkMsg(
+          `Se aplicó en ${ids.length - failures.length}/${ids.length}. Errores: ${firstNames}${failures.length > 3 ? "..." : ""}${firstError}`
+        );
+        setBulkLoading(false);
+        return;
+      }
+
+      setBulkStatus("success");
+      setBulkMsg(`Ajuste masivo aplicado en ${ids.length} producto(s).`);
+      setTimeout(() => {
+        setOpenBulkAjuste(false);
+        clearSelection();
+        setBulkTipo("ajuste");
+        setBulkCantidad("");
+        setBulkAjusteAbsoluto(false);
+        setBulkStockFinal("");
+        setBulkMotivo("");
+        setBulkObs("");
+        setBulkStatus(null);
+        setBulkMsg("");
+        setBulkLoading(false);
+      }, 1200);
+    } catch (e) {
+      setBulkStatus("error");
+      setBulkMsg("Error: " + (e?.message || String(e)));
+      setBulkLoading(false);
+    }
+  };
+
   const formatFechaHora = useCallback((valor) => {
     if (!valor) return "-";
     if (typeof valor === "string") {
@@ -729,51 +918,145 @@ function StockComprasPage() {
                 ) : error ? (
                   <div className="text-red-700 dark:text-red-300 py-4 text-center">{error}</div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Unidad</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {productosPaginados.map(p => (
-                        <TableRow key={p.id} className={p.stock <= (p.min || 0) ? "bg-amber-500/10" : ""}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">{p.nombre}</span>
-                              {p.stock === 0 && <span className="bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20 px-2 py-0.5 rounded text-xs">Sin stock</span>}
-                              {p.stock > 0 && p.stock <= (p.min || 0) && <span className="bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 px-2 py-0.5 rounded text-xs">Bajo</span>}
-                              {p.stock > (p.min || 0) && <span className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 px-2 py-0.5 rounded text-xs">OK</span>}
+                  <>
+                    {selectedCount > 0 && (
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-2">
+                        <div className="text-sm font-semibold text-blue-900">
+                          Seleccionados: {selectedCount}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {selectedCount < totalProductos && (
+                            <Button size="sm" variant="outline" onClick={selectAllFiltrados}>
+                              Seleccionar todos ({totalProductos})
+                            </Button>
+                          )}
+                          <Button size="sm" variant="default" onClick={() => setOpenBulkAjuste(true)}>
+                            Ajustar stock
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={clearSelection}>
+                            Limpiar selección
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                checked={pageAllSelected ? true : pageSomeSelected ? "indeterminate" : false}
+                                onCheckedChange={(v) => setPageSelected(Boolean(v))}
+                                aria-label="Seleccionar todos en la página"
+                              />
                             </div>
-                          </TableCell>
-                          <TableCell>{p.categoria}</TableCell>
-                          <TableCell>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-help">{p.stock}</span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Última actualización: {p.fechaActualizacion?.toDate ? p.fechaActualizacion.toDate().toLocaleString() : "-"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>{p.unidadMedida || p.unidadVenta || p.unidadVentaHerraje || p.unidadVentaQuimico || p.unidadVentaHerramienta}</TableCell>
-                          <TableCell>
-                            {p.stock === 0 ? <span className="text-red-700 dark:text-red-300 font-semibold">Sin stock</span> : p.stock <= (p.min || 0) ? <span className="text-amber-700 dark:text-amber-300 font-semibold">Bajo</span> : <span className="text-emerald-700 dark:text-emerald-300 font-semibold">OK</span>}
-                          </TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="ghost" onClick={() => { setOpenMov(true); handleSeleccionarProducto(p.id); }}><RefreshCw className="w-4 h-4 mr-1" />Movimientos</Button>
-                            <Button size="sm" variant="soft" onClick={() => handleVerDetalleProducto(p)}><Plus className="w-4 h-4 mr-1" />Ver detalle</Button>
-                          </TableCell>
+                          </TableHead>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Categoría</TableHead>
+                          <TableHead>Stock</TableHead>
+                          <TableHead>Unidad</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Acciones</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {productosPaginados.map((p) => {
+                          const isSelected = selectedProductoIds.has(p.id);
+                          const isLow = Number(p.stock) <= (Number(p.min) || 0);
+                          return (
+                            <TableRow
+                              key={p.id}
+                              className={
+                                isSelected
+                                  ? "bg-blue-500/5 ring-1 ring-blue-200/70"
+                                  : isLow
+                                  ? "bg-amber-500/10"
+                                  : ""
+                              }
+                            >
+                              <TableCell className="w-10">
+                                <div className="flex items-center justify-center">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(v) => setProductoSelected(p.id, Boolean(v))}
+                                    aria-label={`Seleccionar ${p.nombre}`}
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">{p.nombre}</span>
+                                  {p.stock === 0 && (
+                                    <span className="bg-red-500/15 text-red-800 dark:text-red-200 border border-red-500/20 px-2 py-0.5 rounded text-xs">
+                                      Sin stock
+                                    </span>
+                                  )}
+                                  {p.stock > 0 && p.stock <= (p.min || 0) && (
+                                    <span className="bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20 px-2 py-0.5 rounded text-xs">
+                                      Bajo
+                                    </span>
+                                  )}
+                                  {p.stock > (p.min || 0) && (
+                                    <span className="bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 px-2 py-0.5 rounded text-xs">
+                                      OK
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>{p.categoria}</TableCell>
+                              <TableCell>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="cursor-help">{p.stock}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Última actualización:{" "}
+                                    {p.fechaActualizacion?.toDate
+                                      ? p.fechaActualizacion.toDate().toLocaleString()
+                                      : "-"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                              <TableCell>
+                                {p.unidadMedida ||
+                                  p.unidadVenta ||
+                                  p.unidadVentaHerraje ||
+                                  p.unidadVentaQuimico ||
+                                  p.unidadVentaHerramienta}
+                              </TableCell>
+                              <TableCell>
+                                {p.stock === 0 ? (
+                                  <span className="text-red-700 dark:text-red-300 font-semibold">Sin stock</span>
+                                ) : p.stock <= (p.min || 0) ? (
+                                  <span className="text-amber-700 dark:text-amber-300 font-semibold">Bajo</span>
+                                ) : (
+                                  <span className="text-emerald-700 dark:text-emerald-300 font-semibold">OK</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setOpenMov(true);
+                                    handleSeleccionarProducto(p.id);
+                                  }}
+                                >
+                                  <RefreshCw className="w-4 h-4 mr-1" />
+                                  Movimientos
+                                </Button>
+                                <Button size="sm" variant="soft" onClick={() => handleVerDetalleProducto(p)}>
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Ver detalle
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </>
                 )}
                 {!loadingProd && !error && totalPaginas > 1 && (
                   <div className="flex items-center justify-between mt-4 border-t pt-4">
@@ -921,6 +1204,164 @@ function StockComprasPage() {
             </Card>
           </TabsContent>
         </Tabs>
+        {/* Modal de Ajuste Masivo */}
+        <Dialog open={openBulkAjuste} onOpenChange={setOpenBulkAjuste}>
+          <DialogContent className="w-[95vw] max-w-[560px] border border-border/60 bg-card">
+            <DialogHeader>
+              <DialogTitle>Ajuste masivo de stock</DialogTitle>
+              <DialogDescription>
+                Aplica un movimiento a los productos seleccionados (se registra un movimiento por producto).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              {bulkStatus && (
+                <div
+                  className={`mb-2 p-3 rounded-lg flex items-center gap-2 text-sm border ${
+                    bulkStatus === "success"
+                      ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/20"
+                      : "bg-red-500/15 text-red-800 dark:text-red-200 border-red-500/20"
+                  }`}
+                >
+                  {bulkStatus === "success" ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4" />
+                  )}
+                  {bulkMsg}
+                </div>
+              )}
+
+              <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-blue-900">Seleccionados</div>
+                  <div className="text-sm font-bold text-blue-900">{selectedCount}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-sm mb-2 block">Tipo de movimiento</label>
+                <select
+                  className="border border-border/60 rounded-lg px-3 py-2 w-full bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                  value={bulkTipo}
+                  onChange={(e) => {
+                    setBulkTipo(e.target.value);
+                    setBulkStatus(null);
+                    setBulkMsg("");
+                  }}
+                >
+                  <option value="entrada">📥 Entrada (Aumentar stock)</option>
+                  <option value="salida">📤 Salida (Disminuir stock)</option>
+                  <option value="ajuste">⚖️ Ajuste (Corregir stock)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-sm mb-2 block">Cantidad</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="w-full"
+                  value={bulkCantidad}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const esAjusteDelta = bulkTipo === "ajuste" && !bulkAjusteAbsoluto;
+                    const valid = raw === "" || (esAjusteDelta ? /^-?\d*$/.test(raw) : /^\d*$/.test(raw));
+                    if (valid) setBulkCantidad(raw);
+                  }}
+                  disabled={bulkTipo === "ajuste" && bulkAjusteAbsoluto}
+                  placeholder={bulkTipo === "ajuste" ? "0" : "1"}
+                />
+              </div>
+
+              {bulkTipo === "ajuste" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="bulkAjusteAbs"
+                      type="checkbox"
+                      checked={bulkAjusteAbsoluto}
+                      onChange={(e) => {
+                        setBulkAjusteAbsoluto(e.target.checked);
+                        setBulkStatus(null);
+                        setBulkMsg("");
+                      }}
+                    />
+                    <label htmlFor="bulkAjusteAbs" className="text-sm">
+                      Ajustar a stock final
+                    </label>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-sm mb-2 block">Stock final (mismo para todos)</label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={bulkStockFinal}
+                      onChange={(e) => {
+                        const r = e.target.value;
+                        if (r === "" || /^\d*$/.test(r)) setBulkStockFinal(r);
+                      }}
+                      disabled={!bulkAjusteAbsoluto}
+                      placeholder="Ej: 120"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="font-semibold text-sm mb-2 block">Motivo</label>
+                    <select
+                      className="border border-border/60 bg-background text-foreground rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bulkMotivo}
+                      onChange={(e) => setBulkMotivo(e.target.value)}
+                    >
+                      <option value="">Seleccionar motivo</option>
+                      <option value="conteo">Conteo físico</option>
+                      <option value="rotura">Rotura</option>
+                      <option value="merma">Merma</option>
+                      <option value="carga_inicial">Carga inicial</option>
+                      <option value="otros">Otros</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="font-semibold text-sm mb-2 block">Observaciones</label>
+                <Input
+                  type="text"
+                  className="w-full"
+                  value={bulkObs}
+                  onChange={(e) => setBulkObs(e.target.value)}
+                  placeholder="Opcional..."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpenBulkAjuste(false)} disabled={bulkLoading}>
+                Cancelar
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleBulkGuardar}
+                disabled={(() => {
+                  if (bulkLoading || loadingProd || selectedCount === 0) return true;
+                  const qty = bulkCantidad === "" ? NaN : Number(bulkCantidad);
+                  if (bulkTipo !== "ajuste" && !(qty > 0)) return true;
+                  if (bulkTipo === "ajuste") {
+                    if (!bulkMotivo) return true;
+                    if (bulkAjusteAbsoluto) {
+                      const finalNum = bulkStockFinal === "" ? NaN : Number(bulkStockFinal);
+                      if (Number.isNaN(finalNum) || finalNum < 0) return true;
+                    } else {
+                      if (Number.isNaN(qty)) return true;
+                    }
+                  }
+                  return false;
+                })()}
+              >
+                {bulkLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Aplicar ajuste
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Modal de Movimiento */}
         <Dialog open={openMov} onOpenChange={setOpenMov}>
           <DialogContent className="w-[95vw] max-w-[500px] border border-border/60 bg-card">
