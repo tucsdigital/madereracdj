@@ -314,9 +314,9 @@ const CalendarioObras = ({
               return (
                 <div
                   key={index}
-                  className={`border rounded-lg p-2 min-h-[140px] transition-all cursor-pointer ${
+                  className={`border rounded-xl p-3 min-h-[180px] shadow-sm transition-all cursor-pointer hover:shadow-md hover:-translate-y-[1px] ${
                     isToday
-                      ? "bg-blue-50 border-blue-300 shadow-md"
+                      ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 ring-1 ring-blue-200"
                       : "bg-white border-gray-200 hover:border-gray-300"
                   }`}
                   onClick={() => {
@@ -326,11 +326,11 @@ const CalendarioObras = ({
                   }}
                   title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
                 >
-                  <div className="text-center mb-2 pb-2 border-b border-gray-200">
-                    <div className="text-[10px] font-semibold text-gray-600 uppercase">
+                  <div className="text-center mb-2.5 pb-2 border-b border-gray-200/80">
+                    <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">
                       {weekday}
                     </div>
-                    <div className={`text-base font-bold ${isToday ? "text-blue-600" : "text-gray-800"}`}>
+                    <div className={`text-2xl leading-none font-extrabold ${isToday ? "text-blue-700" : "text-gray-900"}`}>
                       {day.getDate()}
                     </div>
                   </div>
@@ -338,13 +338,13 @@ const CalendarioObras = ({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="w-full mb-2 text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                    className="w-full mb-2 text-xs h-7 px-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 font-semibold"
                     onClick={(e) => {
                       e.stopPropagation();
                       onAgregarNota(dateKey);
                     }}
                   >
-                    <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
+                    <Icon icon="heroicons:plus" className="w-3.5 h-3.5 mr-1" />
                     Nota
                   </Button>
 
@@ -361,25 +361,25 @@ const CalendarioObras = ({
                             e.stopPropagation();
                             onObraClick(obra);
                           }}
-                          className={`${colores.bg} ${colores.border} border rounded px-2 py-1.5 text-xs cursor-pointer hover:shadow-md transition-all group`}
+                          className={`${colores.bg} ${colores.border} border rounded-lg px-2.5 py-2 text-[12px] cursor-pointer hover:shadow-md transition-all group`}
                         >
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-[11px] truncate">
+                              <div className="font-bold text-[12px] truncate">
                                 {obra.numeroPedido || "Sin número"}
                               </div>
-                              <div className="text-[10px] text-gray-600 truncate mt-0.5">
+                              <div className="text-[11px] text-gray-700 truncate mt-0.5">
                                 {obra.cliente?.nombre || "Sin cliente"}
                               </div>
-                              <div className="text-[10px] font-medium mt-0.5">
+                              <div className="text-[11px] font-semibold mt-0.5">
                                 {formatearNumeroArgentino(total)}
                               </div>
                             </div>
                             <Badge
                               variant="outline"
-                              className={`${colores.badge} text-[9px] px-1 py-0 shrink-0`}
+                              className={`${colores.badge} text-[10px] px-1.5 py-0.5 shrink-0`}
                             >
-                              <Building className="w-2.5 h-2.5 mr-0.5" />
+                              <Building className="w-3 h-3 mr-1" />
                             </Badge>
                           </div>
                         </div>
@@ -404,15 +404,15 @@ const CalendarioObras = ({
                   <div className="space-y-1">
                     {loadingNotas ? (
                       <div className="flex items-center justify-center py-2">
-                        <Icon icon="heroicons:arrow-path" className="w-3 h-3 animate-spin text-gray-400" />
+                        <Icon icon="heroicons:arrow-path" className="w-4 h-4 animate-spin text-gray-400" />
                       </div>
                     ) : dayNotas.length === 0 ? (
-                      <div className="text-center py-1 text-[9px] text-gray-400">Sin notas</div>
+                      <div className="text-center py-1 text-xs text-gray-400">Sin notas</div>
                     ) : (
                       dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
                         <div
                           key={nota.id}
-                          className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-[10px] relative group hover:shadow-sm transition-all ${
+                          className={`bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 text-[12px] relative group hover:shadow-sm transition-all ${
                             deletingNota === nota.id ? "opacity-50 pointer-events-none" : "cursor-pointer"
                           }`}
                           onClick={(e) => {
@@ -422,16 +422,16 @@ const CalendarioObras = ({
                         >
                           {deletingNota === nota.id && (
                             <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded">
-                              <Icon icon="heroicons:arrow-path" className="w-3 h-3 animate-spin text-red-600" />
+                              <Icon icon="heroicons:arrow-path" className="w-4 h-4 animate-spin text-red-600" />
                             </div>
                           )}
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-800 truncate text-[10px]">
+                              <div className="font-bold text-gray-900 truncate text-[12px]">
                                 {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                               </div>
                               {(nota.detalle || nota.productos) && (
-                                <div className="text-gray-600 mt-0.5 line-clamp-1 text-[9px]">
+                                <div className="text-gray-700 mt-1 line-clamp-2 text-[11px] leading-snug">
                                   {nota.detalle || nota.productos}
                                 </div>
                               )}
@@ -442,22 +442,22 @@ const CalendarioObras = ({
                                   e.stopPropagation();
                                   onEditNota(nota);
                                 }}
-                                className="w-4 h-4 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all"
+                                className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700 transition-all"
                                 title="Editar nota"
                                 disabled={deletingNota === nota.id}
                               >
-                                <Icon icon="heroicons:pencil" className="w-2 h-2" />
+                                <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDeleteNota(nota);
                                 }}
-                                className="w-4 h-4 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all"
+                                className="w-5 h-5 bg-red-600 text-white rounded flex items-center justify-center hover:bg-red-700 transition-all"
                                 title="Eliminar nota"
                                 disabled={deletingNota === nota.id}
                               >
-                                <Icon icon="heroicons:trash" className="w-2 h-2" />
+                                <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
                               </button>
                             </div>
                           </div>
@@ -498,9 +498,9 @@ const CalendarioObras = ({
                 return (
                   <div
                     key={index}
-                    className={`border rounded-lg p-2 min-h-[170px] transition-all cursor-pointer ${
+                    className={`border rounded-xl p-3 min-h-[190px] shadow-sm transition-all cursor-pointer hover:shadow-md hover:-translate-y-[1px] ${
                       isToday
-                        ? "bg-blue-50 border-blue-300 shadow-md"
+                        ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 ring-1 ring-blue-200"
                         : "bg-white border-gray-200 hover:border-gray-300"
                     }`}
                     onClick={() => {
@@ -511,13 +511,13 @@ const CalendarioObras = ({
                     title={dayObras.length + dayNotas.length > 0 ? "Clic para ver todos los eventos del día" : ""}
                   >
                   {/* Header del día */}
-                  <div className="text-center mb-2 pb-2 border-b border-gray-200">
-                    <div className="text-[10px] font-semibold text-gray-600 uppercase">
+                  <div className="text-center mb-2.5 pb-2 border-b border-gray-200/80">
+                    <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">
                       {diasSemana[index]}
                     </div>
                     <div
-                      className={`text-base font-bold ${
-                        isToday ? "text-blue-600" : "text-gray-800"
+                      className={`text-2xl leading-none font-extrabold ${
+                        isToday ? "text-blue-700" : "text-gray-900"
                       }`}
                     >
                       {day.getDate()}
@@ -528,13 +528,13 @@ const CalendarioObras = ({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="w-full mb-2 text-[10px] h-6 px-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200"
+                    className="w-full mb-2 text-xs h-7 px-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 font-semibold"
                     onClick={(e) => {
                       e.stopPropagation();
                       onAgregarNota(dateKey);
                     }}
                   >
-                    <Icon icon="heroicons:plus" className="w-3 h-3 mr-0.5" />
+                    <Icon icon="heroicons:plus" className="w-3.5 h-3.5 mr-1" />
                     Nota
                   </Button>
 
@@ -552,25 +552,25 @@ const CalendarioObras = ({
                             e.stopPropagation();
                             onObraClick(obra);
                           }}
-                          className={`${colores.bg} ${colores.border} border rounded px-2 py-1.5 text-xs cursor-pointer hover:shadow-md transition-all group`}
+                          className={`${colores.bg} ${colores.border} border rounded-lg px-2.5 py-2 text-[12px] cursor-pointer hover:shadow-md transition-all group`}
                         >
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-[11px] truncate">
+                              <div className="font-bold text-[12px] truncate">
                                 {obra.numeroPedido || "Sin número"}
                               </div>
-                              <div className="text-[10px] text-gray-600 truncate mt-0.5">
+                              <div className="text-[11px] text-gray-700 truncate mt-0.5">
                                 {obra.cliente?.nombre || "Sin cliente"}
                               </div>
-                              <div className="text-[10px] font-medium mt-0.5">
+                              <div className="text-[11px] font-semibold mt-0.5">
                                 {formatearNumeroArgentino(total)}
                               </div>
                             </div>
                             <Badge
                               variant="outline"
-                              className={`${colores.badge} text-[9px] px-1 py-0 shrink-0`}
+                              className={`${colores.badge} text-[10px] px-1.5 py-0.5 shrink-0`}
                             >
-                              <Building className="w-2.5 h-2.5 mr-0.5" />
+                              <Building className="w-3 h-3 mr-1" />
                             </Badge>
                           </div>
                         </div>
@@ -602,14 +602,14 @@ const CalendarioObras = ({
                         />
                       </div>
                     ) : dayNotas.length === 0 ? (
-                      <div className="text-center py-1 text-[9px] text-gray-400">
+                      <div className="text-center py-1 text-xs text-gray-400">
                         Sin notas
                       </div>
                     ) : (
                       dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
                         <div
                           key={nota.id}
-                          className={`bg-yellow-50 border border-yellow-200 rounded px-2 py-1 text-[10px] relative group hover:shadow-sm transition-all ${
+                          className={`bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-2 text-[12px] relative group hover:shadow-sm transition-all ${
                             deletingNota === nota.id
                               ? "opacity-50 pointer-events-none"
                               : "cursor-pointer"
@@ -629,11 +629,11 @@ const CalendarioObras = ({
                           )}
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-800 truncate text-[10px]">
+                              <div className="font-bold text-gray-900 truncate text-[12px]">
                                 {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                               </div>
                               {(nota.detalle || nota.productos) && (
-                                <div className="text-gray-600 mt-0.5 line-clamp-1 text-[9px]">
+                                <div className="text-gray-700 mt-1 line-clamp-2 text-[11px] leading-snug">
                                   {nota.detalle || nota.productos}
                                 </div>
                               )}
@@ -644,22 +644,22 @@ const CalendarioObras = ({
                                   e.stopPropagation();
                                   onEditNota(nota);
                                 }}
-                                className="w-4 h-4 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600 transition-all"
+                                className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700 transition-all"
                                 title="Editar nota"
                                 disabled={deletingNota === nota.id}
                               >
-                                <Icon icon="heroicons:pencil" className="w-2 h-2" />
+                                <Icon icon="heroicons:pencil" className="w-2.5 h-2.5" />
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onDeleteNota(nota);
                                 }}
-                                className="w-4 h-4 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600 transition-all"
+                                className="w-5 h-5 bg-red-600 text-white rounded flex items-center justify-center hover:bg-red-700 transition-all"
                                 title="Eliminar nota"
                                 disabled={deletingNota === nota.id}
                               >
-                                <Icon icon="heroicons:trash" className="w-2 h-2" />
+                                <Icon icon="heroicons:trash" className="w-2.5 h-2.5" />
                               </button>
                             </div>
                           </div>
@@ -904,7 +904,7 @@ const CalendarioObras = ({
                     title={totalItems > 0 && dayObj.isCurrentMonth ? "Clic para ver todos los eventos del día" : ""}
                   >
                     {/* Header del día */}
-                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200/80">
                       <div
                         className={`text-sm font-bold ${
                           isToday
@@ -943,7 +943,7 @@ const CalendarioObras = ({
                                   e.stopPropagation();
                                   onObraClick(obra);
                                 }}
-                                className={`${colores.bg} ${colores.border} border rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group`}
+                                className={`${colores.bg} ${colores.border} border rounded-lg px-2.5 py-2 text-[12px] cursor-pointer hover:shadow-md transition-all group`}
                               >
                                 <div className="flex items-start justify-between gap-1">
                                   <div className="flex-1 min-w-0">
@@ -951,10 +951,10 @@ const CalendarioObras = ({
                                       <Building className="w-3 h-3 shrink-0" />
                                       {obra.numeroPedido || "Sin número"}
                                     </div>
-                                    <div className="text-[9px] text-gray-600 truncate mt-0.5">
+                                    <div className="text-[11px] text-gray-700 truncate mt-0.5">
                                       {obra.cliente?.nombre || "Sin cliente"}
                                     </div>
-                                    <div className="text-[9px] font-semibold mt-0.5 text-gray-700">
+                                    <div className="text-[11px] font-semibold mt-0.5 text-gray-800">
                                       {formatearNumeroArgentino(total)}
                                     </div>
                                   </div>
@@ -991,7 +991,7 @@ const CalendarioObras = ({
                           {dayNotas.slice(0, MAX_NOTAS_VISIBLES).map((nota) => (
                             <div
                               key={nota.id}
-                              className={`bg-yellow-50 border border-yellow-300 rounded-lg px-2 py-1.5 text-[10px] cursor-pointer hover:shadow-md transition-all group relative ${
+                              className={`bg-yellow-50 border border-yellow-300 rounded-lg px-2.5 py-2 text-[12px] cursor-pointer hover:shadow-md transition-all group relative ${
                                 deletingNota === nota.id
                                   ? "opacity-50 pointer-events-none"
                                   : ""
@@ -1016,7 +1016,7 @@ const CalendarioObras = ({
                                     {nota.numObra || nota.nombreObra || nota.barrioLote || "Nota"}
                                   </div>
                                   {(nota.detalle || nota.productos) && (
-                                    <div className="text-[9px] text-gray-600 mt-0.5 line-clamp-1">
+                                    <div className="text-[11px] text-gray-700 mt-1 line-clamp-2 leading-snug">
                                       {nota.detalle || nota.productos}
                                     </div>
                                   )}

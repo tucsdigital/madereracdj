@@ -331,6 +331,29 @@ export function buildRemitoHtml(
     `
     : "";
 
+  const envioHeaderHtml = esEnvioDoc
+    ? `
+      <div class="header header-envio">
+        <div class="header-envio-inner">
+          <div class="doc-icon doc-icon-envio" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 7.5V17a2 2 0 0 0 2 2h1" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 17V8.5A1 1 0 0 1 7 7.5h9a1 1 0 0 1 1 1V17" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+              <path d="M17 10h2.2a1 1 0 0 1 .8.4l1.6 2.1a1 1 0 0 1 .2.6V17a2 2 0 0 1-2 2h-1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="#000" stroke-width="2"/>
+              <path d="M18.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="#000" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="remito-title remito-title-envio">${documentoLabel}</div>
+        </div>
+      </div>
+    `
+    : "";
+
+  const envioMetaHtml = esEnvioDoc
+    ? `<div class="envio-meta">N° ${safe(numero)} · FECHA ${safe(fecha)}</div>`
+    : "";
+
   const saldoPendienteEnvioHtml = (() => {
     if (!esEnvioDoc || !esVenta || paraEmpleado) return "";
     const total = Number(pagos?.total ?? totales.total) || 0;
@@ -430,6 +453,37 @@ export function buildRemitoHtml(
       margin-bottom: 14px;
       padding-bottom: 12px;
       border-bottom: 1px solid #000000;
+    }
+    .header-envio {
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .header-envio-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .doc-icon-envio {
+      margin: 0;
+    }
+    .remito-title-envio {
+      font-size: 22px;
+      font-weight: 950;
+      letter-spacing: 0.8px;
+      margin: 0;
+    }
+    .envio-meta {
+      font-size: 11px;
+      font-weight: 800;
+      color: #000000;
+      margin-bottom: 10px;
+      text-align: right;
+      letter-spacing: 0.2px;
     }
     .header-left {
       flex: 0 0 52%;
@@ -822,6 +876,7 @@ export function buildRemitoHtml(
   <div class="page">
     <div class="main">
       <!-- Header con 3 zonas -->
+      ${envioHeaderHtml || `
       <div class="header">
         <div class="header-left">
           ${logoBase64 ? `<div class="header-logo-container"><img src="${logoBase64}" alt="Logo" class="header-logo" /></div>` : ""}
@@ -849,8 +904,10 @@ export function buildRemitoHtml(
           <div class="remito-fecha">FECHA ${safe(fecha)}</div>
         </div>
       </div>
+      `}
 
       <!-- Información del Cliente -->
+      ${envioMetaHtml}
       <div class="client-section">
         <div class="client-grid">
           <div class="client-col">
