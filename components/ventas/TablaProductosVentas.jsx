@@ -85,7 +85,12 @@ export function DetalleVentaPresupuestoItemsTable({
                   ) : null}
                 </td>
                 <td className="p-3 text-center font-semibold">
-                  {producto?.categoria === "Maderas" && producto?.cepilladoAplicado ? "✓" : "No"}
+                  {producto?.categoria === "Maderas" &&
+                  (producto?.cepilladoAplicado ||
+                    String(producto?.unidad || "").trim().toUpperCase() === "M2" ||
+                    String(producto?.unidad || "").trim().toUpperCase() === "M²")
+                    ? "✓"
+                    : "No"}
                 </td>
                 <td className="p-3 text-center font-semibold">
                   {producto?.categoria === "Maderas" && producto?.calibradoAplicado ? "✓" : "No"}

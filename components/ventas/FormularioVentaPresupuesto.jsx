@@ -401,13 +401,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       // Determinar si es machimbre o deck para marcar cepillado automáticamente
       const subcategoria = String(real.subcategoria || real.subCategoria || "").toLowerCase();
       const esM2 = real.categoria === "Maderas" && unidadMadera === "M2";
-      const precioConCepilladoInicial =
-        real.categoria === "Maderas" && esM2
-          ? Math.round(
-              (Number(precio || 0) * (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
-                100
-            ) * 100
-          : precio;
+      const precioConCepilladoInicial = precio;
       
       setProductosSeleccionados([
         ...productosSeleccionados,
@@ -541,8 +535,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
       overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
     );
+    const unidad = String(producto?.unidad || "").trim().toUpperCase();
     const factorCepillado =
-      cepilladoAplicado
+      (unidad === "M2" || unidad === "M²")
+        ? 1
+        : cepilladoAplicado
         ? 1 + cepilladoPorcentaje / 100
         : 1;
     const factorCalibrado = calibradoAplicado
@@ -1790,17 +1787,12 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         ancho: 0,
                         largo: largoEjemplo,
                         precioPorPie: precioPorPieEjemplo,
-                        precio:
-                          Math.round(
-                            (calcularPrecioMachimbre({
-                              alto: altoEjemplo,
-                              largo: largoEjemplo,
-                              cantidad: 1,
-                              precioPorPie: precioPorPieEjemplo,
-                            }) *
-                              (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
-                              100
-                          ) * 100,
+                        precio: calcularPrecioMachimbre({
+                          alto: altoEjemplo,
+                          largo: largoEjemplo,
+                          cantidad: 1,
+                          precioPorPie: precioPorPieEjemplo,
+                        }),
                         stock: 100,
                         cantidad: 1,
                         descuento: 0,
