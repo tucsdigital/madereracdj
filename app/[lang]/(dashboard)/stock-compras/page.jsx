@@ -134,24 +134,73 @@ function StockComprasPage() {
     const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       const fallbackFechaArgentina = new Date("2026-05-06T19:30:00.000Z"); // 06/05/2026 16:30 AR (UTC-3)
-      setMovimientos(
-        snap.docs.map((doc) => {
+      const toMillisOrNull = (v) => {
+        if (!v) return null;
+        if (typeof v?.toDate === "function") {
+          const d = v.toDate();
+          const ms = d instanceof Date ? d.getTime() : NaN;
+          return Number.isFinite(ms) ? ms : null;
+        }
+        if (v instanceof Date) {
+          const ms = v.getTime();
+          return Number.isFinite(ms) ? ms : null;
+        }
+        if (typeof v === "number") {
+          if (!Number.isFinite(v)) return null;
+          if (v > 0 && v < 1e12) return Math.round(v * 1000);
+          return Math.round(v);
+        }
+        if (typeof v === "string") {
+          const s = v.trim();
+          if (!s) return null;
+          const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (m) {
+            const y = Number(m[1]);
+            const mo = Number(m[2]);
+            const d = Number(m[3]);
+            const parsed = new Date(`${String(y).padStart(4, "0")}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}T12:00:00-03:00`);
+            const ms = parsed.getTime();
+            return Number.isFinite(ms) ? ms : null;
+          }
+          const parsed = new Date(s);
+          const ms = parsed.getTime();
+          return Number.isFinite(ms) ? ms : null;
+        }
+        return null;
+      };
+
+      const rows = snap.docs
+        .map((doc) => {
           const data = doc.data() || {};
-          const isValidFechaValue = (v) => {
-            if (!v) return false;
-            if (typeof v === "string") return v.trim().length > 0;
-            if (typeof v === "number") return Number.isFinite(v);
-            if (v instanceof Date) return !Number.isNaN(v.getTime());
-            if (typeof v?.toDate === "function") {
-              const d = v.toDate();
-              return d instanceof Date && !Number.isNaN(d.getTime());
-            }
-            return false;
+          const fechaDataMs = toMillisOrNull(data?.fecha);
+          const snapTimeMs =
+            (typeof doc.updateTime?.toMillis === "function" ? doc.updateTime.toMillis() : null) ??
+            (typeof doc.createTime?.toMillis === "function" ? doc.createTime.toMillis() : null) ??
+            null;
+
+          const fechaDisplay = fechaDataMs != null ? data.fecha : fallbackFechaArgentina;
+          const sortPrimaryMs = fechaDataMs ?? fallbackFechaArgentina.getTime();
+          const sortSecondaryMs = snapTimeMs ?? fechaDataMs ?? 0;
+
+          return {
+            ...(data || {}),
+            id: doc.id,
+            fecha: fechaDisplay,
+            __sortPrimaryMs: sortPrimaryMs,
+            __sortSecondaryMs: sortSecondaryMs,
           };
-          const fechaFallback = isValidFechaValue(data?.fecha) ? data.fecha : fallbackFechaArgentina;
-          return { id: doc.id, ...data, fecha: fechaFallback };
         })
-      );
+        .sort((a, b) => {
+          const ap = Number(a.__sortPrimaryMs) || 0;
+          const bp = Number(b.__sortPrimaryMs) || 0;
+          if (bp !== ap) return bp - ap;
+          const as = Number(a.__sortSecondaryMs) || 0;
+          const bs = Number(b.__sortSecondaryMs) || 0;
+          if (bs !== as) return bs - as;
+          return String(b.id || "").localeCompare(String(a.id || ""));
+        });
+
+      setMovimientos(rows);
       setLoadingMov(false);
     }, (err) => {
       setError("Error al cargar movimientos: " + err.message);

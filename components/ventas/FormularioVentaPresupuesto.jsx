@@ -400,8 +400,16 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       // Determinar si es machimbre o deck para marcar cepillado automáticamente
       const subcategoria = String(real.subcategoria || real.subCategoria || "").toLowerCase();
-      const esM2 = real.categoria === "Maderas" && unidadMadera === "M2";
-      const precioConCepilladoInicial = precio;
+      const esMachimbreODeck =
+        unidadMadera === "M2" &&
+        (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
+      const precioConCepilladoInicial =
+        real.categoria === "Maderas" && esMachimbreODeck
+          ? Math.round(
+              (Number(precio || 0) * (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
+                100
+            ) * 100
+          : precio;
       
       setProductosSeleccionados([
         ...productosSeleccionados,
@@ -423,7 +431,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: largo || 0,
           precioPorPie: precioPorPie || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-          cepilladoAplicado: esM2,
+          cepilladoAplicado: esMachimbreODeck, // Machimbre y deck se marcan automáticamente como cepillado
           cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
           calibradoAplicado: false,
           calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
@@ -535,11 +543,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
       overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
     );
-    const unidad = String(producto?.unidad || "").trim().toUpperCase();
     const factorCepillado =
-      (unidad === "M2" || unidad === "M²")
-        ? 1
-        : cepilladoAplicado
+      cepilladoAplicado
         ? 1 + cepilladoPorcentaje / 100
         : 1;
     const factorCalibrado = calibradoAplicado
@@ -1797,7 +1802,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         cantidad: 1,
                         descuento: 0,
                         esEditable: true, // Marca que es un producto editable
-                        cepilladoAplicado: true,
+                        cepilladoAplicado: false,
                         cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
                         calibradoAplicado: false,
                         calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,

@@ -70,6 +70,22 @@ const buildPagoSnapshot = (ventaLike) => {
   return { estadoPago, total, abonado, saldo };
 };
 
+const mergeComprobantesPago = (a, b) => {
+  const out = [];
+  const seen = new Set();
+  const push = (c) => {
+    if (!c || typeof c !== "object") return;
+    const url = String(c.url || "").trim();
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    out.push(c);
+  };
+  for (const c of Array.isArray(a) ? a : []) push(c);
+  for (const c of Array.isArray(b) ? b : []) push(c);
+  return out;
+};
+
 function calcularPrecioCorteMadera({
   alto,
   ancho,
@@ -1747,25 +1763,48 @@ const VentaDetalle = () => {
       throw new Error("No hay usuario autenticado");
     }
     const idToken = await user.getIdToken();
-    const resp = await fetch(`/api/erp/ventas/${encodeURIComponent(String(ventaEdit.id))}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ venta: ventaActualizada, origen: "ui_ventas_detail_edit" }),
-    });
-    const out = await resp.json().catch(() => ({}));
+    const tryPutVenta = async (ventaPayload, origen) => {
+      const resp = await fetch(`/api/erp/ventas/${encodeURIComponent(String(ventaEdit.id))}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venta: ventaPayload, origen }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      return { resp, out };
+    };
+
+    let { resp, out } = await tryPutVenta(ventaActualizada, "ui_ventas_detail_edit");
+    if ((!resp.ok || !out?.ok) && resp.status === 409) {
+      const latestSnap = await getDoc(doc(db, "ventas", String(ventaEdit.id)));
+      if (!latestSnap.exists()) {
+        throw new Error(out?.error || "Conflicto de edición. Recargá y volvé a intentar.");
+      }
+      const latest = { ...(latestSnap.data() || {}), id: latestSnap.id };
+      const merged = {
+        ...latest,
+        ...ventaActualizada,
+        version: latest?.version ?? ventaActualizada?.version ?? 1,
+        comprobantesPago: mergeComprobantesPago(latest?.comprobantesPago, ventaActualizada?.comprobantesPago),
+      };
+      ({ resp, out } = await tryPutVenta(merged, "ui_ventas_detail_edit_retry_409"));
+    }
+
     if (!resp.ok || !out?.ok) {
       throw new Error(out?.error || "Error al actualizar la venta");
     }
+
     const flags = out?.flags || {};
+    const nextVersion = Number(out?.version);
     const ventaActualizadaConFlags = {
       ...ventaActualizada,
       stockNegativo: Boolean(flags?.stockNegativo),
       productosSinPrecio: Boolean(flags?.productosSinPrecio),
       productosSinCosto: Boolean(flags?.productosSinCosto),
       requiereRevision: Boolean(flags?.requiereRevision),
+      ...(Number.isFinite(nextVersion) ? { version: nextVersion } : null),
     };
 
     if (before.estadoPago !== after.estadoPago && user) {

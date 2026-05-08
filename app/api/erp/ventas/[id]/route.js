@@ -20,10 +20,9 @@ export async function PUT(request, { params }) {
     if (!ventaId) return NextResponse.json({ ok: false, error: "ventaId requerido" }, { status: 400 });
 
     const res = await updateVentaEngine({ actor, ventaId, ventaData: venta, origen });
-    return NextResponse.json({ ok: true, ventaId: res.id, flags: res.flags }, { status: 200 });
+    return NextResponse.json({ ok: true, ventaId: res.id, flags: res.flags, version: res.version }, { status: 200 });
   } catch (err) {
     const status = err?.status || 500;
     return NextResponse.json({ ok: false, error: err?.message || "internal_error" }, { status });
   }
 }
-
