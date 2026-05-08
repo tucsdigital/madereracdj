@@ -1807,6 +1807,31 @@ const VentaDetalle = () => {
       ...(Number.isFinite(nextVersion) ? { version: nextVersion } : null),
     };
 
+    if (before.estadoPago !== after.estadoPago && user) {
+      const numeroPedido = String(
+        ventaActualizadaConFlags?.numeroPedido ||
+          venta?.numeroPedido ||
+          ventaActualizadaConFlags?.numero ||
+          venta?.numero ||
+          ""
+      );
+      await addDoc(collection(db, "ventas", ventaEdit.id, "pago_events"), {
+        type: "estado_pago_changed",
+        ventaId: String(ventaEdit.id || ""),
+        numeroPedido,
+        clienteId: String(ventaActualizada?.clienteId || ""),
+        clienteNombre: String(ventaActualizada?.cliente?.nombre || ""),
+        before,
+        after,
+        becamePagado:
+          (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+        at: serverTimestamp(),
+        byUid: String(user.uid || ""),
+        byEmail: String(user.email || ""),
+        source: "ventas_detail_save",
+      });
+    }
+
     // Actualizar el estado local
     setVenta(ventaActualizadaConFlags);
     setEditando(false);
