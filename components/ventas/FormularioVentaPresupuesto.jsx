@@ -400,11 +400,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
 
       // Determinar si es machimbre o deck para marcar cepillado automáticamente
       const subcategoria = String(real.subcategoria || real.subCategoria || "").toLowerCase();
-      const esMachimbreODeck =
-        unidadMadera === "M2" &&
-        (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
+      const esM2 = real.categoria === "Maderas" && unidadMadera === "M2";
       const precioConCepilladoInicial =
-        real.categoria === "Maderas" && esMachimbreODeck
+        real.categoria === "Maderas" && esM2
           ? Math.round(
               (Number(precio || 0) * (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
                 100
@@ -431,7 +429,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: largo || 0,
           precioPorPie: precioPorPie || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-          cepilladoAplicado: esMachimbreODeck, // Machimbre y deck se marcan automáticamente como cepillado
+          cepilladoAplicado: esM2,
           cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
           calibradoAplicado: false,
           calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
@@ -1792,17 +1790,22 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         ancho: 0,
                         largo: largoEjemplo,
                         precioPorPie: precioPorPieEjemplo,
-                        precio: calcularPrecioMachimbre({
-                          alto: altoEjemplo,
-                          largo: largoEjemplo,
-                          cantidad: 1,
-                          precioPorPie: precioPorPieEjemplo,
-                        }),
+                        precio:
+                          Math.round(
+                            (calcularPrecioMachimbre({
+                              alto: altoEjemplo,
+                              largo: largoEjemplo,
+                              cantidad: 1,
+                              precioPorPie: precioPorPieEjemplo,
+                            }) *
+                              (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
+                              100
+                          ) * 100,
                         stock: 100,
                         cantidad: 1,
                         descuento: 0,
                         esEditable: true, // Marca que es un producto editable
-                        cepilladoAplicado: false,
+                        cepilladoAplicado: true,
                         cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
                         calibradoAplicado: false,
                         calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
