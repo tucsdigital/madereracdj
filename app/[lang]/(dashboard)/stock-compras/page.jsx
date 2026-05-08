@@ -133,10 +133,22 @@ function StockComprasPage() {
     setLoadingMov(true);
     const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
     const unsub = onSnapshot(q, (snap) => {
+      const fallbackFechaArgentina = new Date("2026-05-06T19:30:00.000Z"); // 06/05/2026 16:30 AR (UTC-3)
       setMovimientos(
         snap.docs.map((doc) => {
           const data = doc.data() || {};
-          const fechaFallback = data?.fecha ?? doc.updateTime ?? doc.createTime ?? null;
+          const isValidFechaValue = (v) => {
+            if (!v) return false;
+            if (typeof v === "string") return v.trim().length > 0;
+            if (typeof v === "number") return Number.isFinite(v);
+            if (v instanceof Date) return !Number.isNaN(v.getTime());
+            if (typeof v?.toDate === "function") {
+              const d = v.toDate();
+              return d instanceof Date && !Number.isNaN(d.getTime());
+            }
+            return false;
+          };
+          const fechaFallback = isValidFechaValue(data?.fecha) ? data.fecha : fallbackFechaArgentina;
           return { id: doc.id, ...data, fecha: fechaFallback };
         })
       );
@@ -744,12 +756,13 @@ function StockComprasPage() {
         const y = Number(m[1]);
         const mo = Number(m[2]);
         const d = Number(m[3]);
-        const fechaLocal = new Date(y, mo - 1, d, 0, 0, 0);
+        const fechaLocal = new Date(y, mo - 1, d, 12, 0, 0);
         if (Number.isNaN(fechaLocal.getTime())) return "-";
         return new Intl.DateTimeFormat("es-AR", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
+          timeZone: "America/Argentina/Buenos_Aires",
         }).format(fechaLocal);
       }
     }
@@ -761,8 +774,8 @@ function StockComprasPage() {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
       hour12: false,
+      timeZone: "America/Argentina/Buenos_Aires",
     }).format(fecha);
   }, []);
 
