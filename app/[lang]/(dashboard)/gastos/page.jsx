@@ -824,6 +824,14 @@ const GastosPage = () => {
   // Guardar edición de un pago existente
   const handleGuardarEdicionPago = async () => {
     if (!cuentaSeleccionada || !pagoEdit) return;
+    if (cuentaSeleccionada.movimientoSaldoAFavor || cuentaSeleccionada.movimientoPagoGlobalProveedor) {
+      alert("Este movimiento no se edita desde aquí. Anulá el movimiento desde Cuentas por Pagar.");
+      return;
+    }
+    if (pagoEdit?.pagoGlobalProveedor) {
+      alert("Este pago proviene de un pago global. No se puede editar desde aquí.");
+      return;
+    }
     setGuardando(true);
     try {
       const pagos = Array.isArray(cuentaSeleccionada.pagos) ? [...cuentaSeleccionada.pagos] : [];
@@ -868,6 +876,16 @@ const GastosPage = () => {
 
   const handleEliminarPago = async (idx) => {
     if (!cuentaSeleccionada) return;
+    if (cuentaSeleccionada.movimientoSaldoAFavor || cuentaSeleccionada.movimientoPagoGlobalProveedor) {
+      alert("Este movimiento no se elimina desde aquí. Anulá el movimiento desde Cuentas por Pagar.");
+      return;
+    }
+    const pagosArr = Array.isArray(cuentaSeleccionada.pagos) ? cuentaSeleccionada.pagos : [];
+    const target = pagosArr[idx];
+    if (target?.pagoGlobalProveedor) {
+      alert("Este pago proviene de un pago global. No se puede eliminar desde aquí.");
+      return;
+    }
     if (!confirm("¿Eliminar este pago? Esta acción no se puede deshacer.")) return;
     setGuardando(true);
     try {
@@ -893,6 +911,55 @@ const GastosPage = () => {
     } catch (err) {
       console.error("Error al eliminar pago:", err);
       alert("Error al eliminar el pago: " + err.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleAnularMovimientoProveedor = async (item) => {
+    if (!item) return;
+    const esPagoGlobalProveedor = !!item.movimientoPagoGlobalProveedor;
+    const esSaldoAFavor = !!item.movimientoSaldoAFavor;
+    if (!esPagoGlobalProveedor && !esSaldoAFavor) return;
+
+    const pagoId = esPagoGlobalProveedor
+      ? String(item.id || "").replace(/^pagoGlobal_/, "")
+      : String(item.id || "").replace(/^saldoAFavor_/, "");
+
+    if (!pagoId) {
+      alert("No se pudo identificar el movimiento.");
+      return;
+    }
+
+    const label = esPagoGlobalProveedor ? "pago global" : "movimiento de saldo a favor";
+    if (!confirm(`¿Anular este ${label}? Esto revertirá el saldo a favor y, si corresponde, los pagos aplicados.`)) return;
+
+    if (!user || typeof user.getIdToken !== "function") {
+      alert("No hay usuario autenticado.");
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/pagos-proveedores/${encodeURIComponent(pagoId)}/anular`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ origen: "ui_gastos", motivo: "" }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) {
+        throw new Error(out?.error || "Error al anular");
+      }
+      await cargarDatos();
+      setOpenHistorial(false);
+      setCuentaSeleccionada(null);
+    } catch (e) {
+      console.error("Error al anular movimiento:", e);
+      alert("Error al anular movimiento: " + (e?.message || String(e)));
     } finally {
       setGuardando(false);
     }
@@ -1829,6 +1896,18 @@ const GastosPage = () => {
                                 <Eye className="w-3 h-3" />
                               </Button>
                             )}
+                            {esMovimientoEspecial && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                onClick={() => handleAnularMovimientoProveedor(c)}
+                                title="Anular movimiento"
+                                disabled={guardando}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
                             {!esMovimientoEspecial && saldo > 0 && (
                               <Button 
                                 size="sm" 
@@ -2611,6 +2690,11 @@ const GastosPage = () => {
               {/* Info de la cuenta */}
               <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 p-4 rounded-lg border border-blue-500/20">
                 <div className="font-bold text-lg text-foreground">{cuentaSeleccionada.proveedor?.nombre}</div>
+                {(cuentaSeleccionada.movimientoPagoGlobalProveedor || cuentaSeleccionada.movimientoSaldoAFavor) && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Este registro es un movimiento (no una cuenta). Se anula desde aquí.
+                  </div>
+                )}
                 <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                   <div className="bg-card p-2 rounded-md border border-border/60">
                     <div className="text-xs text-muted-foreground">Total</div>
@@ -2627,6 +2711,19 @@ const GastosPage = () => {
                     </div>
                   </div>
                 </div>
+                {(cuentaSeleccionada.movimientoPagoGlobalProveedor || cuentaSeleccionada.movimientoSaldoAFavor) && (
+                  <div className="mt-3">
+                    <Button
+                      variant="outline"
+                      className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                      onClick={() => handleAnularMovimientoProveedor(cuentaSeleccionada)}
+                      disabled={guardando}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Anular movimiento
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Listado de pagos */}
@@ -2683,25 +2780,29 @@ const GastosPage = () => {
                           <div className="flex flex-col items-end gap-2">
                             <div className="text-xs text-muted-foreground">Pago #{idx + 1}</div>
                             <div className="flex gap-1 mt-2">
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={() => {
-                                  setPagoEdit({ ...pago, idx });
-                                  setOpenEditarPago(true);
-                                }}
-                                title="Editar pago"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={() => handleEliminarPago(idx)}
-                                title="Eliminar pago"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
+                              {!pago.pagoGlobalProveedor && !cuentaSeleccionada.movimientoSaldoAFavor && !cuentaSeleccionada.movimientoPagoGlobalProveedor && (
+                                <>
+                                  <Button
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setPagoEdit({ ...pago, idx });
+                                      setOpenEditarPago(true);
+                                    }}
+                                    title="Editar pago"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={() => handleEliminarPago(idx)}
+                                    title="Eliminar pago"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
