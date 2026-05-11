@@ -1504,6 +1504,38 @@ const GastosPage = () => {
       .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
   }, [movimientosProveedorFiltradosPorFecha, filtroProveedor, filtroProveedorId, proveedores]);
 
+  const detalleCuentasPorPagarFiltrado = useMemo(() => {
+    const items = [];
+
+    const cuentas = Array.isArray(cuentasPorPagarFiltradas) ? cuentasPorPagarFiltradas : [];
+    for (const c of cuentas) {
+      items.push({
+        kind: "cuenta",
+        id: c.id,
+        fechaKey: c.fecha,
+        cuenta: c,
+      });
+    }
+
+    const incluirMovimientos = !filtroEstadoPago || filtroEstadoPago === "anulada";
+    if (incluirMovimientos) {
+      const sortKey = (m) => m.fechaRegistro || m.fechaActualizacion || m.fechaCreacion || m.fecha;
+      const movimientos = Array.isArray(movimientosProveedorFiltrados) ? movimientosProveedorFiltrados : [];
+      for (const m of movimientos) {
+        if (String(m?.tipo || "") !== "pagoGlobal") continue;
+        if (filtroEstadoPago === "anulada" && m?.anulado !== true) continue;
+        items.push({
+          kind: "pagoGlobal",
+          id: m.id,
+          fechaKey: sortKey(m),
+          movimiento: m,
+        });
+      }
+    }
+
+    return items.sort((a, b) => new Date(b.fechaKey || 0) - new Date(a.fechaKey || 0));
+  }, [cuentasPorPagarFiltradas, movimientosProveedorFiltrados, filtroEstadoPago]);
+
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
     if (cuentasPorPagarFiltradas.length === 0) {
@@ -2128,38 +2160,135 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cuentasPorPagarFiltradas.map((c) => {
-                    const saldo = calcularSaldoCuenta(c);
-                    const estadoCalc = calcularEstadoCuenta(c);
-                    const vencida = estadoCalc === "vencida";
-                    const anulada = estadoCalc === "anulada";
+                  {detalleCuentasPorPagarFiltrado.map((row) => {
+                    if (row.kind === "cuenta") {
+                      const c = row.cuenta;
+                      const saldo = calcularSaldoCuenta(c);
+                      const estadoCalc = calcularEstadoCuenta(c);
+                      const vencida = estadoCalc === "vencida";
+                      const anulada = estadoCalc === "anulada";
+
+                      return (
+                        <TableRow
+                          key={`cuenta_${c.id}`}
+                          className={vencida && saldo > 0 ? "bg-red-500/10" : anulada ? "opacity-60" : ""}
+                        >
+                          <TableCell>{formatFechaAR(c.fecha)}</TableCell>
+                          <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
+                          <TableCell className="font-bold">{formatMoneyARS(c.monto)}</TableCell>
+                          <TableCell className="text-green-600 font-semibold">{formatMoneyARS(c.montoPagado || 0)}</TableCell>
+                          <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                            {formatMoneyARS(saldo)}
+                          </TableCell>
+                          <TableCell className={vencida && saldo > 0 ? "text-red-600 font-semibold" : ""}>
+                            {c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "-"}
+                            {vencida && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
+                          </TableCell>
+                          <TableCell>
+                            {estadoCalc === "anulada" ? (
+                              <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulada</Badge>
+                            ) : estadoCalc === "vencida" ? (
+                              <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20">
+                                Vencida
+                              </Badge>
+                            ) : (
+                              <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
+                                {estadosPago[c.estadoPago]?.label || "Pendiente"}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                onClick={() => {
+                                  setCuentaSeleccionada(c);
+                                  setOpenHistorial(true);
+                                }}
+                                title="Ver historial de pagos"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+
+                              {!anulada && saldo > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-600 border-emerald-500/20 hover:text-green-700 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => {
+                                    setCuentaSeleccionada(c);
+                                    setMontoPago(String(saldo));
+                                    setPagoEnDolares(!!c.pagoEnDolares);
+                                    setValorOficialDolar(c.valorOficialDolar ?? null);
+                                    setComprobantesPago(c.comprobantes || []);
+                                    setOpenPago(true);
+                                  }}
+                                  title="Registrar pago"
+                                >
+                                  <Wallet className="w-3 h-3" />
+                                </Button>
+                              )}
+
+                              {!anulada && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-indigo-600 border-indigo-500/20 hover:text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                    onClick={() => abrirPagoGlobalProveedor(c)}
+                                    title="Pago global del proveedor"
+                                  >
+                                    <DollarSign className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                    onClick={() => handleEditarProveedor(c)}
+                                    title="Editar cuenta"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                    onClick={() => handleAnularCuentaProveedor(c)}
+                                    title="Anular cuenta"
+                                    disabled={guardando}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+
+                    const m = row.movimiento;
+                    const provNombre =
+                      m?.proveedor?.nombre || proveedores.find((p) => p.id === m?.proveedorId)?.nombre || "-";
+                    const monto = Number(m?.pagoIngresado ?? m?.monto ?? 0);
+                    const anulado = m?.anulado === true;
 
                     return (
-                      <TableRow
-                        key={c.id}
-                        className={vencida && saldo > 0 ? "bg-red-500/10" : anulada ? "opacity-60" : ""}
-                      >
-                        <TableCell>{formatFechaAR(c.fecha)}</TableCell>
-                        <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
-                        <TableCell className="font-bold">{formatMoneyARS(c.monto)}</TableCell>
-                        <TableCell className="text-green-600 font-semibold">{formatMoneyARS(c.montoPagado || 0)}</TableCell>
-                        <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                          {formatMoneyARS(saldo)}
-                        </TableCell>
-                        <TableCell className={vencida && saldo > 0 ? "text-red-600 font-semibold" : ""}>
-                          {c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "-"}
-                          {vencida && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
-                        </TableCell>
+                      <TableRow key={`pagoGlobal_${m.id}`} className={anulado ? "opacity-60" : ""}>
+                        <TableCell>{formatFechaAR(m.fecha)}</TableCell>
+                        <TableCell className="font-medium">{provNombre}</TableCell>
+                        <TableCell className="text-muted-foreground">-</TableCell>
+                        <TableCell className="text-green-600 font-semibold">{formatMoneyARS(monto)}</TableCell>
+                        <TableCell className="text-muted-foreground">-</TableCell>
+                        <TableCell className="text-muted-foreground">-</TableCell>
                         <TableCell>
-                          {estadoCalc === "anulada" ? (
-                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulada</Badge>
-                          ) : estadoCalc === "vencida" ? (
-                            <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20">
-                              Vencida
-                            </Badge>
+                          {anulado ? (
+                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulado</Badge>
                           ) : (
-                            <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
-                              {estadosPago[c.estadoPago]?.label || "Pendiente"}
+                            <Badge className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20">
+                              Pago global
                             </Badge>
                           )}
                         </TableCell>
@@ -2170,65 +2299,23 @@ const GastosPage = () => {
                               variant="outline"
                               className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
                               onClick={() => {
-                                setCuentaSeleccionada(c);
-                                setOpenHistorial(true);
+                                setMovimientoSeleccionado(m);
+                                setOpenMovimientoDetalle(true);
                               }}
-                              title="Ver historial de pagos"
+                              title="Ver detalle"
                             >
                               <Eye className="w-3 h-3" />
                             </Button>
-
-                            {!anulada && saldo > 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-green-600 border-emerald-500/20 hover:text-green-700 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                onClick={() => {
-                                  setCuentaSeleccionada(c);
-                                  setMontoPago(String(saldo));
-                                  setPagoEnDolares(!!c.pagoEnDolares);
-                                  setValorOficialDolar(c.valorOficialDolar ?? null);
-                                  setComprobantesPago(c.comprobantes || []);
-                                  setOpenPago(true);
-                                }}
-                                title="Registrar pago"
-                              >
-                                <Wallet className="w-3 h-3" />
-                              </Button>
-                            )}
-
-                            {!anulada && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-indigo-600 border-indigo-500/20 hover:text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                  onClick={() => abrirPagoGlobalProveedor(c)}
-                                  title="Pago global del proveedor"
-                                >
-                                  <DollarSign className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                  onClick={() => handleEditarProveedor(c)}
-                                  title="Editar cuenta"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                  onClick={() => handleAnularCuentaProveedor(c)}
-                                  title="Anular cuenta"
-                                  disabled={guardando}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                              onClick={() => handleAnularMovimientoProveedorDoc(m)}
+                              title="Anular pago global"
+                              disabled={guardando || anulado}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
