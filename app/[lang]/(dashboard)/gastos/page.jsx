@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2 } from "lucide-react";
+import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
@@ -25,6 +25,16 @@ import { Label } from "@/components/ui/label";
 import { useCategoriasGastos } from "@/hooks/useCategoriasGastos";
 import GestionCategorias from "@/components/gastos/GestionCategorias";
 import EstadisticasCategorias from "@/components/gastos/EstadisticasCategorias";
+import {
+  calcularResumenGeneral,
+  calcularResumenProveedor,
+  calcularSaldoCuenta,
+  calcularEstadoCuenta,
+  esCuentaAnulada,
+  esCuentaVencida,
+  formatMoneyARS,
+  formatFechaAR,
+} from "@/lib/erp/cuentas-pagar-calculos";
 
 // Estados de pago para proveedores
 const estadosPago = {
@@ -119,7 +129,7 @@ const GastosPage = () => {
   const [gastosInternos, setGastosInternos] = useState([]);
   const [cuentasPorPagar, setCuentasPorPagar] = useState([]);
   const [proveedores, setProveedores] = useState([]);
-  const [movimientosSaldoAFavor, setMovimientosSaldoAFavor] = useState([]);
+  const [movimientosProveedor, setMovimientosProveedor] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Estados para modales
@@ -129,9 +139,11 @@ const GastosPage = () => {
   const [openPagoGlobal, setOpenPagoGlobal] = useState(false);
   const [openQuitarSaldoAFavor, setOpenQuitarSaldoAFavor] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
+  const [openMovimientoDetalle, setOpenMovimientoDetalle] = useState(false);
   const [openGestionCategorias, setOpenGestionCategorias] = useState(false);
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
+  const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
   const [proveedorPagoGlobal, setProveedorPagoGlobal] = useState(null);
   const [proveedorQuitarSaldo, setProveedorQuitarSaldo] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -314,15 +326,23 @@ const GastosPage = () => {
               id: d.id,
               ...data,
               fecha: formatFechaSegura(data.fecha),
-              fechaRegistro: data.fechaRegistro || null,
-              fechaCreacion: data.fechaCreacion || null,
-              fechaActualizacion: data.fechaActualizacion || null,
+              fechaRegistro:
+                typeof data.fechaRegistro === "string"
+                  ? data.fechaRegistro
+                  : data.fechaRegistro?.toDate?.()
+                    ? data.fechaRegistro.toDate().toISOString()
+                    : null,
+              fechaCreacion: data.fechaCreacion?.toDate?.() ? data.fechaCreacion.toDate().toISOString() : null,
+              fechaActualizacion: data.fechaActualizacion?.toDate?.() ? data.fechaActualizacion.toDate().toISOString() : null,
             };
           })
-          .filter((m) => m.tipo === "saldoAFavor" || m.tipo === "pagoGlobal");
-        setMovimientosSaldoAFavor(pagosProveedoresData.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+          .filter((m) => Boolean(m?.tipo));
+        const sortKey = (m) => m.fechaRegistro || m.fechaActualizacion || m.fechaCreacion || m.fecha;
+        setMovimientosProveedor(
+          pagosProveedoresData.sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0))
+        );
       } catch (err) {
-        setMovimientosSaldoAFavor([]);
+        setMovimientosProveedor([]);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -578,37 +598,44 @@ const GastosPage = () => {
     
     setGuardando(true);
     try {
-      const montoActual = Number(cuentaSeleccionada.montoPagado) || 0;
-      const montoTotal = Number(cuentaSeleccionada.monto) || 0;
-      const nuevoMontoPagado = montoActual + Number(montoPago);
-      
-      let nuevoEstado = "pendiente";
-      if (nuevoMontoPagado >= montoTotal) {
-        nuevoEstado = "pagado";
-      } else if (nuevoMontoPagado > 0) {
-        nuevoEstado = "parcial";
-      }
-      
-      const nuevoPago = {
-        monto: Number(montoPago),
-        fecha: fechaPago,
-        metodo: metodoPago,
-        notas: notasPago,
-        responsable: user?.email || "Usuario no identificado",
-        fechaRegistro: new Date().toISOString(),
-        pagoEnDolares: !!pagoEnDolares,
-        valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
-        comprobantes: comprobantesPago || [],
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+
+      const call = async (permitirExcedenteASaldoAFavor) => {
+        const resp = await fetch(
+          `/api/erp/cuentas-pagar/${encodeURIComponent(String(cuentaSeleccionada.id))}/registrar-pago`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${idToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              monto: Number(montoPago),
+              fecha: fechaPago,
+              metodo: metodoPago,
+              notas: notasPago,
+              pagoEnDolares: !!pagoEnDolares,
+              valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
+              comprobantes: comprobantesPago || [],
+              permitirExcedenteASaldoAFavor: !!permitirExcedenteASaldoAFavor,
+              origen: "ui_gastos_pago_manual",
+            }),
+          }
+        );
+        const out = await resp.json().catch(() => ({}));
+        return { resp, out };
       };
-      
-      const pagosActualizados = [...(cuentaSeleccionada.pagos || []), nuevoPago];
-      
-      await updateDoc(doc(db, "gastos", cuentaSeleccionada.id), {
-        montoPagado: nuevoMontoPagado,
-        estadoPago: nuevoEstado,
-        pagos: pagosActualizados,
-        fechaActualizacion: serverTimestamp(),
-      });
+
+      let { resp, out } = await call(false);
+      if (resp.status === 409) {
+        const ok = confirm(
+          "El monto supera el saldo pendiente de la cuenta.\n¿Querés enviar el excedente a saldo a favor del proveedor?"
+        );
+        if (!ok) throw new Error(out?.error || "Monto excede saldo pendiente");
+        ({ resp, out } = await call(true));
+      }
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar el pago");
       
       // Recargar datos para reflejar cambios dinámicamente
       await cargarDatos();
@@ -634,6 +661,72 @@ const GastosPage = () => {
     if (montoPagado >= montoTotal) return "pagado";
     if (montoPagado > 0) return "parcial";
     return "pendiente";
+  };
+
+  const handleAnularCuentaProveedor = async (cuenta) => {
+    const cuentaId = String(cuenta?.id || "").trim();
+    if (!cuentaId) return;
+    if (!confirm("¿Anular esta cuenta por pagar? No se borrará información y quedará trazabilidad.")) return;
+    setGuardando(true);
+    try {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/cuentas-pagar/${encodeURIComponent(cuentaId)}/anular`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ motivo: "", origen: "ui_gastos_anular_cuenta" }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al anular la cuenta");
+      await cargarDatos();
+      if (cuentaSeleccionada?.id === cuentaId) {
+        setOpenHistorial(false);
+        setCuentaSeleccionada(null);
+      }
+    } catch (e) {
+      console.error("Error al anular cuenta:", e);
+      alert("Error al anular la cuenta: " + (e?.message || String(e)));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleAnularMovimientoProveedorDoc = async (mov) => {
+    if (!mov) return;
+    if (mov?.anulado === true) {
+      alert("Este movimiento ya está anulado.");
+      return;
+    }
+    const pagoId = String(mov?.id || "").trim();
+    if (!pagoId) return;
+    if (!confirm("¿Anular este movimiento? Esto revertirá su impacto y mantendrá trazabilidad.")) return;
+    if (!user || typeof user.getIdToken !== "function") {
+      alert("No hay usuario autenticado.");
+      return;
+    }
+    setGuardando(true);
+    try {
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/pagos-proveedores/${encodeURIComponent(pagoId)}/anular`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ origen: "ui_gastos", motivo: "" }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al anular");
+      await cargarDatos();
+    } catch (e) {
+      console.error("Error al anular movimiento:", e);
+      alert("Error al anular movimiento: " + (e?.message || String(e)));
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const limpiarEstadoPagoGlobal = () => {
@@ -687,6 +780,45 @@ const GastosPage = () => {
     });
     setMontoQuitarSaldo(String(saldo));
     setOpenQuitarSaldoAFavor(true);
+  };
+
+  const handleAplicarSaldoAFavor = async (grupo) => {
+    const provId = String(grupo?.proveedor?.id || grupo?.proveedorId || "").trim();
+    if (!provId) return;
+    const saldo = Number(grupo?.saldoAFavor || 0);
+    if (!(saldo > 0)) return;
+    if (!confirm("¿Aplicar el saldo a favor a las cuentas pendientes del proveedor?")) return;
+    setGuardando(true);
+    try {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(
+        `/api/erp/proveedores/${encodeURIComponent(provId)}/aplicar-saldo-a-favor`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha: new Date().toISOString().split("T")[0],
+            metodo: "Saldo a favor",
+            notas: "Aplicación de saldo a favor",
+            origen: "ui_gastos_aplicar_saldo_a_favor",
+          }),
+        }
+      );
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al aplicar saldo a favor");
+      await cargarDatos();
+      alert(
+        `Saldo aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))}\nSaldo a favor restante: ${formatMoneyARS(Number(out.saldoAFavorDespues || 0))}`
+      );
+    } catch (e) {
+      alert("Error al aplicar saldo a favor: " + (e?.message || "Error"));
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const handleQuitarSaldoAFavor = async () => {
@@ -834,34 +966,36 @@ const GastosPage = () => {
     }
     setGuardando(true);
     try {
-      const pagos = Array.isArray(cuentaSeleccionada.pagos) ? [...cuentaSeleccionada.pagos] : [];
-      const idx = pagoEdit.idx;
-      const pagoNuevo = {
-        monto: Number(pagoEdit.monto),
-        fecha: pagoEdit.fecha,
-        metodo: pagoEdit.metodo,
-        notas: pagoEdit.notas || "",
-        responsable: pagoEdit.responsable || user?.email || "Usuario no identificado",
-        fechaRegistro: pagoEdit.fechaRegistro || new Date().toISOString(),
-        pagoEnDolares: !!pagoEdit.pagoEnDolares,
-        valorOficialDolar: pagoEdit.pagoEnDolares ? (pagoEdit.valorOficialDolar ?? null) : null,
-        comprobantes: pagoEdit.comprobantes || [],
-      };
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
 
-      pagos[idx] = pagoNuevo;
-
-      const montoPagadoNuevo = pagos.reduce((s, p) => s + (Number(p.monto) || 0), 0);
-      const montoTotalCuenta = Number(cuentaSeleccionada.monto) || 0;
-      let nuevoEstado = "pendiente";
-      if (montoPagadoNuevo >= montoTotalCuenta) nuevoEstado = "pagado";
-      else if (montoPagadoNuevo > 0) nuevoEstado = "parcial";
-
-      await updateDoc(doc(db, "gastos", cuentaSeleccionada.id), {
-        pagos,
-        montoPagado: montoPagadoNuevo,
-        estadoPago: nuevoEstado,
-        fechaActualizacion: serverTimestamp(),
-      });
+      const resp = await fetch(
+        `/api/erp/cuentas-pagar/${encodeURIComponent(String(cuentaSeleccionada.id))}/pagos/mutar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "edit",
+            idx: pagoEdit.idx,
+            pago: {
+              monto: Number(pagoEdit.monto),
+              fecha: pagoEdit.fecha,
+              metodo: pagoEdit.metodo,
+              notas: pagoEdit.notas || "",
+              responsable: pagoEdit.responsable || user?.email || "Usuario no identificado",
+              pagoEnDolares: !!pagoEdit.pagoEnDolares,
+              valorOficialDolar: pagoEdit.pagoEnDolares ? (pagoEdit.valorOficialDolar ?? null) : null,
+              comprobantes: pagoEdit.comprobantes || [],
+            },
+            origen: "ui_gastos_editar_pago_manual",
+          }),
+        }
+      );
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al guardar la edición");
 
       await cargarDatos();
       setOpenEditarPago(false);
@@ -889,20 +1023,26 @@ const GastosPage = () => {
     if (!confirm("¿Eliminar este pago? Esta acción no se puede deshacer.")) return;
     setGuardando(true);
     try {
-      const pagos = Array.isArray(cuentaSeleccionada.pagos) ? [...cuentaSeleccionada.pagos] : [];
-      const next = pagos.filter((_, i) => i !== idx);
-      const montoPagadoNuevo = next.reduce((s, p) => s + (Number(p.monto) || 0), 0);
-      const montoTotalCuenta = Number(cuentaSeleccionada.monto) || 0;
-      let nuevoEstado = "pendiente";
-      if (montoPagadoNuevo >= montoTotalCuenta) nuevoEstado = "pagado";
-      else if (montoPagadoNuevo > 0) nuevoEstado = "parcial";
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
 
-      await updateDoc(doc(db, "gastos", cuentaSeleccionada.id), {
-        pagos: next,
-        montoPagado: montoPagadoNuevo,
-        estadoPago: nuevoEstado,
-        fechaActualizacion: serverTimestamp(),
-      });
+      const resp = await fetch(
+        `/api/erp/cuentas-pagar/${encodeURIComponent(String(cuentaSeleccionada.id))}/pagos/mutar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "delete",
+            idx,
+            origen: "ui_gastos_eliminar_pago_manual",
+          }),
+        }
+      );
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al eliminar el pago");
 
       await cargarDatos();
       // cerrar edición si estaba abierto sobre ese índice
@@ -1009,6 +1149,10 @@ const GastosPage = () => {
 
   // Eliminar
   const handleEliminar = async (tipo, id) => {
+    if (tipo === "proveedor") {
+      alert("Las cuentas por pagar no se eliminan. Usá la acción Anular para mantener trazabilidad.");
+      return;
+    }
     if (!confirm("¿Estás seguro de que quieres eliminar este registro?")) return;
     
     try {
@@ -1079,84 +1223,9 @@ const GastosPage = () => {
     });
   }, [cuentasPorPagar, isInRange]);
 
-  const movimientosSaldoAFavorFiltradosPorFecha = useMemo(() => {
-    return movimientosSaldoAFavor
-      .filter((m) => isInRange(m.fecha))
-      .filter((m) => {
-        const tipo = String(m?.tipo || "");
-        if (tipo !== "saldoAFavor") return true;
-        if (m?.pagoGlobalProveedor === true && Number(m?.pagoIngresado || 0) > 0) return false;
-        return true;
-      });
-  }, [movimientosSaldoAFavor, isInRange]);
-
-  const detalleCuentasPorPagarFiltradasPorFecha = useMemo(() => {
-    const movimientosComoItems = movimientosSaldoAFavorFiltradosPorFecha.map((m) => {
-      const proveedorInfo =
-        m.proveedor ||
-        proveedores.find((p) => p.id === m.proveedorId) || {
-          id: m.proveedorId,
-          nombre: "Proveedor",
-        };
-      const tipoMov = String(m.tipo || "");
-      const montoMovimiento = Number(m.monto) || 0;
-      const fechaMov = m.fechaRegistro || m.fechaCreacion || m.fecha;
-
-      if (tipoMov === "pagoGlobal") {
-        return {
-          id: `pagoGlobal_${m.id}`,
-          movimientoPagoGlobalProveedor: true,
-          tipo: "proveedor",
-          proveedorId: m.proveedorId,
-          proveedor: proveedorInfo,
-          monto: 0,
-          montoPagado: 0,
-          montoPagoGlobal: Number(m.pagoIngresado ?? m.monto ?? 0),
-          montoAplicado: Number(m.aplicadoACuentas ?? 0),
-          saldoAFavorAntes: Number(m.saldoAFavorAntes ?? 0),
-          saldoAFavorDespues: Number(m.saldoAFavorDespues ?? 0),
-          saldoAFavorDelta: Number(m.montoDeltaSaldoAFavor ?? 0),
-          estadoPago: "pagado",
-          fecha: fechaMov,
-          fechaVencimiento: null,
-          observaciones: m.notas || "",
-          responsable: m.responsable || "Usuario no identificado",
-          metodo: m.metodo || "Efectivo",
-          pagoEnDolares: !!m.pagoEnDolares,
-          valorOficialDolar: m.valorOficialDolar ?? null,
-          comprobantes: m.comprobantes || [],
-        };
-      }
-
-      return {
-        id: `saldoAFavor_${m.id}`,
-        movimientoSaldoAFavor: true,
-        tipo: "proveedor",
-        proveedorId: m.proveedorId,
-        proveedor: proveedorInfo,
-        monto: 0,
-        montoPagado: 0,
-        montoSaldoAFavor: Math.abs(Number(m.montoDelta ?? montoMovimiento)),
-        montoSaldoAFavorDelta: Number(m.montoDelta ?? montoMovimiento),
-        saldoAFavorDireccion: String(m.direccion || ""),
-        saldoAFavorAntes: Number(m.saldoAFavorAntes ?? 0),
-        saldoAFavorDespues: Number(m.saldoAFavorDespues ?? 0),
-        estadoPago: "pagado",
-        fecha: fechaMov,
-        fechaVencimiento: null,
-        observaciones: m.notas || "",
-        responsable: m.responsable || "Usuario no identificado",
-        metodo: m.metodo || "Efectivo",
-        pagoEnDolares: !!m.pagoEnDolares,
-        valorOficialDolar: m.valorOficialDolar ?? null,
-        comprobantes: m.comprobantes || [],
-      };
-    });
-
-    return [...cuentasPorPagarFiltradasPorFecha, ...movimientosComoItems].sort(
-      (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0)
-    );
-  }, [cuentasPorPagarFiltradasPorFecha, movimientosSaldoAFavorFiltradosPorFecha, proveedores]);
+  const movimientosProveedorFiltradosPorFecha = useMemo(() => {
+    return movimientosProveedor.filter((m) => isInRange(m.fecha));
+  }, [movimientosProveedor, isInRange]);
 
   // Calcular totales (usando datos filtrados por fecha)
   const totalesInternos = useMemo(() => {
@@ -1174,67 +1243,58 @@ const GastosPage = () => {
   }, [gastosInternosFiltradosPorFecha, categoriasActivas]);
 
   const totalesProveedores = useMemo(() => {
-    const total = cuentasPorPagarFiltradasPorFecha.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
-    const pagado = cuentasPorPagarFiltradasPorFecha.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
-    const pendienteBruto = total - pagado;
-    const proveedoresIds = new Set(cuentasPorPagarFiltradasPorFecha.map((c) => c.proveedorId).filter(Boolean));
-    const saldoAFavor = proveedores
-      .filter((p) => proveedoresIds.has(p.id))
-      .reduce((acc, p) => acc + (Number(p.saldoAFavor) || 0), 0);
-    const pendienteNeto = Math.max(pendienteBruto - saldoAFavor, 0);
-    const porEstado = {
-      pendiente: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "pendiente").length,
-      parcial: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "parcial").length,
-      pagado: cuentasPorPagarFiltradasPorFecha.filter(c => c.estadoPago === "pagado").length,
-    };
-    
-    // Calcular deudas vencidas
-    const vencidas = cuentasPorPagarFiltradasPorFecha.filter(c => {
-      const saldo = (Number(c.monto) || 0) - (Number(c.montoPagado) || 0);
-      return c.fechaVencimiento && 
-             new Date(c.fechaVencimiento) < new Date() && 
-             saldo > 0;
+    const resumen = calcularResumenGeneral({
+      cuentas: cuentasPorPagarFiltradasPorFecha,
+      proveedores,
+      movimientos: movimientosProveedorFiltradosPorFecha,
     });
-    
-    const montoVencido = vencidas.reduce((acc, c) => 
-      acc + ((Number(c.monto) || 0) - (Number(c.montoPagado) || 0)), 0
-    );
-    
-    return { total, pagado, pendienteBruto, saldoAFavor, pendienteNeto, porEstado, vencidas: vencidas.length, montoVencido };
-  }, [cuentasPorPagarFiltradasPorFecha, proveedores]);
+    const montoVencido = cuentasPorPagarFiltradasPorFecha
+      .filter((c) => esCuentaVencida(c))
+      .reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
+    return {
+      total: resumen.totalCuentas,
+      pagado: resumen.totalPagado,
+      pendienteBruto: resumen.saldoPendienteBruto,
+      saldoAFavor: resumen.saldoAFavorTotal,
+      pendienteNeto: resumen.saldoPendienteNeto,
+      excedenteSaldoAFavor: resumen.excedenteSaldoAFavor,
+      porEstado: {
+        pendiente: resumen.cuentasPendientes,
+        parcial: resumen.cuentasParciales,
+        pagado: resumen.cuentasPagadas,
+        anulada: cuentasPorPagarFiltradasPorFecha.filter((c) => esCuentaAnulada(c)).length,
+      },
+      vencidas: resumen.cuentasVencidas,
+      montoVencido,
+      movimientosAnulados: resumen.movimientosAnulados,
+    };
+  }, [cuentasPorPagarFiltradasPorFecha, proveedores, movimientosProveedorFiltradosPorFecha]);
 
   // Agrupar cuentas por proveedor (usando datos filtrados por fecha)
   const cuentasPorProveedor = useMemo(() => {
-    const grupos = {};
-    
-    cuentasPorPagarFiltradasPorFecha.forEach(cuenta => {
-      const provId = cuenta.proveedorId;
-      if (!grupos[provId]) {
-        grupos[provId] = {
-          proveedorId: provId,
-          proveedor: cuenta.proveedor,
-          cuentas: [],
-          total: 0,
-          pagado: 0,
-          pendiente: 0,
-        };
-      }
-      
-      grupos[provId].cuentas.push(cuenta);
-      grupos[provId].total += Number(cuenta.monto) || 0;
-      grupos[provId].pagado += Number(cuenta.montoPagado) || 0;
+    const provs = Array.isArray(proveedores) ? proveedores : [];
+    const cuentas = Array.isArray(cuentasPorPagarFiltradasPorFecha) ? cuentasPorPagarFiltradasPorFecha : [];
+    const movs = Array.isArray(movimientosProveedorFiltradosPorFecha) ? movimientosProveedorFiltradosPorFecha : [];
+
+    const items = provs.map((p) => {
+      const resumen = calcularResumenProveedor({
+        proveedorId: p.id,
+        cuentas,
+        proveedor: p,
+        movimientos: movs,
+      });
+      const cuentasProv = cuentas.filter((c) => String(c?.proveedorId || "") === String(p.id || ""));
+      return { ...resumen, cuentas: cuentasProv };
     });
-    
-    Object.keys(grupos).forEach(provId => {
-      const saldoAFavor = Number(proveedores.find((p) => p.id === provId)?.saldoAFavor) || 0;
-      const pendienteBruto = grupos[provId].total - grupos[provId].pagado;
-      grupos[provId].saldoAFavor = saldoAFavor;
-      grupos[provId].pendienteBruto = pendienteBruto;
-      grupos[provId].pendienteNeto = Math.max(pendienteBruto - saldoAFavor, 0);
+
+    const visibles = items.filter((i) => {
+      const tieneCuentas = Array.isArray(i.cuentas) && i.cuentas.length > 0;
+      const tieneSaldo = Number(i.saldoAFavor || 0) > 0;
+      return tieneCuentas || tieneSaldo;
     });
-    
-    return Object.values(grupos).sort((a, b) => b.pendienteNeto - a.pendienteNeto);
-  }, [cuentasPorPagarFiltradasPorFecha, proveedores]);
+
+    return visibles.sort((a, b) => Number(b.saldoPendienteNeto || 0) - Number(a.saldoPendienteNeto || 0));
+  }, [cuentasPorPagarFiltradasPorFecha, proveedores, movimientosProveedorFiltradosPorFecha]);
 
   // Filtrar datos (aplicando filtros de búsqueda sobre los datos ya filtrados por fecha)
   const gastosInternosFiltrados = useMemo(() => {
@@ -1246,14 +1306,33 @@ const GastosPage = () => {
   }, [gastosInternosFiltradosPorFecha, filtroInterno]);
 
   const cuentasPorPagarFiltradas = useMemo(() => {
-    return detalleCuentasPorPagarFiltradasPorFecha.filter(c => {
+    return cuentasPorPagarFiltradasPorFecha.filter((c) => {
       const busqueda = filtroProveedor.toLowerCase();
       const matchBusqueda = (c.proveedor?.nombre || "").toLowerCase().includes(busqueda);
-      const matchEstado = !filtroEstadoPago || c.estadoPago === filtroEstadoPago;
+      const estadoCalc = calcularEstadoCuenta(c);
+      const matchEstado = !filtroEstadoPago || estadoCalc === filtroEstadoPago;
       const matchProveedorId = !filtroProveedorId || c.proveedorId === filtroProveedorId;
       return matchBusqueda && matchEstado && matchProveedorId;
     });
-  }, [detalleCuentasPorPagarFiltradasPorFecha, filtroProveedor, filtroEstadoPago, filtroProveedorId]);
+  }, [cuentasPorPagarFiltradasPorFecha, filtroProveedor, filtroEstadoPago, filtroProveedorId]);
+
+  const movimientosProveedorFiltrados = useMemo(() => {
+    const busqueda = filtroProveedor.toLowerCase();
+    const getProveedorNombre = (m) =>
+      String(
+        m?.proveedor?.nombre ||
+          proveedores.find((p) => p.id === m?.proveedorId)?.nombre ||
+          ""
+      ).toLowerCase();
+    const sortKey = (m) => m.fechaRegistro || m.fechaActualizacion || m.fechaCreacion || m.fecha;
+    return movimientosProveedorFiltradosPorFecha
+      .filter((m) => {
+        const matchBusqueda = getProveedorNombre(m).includes(busqueda);
+        const matchProveedorId = !filtroProveedorId || String(m?.proveedorId || "") === String(filtroProveedorId || "");
+        return matchBusqueda && matchProveedorId;
+      })
+      .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
+  }, [movimientosProveedorFiltradosPorFecha, filtroProveedor, filtroProveedorId, proveedores]);
 
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
@@ -1267,25 +1346,22 @@ const GastosPage = () => {
       return acc;
     }, {});
 
-    const datos = cuentasPorPagarFiltradas.map(c => ({
-      Tipo: c.movimientoSaldoAFavor ? "Saldo a favor" : "Cuenta",
-      Fecha: c.fecha,
-      Proveedor: c.proveedor?.nombre || "",
-      Total: c.movimientoSaldoAFavor ? "" : c.monto,
-      Pagado: c.movimientoSaldoAFavor ? (Number(c.montoSaldoAFavor) || 0) : (c.montoPagado || 0),
-      Saldo: c.movimientoSaldoAFavor ? 0 : (Number(c.monto) || 0) - (Number(c.montoPagado) || 0),
-      "Saldo a favor (prov)": Number(resumenPorProveedor[c.proveedorId]?.saldoAFavor || 0),
-      "Pendiente bruto (prov)": Number(resumenPorProveedor[c.proveedorId]?.pendienteBruto || 0),
-      "Pendiente neto (prov)": Number(resumenPorProveedor[c.proveedorId]?.pendienteNeto || 0),
-      Vencimiento: c.movimientoSaldoAFavor ? "" : (c.fechaVencimiento || ""),
-      Estado: c.movimientoSaldoAFavor
-        ? "Saldo a favor"
-        : c.estadoPago === "pagado"
-        ? "Pagado"
-        : c.estadoPago === "parcial"
-        ? "Pagado Parcial"
-        : "Pendiente",
-    }));
+    const datos = cuentasPorPagarFiltradas.map((c) => {
+      const estado = calcularEstadoCuenta(c);
+      return {
+        Fecha: formatFechaAR(c.fecha),
+        Proveedor: c.proveedor?.nombre || "",
+        Total: Number(c.monto || 0),
+        Pagado: Number(c.montoPagado || 0),
+        Saldo: Number(calcularSaldoCuenta(c) || 0),
+        Vencimiento: c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "",
+        Estado: estado,
+        Responsable: String(c.responsable || ""),
+        "Saldo a favor (prov)": Number(resumenPorProveedor[c.proveedorId]?.saldoAFavor || 0),
+        "Pendiente bruto (prov)": Number(resumenPorProveedor[c.proveedorId]?.saldoPendienteBruto || resumenPorProveedor[c.proveedorId]?.pendienteBruto || 0),
+        "Pendiente neto (prov)": Number(resumenPorProveedor[c.proveedorId]?.saldoPendienteNeto || resumenPorProveedor[c.proveedorId]?.pendienteNeto || 0),
+      };
+    });
 
     const csv = [
       Object.keys(datos[0]).join(','),
@@ -1549,6 +1625,94 @@ const GastosPage = () => {
               </Table>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <ArrowLeftRight className="w-5 h-5" />
+                Movimientos de Proveedor
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Monto</TableHead>
+                    <TableHead>Aplicado</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movimientosProveedorFiltrados.map((m) => {
+                    const tipo = String(m?.tipo || "");
+                    const provNombre =
+                      m?.proveedor?.nombre || proveedores.find((p) => p.id === m?.proveedorId)?.nombre || "-";
+                    const monto =
+                      tipo === "pagoGlobal"
+                        ? Number(m?.pagoIngresado ?? m?.monto ?? 0)
+                        : Number(m?.montoDelta ?? m?.monto ?? 0);
+                    const aplicado = Number(m?.aplicadoACuentas ?? 0);
+                    const anulado = m?.anulado === true;
+
+                    return (
+                      <TableRow key={m.id} className={anulado ? "opacity-60" : ""}>
+                        <TableCell>{formatFechaAR(m.fecha)}</TableCell>
+                        <TableCell className="font-medium">{provNombre}</TableCell>
+                        <TableCell>
+                          {tipo === "pagoGlobal"
+                            ? "Pago global"
+                            : tipo === "saldoAFavor"
+                              ? "Saldo a favor"
+                              : tipo || "-"}
+                        </TableCell>
+                        <TableCell className="font-bold">{formatMoneyARS(monto)}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatMoneyARS(aplicado)}</TableCell>
+                        <TableCell>
+                          {anulado ? (
+                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulado</Badge>
+                          ) : (
+                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">
+                              Activo
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                              onClick={() => {
+                                setMovimientoSeleccionado(m);
+                                setOpenMovimientoDetalle(true);
+                              }}
+                              title="Ver detalle"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                              onClick={() => handleAnularMovimientoProveedorDoc(m)}
+                              title="Anular movimiento"
+                              disabled={guardando || anulado}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Vista de Cuentas por Pagar */}
@@ -1643,27 +1807,40 @@ const GastosPage = () => {
                             {grupo.proveedor?.nombre || "Sin nombre"}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {grupo.cuentas.length} cuenta{grupo.cuentas.length !== 1 ? 's' : ''} activa{grupo.cuentas.length !== 1 ? 's' : ''}
+                            {Number(grupo.cuentasActivas || 0)} cuenta{Number(grupo.cuentasActivas || 0) !== 1 ? "s" : ""} activa{Number(grupo.cuentasActivas || 0) !== 1 ? "s" : ""}
                           </div>
                         </div>
                         
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Total:</span>
-                            <span className="font-semibold">${grupo.total.toLocaleString("es-AR")}</span>
+                            <span className="font-semibold">{formatMoneyARS(grupo.total)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Pagado:</span>
-                            <span className="font-semibold text-green-600">${grupo.pagado.toLocaleString("es-AR")}</span>
+                            <span className="font-semibold text-green-600">{formatMoneyARS(grupo.pagado)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Saldo a favor:</span>
                             <span className={`font-semibold ${grupo.saldoAFavor > 0 ? "text-green-600" : "text-muted-foreground"}`}>
-                              ${Number(grupo.saldoAFavor || 0).toLocaleString("es-AR")}
+                              {formatMoneyARS(Number(grupo.saldoAFavor || 0))}
                             </span>
                           </div>
                         {Number(grupo.saldoAFavor || 0) > 0 && (
-                          <div className="mt-2">
+                          <div className="mt-2 space-y-2">
+                            {Number(grupo.saldoPendienteBruto || 0) > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-emerald-700 border-emerald-500/20 hover:text-emerald-800 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAplicarSaldoAFavor(grupo);
+                                }}
+                              >
+                                Aplicar saldo a favor
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
@@ -1679,8 +1856,8 @@ const GastosPage = () => {
                         )}
                           <div className="flex justify-between border-t pt-2">
                             <span className="text-muted-foreground font-semibold">Pendiente neto:</span>
-                            <span className={`font-bold ${grupo.pendienteNeto > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                              ${Number(grupo.pendienteNeto || 0).toLocaleString("es-AR")}
+                            <span className={`font-bold ${Number(grupo.saldoPendienteNeto || 0) > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                              {formatMoneyARS(Number(grupo.saldoPendienteNeto || 0))}
                             </span>
                           </div>
                         </div>
@@ -1739,6 +1916,8 @@ const GastosPage = () => {
                     <SelectItem value="pendiente">Pendiente</SelectItem>
                     <SelectItem value="parcial">Pagado Parcial</SelectItem>
                     <SelectItem value="pagado">Pagado</SelectItem>
+                  <SelectItem value="vencida">Vencida</SelectItem>
+                  <SelectItem value="anulada">Anulada</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input 
@@ -1772,61 +1951,34 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cuentasPorPagarFiltradas.map(c => {
-                    const esMovimientoSaldoAFavor = !!c.movimientoSaldoAFavor;
-                    const esPagoGlobalProveedor = !!c.movimientoPagoGlobalProveedor;
-                    const esMovimientoEspecial = esMovimientoSaldoAFavor || esPagoGlobalProveedor;
-                    const deltaSaldoAFavor = esMovimientoSaldoAFavor
-                      ? Number(c.montoSaldoAFavorDelta || 0)
-                      : esPagoGlobalProveedor
-                        ? Number(c.saldoAFavorDelta || 0)
-                        : 0;
-                    const saldo = esMovimientoEspecial
-                      ? 0
-                      : (Number(c.monto) || 0) - (Number(c.montoPagado) || 0);
-                    const vencido =
-                      !esMovimientoEspecial &&
-                      c.fechaVencimiento &&
-                      new Date(c.fechaVencimiento) < new Date();
-                    
+                  {cuentasPorPagarFiltradas.map((c) => {
+                    const saldo = calcularSaldoCuenta(c);
+                    const estadoCalc = calcularEstadoCuenta(c);
+                    const vencida = estadoCalc === "vencida";
+                    const anulada = estadoCalc === "anulada";
+
                     return (
-                      <TableRow key={c.id} className={vencido && saldo > 0 ? "bg-red-500/10" : ""}>
-                        <TableCell>{formatFechaHoraArgentina(c.fechaActualizacion || c.fechaCreacion || c.fecha)}</TableCell>
+                      <TableRow
+                        key={c.id}
+                        className={vencida && saldo > 0 ? "bg-red-500/10" : anulada ? "opacity-60" : ""}
+                      >
+                        <TableCell>{formatFechaAR(c.fecha)}</TableCell>
                         <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
-                        <TableCell className="font-bold">
-                          {esMovimientoEspecial ? "-" : `$${Number(c.monto).toLocaleString("es-AR")}`}
-                        </TableCell>
-                        <TableCell className="text-green-600 font-semibold">
-                          $
-                          {Number(
-                            esMovimientoSaldoAFavor
-                              ? c.montoSaldoAFavor
-                              : esPagoGlobalProveedor
-                                ? c.montoPagoGlobal
-                                : (c.montoPagado || 0)
-                          ).toLocaleString("es-AR")}
-                        </TableCell>
+                        <TableCell className="font-bold">{formatMoneyARS(c.monto)}</TableCell>
+                        <TableCell className="text-green-600 font-semibold">{formatMoneyARS(c.montoPagado || 0)}</TableCell>
                         <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                          ${saldo.toLocaleString("es-AR")}
+                          {formatMoneyARS(saldo)}
                         </TableCell>
-                        <TableCell className={vencido && saldo > 0 ? "text-red-600 font-semibold" : ""}>
-                          {esMovimientoEspecial ? "-" : (c.fechaVencimiento || "-")}
-                          {vencido && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
+                        <TableCell className={vencida && saldo > 0 ? "text-red-600 font-semibold" : ""}>
+                          {c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "-"}
+                          {vencida && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
                         </TableCell>
                         <TableCell>
-                          {esPagoGlobalProveedor ? (
-                            <Badge className="bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20">
-                              Pago global
-                            </Badge>
-                          ) : esMovimientoSaldoAFavor ? (
-                            <Badge
-                              className={
-                                deltaSaldoAFavor < 0
-                                  ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20"
-                                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                              }
-                            >
-                              {deltaSaldoAFavor < 0 ? "Saldo a favor quitado" : "Saldo a favor"}
+                          {estadoCalc === "anulada" ? (
+                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulada</Badge>
+                          ) : estadoCalc === "vencida" ? (
+                            <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20">
+                              Vencida
                             </Badge>
                           ) : (
                             <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
@@ -1836,87 +1988,27 @@ const GastosPage = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            {(esMovimientoEspecial || (c.pagos && c.pagos.length > 0)) && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                onClick={() => {
-                                  if (esPagoGlobalProveedor) {
-                                    const montoPago = Number(c.montoPagoGlobal) || 0;
-                                    setCuentaSeleccionada({
-                                      ...c,
-                                      monto: montoPago,
-                                      montoPagado: montoPago,
-                                      pagos: [
-                                        {
-                                          monto: montoPago,
-                                          fecha: c.fecha,
-                                          metodo: c.metodo || "Efectivo",
-                                          notas: c.observaciones || "",
-                                          responsable: c.responsable || "Usuario no identificado",
-                                          fechaRegistro: new Date().toISOString(),
-                                          pagoEnDolares: !!c.pagoEnDolares,
-                                          valorOficialDolar: c.valorOficialDolar ?? null,
-                                          comprobantes: c.comprobantes || [],
-                                          pagoGlobalProveedor: true,
-                                        },
-                                      ],
-                                    });
-                                  } else if (esMovimientoSaldoAFavor) {
-                                    const montoMovimiento = Number(c.montoSaldoAFavor) || 0;
-                                    const delta = Number(c.montoSaldoAFavorDelta || 0);
-                                    const accion = delta < 0 ? "Quita saldo a favor" : "Saldo a favor";
-                                    setCuentaSeleccionada({
-                                      ...c,
-                                      monto: montoMovimiento,
-                                      montoPagado: montoMovimiento,
-                                      pagos: [
-                                        {
-                                          monto: montoMovimiento,
-                                          fecha: c.fecha,
-                                          metodo: c.metodo || "Efectivo",
-                                          notas: `${accion}${c.observaciones ? `: ${c.observaciones}` : ""}`,
-                                          responsable: c.responsable || "Usuario no identificado",
-                                          fechaRegistro: new Date().toISOString(),
-                                          pagoEnDolares: !!c.pagoEnDolares,
-                                          valorOficialDolar: c.valorOficialDolar ?? null,
-                                          comprobantes: c.comprobantes || [],
-                                          pagoGlobalProveedor: true,
-                                        },
-                                      ],
-                                    });
-                                  } else {
-                                    setCuentaSeleccionada(c);
-                                  }
-                                  setOpenHistorial(true);
-                                }}
-                                title="Ver historial de pagos"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </Button>
-                            )}
-                            {esMovimientoEspecial && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                              onClick={() => {
+                                setCuentaSeleccionada(c);
+                                setOpenHistorial(true);
+                              }}
+                              title="Ver historial de pagos"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </Button>
+
+                            {!anulada && saldo > 0 && (
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                onClick={() => handleAnularMovimientoProveedor(c)}
-                                title="Anular movimiento"
-                                disabled={guardando}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            )}
-                            {!esMovimientoEspecial && saldo > 0 && (
-                              <Button 
-                                size="sm" 
                                 variant="outline"
                                 className="text-green-600 border-emerald-500/20 hover:text-green-700 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
                                 onClick={() => {
                                   setCuentaSeleccionada(c);
-                                  setMontoPago((Number(c.monto) - Number(c.montoPagado || 0)).toString());
-                                  // Inicializar opciones de pago en dólares / comprobantes desde la cuenta si hubiera
+                                  setMontoPago(String(saldo));
                                   setPagoEnDolares(!!c.pagoEnDolares);
                                   setValorOficialDolar(c.valorOficialDolar ?? null);
                                   setComprobantesPago(c.comprobantes || []);
@@ -1927,7 +2019,8 @@ const GastosPage = () => {
                                 <Wallet className="w-3 h-3" />
                               </Button>
                             )}
-                            {!esMovimientoEspecial && (
+
+                            {!anulada && (
                               <>
                                 <Button
                                   size="sm"
@@ -1938,10 +2031,23 @@ const GastosPage = () => {
                                 >
                                   <DollarSign className="w-3 h-3" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200" onClick={() => handleEditarProveedor(c)} title="Editar cuenta">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => handleEditarProveedor(c)}
+                                  title="Editar cuenta"
+                                >
                                   <Edit className="w-3 h-3" />
                                 </Button>
-                                <Button size="sm" variant="outline" className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200" onClick={() => handleEliminar("proveedor", c.id)} title="Eliminar cuenta">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => handleAnularCuentaProveedor(c)}
+                                  title="Anular cuenta"
+                                  disabled={guardando}
+                                >
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
                               </>
@@ -2835,6 +2941,92 @@ const GastosPage = () => {
             }}>
               Cerrar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openMovimientoDetalle} onOpenChange={setOpenMovimientoDetalle}>
+        <DialogContent className="w-[95vw] max-w-[650px] border border-border/60 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="w-5 h-5 text-blue-600" />
+              Detalle de Movimiento
+            </DialogTitle>
+          </DialogHeader>
+          {movimientoSeleccionado && (
+            <div className="space-y-3 py-2">
+              <div className="bg-muted/40 p-3 rounded-lg border border-border/60">
+                <div className="font-bold text-foreground">
+                  {movimientoSeleccionado?.proveedor?.nombre ||
+                    proveedores.find((p) => p.id === movimientoSeleccionado?.proveedorId)?.nombre ||
+                    "Proveedor"}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatFechaAR(movimientoSeleccionado.fecha)} · {String(movimientoSeleccionado.tipo || "")}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                <div className="bg-card p-2 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Monto</div>
+                  <div className="font-bold">
+                    {formatMoneyARS(
+                      movimientoSeleccionado.tipo === "pagoGlobal"
+                        ? Number(movimientoSeleccionado?.pagoIngresado ?? movimientoSeleccionado?.monto ?? 0)
+                        : Number(movimientoSeleccionado?.montoDelta ?? movimientoSeleccionado?.monto ?? 0)
+                    )}
+                  </div>
+                </div>
+                <div className="bg-card p-2 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Aplicado a cuentas</div>
+                  <div className="font-bold">{formatMoneyARS(Number(movimientoSeleccionado?.aplicadoACuentas ?? 0))}</div>
+                </div>
+                <div className="bg-card p-2 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Estado</div>
+                  <div className="font-bold">{movimientoSeleccionado?.anulado ? "Anulado" : "Activo"}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-card p-2 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Saldo a favor antes</div>
+                  <div className="font-bold">{formatMoneyARS(Number(movimientoSeleccionado?.saldoAFavorAntes ?? 0))}</div>
+                </div>
+                <div className="bg-card p-2 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Saldo a favor después</div>
+                  <div className="font-bold">{formatMoneyARS(Number(movimientoSeleccionado?.saldoAFavorDespues ?? 0))}</div>
+                </div>
+              </div>
+
+              {movimientoSeleccionado?.notas ? (
+                <div className="bg-card p-3 rounded-md border border-border/60 text-sm">
+                  <div className="text-xs text-muted-foreground mb-1">Notas</div>
+                  <div className="text-foreground whitespace-pre-wrap">{String(movimientoSeleccionado.notas)}</div>
+                </div>
+              ) : null}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenMovimientoDetalle(false);
+                setMovimientoSeleccionado(null);
+              }}
+            >
+              Cerrar
+            </Button>
+            {movimientoSeleccionado && (
+              <Button
+                variant="outline"
+                className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                onClick={() => handleAnularMovimientoProveedorDoc(movimientoSeleccionado)}
+                disabled={guardando || movimientoSeleccionado?.anulado}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Anular
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
