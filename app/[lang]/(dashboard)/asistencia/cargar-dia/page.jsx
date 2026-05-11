@@ -40,7 +40,10 @@ function calcMonto(estado, base, extra) {
   return 0;
 }
 function dayKey(i) {
-  return ["lun", "mar", "mie", "jue", "vie", "sab"][i];
+  return ["lun", "mar", "mie", "jue", "vie", "sab", "dom"][i];
+}
+function esDiaPagablePorIndice(i) {
+  return i >= 0 && i <= 4;
 }
 
 export default function CargarDiaPage() {
@@ -67,11 +70,12 @@ export default function CargarDiaPage() {
     if (!emp?.id) return;
     const base = Number(emp.valorDia || 0);
     const extra = Number(emp.valorExtra || 0);
-    const monto = calcMonto(estado, base, extra);
+    const montoBase = calcMonto(estado, base, extra);
+    const monto = esDiaPagablePorIndice(idx) ? montoBase : 0;
     const prev = asistencias[emp.id];
     const k = dayKey(idx);
     const days = { ...(prev?.days || {}), [k]: { estado, monto } };
-    const totalSemana = [0,1,2,3,4,5].reduce((acc,i)=>acc+(days[dayKey(i)]?.monto||0),0);
+    const totalSemana = [0,1,2,3,4].reduce((acc,i)=>acc+(days[dayKey(i)]?.monto||0),0);
     const data = { employeeId: emp.id, employeeNombre: emp.nombre||"", weekStart: semanaClave, days, totalSemana, cerrada: prev?.cerrada||false };
     if (prev?.id) await setDoc(doc(db, "asistencias", prev.id), data, { merge: true });
     else {

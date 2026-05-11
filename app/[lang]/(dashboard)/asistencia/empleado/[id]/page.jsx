@@ -7,6 +7,12 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 
+function calcTotalSemanaLaboral(days) {
+  const d = days && typeof days === "object" ? days : {};
+  const keys = ["lun", "mar", "mie", "jue", "vie"];
+  return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
+}
+
 export default function EmpleadoDetallePage() {
   const { id } = useParams();
   const [empleado, setEmpleado] = useState(null);
@@ -34,7 +40,7 @@ export default function EmpleadoDetallePage() {
         const d = new Date(a.weekStart);
         return d.getFullYear()===y && d.getMonth()+1===m;
       })
-      .reduce((acc,a)=>acc+(a.totalSemana||0),0);
+      .reduce((acc,a)=>acc+calcTotalSemanaLaboral(a?.days),0);
     const totAdv = adelantos
       .filter(a=>{
         const d = new Date(a.fecha);
@@ -77,7 +83,7 @@ export default function EmpleadoDetallePage() {
                   {asistencias.map(a=>(
                     <tr key={a.id} className="border-t">
                       <td className="px-3 py-2">{a.weekStart}</td>
-                      <td className="px-3 py-2 text-right">${Number(a.totalSemana||0).toLocaleString("es-AR")}</td>
+                      <td className="px-3 py-2 text-right">${Number(calcTotalSemanaLaboral(a?.days)).toLocaleString("es-AR")}</td>
                       <td className="px-3 py-2">{a.cerrada?"CERRADA":"ABIERTA"}</td>
                     </tr>
                   ))}

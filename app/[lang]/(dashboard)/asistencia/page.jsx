@@ -78,6 +78,26 @@ function calcMonto(estado, base, extra) {
   return 0;
 }
 
+function calcTotalSemanaLaboral(days) {
+  const d = days && typeof days === "object" ? days : {};
+  const keys = ["lun", "mar", "mie", "jue", "vie"];
+  return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
+}
+
+function contarDiasHabilesDelMes(dateObj) {
+  const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  let count = 0;
+  for (let day = 1; day <= lastDay; day++) {
+    const dow = new Date(y, m, day).getDay();
+    if (dow === 0 || dow === 6) continue;
+    count++;
+  }
+  return count;
+}
+
 // --- Constants ---
 
 const estadoItems = [
@@ -146,12 +166,13 @@ export default function AsistenciaPage() {
       return d >= inicioMes && d <= finMes;
     });
     const porEmpleado = empleadosFiltrados.map((emp) => {
+      const diasHabiles = contarDiasHabilesDelMes(hoy);
       const objetivoCalculado = Number(emp.objetivoMensual || 0) > 0
         ? Number(emp.objetivoMensual)
-        : Math.round(Number(emp.valorDia || 0) * 26);
+        : Math.round(Number(emp.valorDia || 0) * diasHabiles);
       const cobrado = docsMes
         .filter((a) => a.employeeId === emp.id)
-        .reduce((acc, a) => acc + Number(a.totalSemana || 0), 0);
+        .reduce((acc, a) => acc + calcTotalSemanaLaboral(a?.days), 0);
       const adelanto = adelantosMensuales
         .filter((a) => a.employeeId === emp.id)
         .reduce((acc, a) => acc + Number(a.monto || 0), 0);
@@ -285,11 +306,12 @@ export default function AsistenciaPage() {
     if (!emp?.id) return;
     const base = Number(emp.valorDia || 0);
     const extra = Number(emp.valorExtra || 0);
-    const monto = montoManual != null ? Number(montoManual) : calcMonto(estado, base, extra);
+    const montoBase = montoManual != null ? Number(montoManual) : calcMonto(estado, base, extra);
+    const monto = idx === 5 ? 0 : montoBase;
     const k = dayKey(idx);
     const prev = asistencias[emp.id];
     const days = { ...(prev?.days || {}) , [k]: { estado, monto } };
-    const totalSemana = [0,1,2,3,4,5].reduce((acc,i)=>acc+(days[dayKey(i)]?.monto||0),0);
+    const totalSemana = calcTotalSemanaLaboral(days);
     
     const data = {
       employeeId: emp.id,
@@ -317,7 +339,8 @@ export default function AsistenciaPage() {
     try {
       const updates = Object.values(asistencias);
       for (const a of updates) {
-        await setDoc(doc(db, "asistencias", a.id), { cerrada: true, snapshotTotal: a.totalSemana }, { merge: true });
+        const totalSemana = calcTotalSemanaLaboral(a?.days);
+        await setDoc(doc(db, "asistencias", a.id), { cerrada: true, totalSemana, snapshotTotal: totalSemana }, { merge: true });
       }
       setCerrada(true);
     } catch (err) {
@@ -544,7 +567,7 @@ export default function AsistenciaPage() {
               <tbody className="divide-y divide-default-200">
                 {empleadosFiltrados.map((emp, empIdx)=>{
                   const a = asistencias[emp.id];
-                  const tSemana = a?.totalSemana || 0;
+                  const tSemana = calcTotalSemanaLaboral(a?.days);
                   const tAdv = totalAdelantosEmp(emp.id);
                   const tPagar = tSemana - tAdv;
                   const dropUp = empIdx === empleadosFiltrados.length - 1;
