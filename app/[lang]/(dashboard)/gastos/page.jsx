@@ -1962,7 +1962,14 @@ const GastosPage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {cuentasPorProveedor.map((grupo, idx) => {
-                  const porcentajePagado = grupo.total > 0 ? (grupo.pagado / grupo.total) * 100 : 0;
+                  const cuentasGrupo = Array.isArray(grupo.cuentas) ? grupo.cuentas : [];
+                  const cuentasActivasGrupo = cuentasGrupo.filter((c) => !esCuentaAnulada(c));
+                  const totalActivo = cuentasActivasGrupo.reduce((acc, c) => acc + (Number(c?.monto) || 0), 0);
+                  const pagadoActivo = cuentasActivasGrupo.reduce((acc, c) => acc + (Number(c?.montoPagado) || 0), 0);
+                  const saldoPendienteBruto = cuentasActivasGrupo.reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
+                  const saldoAFavor = Number(grupo.saldoAFavor || 0);
+                  const saldoPendienteNeto = Math.max(saldoPendienteBruto - saldoAFavor, 0);
+                  const porcentajePagado = totalActivo > 0 ? (pagadoActivo / totalActivo) * 100 : 100;
                   
                   return (
                     <Card 
@@ -1977,28 +1984,28 @@ const GastosPage = () => {
                             {grupo.proveedor?.nombre || "Sin nombre"}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {Number(grupo.cuentasActivas || 0)} cuenta{Number(grupo.cuentasActivas || 0) !== 1 ? "s" : ""} activa{Number(grupo.cuentasActivas || 0) !== 1 ? "s" : ""}
+                            {Number(cuentasActivasGrupo.length)} cuenta{Number(cuentasActivasGrupo.length) !== 1 ? "s" : ""} activa{Number(cuentasActivasGrupo.length) !== 1 ? "s" : ""}
                           </div>
                         </div>
                         
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Total:</span>
-                            <span className="font-semibold">{formatMoneyARS(grupo.total)}</span>
+                            <span className="text-muted-foreground">Total activo:</span>
+                            <span className="font-semibold">{formatMoneyARS(totalActivo)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Pagado:</span>
-                            <span className="font-semibold text-green-600">{formatMoneyARS(grupo.pagado)}</span>
+                            <span className="text-muted-foreground">Pagado activo:</span>
+                            <span className="font-semibold text-green-600">{formatMoneyARS(pagadoActivo)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Saldo a favor:</span>
-                            <span className={`font-semibold ${grupo.saldoAFavor > 0 ? "text-green-600" : "text-muted-foreground"}`}>
-                              {formatMoneyARS(Number(grupo.saldoAFavor || 0))}
+                            <span className={`font-semibold ${saldoAFavor > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                              {formatMoneyARS(saldoAFavor)}
                             </span>
                           </div>
-                        {Number(grupo.saldoAFavor || 0) > 0 && (
+                        {saldoAFavor > 0 && (
                           <div className="mt-2 space-y-2">
-                            {Number(grupo.saldoPendienteBruto || 0) > 0 && (
+                            {Number(saldoPendienteBruto || 0) > 0 && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2026,8 +2033,8 @@ const GastosPage = () => {
                         )}
                           <div className="flex justify-between border-t pt-2">
                             <span className="text-muted-foreground font-semibold">Pendiente neto:</span>
-                            <span className={`font-bold ${Number(grupo.saldoPendienteNeto || 0) > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                              {formatMoneyARS(Number(grupo.saldoPendienteNeto || 0))}
+                            <span className={`font-bold ${Number(saldoPendienteNeto || 0) > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                              {formatMoneyARS(Number(saldoPendienteNeto || 0))}
                             </span>
                           </div>
                         </div>
