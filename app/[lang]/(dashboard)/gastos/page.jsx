@@ -15,6 +15,7 @@ import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useForm } from "react-hook-form";
@@ -22,6 +23,16 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useAuth } from "@/provider/auth.provider";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useCategoriasGastos } from "@/hooks/useCategoriasGastos";
 import GestionCategorias from "@/components/gastos/GestionCategorias";
 import EstadisticasCategorias from "@/components/gastos/EstadisticasCategorias";
@@ -33,6 +44,7 @@ import {
   esCuentaAnulada,
   esCuentaVencida,
   formatMoneyARS,
+  parseMoneyARS,
   formatFechaAR,
 } from "@/lib/erp/cuentas-pagar-calculos";
 
@@ -162,6 +174,39 @@ const GastosPage = () => {
   const [busquedaProveedor, setBusquedaProveedor] = useState("");
   const [mostrarDropdownProveedor, setMostrarDropdownProveedor] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
+  const confirmResolverRef = React.useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    description: "",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    confirmColor: "success",
+  });
+
+  const closeConfirm = useCallback((result) => {
+    const resolver = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmDialog((prev) => ({ ...prev, open: false }));
+    if (typeof resolver === "function") resolver(Boolean(result));
+  }, []);
+
+  const confirmAsync = useCallback(
+    ({ title, description, confirmText, cancelText, confirmColor }) => {
+      return new Promise((resolve) => {
+        confirmResolverRef.current = resolve;
+        setConfirmDialog({
+          open: true,
+          title: String(title || "Confirmar"),
+          description: String(description || ""),
+          confirmText: String(confirmText || "Confirmar"),
+          cancelText: String(cancelText || "Cancelar"),
+          confirmColor: confirmColor || "success",
+        });
+      });
+    },
+    []
+  );
 
   // Form para gastos internos
   const {
@@ -446,7 +491,7 @@ const GastosPage = () => {
       // Validar que la categoría existe
       const categoria = obtenerCategoriaPorId(data.categoria);
       if (!categoria) {
-        alert("La categoría seleccionada no es válida");
+        toast({ title: "Categoría inválida", description: "Seleccioná una categoría válida.", color: "warning" });
         return;
       }
 
@@ -480,7 +525,7 @@ const GastosPage = () => {
       setEditando(null);
     } catch (error) {
       console.error("Error al guardar gasto:", error);
-      alert("Error al guardar el gasto: " + error.message);
+      toast({ title: "Error", description: `Error al guardar el gasto: ${error.message}`, color: "destructive" });
     } finally {
       setGuardando(false);
     }
@@ -489,7 +534,7 @@ const GastosPage = () => {
   // Crear categoría rápida desde el formulario
   const handleCrearCategoriaRapida = async () => {
     if (!nuevaCategoriaNombre.trim()) {
-      alert("El nombre de la categoría es obligatorio");
+      toast({ title: "Falta el nombre", description: "Ingresá el nombre de la categoría.", color: "warning" });
       return;
     }
 
@@ -504,7 +549,7 @@ const GastosPage = () => {
       setNuevaCategoriaNombre("");
       setCreandoCategoriaRapida(false);
     } catch (error) {
-      alert("Error al crear categoría: " + error.message);
+      toast({ title: "Error", description: `Error al crear categoría: ${error.message}`, color: "destructive" });
     }
   };
 
@@ -557,7 +602,7 @@ const GastosPage = () => {
       setProveedorSeleccionado(null);
     } catch (error) {
       console.error("Error al guardar cuenta:", error);
-      alert("Error al guardar la cuenta: " + error.message);
+      toast({ title: "Error", description: `Error al guardar la cuenta: ${error.message}`, color: "destructive" });
     } finally {
       setGuardando(false);
     }
@@ -594,7 +639,12 @@ const GastosPage = () => {
   const [pagoEdit, setPagoEdit] = useState(null); // { idx, monto, fecha, metodo, notas, pagoEnDolares, valorOficialDolar, comprobantesPago }
 
   const handleRegistrarPago = async () => {
-    if (!cuentaSeleccionada || !montoPago || Number(montoPago) <= 0) return;
+    if (!cuentaSeleccionada) return;
+    const montoIngresado = parseMoneyARS(montoPago);
+    if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido.", color: "warning" });
+      return;
+    }
     
     setGuardando(true);
     try {
@@ -611,7 +661,7 @@ const GastosPage = () => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              monto: Number(montoPago),
+              monto: montoIngresado,
               fecha: fechaPago,
               metodo: metodoPago,
               notas: notasPago,
@@ -629,9 +679,14 @@ const GastosPage = () => {
 
       let { resp, out } = await call(false);
       if (resp.status === 409) {
-        const ok = confirm(
-          "El monto supera el saldo pendiente de la cuenta.\n¿Querés enviar el excedente a saldo a favor del proveedor?"
-        );
+        const ok = await confirmAsync({
+          title: "Excedente de pago",
+          description:
+            "El monto supera el saldo pendiente de la cuenta. ¿Querés enviar el excedente a saldo a favor del proveedor?",
+          confirmText: "Enviar a saldo a favor",
+          cancelText: "Cancelar",
+          confirmColor: "success",
+        });
         if (!ok) throw new Error(out?.error || "Monto excede saldo pendiente");
         ({ resp, out } = await call(true));
       }
@@ -651,7 +706,7 @@ const GastosPage = () => {
       setComprobantesPago([]);
     } catch (error) {
       console.error("Error al registrar pago:", error);
-      alert("Error al registrar el pago: " + error.message);
+      toast({ title: "Error", description: `Error al registrar el pago: ${error.message}`, color: "destructive" });
     } finally {
       setGuardando(false);
     }
@@ -666,7 +721,14 @@ const GastosPage = () => {
   const handleAnularCuentaProveedor = async (cuenta) => {
     const cuentaId = String(cuenta?.id || "").trim();
     if (!cuentaId) return;
-    if (!confirm("¿Anular esta cuenta por pagar? No se borrará información y quedará trazabilidad.")) return;
+    const ok = await confirmAsync({
+      title: "Anular cuenta",
+      description: "¿Anular esta cuenta por pagar? No se borrará información y quedará trazabilidad.",
+      confirmText: "Anular",
+      cancelText: "Cancelar",
+      confirmColor: "destructive",
+    });
+    if (!ok) return;
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
@@ -688,7 +750,11 @@ const GastosPage = () => {
       }
     } catch (e) {
       console.error("Error al anular cuenta:", e);
-      alert("Error al anular la cuenta: " + (e?.message || String(e)));
+      toast({
+        title: "Error",
+        description: `Error al anular la cuenta: ${e?.message || String(e)}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
@@ -697,14 +763,21 @@ const GastosPage = () => {
   const handleAnularMovimientoProveedorDoc = async (mov) => {
     if (!mov) return;
     if (mov?.anulado === true) {
-      alert("Este movimiento ya está anulado.");
+      toast({ title: "Movimiento anulado", description: "Este movimiento ya está anulado.", color: "warning" });
       return;
     }
     const pagoId = String(mov?.id || "").trim();
     if (!pagoId) return;
-    if (!confirm("¿Anular este movimiento? Esto revertirá su impacto y mantendrá trazabilidad.")) return;
+    const ok = await confirmAsync({
+      title: "Anular movimiento",
+      description: "¿Anular este movimiento? Esto revertirá su impacto y mantendrá trazabilidad.",
+      confirmText: "Anular",
+      cancelText: "Cancelar",
+      confirmColor: "destructive",
+    });
+    if (!ok) return;
     if (!user || typeof user.getIdToken !== "function") {
-      alert("No hay usuario autenticado.");
+      toast({ title: "Error", description: "No hay usuario autenticado.", color: "destructive" });
       return;
     }
     setGuardando(true);
@@ -723,7 +796,11 @@ const GastosPage = () => {
       await cargarDatos();
     } catch (e) {
       console.error("Error al anular movimiento:", e);
-      alert("Error al anular movimiento: " + (e?.message || String(e)));
+      toast({
+        title: "Error",
+        description: `Error al anular movimiento: ${e?.message || String(e)}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
@@ -751,10 +828,15 @@ const GastosPage = () => {
     const proveedorDoc = proveedores.find((p) => p.id === cuenta.proveedorId) || null;
     const cuentasDelProveedor = cuentasPorPagar
       .filter((c) => c.proveedorId === cuenta.proveedorId)
-      .sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0));
+      .filter((c) => !esCuentaAnulada(c))
+      .sort((a, b) => {
+        const fa = a.fechaVencimiento || a.fecha || "";
+        const fb = b.fechaVencimiento || b.fecha || "";
+        return String(fa).localeCompare(String(fb));
+      });
     const total = cuentasDelProveedor.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
     const pagado = cuentasDelProveedor.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
-    const pendiente = Math.max(total - pagado, 0);
+    const pendiente = cuentasDelProveedor.reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
     setProveedorPagoGlobal({
       id: cuenta.proveedorId,
       nombre: cuenta.proveedor?.nombre || proveedorDoc?.nombre || "Proveedor",
@@ -787,7 +869,14 @@ const GastosPage = () => {
     if (!provId) return;
     const saldo = Number(grupo?.saldoAFavor || 0);
     if (!(saldo > 0)) return;
-    if (!confirm("¿Aplicar el saldo a favor a las cuentas pendientes del proveedor?")) return;
+    const ok = await confirmAsync({
+      title: "Aplicar saldo a favor",
+      description: "¿Aplicar el saldo a favor a las cuentas pendientes del proveedor?",
+      confirmText: "Aplicar",
+      cancelText: "Cancelar",
+      confirmColor: "success",
+    });
+    if (!ok) return;
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
@@ -811,20 +900,34 @@ const GastosPage = () => {
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al aplicar saldo a favor");
       await cargarDatos();
-      alert(
-        `Saldo aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))}\nSaldo a favor restante: ${formatMoneyARS(Number(out.saldoAFavorDespues || 0))}`
-      );
+      toast({
+        title: "Saldo aplicado",
+        description: `Aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))} · Saldo a favor restante: ${formatMoneyARS(
+          Number(out.saldoAFavorDespues || 0)
+        )}`,
+        color: "success",
+      });
     } catch (e) {
-      alert("Error al aplicar saldo a favor: " + (e?.message || "Error"));
+      toast({
+        title: "Error",
+        description: `Error al aplicar saldo a favor: ${e?.message || "Error"}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
   };
 
   const handleQuitarSaldoAFavor = async () => {
-    if (!proveedorQuitarSaldo?.id) return;
-    const monto = Number(montoQuitarSaldo);
-    if (!Number.isFinite(monto) || monto <= 0) return;
+    if (!proveedorQuitarSaldo?.id) {
+      toast({ title: "Proveedor inválido", description: "No se pudo identificar el proveedor.", color: "warning" });
+      return;
+    }
+    const monto = parseMoneyARS(montoQuitarSaldo);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido para quitar.", color: "warning" });
+      return;
+    }
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
@@ -853,16 +956,26 @@ const GastosPage = () => {
       setProveedorQuitarSaldo(null);
       limpiarEstadoQuitarSaldo();
     } catch (e) {
-      alert("Error al quitar saldo a favor: " + (e?.message || "Error"));
+      toast({
+        title: "Error",
+        description: `Error al quitar saldo a favor: ${e?.message || "Error"}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
   };
 
   const handleRegistrarPagoGlobal = async () => {
-    if (!proveedorPagoGlobal?.id) return;
-    const montoIngresado = Number(montoPagoGlobal);
-    if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) return;
+    if (!proveedorPagoGlobal?.id) {
+      toast({ title: "Proveedor inválido", description: "No se pudo identificar el proveedor.", color: "warning" });
+      return;
+    }
+    const montoIngresado = parseMoneyARS(montoPagoGlobal);
+    if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido para el pago global.", color: "warning" });
+      return;
+    }
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") {
@@ -890,15 +1003,19 @@ const GastosPage = () => {
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar pago global");
 
       await cargarDatos();
-      alert(
-        `Pago global registrado.\nAplicado a cuentas: $${Math.round(Number(out.aplicadoACuentas || 0)).toLocaleString("es-AR")}\nSaldo a favor: $${Math.round(Number(out.saldoAFavorDespues || 0)).toLocaleString("es-AR")}`
-      );
+      toast({
+        title: "Pago global registrado",
+        description: `Aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))} · Saldo a favor: ${formatMoneyARS(
+          Number(out.saldoAFavorDespues || 0)
+        )}`,
+        color: "success",
+      });
       setOpenPagoGlobal(false);
       setProveedorPagoGlobal(null);
       limpiarEstadoPagoGlobal();
     } catch (error) {
       console.error("Error al registrar pago global:", error);
-      alert("Error al registrar pago global: " + error.message);
+      toast({ title: "Error", description: `Error al registrar pago global: ${error.message}`, color: "destructive" });
     } finally {
       setGuardando(false);
     }
@@ -957,11 +1074,19 @@ const GastosPage = () => {
   const handleGuardarEdicionPago = async () => {
     if (!cuentaSeleccionada || !pagoEdit) return;
     if (cuentaSeleccionada.movimientoSaldoAFavor || cuentaSeleccionada.movimientoPagoGlobalProveedor) {
-      alert("Este movimiento no se edita desde aquí. Anulá el movimiento desde Cuentas por Pagar.");
+      toast({
+        title: "Acción no disponible",
+        description: "Este movimiento no se edita desde aquí. Anulá el movimiento desde Cuentas por Pagar.",
+        color: "warning",
+      });
       return;
     }
     if (pagoEdit?.pagoGlobalProveedor) {
-      alert("Este pago proviene de un pago global. No se puede editar desde aquí.");
+      toast({
+        title: "Acción no disponible",
+        description: "Este pago proviene de un pago global. No se puede editar desde aquí.",
+        color: "warning",
+      });
       return;
     }
     setGuardando(true);
@@ -1002,7 +1127,11 @@ const GastosPage = () => {
       setPagoEdit(null);
     } catch (err) {
       console.error("Error al guardar edición de pago:", err);
-      alert("Error al guardar la edición: " + err.message);
+      toast({
+        title: "Error",
+        description: `Error al guardar la edición: ${err.message}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
@@ -1011,16 +1140,31 @@ const GastosPage = () => {
   const handleEliminarPago = async (idx) => {
     if (!cuentaSeleccionada) return;
     if (cuentaSeleccionada.movimientoSaldoAFavor || cuentaSeleccionada.movimientoPagoGlobalProveedor) {
-      alert("Este movimiento no se elimina desde aquí. Anulá el movimiento desde Cuentas por Pagar.");
+      toast({
+        title: "Acción no disponible",
+        description: "Este movimiento no se elimina desde aquí. Anulá el movimiento desde Cuentas por Pagar.",
+        color: "warning",
+      });
       return;
     }
     const pagosArr = Array.isArray(cuentaSeleccionada.pagos) ? cuentaSeleccionada.pagos : [];
     const target = pagosArr[idx];
     if (target?.pagoGlobalProveedor) {
-      alert("Este pago proviene de un pago global. No se puede eliminar desde aquí.");
+      toast({
+        title: "Acción no disponible",
+        description: "Este pago proviene de un pago global. No se puede eliminar desde aquí.",
+        color: "warning",
+      });
       return;
     }
-    if (!confirm("¿Eliminar este pago? Esta acción no se puede deshacer.")) return;
+    const ok = await confirmAsync({
+      title: "Eliminar pago",
+      description: "¿Eliminar este pago? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      confirmColor: "destructive",
+    });
+    if (!ok) return;
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
@@ -1050,7 +1194,11 @@ const GastosPage = () => {
       setPagoEdit(null);
     } catch (err) {
       console.error("Error al eliminar pago:", err);
-      alert("Error al eliminar el pago: " + err.message);
+      toast({
+        title: "Error",
+        description: `Error al eliminar el pago: ${err.message}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
@@ -1067,15 +1215,22 @@ const GastosPage = () => {
       : String(item.id || "").replace(/^saldoAFavor_/, "");
 
     if (!pagoId) {
-      alert("No se pudo identificar el movimiento.");
+      toast({ title: "Movimiento inválido", description: "No se pudo identificar el movimiento.", color: "warning" });
       return;
     }
 
     const label = esPagoGlobalProveedor ? "pago global" : "movimiento de saldo a favor";
-    if (!confirm(`¿Anular este ${label}? Esto revertirá el saldo a favor y, si corresponde, los pagos aplicados.`)) return;
+    const ok = await confirmAsync({
+      title: "Anular movimiento",
+      description: `¿Anular este ${label}? Esto revertirá el saldo a favor y, si corresponde, los pagos aplicados.`,
+      confirmText: "Anular",
+      cancelText: "Cancelar",
+      confirmColor: "destructive",
+    });
+    if (!ok) return;
 
     if (!user || typeof user.getIdToken !== "function") {
-      alert("No hay usuario autenticado.");
+      toast({ title: "Error", description: "No hay usuario autenticado.", color: "destructive" });
       return;
     }
 
@@ -1099,7 +1254,11 @@ const GastosPage = () => {
       setCuentaSeleccionada(null);
     } catch (e) {
       console.error("Error al anular movimiento:", e);
-      alert("Error al anular movimiento: " + (e?.message || String(e)));
+      toast({
+        title: "Error",
+        description: `Error al anular movimiento: ${e?.message || String(e)}`,
+        color: "destructive",
+      });
     } finally {
       setGuardando(false);
     }
@@ -1150,10 +1309,21 @@ const GastosPage = () => {
   // Eliminar
   const handleEliminar = async (tipo, id) => {
     if (tipo === "proveedor") {
-      alert("Las cuentas por pagar no se eliminan. Usá la acción Anular para mantener trazabilidad.");
+      toast({
+        title: "Acción no disponible",
+        description: "Las cuentas por pagar no se eliminan. Usá la acción Anular para mantener trazabilidad.",
+        color: "warning",
+      });
       return;
     }
-    if (!confirm("¿Estás seguro de que quieres eliminar este registro?")) return;
+    const ok = await confirmAsync({
+      title: "Eliminar registro",
+      description: "¿Estás seguro de que querés eliminar este registro?",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      confirmColor: "destructive",
+    });
+    if (!ok) return;
     
     try {
       await deleteDoc(doc(db, "gastos", id));
@@ -1161,7 +1331,7 @@ const GastosPage = () => {
       await cargarDatos();
     } catch (error) {
       console.error("Error al eliminar:", error);
-      alert("Error al eliminar: " + error.message);
+      toast({ title: "Error", description: `Error al eliminar: ${error.message}`, color: "destructive" });
     }
   };
 
@@ -1337,7 +1507,7 @@ const GastosPage = () => {
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
     if (cuentasPorPagarFiltradas.length === 0) {
-      alert("No hay datos para exportar");
+      toast({ title: "Sin datos", description: "No hay datos para exportar.", color: "warning" });
       return;
     }
 
@@ -2064,6 +2234,30 @@ const GastosPage = () => {
         </TabsContent>
       </Tabs>
 
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => {
+          if (!open) closeConfirm(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            {confirmDialog.description ? (
+              <AlertDialogDescription>{confirmDialog.description}</AlertDialogDescription>
+            ) : null}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => closeConfirm(false)}>
+              {confirmDialog.cancelText}
+            </AlertDialogCancel>
+            <AlertDialogAction color={confirmDialog.confirmColor} onClick={() => closeConfirm(true)}>
+              {confirmDialog.confirmText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Modal para gasto interno */}
       <Dialog open={openInterno} onOpenChange={setOpenInterno}>
         <DialogContent className="w-[95vw] max-w-[500px] border border-border/60 bg-card">
@@ -2519,7 +2713,7 @@ const GastosPage = () => {
             </Button>
             <Button 
               onClick={handleRegistrarPago}
-              disabled={guardando || !montoPago || Number(montoPago) <= 0}
+              disabled={guardando || !Number.isFinite(parseMoneyARS(montoPago)) || parseMoneyARS(montoPago) <= 0}
             >
               {guardando ? "Guardando..." : "Registrar Pago"}
             </Button>
@@ -2684,7 +2878,11 @@ const GastosPage = () => {
             </Button>
             <Button
               onClick={handleRegistrarPagoGlobal}
-              disabled={guardando || !montoPagoGlobal || Number(montoPagoGlobal) <= 0}
+              disabled={
+                guardando ||
+                !Number.isFinite(parseMoneyARS(montoPagoGlobal)) ||
+                parseMoneyARS(montoPagoGlobal) <= 0
+              }
             >
               {guardando ? "Guardando..." : "Registrar Pago Global"}
             </Button>
@@ -2773,7 +2971,11 @@ const GastosPage = () => {
             </Button>
             <Button
               onClick={handleQuitarSaldoAFavor}
-              disabled={guardando || !montoQuitarSaldo || Number(montoQuitarSaldo) <= 0}
+              disabled={
+                guardando ||
+                !Number.isFinite(parseMoneyARS(montoQuitarSaldo)) ||
+                parseMoneyARS(montoQuitarSaldo) <= 0
+              }
             >
               {guardando ? "Guardando..." : "Quitar saldo"}
             </Button>
