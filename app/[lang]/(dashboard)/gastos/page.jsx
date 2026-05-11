@@ -1504,38 +1504,6 @@ const GastosPage = () => {
       .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
   }, [movimientosProveedorFiltradosPorFecha, filtroProveedor, filtroProveedorId, proveedores]);
 
-  const detalleCuentasPorPagarFiltrado = useMemo(() => {
-    const items = [];
-
-    const cuentas = Array.isArray(cuentasPorPagarFiltradas) ? cuentasPorPagarFiltradas : [];
-    for (const c of cuentas) {
-      items.push({
-        kind: "cuenta",
-        id: c.id,
-        fechaKey: c.fecha,
-        cuenta: c,
-      });
-    }
-
-    const incluirMovimientos = !filtroEstadoPago || filtroEstadoPago === "anulada";
-    if (incluirMovimientos) {
-      const sortKey = (m) => m.fechaRegistro || m.fechaActualizacion || m.fechaCreacion || m.fecha;
-      const movimientos = Array.isArray(movimientosProveedorFiltrados) ? movimientosProveedorFiltrados : [];
-      for (const m of movimientos) {
-        if (String(m?.tipo || "") !== "pagoGlobal") continue;
-        if (filtroEstadoPago === "anulada" && m?.anulado !== true) continue;
-        items.push({
-          kind: "pagoGlobal",
-          id: m.id,
-          fechaKey: sortKey(m),
-          movimiento: m,
-        });
-      }
-    }
-
-    return items.sort((a, b) => new Date(b.fechaKey || 0) - new Date(a.fechaKey || 0));
-  }, [cuentasPorPagarFiltradas, movimientosProveedorFiltrados, filtroEstadoPago]);
-
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
     if (cuentasPorPagarFiltradas.length === 0) {
@@ -1578,6 +1546,79 @@ const GastosPage = () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  const pagosDetalleCuentaSeleccionada = useMemo(() => {
+    const c = cuentaSeleccionada;
+    if (!c) return [];
+
+    const pagos = Array.isArray(c?.pagos) ? c.pagos : [];
+    const normalizados = pagos.map((p, idx) => {
+      const monto = Number(p?.monto ?? 0);
+      const fecha = formatFechaSegura(p?.fecha);
+      const fechaRegistro =
+        (typeof p?.fechaRegistro === "string" ? p.fechaRegistro : "") ||
+        (typeof p?.fechaActualizacion === "string" ? p.fechaActualizacion : "") ||
+        (typeof p?.fechaCreacion === "string" ? p.fechaCreacion : "");
+      const esReversion = p?.pagoGlobalReversion === true || String(p?.metodo || "") === "Anulación" || monto < 0;
+      const esGlobal = p?.pagoGlobalProveedor === true;
+      const esSaldoAFavor = p?.saldoAFavorAplicado === true;
+      const kind = esReversion ? "reversion" : esSaldoAFavor ? "saldoAFavor" : esGlobal ? "pagoGlobal" : "manual";
+      const sortKey = fechaRegistro || fecha || "";
+      return {
+        ...p,
+        _idxOriginal: idx,
+        _kind: kind,
+        _monto: monto,
+        _fecha: fecha,
+        _fechaRegistro: fechaRegistro,
+        _sortKey: sortKey,
+        _origenMovimiento: false,
+        _movimientoAnulado: false,
+      };
+    });
+
+    const yaTieneGlobal = normalizados.some((p) => p._kind !== "manual");
+    if (!yaTieneGlobal && c?.id) {
+      const movs = Array.isArray(movimientosProveedor) ? movimientosProveedor : [];
+      const movimientosRelacionados = movs.filter((m) => {
+        const tipo = String(m?.tipo || "");
+        if (tipo !== "pagoGlobal" && tipo !== "saldoAFavor") return false;
+        const apps = Array.isArray(m?.cuentasAplicadas) ? m.cuentasAplicadas : [];
+        return apps.some((a) => String(a?.cuentaId || "") === String(c.id || ""));
+      });
+
+      for (const m of movimientosRelacionados) {
+        const apps = Array.isArray(m?.cuentasAplicadas) ? m.cuentasAplicadas : [];
+        const app = apps.find((a) => String(a?.cuentaId || "") === String(c.id || ""));
+        if (!app) continue;
+        const montoAplicado = Number(app?.montoAplicado ?? 0);
+        normalizados.push({
+          monto: montoAplicado,
+          fecha: formatFechaSegura(m?.fecha),
+          metodo: m?.metodo || "Pago global",
+          notas: m?.notas || "",
+          responsable: m?.responsable || "",
+          fechaRegistro: m?.fechaRegistro || "",
+          pagoEnDolares: !!m?.pagoEnDolares,
+          valorOficialDolar: m?.valorOficialDolar ?? null,
+          comprobantes: Array.isArray(m?.comprobantes) ? m.comprobantes : [],
+          pagoGlobalProveedor: true,
+          saldoAFavorAplicado: String(m?.tipo || "") === "saldoAFavor",
+          pagoGlobalId: m.id,
+          _idxOriginal: null,
+          _kind: String(m?.tipo || "") === "saldoAFavor" ? "saldoAFavor" : "pagoGlobal",
+          _monto: montoAplicado,
+          _fecha: formatFechaSegura(m?.fecha),
+          _fechaRegistro: typeof m?.fechaRegistro === "string" ? m.fechaRegistro : "",
+          _sortKey: m?.fechaRegistro || m?.fecha || "",
+          _origenMovimiento: true,
+          _movimientoAnulado: m?.anulado === true,
+        });
+      }
+    }
+
+    return normalizados.sort((a, b) => new Date(b._sortKey || 0) - new Date(a._sortKey || 0));
+  }, [cuentaSeleccionada, movimientosProveedor]);
 
   // Componente QuickRangeButton
   const QuickRangeButton = ({ value, label, icon }) => (
@@ -2160,135 +2201,38 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {detalleCuentasPorPagarFiltrado.map((row) => {
-                    if (row.kind === "cuenta") {
-                      const c = row.cuenta;
-                      const saldo = calcularSaldoCuenta(c);
-                      const estadoCalc = calcularEstadoCuenta(c);
-                      const vencida = estadoCalc === "vencida";
-                      const anulada = estadoCalc === "anulada";
-
-                      return (
-                        <TableRow
-                          key={`cuenta_${c.id}`}
-                          className={vencida && saldo > 0 ? "bg-red-500/10" : anulada ? "opacity-60" : ""}
-                        >
-                          <TableCell>{formatFechaAR(c.fecha)}</TableCell>
-                          <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
-                          <TableCell className="font-bold">{formatMoneyARS(c.monto)}</TableCell>
-                          <TableCell className="text-green-600 font-semibold">{formatMoneyARS(c.montoPagado || 0)}</TableCell>
-                          <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                            {formatMoneyARS(saldo)}
-                          </TableCell>
-                          <TableCell className={vencida && saldo > 0 ? "text-red-600 font-semibold" : ""}>
-                            {c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "-"}
-                            {vencida && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
-                          </TableCell>
-                          <TableCell>
-                            {estadoCalc === "anulada" ? (
-                              <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulada</Badge>
-                            ) : estadoCalc === "vencida" ? (
-                              <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20">
-                                Vencida
-                              </Badge>
-                            ) : (
-                              <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
-                                {estadosPago[c.estadoPago]?.label || "Pendiente"}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                onClick={() => {
-                                  setCuentaSeleccionada(c);
-                                  setOpenHistorial(true);
-                                }}
-                                title="Ver historial de pagos"
-                              >
-                                <Eye className="w-3 h-3" />
-                              </Button>
-
-                              {!anulada && saldo > 0 && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 border-emerald-500/20 hover:text-green-700 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                  onClick={() => {
-                                    setCuentaSeleccionada(c);
-                                    setMontoPago(String(saldo));
-                                    setPagoEnDolares(!!c.pagoEnDolares);
-                                    setValorOficialDolar(c.valorOficialDolar ?? null);
-                                    setComprobantesPago(c.comprobantes || []);
-                                    setOpenPago(true);
-                                  }}
-                                  title="Registrar pago"
-                                >
-                                  <Wallet className="w-3 h-3" />
-                                </Button>
-                              )}
-
-                              {!anulada && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-indigo-600 border-indigo-500/20 hover:text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                    onClick={() => abrirPagoGlobalProveedor(c)}
-                                    title="Pago global del proveedor"
-                                  >
-                                    <DollarSign className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                    onClick={() => handleEditarProveedor(c)}
-                                    title="Editar cuenta"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                    onClick={() => handleAnularCuentaProveedor(c)}
-                                    title="Anular cuenta"
-                                    disabled={guardando}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-
-                    const m = row.movimiento;
-                    const provNombre =
-                      m?.proveedor?.nombre || proveedores.find((p) => p.id === m?.proveedorId)?.nombre || "-";
-                    const monto = Number(m?.pagoIngresado ?? m?.monto ?? 0);
-                    const anulado = m?.anulado === true;
+                  {cuentasPorPagarFiltradas.map((c) => {
+                    const saldo = calcularSaldoCuenta(c);
+                    const estadoCalc = calcularEstadoCuenta(c);
+                    const vencida = estadoCalc === "vencida";
+                    const anulada = estadoCalc === "anulada";
 
                     return (
-                      <TableRow key={`pagoGlobal_${m.id}`} className={anulado ? "opacity-60" : ""}>
-                        <TableCell>{formatFechaAR(m.fecha)}</TableCell>
-                        <TableCell className="font-medium">{provNombre}</TableCell>
-                        <TableCell className="text-muted-foreground">-</TableCell>
-                        <TableCell className="text-green-600 font-semibold">{formatMoneyARS(monto)}</TableCell>
-                        <TableCell className="text-muted-foreground">-</TableCell>
-                        <TableCell className="text-muted-foreground">-</TableCell>
+                      <TableRow
+                        key={c.id}
+                        className={vencida && saldo > 0 ? "bg-red-500/10" : anulada ? "opacity-60" : ""}
+                      >
+                        <TableCell>{formatFechaAR(c.fecha)}</TableCell>
+                        <TableCell className="font-medium">{c.proveedor?.nombre || "-"}</TableCell>
+                        <TableCell className="font-bold">{formatMoneyARS(c.monto)}</TableCell>
+                        <TableCell className="text-green-600 font-semibold">{formatMoneyARS(c.montoPagado || 0)}</TableCell>
+                        <TableCell className={`font-bold ${saldo > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                          {formatMoneyARS(saldo)}
+                        </TableCell>
+                        <TableCell className={vencida && saldo > 0 ? "text-red-600 font-semibold" : ""}>
+                          {c.fechaVencimiento ? formatFechaAR(c.fechaVencimiento) : "-"}
+                          {vencida && saldo > 0 && <span className="block text-xs">¡VENCIDA!</span>}
+                        </TableCell>
                         <TableCell>
-                          {anulado ? (
-                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulado</Badge>
+                          {estadoCalc === "anulada" ? (
+                            <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulada</Badge>
+                          ) : estadoCalc === "vencida" ? (
+                            <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20">
+                              Vencida
+                            </Badge>
                           ) : (
-                            <Badge className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20">
-                              Pago global
+                            <Badge className={estadosPago[c.estadoPago]?.color || "bg-muted/50 text-foreground border border-border/60"}>
+                              {estadosPago[c.estadoPago]?.label || "Pendiente"}
                             </Badge>
                           )}
                         </TableCell>
@@ -2299,23 +2243,65 @@ const GastosPage = () => {
                               variant="outline"
                               className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
                               onClick={() => {
-                                setMovimientoSeleccionado(m);
-                                setOpenMovimientoDetalle(true);
+                                setCuentaSeleccionada(c);
+                                setOpenHistorial(true);
                               }}
-                              title="Ver detalle"
+                              title="Ver historial de pagos"
                             >
                               <Eye className="w-3 h-3" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                              onClick={() => handleAnularMovimientoProveedorDoc(m)}
-                              title="Anular pago global"
-                              disabled={guardando || anulado}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+
+                            {!anulada && saldo > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 border-emerald-500/20 hover:text-green-700 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                onClick={() => {
+                                  setCuentaSeleccionada(c);
+                                  setMontoPago(String(saldo));
+                                  setPagoEnDolares(!!c.pagoEnDolares);
+                                  setValorOficialDolar(c.valorOficialDolar ?? null);
+                                  setComprobantesPago(c.comprobantes || []);
+                                  setOpenPago(true);
+                                }}
+                                title="Registrar pago"
+                              >
+                                <Wallet className="w-3 h-3" />
+                              </Button>
+                            )}
+
+                            {!anulada && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-indigo-600 border-indigo-500/20 hover:text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => abrirPagoGlobalProveedor(c)}
+                                  title="Pago global del proveedor"
+                                >
+                                  <DollarSign className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => handleEditarProveedor(c)}
+                                  title="Editar cuenta"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+                                  onClick={() => handleAnularCuentaProveedor(c)}
+                                  title="Anular cuenta"
+                                  disabled={guardando}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -3129,14 +3115,29 @@ const GastosPage = () => {
               </div>
 
               {/* Listado de pagos */}
-              {cuentaSeleccionada.pagos && cuentaSeleccionada.pagos.length > 0 ? (
+              {pagosDetalleCuentaSeleccionada.length > 0 ? (
                 <div className="space-y-2">
                   <div className="font-semibold text-sm text-foreground flex items-center gap-2">
                     <DollarSign className="w-4 h-4" />
-                    Pagos Registrados ({cuentaSeleccionada.pagos.length})
+                    Pagos Registrados ({pagosDetalleCuentaSeleccionada.length})
                   </div>
                   <div className="max-h-80 overflow-y-auto space-y-2">
-                    {cuentaSeleccionada.pagos.map((pago, idx) => (
+                    {pagosDetalleCuentaSeleccionada.map((pago, idx) => {
+                      const monto = Number(pago?._monto ?? pago?.monto ?? 0);
+                      const esReversion = pago?._kind === "reversion";
+                      const esGlobal = pago?._kind === "pagoGlobal";
+                      const esSaldoAFavor = pago?._kind === "saldoAFavor";
+                      const anuladoMovimiento = pago?._movimientoAnulado === true;
+                      const pagoGlobalProveedor = pago?.pagoGlobalProveedor === true;
+                      const fecha = pago?._fecha || formatFechaSegura(pago?.fecha);
+                      const fechaRegistro = pago?._fechaRegistro || (typeof pago?.fechaRegistro === "string" ? pago.fechaRegistro : "");
+                      const puedeMutar =
+                        pago?._kind === "manual" &&
+                        !cuentaSeleccionada?.movimientoSaldoAFavor &&
+                        !cuentaSeleccionada?.movimientoPagoGlobalProveedor &&
+                        typeof pago?._idxOriginal === "number";
+
+                      return (
                       <div 
                         key={idx} 
                         className="bg-card border border-border/60 rounded-lg p-3 hover:shadow-md transition-shadow"
@@ -3144,18 +3145,33 @@ const GastosPage = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-green-600 text-lg">
-                                ${Number(pago.monto).toLocaleString("es-AR")}
+                              <span className={`font-bold text-lg ${monto >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                {formatMoneyARS(monto)}
                               </span>
                               <Badge variant="outline" className="text-xs">
-                                {pago.metodo || "Efectivo"}
+                                {pago?.metodo || "Efectivo"}
                               </Badge>
-                              {pago.pagoGlobalProveedor && (
+                              {pagoGlobalProveedor && (
                                 <Badge variant="outline" className="text-xs">
                                   Pago global
                                 </Badge>
                               )}
-                              {pago.pagoEnDolares && (
+                              {esSaldoAFavor && (
+                                <Badge variant="outline" className="text-xs">
+                                  Saldo a favor
+                                </Badge>
+                              )}
+                              {esReversion && (
+                                <Badge variant="outline" className="text-xs">
+                                  Anulación
+                                </Badge>
+                              )}
+                              {anuladoMovimiento && (
+                                <Badge variant="outline" className="text-xs">
+                                  Movimiento anulado
+                                </Badge>
+                              )}
+                              {pago?.pagoEnDolares && (
                                 <Badge variant="subtle" className="text-xs ml-1">
                                   USD
                                 </Badge>
@@ -3164,15 +3180,18 @@ const GastosPage = () => {
                             <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {pago.fecha}
+                                {fecha ? formatFechaAR(fecha) : fechaRegistro ? formatFechaHoraArgentina(fechaRegistro) : "-"}
                               </div>
-                              {pago.notas && (
-                                <div className="text-muted-foreground italic">"{pago.notas}"</div>
+                              {fechaRegistro ? (
+                                <div className="text-muted-foreground">Registrado: {formatFechaHoraArgentina(fechaRegistro)}</div>
+                              ) : null}
+                              {pago?.notas && (
+                                <div className="text-muted-foreground italic">"{String(pago.notas)}"</div>
                               )}
-                              {pago.responsable && (
-                                <div className="text-muted-foreground">Por: {pago.responsable}</div>
+                              {pago?.responsable && (
+                                <div className="text-muted-foreground">Por: {String(pago.responsable)}</div>
                               )}
-                              {pago.comprobantes && pago.comprobantes.length > 0 && (
+                              {pago?.comprobantes && pago.comprobantes.length > 0 && (
                                 <div className="text-xs text-muted-foreground mt-1">
                                   {pago.comprobantes.length} comprobante{pago.comprobantes.length !== 1 ? "s" : ""}
                                 </div>
@@ -3182,13 +3201,13 @@ const GastosPage = () => {
                           <div className="flex flex-col items-end gap-2">
                             <div className="text-xs text-muted-foreground">Pago #{idx + 1}</div>
                             <div className="flex gap-1 mt-2">
-                              {!pago.pagoGlobalProveedor && !cuentaSeleccionada.movimientoSaldoAFavor && !cuentaSeleccionada.movimientoPagoGlobalProveedor && (
+                              {puedeMutar && (
                                 <>
                                   <Button
                                     size="xs"
                                     variant="outline"
                                     onClick={() => {
-                                      setPagoEdit({ ...pago, idx });
+                                      setPagoEdit({ ...pago, idx: pago._idxOriginal });
                                       setOpenEditarPago(true);
                                     }}
                                     title="Editar pago"
@@ -3198,7 +3217,7 @@ const GastosPage = () => {
                                   <Button
                                     size="xs"
                                     variant="outline"
-                                    onClick={() => handleEliminarPago(idx)}
+                                    onClick={() => handleEliminarPago(pago._idxOriginal)}
                                     title="Eliminar pago"
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -3209,7 +3228,8 @@ const GastosPage = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   
                   <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mt-3">
