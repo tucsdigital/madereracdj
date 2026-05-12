@@ -427,22 +427,28 @@ const PresupuestoDetalle = () => {
                   : (parseNumericValue(productoDB.precioPorPie) === ""
                       ? 0
                       : parseNumericValue(productoDB.precioPorPie));
-              const cepilladoAplicado =
-                normalizarBool(productoPresupuesto.cepilladoAplicado);
-              const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-                productoPresupuesto.cepilladoPorcentaje
-              );
-              const calibradoAplicado =
-                normalizarBool(productoPresupuesto.calibradoAplicado);
-              const calibradoPorcentaje = normalizarCalibradoPorcentaje(
-                productoPresupuesto.calibradoPorcentaje
-              );
               const unidadActual = normalizarUnidadMadera(
                 productoPresupuesto.unidad ||
                   productoPresupuesto.unidadMedida ||
                   productoDB.unidadMedida ||
                   productoDB.unidad ||
                   ""
+              );
+              const cepilladoAplicadoRaw = productoPresupuesto.cepilladoAplicado;
+              const cepilladoAplicado =
+                (cepilladoAplicadoRaw === null || cepilladoAplicadoRaw === undefined) &&
+                productoDB.categoria === "Maderas" &&
+                unidadActual === "M2"
+                  ? true
+                  : normalizarBool(cepilladoAplicadoRaw);
+              const cepilladoPorcentaje =
+                unidadActual === "M2"
+                  ? 0
+                  : normalizarCepilladoPorcentaje(productoPresupuesto.cepilladoPorcentaje);
+              const calibradoAplicado =
+                normalizarBool(productoPresupuesto.calibradoAplicado);
+              const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+                productoPresupuesto.calibradoPorcentaje
               );
               const cantidadParsed = parseNumericValue(productoPresupuesto.cantidad);
               const cantidadActual =
@@ -501,10 +507,6 @@ const PresupuestoDetalle = () => {
               value === 1 ||
               value === "1" ||
               value === "on";
-            const cepilladoAplicado = normalizarBool(productoPresupuesto.cepilladoAplicado);
-            const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-              productoPresupuesto.cepilladoPorcentaje
-            );
             const calibradoAplicado = normalizarBool(productoPresupuesto.calibradoAplicado);
             const calibradoPorcentaje = normalizarCalibradoPorcentaje(
               productoPresupuesto.calibradoPorcentaje
@@ -521,6 +523,16 @@ const PresupuestoDetalle = () => {
             const unidadActual = normalizarUnidadMadera(
               productoPresupuesto.unidad || productoPresupuesto.unidadMedida || ""
             );
+            const cepilladoAplicadoRaw = productoPresupuesto.cepilladoAplicado;
+            const cepilladoAplicado =
+              (cepilladoAplicadoRaw === null || cepilladoAplicadoRaw === undefined) &&
+              unidadActual === "M2"
+                ? true
+                : normalizarBool(cepilladoAplicadoRaw);
+            const cepilladoPorcentaje =
+              unidadActual === "M2"
+                ? 0
+                : normalizarCepilladoPorcentaje(productoPresupuesto.cepilladoPorcentaje);
             const altoParsed = parseNumericValue(productoPresupuesto.alto);
             const largoParsed = parseNumericValue(productoPresupuesto.largo);
             const precioPorPieParsed = parseNumericValue(productoPresupuesto.precioPorPie);
@@ -730,9 +742,13 @@ const PresupuestoDetalle = () => {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
-    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
-    );
+    const unidadMadera = String(overrides.unidad ?? producto.unidad ?? "").trim();
+    const cepilladoPorcentaje =
+      unidadMadera === "M2"
+        ? 0
+        : normalizarCepilladoPorcentaje(
+            overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+          );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
@@ -802,9 +818,12 @@ const PresupuestoDetalle = () => {
             ...p,
             ...cambios,
             precio: precioRedondeado,
-            cepilladoPorcentaje: normalizarCepilladoPorcentaje(
-              cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
-            ),
+            cepilladoPorcentaje:
+              p.unidad === "M2"
+                ? 0
+                : normalizarCepilladoPorcentaje(
+                    cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+                  ),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
@@ -2981,8 +3000,26 @@ const PresupuestoDetalle = () => {
                                                   ancho: ancho,
                                                   largo: largo,
                                                   precioPorPie: precioPorPie,
-                                                  cepilladoAplicado: false,
-                                                  cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
+                                                  cepilladoAplicado:
+                                                    String(
+                                                      prod.unidadMedida ||
+                                                        prod.unidadVenta ||
+                                                        prod.unidadVentaHerraje ||
+                                                        prod.unidadVentaQuimico ||
+                                                        prod.unidadVentaHerramienta ||
+                                                        ""
+                                                    ).trim().toUpperCase() === "M2",
+                                                  cepilladoPorcentaje:
+                                                    String(
+                                                      prod.unidadMedida ||
+                                                        prod.unidadVenta ||
+                                                        prod.unidadVentaHerraje ||
+                                                        prod.unidadVentaQuimico ||
+                                                        prod.unidadVentaHerramienta ||
+                                                        ""
+                                                    ).trim().toUpperCase() === "M2"
+                                                      ? 0
+                                                      : DEFAULT_CEPILLADO_PORCENTAJE,
                                                   calibradoAplicado: false,
                                                   calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                                                   tipoMadera:
@@ -3547,9 +3584,11 @@ const PresupuestoDetalle = () => {
                                         min={0}
                                         step="0.1"
                                         value={
-                                          p.cepilladoPorcentaje === ""
-                                            ? ""
-                                            : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
+                                          p.unidad === "M2"
+                                            ? 0
+                                            : p.cepilladoPorcentaje === ""
+                                              ? ""
+                                              : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
                                         }
                                         onChange={(e) =>
                                           handleCepilladoPorcentajeChange(
@@ -3558,7 +3597,7 @@ const PresupuestoDetalle = () => {
                                           )
                                         }
                                         className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                                        disabled={loadingPrecios || !p.cepilladoAplicado}
+                                        disabled={loadingPrecios || !p.cepilladoAplicado || p.unidad === "M2"}
                                       />
                                       <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">
                                         %

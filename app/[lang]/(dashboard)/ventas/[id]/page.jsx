@@ -559,15 +559,18 @@ const VentaDetalle = () => {
                   return "Unidad";
                 return txt;
               };
-              const cepilladoAplicado = normalizarBool(p.cepilladoAplicado);
-              const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-                p.cepilladoPorcentaje
-              );
               const calibradoAplicado = normalizarBool(p.calibradoAplicado);
               const calibradoPorcentaje = normalizarCalibradoPorcentaje(
                 p.calibradoPorcentaje
               );
               const unidad = normalizarUnidadMadera(p.unidad || p.unidadMedida || "");
+              const cepilladoAplicadoRaw = p.cepilladoAplicado;
+              const cepilladoAplicado =
+                (cepilladoAplicadoRaw === null || cepilladoAplicadoRaw === undefined) && unidad === "M2"
+                  ? true
+                  : normalizarBool(cepilladoAplicadoRaw);
+              const cepilladoPorcentaje =
+                unidad === "M2" ? 0 : normalizarCepilladoPorcentaje(p.cepilladoPorcentaje);
               const altoParsed = parseNumericValue(p.alto);
               const anchoParsed = parseNumericValue(p.ancho);
               const largoParsed = parseNumericValue(p.largo);
@@ -827,9 +830,13 @@ const VentaDetalle = () => {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
-    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
-    );
+    const unidadMadera = String(overrides.unidad ?? producto.unidad ?? "").trim();
+    const cepilladoPorcentaje =
+      unidadMadera === "M2"
+        ? 0
+        : normalizarCepilladoPorcentaje(
+            overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+          );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
@@ -898,9 +905,12 @@ const VentaDetalle = () => {
             ...p,
             ...cambios,
             precio: precioRedondeado,
-            cepilladoPorcentaje: normalizarCepilladoPorcentaje(
-              cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
-            ),
+            cepilladoPorcentaje:
+              p.unidad === "M2"
+                ? 0
+                : normalizarCepilladoPorcentaje(
+                    cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+                  ),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(
               cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
             ),
@@ -3496,8 +3506,8 @@ const VentaDetalle = () => {
                                                   ancho,
                                                   largo,
                                                   precioPorPie,
-                                                  cepilladoAplicado: false,
-                                                  cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
+                                                  cepilladoAplicado: String(prod.unidadMedida || "").trim().toUpperCase() === "M2",
+                                                  cepilladoPorcentaje: String(prod.unidadMedida || "").trim().toUpperCase() === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
                                                   calibradoAplicado: false,
                                                   calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                                                   tipoMadera: prod.tipoMadera || "",
@@ -3786,10 +3796,10 @@ const VentaDetalle = () => {
                                       type="number"
                                       min={0}
                                       step={0.1}
-                                      value={p.cepilladoPorcentaje === "" ? "" : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE}
+                                      value={p.unidad === "M2" ? 0 : p.cepilladoPorcentaje === "" ? "" : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE}
                                       onChange={(e) => handleCepilladoPorcentajeChange(p.id, e.target.value)}
                                       className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-background text-foreground focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
-                                      disabled={loadingPrecios || !p.cepilladoAplicado}
+                                      disabled={loadingPrecios || !p.cepilladoAplicado || p.unidad === "M2"}
                                     />
                                     <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
                                   </div>

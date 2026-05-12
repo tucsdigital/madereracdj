@@ -403,13 +403,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       const esMachimbreODeck =
         unidadMadera === "M2" &&
         (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
-      const precioConCepilladoInicial =
-        real.categoria === "Maderas" && esMachimbreODeck
-          ? Math.round(
-              (Number(precio || 0) * (1 + DEFAULT_CEPILLADO_PORCENTAJE / 100)) /
-                100
-            ) * 100
-          : precio;
+      const cepilladoDefault = real.categoria === "Maderas" && unidadMadera === "M2";
+      const precioConCepilladoInicial = precio;
       
       setProductosSeleccionados([
         ...productosSeleccionados,
@@ -431,8 +426,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
           largo: largo || 0,
           precioPorPie: precioPorPie || 0,
           // Para machimbre ya no usamos cantidadPaquete, solo cantidad
-          cepilladoAplicado: esMachimbreODeck, // Machimbre y deck se marcan automáticamente como cepillado
-          cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
+          cepilladoAplicado: cepilladoDefault || esMachimbreODeck,
+          cepilladoPorcentaje: unidadMadera === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
           calibradoAplicado: false,
           calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
           tipoMadera: real.tipoMadera || "",
@@ -535,9 +530,13 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   ) => {
     const cepilladoAplicado =
       overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
-    const cepilladoPorcentaje = normalizarCepilladoPorcentaje(
-      overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
-    );
+    const unidadMadera = String(overrides.unidad ?? producto.unidad ?? "").trim();
+    const cepilladoPorcentaje =
+      unidadMadera === "M2"
+        ? 0
+        : normalizarCepilladoPorcentaje(
+            overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+          );
     const calibradoAplicado =
       overrides.calibradoAplicado ?? producto.calibradoAplicado;
     const calibradoPorcentaje = normalizarCalibradoPorcentaje(
@@ -788,7 +787,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
             precioIncluyeCantidad: unidadMadera === "M2" || unidadMadera === "ML",
             cepilladoAplicado: unidadMadera === "Unidad" ? false : next.cepilladoAplicado,
             calibradoAplicado: unidadMadera === "Unidad" ? false : next.calibradoAplicado,
-            cepilladoPorcentaje: normalizarCepilladoPorcentaje(next.cepilladoPorcentaje),
+            cepilladoPorcentaje: unidadMadera === "M2" ? 0 : normalizarCepilladoPorcentaje(next.cepilladoPorcentaje),
             calibradoPorcentaje: normalizarCalibradoPorcentaje(next.calibradoPorcentaje),
           };
         }
@@ -1802,8 +1801,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         cantidad: 1,
                         descuento: 0,
                         esEditable: true, // Marca que es un producto editable
-                        cepilladoAplicado: false,
-                        cepilladoPorcentaje: DEFAULT_CEPILLADO_PORCENTAJE,
+                        cepilladoAplicado: true,
+                        cepilladoPorcentaje: 0,
                         calibradoAplicado: false,
                         calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
                         tipoMadera: "",
@@ -2787,9 +2786,11 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                     min={0}
                                     step="0.1"
                                     value={
-                                      p.cepilladoPorcentaje === ""
-                                        ? ""
-                                        : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
+                                      p.unidad === "M2"
+                                        ? 0
+                                        : p.cepilladoPorcentaje === ""
+                                          ? ""
+                                          : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
                                     }
                                     onChange={(e) =>
                                       handleCepilladoPorcentajeChange(
@@ -2798,7 +2799,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                       )
                                     }
                                     className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                                    disabled={isSubmitting || !p.cepilladoAplicado}
+                                    disabled={isSubmitting || !p.cepilladoAplicado || p.unidad === "M2"}
                                   />
                                   <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
                                 </div>
