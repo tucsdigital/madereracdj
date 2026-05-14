@@ -189,17 +189,7 @@ export function buildRemitoHtml(
     : "-";
   
   // Combinar dirección con provincia
-  const direccionCompleta = provinciaCompleta && provinciaCompleta !== "-"
-    ? `${safe(cliente.direccion)} - ${provinciaCompleta}`
-    : safe(cliente.direccion);
-
-  const direccionEnvioParaDocumento = esEnvioDoc
-    ? (esRetiroLocal ? (empresa.direccion || cliente.direccion || "") : (envio?.direccion || cliente.direccion || ""))
-    : (cliente.direccion || "");
-
-  const localidadEnvioParaDocumento = esEnvioDoc
-    ? (String(envio?.localidad || cliente.localidad || "").trim() || "")
-    : "";
+  // Nota: la dirección de envío se imprime únicamente en el pie (envio-info) para evitar duplicados.
 
   // Construir HTML de estado de pago (solo para ventas, se incrusta dentro del bloque de envío)
   const paymentStatusHtml =
@@ -926,12 +916,8 @@ export function buildRemitoHtml(
           </div>
           <div class="client-col">
             <div class="client-row">
-              <span class="client-label">${esEnvioDoc ? "Dirección envío:" : "Dirección:"}</span>
-              <span class="client-value">${safe(direccionEnvioParaDocumento)}</span>
-            </div>
-            <div class="client-row">
-              <span class="client-label">${esEnvioDoc ? "Localidad:" : "Provincia:"}</span>
-              <span class="client-value">${esEnvioDoc ? (localidadEnvioParaDocumento ? safe(localidadEnvioParaDocumento) : provinciaCompleta) : provinciaCompleta}</span>
+              <span class="client-label">Provincia:</span>
+              <span class="client-value">${provinciaCompleta}</span>
             </div>
             <div class="client-row">
               <span class="client-label">Teléfono:</span>
