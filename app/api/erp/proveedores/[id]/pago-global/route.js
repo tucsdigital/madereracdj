@@ -26,6 +26,7 @@ export async function POST(request, { params }) {
       pagoEnDolares: body?.pagoEnDolares,
       valorOficialDolar: body?.valorOficialDolar,
       comprobantes: body?.comprobantes,
+      cuentasSeleccionadas: body?.cuentasSeleccionadas,
       origen,
     });
 
@@ -35,4 +36,3 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: false, error: err?.message || "internal_error" }, { status });
   }
 }
-

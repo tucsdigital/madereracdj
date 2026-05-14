@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
@@ -148,7 +150,6 @@ const GastosPage = () => {
   const [openInterno, setOpenInterno] = useState(false);
   const [openProveedor, setOpenProveedor] = useState(false);
   const [openPago, setOpenPago] = useState(false);
-  const [openPagoGlobal, setOpenPagoGlobal] = useState(false);
   const [openQuitarSaldoAFavor, setOpenQuitarSaldoAFavor] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
   const [openMovimientoDetalle, setOpenMovimientoDetalle] = useState(false);
@@ -156,9 +157,10 @@ const GastosPage = () => {
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
-  const [proveedorPagoGlobal, setProveedorPagoGlobal] = useState(null);
   const [proveedorQuitarSaldo, setProveedorQuitarSaldo] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [comprobantePreview, setComprobantePreview] = useState(null);
+  const [openComprobantePreview, setOpenComprobantePreview] = useState(false);
   
   // Estado para crear categoría rápida desde el formulario
   const [creandoCategoriaRapida, setCreandoCategoriaRapida] = useState(false);
@@ -175,6 +177,8 @@ const GastosPage = () => {
   const [mostrarDropdownProveedor, setMostrarDropdownProveedor] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
   const confirmResolverRef = React.useRef(null);
+  const autoFillPagoProveedorRef = React.useRef(false);
+  const initSeleccionPagoProveedorRef = React.useRef(false);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: "",
@@ -619,15 +623,8 @@ const GastosPage = () => {
   const [comprobantesPago, setComprobantesPago] = useState([]);
   const [loadingDolar, setLoadingDolar] = useState(false);
   const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
-  const [montoPagoGlobal, setMontoPagoGlobal] = useState("");
-  const [fechaPagoGlobal, setFechaPagoGlobal] = useState(new Date().toISOString().split("T")[0]);
-  const [metodoPagoGlobal, setMetodoPagoGlobal] = useState("Efectivo");
-  const [notasPagoGlobal, setNotasPagoGlobal] = useState("");
-  const [pagoGlobalEnDolares, setPagoGlobalEnDolares] = useState(false);
-  const [valorOficialDolarGlobal, setValorOficialDolarGlobal] = useState(null);
-  const [comprobantesPagoGlobal, setComprobantesPagoGlobal] = useState([]);
-  const [loadingDolarGlobal, setLoadingDolarGlobal] = useState(false);
-  const [ultimaActualizacionDolarGlobal, setUltimaActualizacionDolarGlobal] = useState(null);
+  const [pagoModo, setPagoModo] = useState("cuenta"); // cuenta | proveedor
+  const [cuentasSeleccionadasPagoProveedor, setCuentasSeleccionadasPagoProveedor] = useState({});
 
   const [montoQuitarSaldo, setMontoQuitarSaldo] = useState("");
   const [fechaQuitarSaldo, setFechaQuitarSaldo] = useState(new Date().toISOString().split("T")[0]);
@@ -638,6 +635,100 @@ const GastosPage = () => {
   const [openEditarPago, setOpenEditarPago] = useState(false);
   const [pagoEdit, setPagoEdit] = useState(null); // { idx, monto, fecha, metodo, notas, pagoEnDolares, valorOficialDolar, comprobantesPago }
 
+  const cuentasPendientesProveedorParaPago = useMemo(() => {
+    const provId = String(cuentaSeleccionada?.proveedorId || "").trim();
+    if (!provId) return [];
+    const cuentas = Array.isArray(cuentasPorPagar) ? cuentasPorPagar : [];
+    return cuentas
+      .filter((c) => String(c?.proveedorId || "") === provId)
+      .filter((c) => !esCuentaAnulada(c))
+      .map((c) => ({ ...c, _saldo: calcularSaldoCuenta(c) }))
+      .filter((c) => Number(c._saldo || 0) > 0)
+      .sort((a, b) => String(a.fechaVencimiento || a.fecha || "").localeCompare(String(b.fechaVencimiento || b.fecha || "")));
+  }, [cuentaSeleccionada?.proveedorId, cuentasPorPagar]);
+
+  const resumenProveedorParaPago = useMemo(() => {
+    const provId = String(cuentaSeleccionada?.proveedorId || "").trim();
+    if (!provId) return null;
+    const proveedor = proveedores.find((p) => String(p?.id || "") === provId) || cuentaSeleccionada?.proveedor || null;
+    const cuentas = Array.isArray(cuentasPorPagar) ? cuentasPorPagar : [];
+    const cuentasProv = cuentas.filter((c) => String(c?.proveedorId || "") === provId).filter((c) => !esCuentaAnulada(c));
+    const total = cuentasProv.reduce((acc, c) => acc + (Number(c?.monto) || 0), 0);
+    const pagado = cuentasProv.reduce((acc, c) => acc + (Number(c?.montoPagado) || 0), 0);
+    const pendienteBruto = cuentasProv.reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
+    const saldoAFavor = Number(proveedor?.saldoAFavor || 0);
+    const pendienteNeto = Math.max(pendienteBruto - saldoAFavor, 0);
+    return {
+      proveedorId: provId,
+      proveedorNombre: proveedor?.nombre || "Proveedor",
+      total,
+      pagado,
+      pendienteBruto,
+      saldoAFavor,
+      pendienteNeto,
+      cuentasPendientes: cuentasPendientesProveedorParaPago,
+    };
+  }, [cuentaSeleccionada?.proveedorId, cuentaSeleccionada?.proveedor, proveedores, cuentasPorPagar, cuentasPendientesProveedorParaPago]);
+
+  const distribucionPagoProveedor = useMemo(() => {
+    let monto = parseMoneyARS(montoPago);
+    if (!Number.isFinite(monto) || monto < 0) monto = 0;
+    const selectedIds = Object.keys(cuentasSeleccionadasPagoProveedor || {}).filter((id) => cuentasSeleccionadasPagoProveedor?.[id]);
+    const saldoAFavor = Number(resumenProveedorParaPago?.saldoAFavor || 0);
+    if (selectedIds.length === 0) return { aplicaciones: [], excedente: monto, aplicado: 0 };
+    const selectedSet = new Set(selectedIds);
+    const cuentas = (resumenProveedorParaPago?.cuentasPendientes || []).filter((c) => selectedSet.has(String(c.id || "")));
+    let restante = monto + saldoAFavor;
+    const aplicaciones = [];
+    let aplicado = 0;
+    for (const c of cuentas) {
+      if (restante <= 0) break;
+      const saldo = Number(c._saldo || 0);
+      const aplicar = Math.min(restante, saldo);
+      if (aplicar <= 0) continue;
+      aplicaciones.push({ cuentaId: c.id, aplicar, saldo });
+      aplicado += aplicar;
+      restante -= aplicar;
+    }
+    return { aplicaciones, excedente: Math.max(restante, 0), aplicado };
+  }, [montoPago, cuentasSeleccionadasPagoProveedor, resumenProveedorParaPago]);
+
+  useEffect(() => {
+    if (!openPago) return;
+    setPagoModo("cuenta");
+    setCuentasSeleccionadasPagoProveedor({});
+    autoFillPagoProveedorRef.current = false;
+    initSeleccionPagoProveedorRef.current = false;
+  }, [openPago]);
+
+  useEffect(() => {
+    if (!openPago) return;
+    if (pagoModo !== "proveedor") return;
+    if (!initSeleccionPagoProveedorRef.current) {
+      initSeleccionPagoProveedorRef.current = true;
+      const next = {};
+      for (const c of cuentasPendientesProveedorParaPago) next[String(c.id)] = true;
+      setCuentasSeleccionadasPagoProveedor(next);
+    }
+    if (!autoFillPagoProveedorRef.current) {
+      autoFillPagoProveedorRef.current = true;
+      const sugerido = Number(
+        resumenProveedorParaPago?.pendienteNeto ??
+          resumenProveedorParaPago?.pendienteBruto ??
+          0
+      );
+      const saldoCuenta = Number(calcularSaldoCuenta(cuentaSeleccionada) || 0);
+      const current = parseMoneyARS(montoPago);
+      const shouldAutofill =
+        !Number.isFinite(current) ||
+        current <= 0 ||
+        Math.abs(Number(current) - saldoCuenta) < 0.01;
+      if (shouldAutofill && Number.isFinite(sugerido) && sugerido > 0) {
+        setMontoPago(String(sugerido));
+      }
+    }
+  }, [openPago, pagoModo, cuentasPendientesProveedorParaPago, resumenProveedorParaPago, cuentaSeleccionada, montoPago]);
+
   const handleRegistrarPago = async () => {
     if (!cuentaSeleccionada) return;
     const montoIngresado = parseMoneyARS(montoPago);
@@ -645,11 +736,71 @@ const GastosPage = () => {
       toast({ title: "Monto inválido", description: "Ingresá un monto válido.", color: "warning" });
       return;
     }
+    if (pagoModo === "proveedor") {
+      const provId = String(cuentaSeleccionada?.proveedorId || "").trim();
+      if (!provId) {
+        toast({ title: "Proveedor inválido", description: "No se encontró el proveedor de la cuenta.", color: "warning" });
+        return;
+      }
+      const cuentasSeleccionadas = Object.keys(cuentasSeleccionadasPagoProveedor || {}).filter(
+        (id) => cuentasSeleccionadasPagoProveedor?.[id]
+      );
+      if (cuentasSeleccionadas.length === 0) {
+        toast({ title: "Seleccioná cuentas", description: "Elegí al menos una cuenta con saldo pendiente.", color: "warning" });
+        return;
+      }
+    }
     
     setGuardando(true);
     try {
       if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
       const idToken = await user.getIdToken();
+
+      if (pagoModo === "proveedor") {
+        const provId = String(cuentaSeleccionada?.proveedorId || "").trim();
+        const cuentasSeleccionadas = Object.keys(cuentasSeleccionadasPagoProveedor || {}).filter(
+          (id) => cuentasSeleccionadasPagoProveedor?.[id]
+        );
+
+        const resp = await fetch(`/api/erp/proveedores/${encodeURIComponent(provId)}/pago-global`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            monto: montoIngresado,
+            fecha: fechaPago,
+            metodo: metodoPago,
+            notas: notasPago,
+            pagoEnDolares: !!pagoEnDolares,
+            valorOficialDolar: pagoEnDolares ? (valorOficialDolar ?? null) : null,
+            comprobantes: comprobantesPago || [],
+            cuentasSeleccionadas,
+            origen: "ui_gastos_pago_proveedor",
+          }),
+        });
+        const out = await resp.json().catch(() => ({}));
+        if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar el pago");
+        await cargarDatos();
+        setOpenPago(false);
+        setCuentaSeleccionada(null);
+        setMontoPago("");
+        setFechaPago(new Date().toISOString().split("T")[0]);
+        setMetodoPago("Efectivo");
+        setNotasPago("");
+        setPagoEnDolares(false);
+        setValorOficialDolar(null);
+        setComprobantesPago([]);
+        setPagoModo("cuenta");
+        setCuentasSeleccionadasPagoProveedor({});
+        toast({
+          title: "Pago registrado",
+          description: out?.saldoAFavorDespues != null ? `Saldo a favor: ${formatMoneyARS(Number(out.saldoAFavorDespues || 0))}` : "Pago aplicado al proveedor.",
+          color: "success",
+        });
+        return;
+      }
 
       const call = async (permitirExcedenteASaldoAFavor) => {
         const resp = await fetch(
@@ -806,48 +957,11 @@ const GastosPage = () => {
     }
   };
 
-  const limpiarEstadoPagoGlobal = () => {
-    setMontoPagoGlobal("");
-    setFechaPagoGlobal(new Date().toISOString().split("T")[0]);
-    setMetodoPagoGlobal("Efectivo");
-    setNotasPagoGlobal("");
-    setPagoGlobalEnDolares(false);
-    setValorOficialDolarGlobal(null);
-    setComprobantesPagoGlobal([]);
-  };
-
   const limpiarEstadoQuitarSaldo = () => {
     setMontoQuitarSaldo("");
     setFechaQuitarSaldo(new Date().toISOString().split("T")[0]);
     setMetodoQuitarSaldo("Ajuste");
     setNotasQuitarSaldo("");
-  };
-
-  const abrirPagoGlobalProveedor = (cuenta) => {
-    if (!cuenta?.proveedorId) return;
-    const proveedorDoc = proveedores.find((p) => p.id === cuenta.proveedorId) || null;
-    const cuentasDelProveedor = cuentasPorPagar
-      .filter((c) => c.proveedorId === cuenta.proveedorId)
-      .filter((c) => !esCuentaAnulada(c))
-      .sort((a, b) => {
-        const fa = a.fechaVencimiento || a.fecha || "";
-        const fb = b.fechaVencimiento || b.fecha || "";
-        return String(fa).localeCompare(String(fb));
-      });
-    const total = cuentasDelProveedor.reduce((acc, c) => acc + (Number(c.monto) || 0), 0);
-    const pagado = cuentasDelProveedor.reduce((acc, c) => acc + (Number(c.montoPagado) || 0), 0);
-    const pendiente = cuentasDelProveedor.reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
-    setProveedorPagoGlobal({
-      id: cuenta.proveedorId,
-      nombre: cuenta.proveedor?.nombre || proveedorDoc?.nombre || "Proveedor",
-      cuentas: cuentasDelProveedor,
-      total,
-      pagado,
-      pendiente,
-      saldoAFavor: Number(proveedorDoc?.saldoAFavor || 0),
-    });
-    setMontoPagoGlobal(pendiente > 0 ? pendiente.toString() : "");
-    setOpenPagoGlobal(true);
   };
 
   const abrirQuitarSaldoAFavor = (grupo) => {
@@ -966,61 +1080,6 @@ const GastosPage = () => {
     }
   };
 
-  const handleRegistrarPagoGlobal = async () => {
-    if (!proveedorPagoGlobal?.id) {
-      toast({ title: "Proveedor inválido", description: "No se pudo identificar el proveedor.", color: "warning" });
-      return;
-    }
-    const montoIngresado = parseMoneyARS(montoPagoGlobal);
-    if (!Number.isFinite(montoIngresado) || montoIngresado <= 0) {
-      toast({ title: "Monto inválido", description: "Ingresá un monto válido para el pago global.", color: "warning" });
-      return;
-    }
-    setGuardando(true);
-    try {
-      if (!user || typeof user.getIdToken !== "function") {
-        throw new Error("No hay usuario autenticado");
-      }
-      const idToken = await user.getIdToken();
-      const resp = await fetch(`/api/erp/proveedores/${encodeURIComponent(String(proveedorPagoGlobal.id))}/pago-global`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          monto: montoIngresado,
-          fecha: fechaPagoGlobal,
-          metodo: metodoPagoGlobal,
-          notas: notasPagoGlobal,
-          pagoEnDolares: !!pagoGlobalEnDolares,
-          valorOficialDolar: pagoGlobalEnDolares ? (valorOficialDolarGlobal ?? null) : null,
-          comprobantes: comprobantesPagoGlobal || [],
-          origen: "ui_gastos_pago_global",
-        }),
-      });
-      const out = await resp.json().catch(() => ({}));
-      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar pago global");
-
-      await cargarDatos();
-      toast({
-        title: "Pago global registrado",
-        description: `Aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))} · Saldo a favor: ${formatMoneyARS(
-          Number(out.saldoAFavorDespues || 0)
-        )}`,
-        color: "success",
-      });
-      setOpenPagoGlobal(false);
-      setProveedorPagoGlobal(null);
-      limpiarEstadoPagoGlobal();
-    } catch (error) {
-      console.error("Error al registrar pago global:", error);
-      toast({ title: "Error", description: `Error al registrar pago global: ${error.message}`, color: "destructive" });
-    } finally {
-      setGuardando(false);
-    }
-  };
-
   // Fetch Dólar Blue (similar a ventas) - usable cuando se registra pago en dólares
   const fetchDolarBlue = useCallback(async () => {
     setLoadingDolar(true);
@@ -1038,37 +1097,12 @@ const GastosPage = () => {
     }
   }, []);
 
-  const fetchDolarBlueGlobal = useCallback(async () => {
-    setLoadingDolarGlobal(true);
-    try {
-      const res = await fetch("/api/dolar-blue");
-      const data = await res.json();
-      if (res.ok && data?.venta != null) {
-        setValorOficialDolarGlobal(data.venta);
-        setUltimaActualizacionDolarGlobal(
-          data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date()
-        );
-      }
-    } catch (err) {
-      console.warn("Error al obtener dólar blue:", err);
-    } finally {
-      setLoadingDolarGlobal(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (!openPago || !pagoEnDolares) return;
     fetchDolarBlue();
     const interval = setInterval(fetchDolarBlue, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [openPago, pagoEnDolares, fetchDolarBlue]);
-
-  useEffect(() => {
-    if (!openPagoGlobal || !pagoGlobalEnDolares) return;
-    fetchDolarBlueGlobal();
-    const interval = setInterval(fetchDolarBlueGlobal, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [openPagoGlobal, pagoGlobalEnDolares, fetchDolarBlueGlobal]);
 
   // Guardar edición de un pago existente
   const handleGuardarEdicionPago = async () => {
@@ -2275,15 +2309,6 @@ const GastosPage = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-indigo-600 border-indigo-500/20 hover:text-indigo-700 hover:bg-indigo-500/10 hover:border-indigo-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
-                                  onClick={() => abrirPagoGlobalProveedor(c)}
-                                  title="Pago global del proveedor"
-                                >
-                                  <DollarSign className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
                                   className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
                                   onClick={() => handleEditarProveedor(c)}
                                   title="Editar cuenta"
@@ -2643,227 +2668,261 @@ const GastosPage = () => {
 
       {/* Modal para registrar pago */}
       <Dialog open={openPago} onOpenChange={setOpenPago}>
-        <DialogContent className="w-[95vw] max-w-[500px] border border-border/60 bg-card">
-          <DialogHeader>
-            <DialogTitle>Registrar Pago</DialogTitle>
-          </DialogHeader>
-          
-          {cuentaSeleccionada && (
-            <div className="space-y-4 py-2">
-              {/* Info de la cuenta */}
-              <div className="bg-muted/50 p-3 rounded-lg border border-border/60">
-                <div className="font-medium text-foreground">{cuentaSeleccionada.proveedor?.nombre}</div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Total:</span>
-                    <span className="font-semibold ml-1">${Number(cuentaSeleccionada.monto).toLocaleString("es-AR")}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Saldo:</span>
-                    <span className="font-semibold text-red-600 ml-1">
-                      ${(Number(cuentaSeleccionada.monto) - Number(cuentaSeleccionada.montoPagado || 0)).toLocaleString("es-AR")}
-                    </span>
-                  </div>
-                </div>
-              </div>
+        <DialogContent className="w-[95vw] max-w-[720px] border border-border/60 bg-card p-0 overflow-hidden">
+          <div className="flex max-h-[85vh] flex-col">
+            <DialogHeader className="px-5 py-4 border-b border-border/60">
+              <DialogTitle>Registrar Pago</DialogTitle>
+            </DialogHeader>
 
-              {/* Switch: pago en dólares y comprobantes */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <Switch
-                    checked={!!pagoEnDolares}
-                    onCheckedChange={(checked) => {
-                      setPagoEnDolares(checked);
-                      if (!checked) {
-                        setValorOficialDolar(null);
-                      }
-                    }}
-                    color="warning"
-                  />
-                  <span className="text-sm font-medium">Pago en dólares</span>
-                </label>
-                {pagoEnDolares && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-full md:w-40 px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                        value={valorOficialDolar ?? ""}
-                        onChange={(e) => setValorOficialDolar(e.target.value ? Number(e.target.value) : null)}
-                        placeholder="Ej: 1440"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchDolarBlue}
-                        disabled={loadingDolar}
-                        className="shrink-0 h-9"
-                      >
-                        {loadingDolar ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
-                      </Button>
+            <ScrollArea className="flex-1">
+              <div className="px-5 py-4 space-y-4">
+                {cuentaSeleccionada && (
+                  <>
+              {resumenProveedorParaPago && (
+                <div className="bg-muted/50 p-3 rounded-lg border border-border/60">
+                  <div className="font-medium text-foreground">{resumenProveedorParaPago.proveedorNombre}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Pendiente bruto:</span>
+                      <span className="font-semibold text-red-600 ml-1">{formatMoneyARS(Number(resumenProveedorParaPago.pendienteBruto || 0))}</span>
                     </div>
-                    {ultimaActualizacionDolar && (
-                      <p className="text-xs text-muted-foreground">
-                        Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}{" "}
-                        (se actualiza cada 5 min)
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <ComprobantesPagoSection
-                  comprobantes={comprobantesPago || []}
-                  onComprobantesChange={setComprobantesPago}
-                  disabled={loadingDolar || guardando}
-                  maxFiles={8}
-                />
-              </div>
-
-              {/* Historial de pagos */}
-              {cuentaSeleccionada.pagos && cuentaSeleccionada.pagos.length > 0 && (
-                <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
-                  <div className="font-semibold text-sm mb-2">Pagos registrados:</div>
-                  <div className="space-y-1">
-                    {cuentaSeleccionada.pagos.map((pago, idx) => (
-                      <div key={idx} className="text-xs text-foreground flex justify-between">
-                        <span>{pago.fecha} - {pago.metodo}</span>
-                        <span className="font-semibold">${Number(pago.monto).toLocaleString("es-AR")}</span>
-                      </div>
-                    ))}
+                    <div>
+                      <span className="text-muted-foreground">Saldo a favor:</span>
+                      <span className="font-semibold text-green-600 ml-1">{formatMoneyARS(Number(resumenProveedorParaPago.saldoAFavor || 0))}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Pendiente neto:</span>
+                      <span className="font-semibold ml-1">{formatMoneyARS(Number(resumenProveedorParaPago.pendienteNeto || 0))}</span>
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div>
-                <Label>Monto a Pagar *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Monto del pago"
-                  value={montoPago}
-                  onChange={(e) => setMontoPago(e.target.value)}
-                  max={Number(cuentaSeleccionada.monto) - Number(cuentaSeleccionada.montoPagado || 0)}
-                />
-              </div>
-
-              <div>
-                <Label>Fecha de Pago *</Label>
-                <DateInput
-                  value={fechaPago}
-                  onChange={(v) => setFechaPago(v)}
-                  buttonClassName="w-full justify-start"
-                />
-              </div>
-
-              <div>
-                <Label>Método de Pago</Label>
-                <select 
-                  value={metodoPago} 
-                  onChange={(e) => setMetodoPago(e.target.value)}
-                  className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
-                >
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="Transferencia">Transferencia</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Tarjeta">Tarjeta</option>
-                </select>
-              </div>
-
-              <div>
-                <Label>Notas del Pago</Label>
-                <Textarea
-                  placeholder="Detalles del pago..."
-                  value={notasPago}
-                  onChange={(e) => setNotasPago(e.target.value)}
-                  rows={2}
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenPago(false)} disabled={guardando}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleRegistrarPago}
-              disabled={guardando || !Number.isFinite(parseMoneyARS(montoPago)) || parseMoneyARS(montoPago) <= 0}
-            >
-              {guardando ? "Guardando..." : "Registrar Pago"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openPagoGlobal} onOpenChange={setOpenPagoGlobal}>
-        <DialogContent className="w-[95vw] max-w-[560px] border border-border/60 bg-card">
-          <DialogHeader>
-            <DialogTitle>Pago Global por Proveedor</DialogTitle>
-          </DialogHeader>
-          {proveedorPagoGlobal && (
-            <div className="space-y-4 py-2">
-              <div className="bg-indigo-500/10 p-3 rounded-lg border border-indigo-500/20">
-                <div className="font-semibold text-foreground">{proveedorPagoGlobal.nombre}</div>
-                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Cuentas asociadas:</span>
-                    <span className="font-semibold ml-1">{proveedorPagoGlobal.cuentas.length}</span>
+              <Tabs value={pagoModo} onValueChange={setPagoModo}>
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="cuenta">Esta cuenta</TabsTrigger>
+                  <TabsTrigger value="proveedor">Proveedor</TabsTrigger>
+                </TabsList>
+                <TabsContent value="cuenta" className="space-y-3">
+                  <div className="bg-card p-3 rounded-lg border border-border/60">
+                    <div className="text-sm text-muted-foreground">Cuenta</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="font-semibold ml-1">{formatMoneyARS(Number(cuentaSeleccionada.monto || 0))}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Saldo:</span>
+                        <span className="font-semibold text-red-600 ml-1">
+                          {formatMoneyARS(Number(calcularSaldoCuenta(cuentaSeleccionada) || 0))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Saldo pendiente:</span>
-                    <span className="font-semibold text-red-600 ml-1">
-                      ${Number(proveedorPagoGlobal.pendiente || 0).toLocaleString("es-AR")}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Saldo a favor actual:</span>
-                    <span className="font-semibold text-green-600 ml-1">
-                      ${Number(proveedorPagoGlobal.saldoAFavor || 0).toLocaleString("es-AR")}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Total histórico:</span>
-                    <span className="font-semibold ml-1">
-                      ${Number(proveedorPagoGlobal.total || 0).toLocaleString("es-AR")}
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <div>
-                <Label>Monto a aplicar globalmente *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Monto del pago global"
-                  value={montoPagoGlobal}
-                  onChange={(e) => setMontoPagoGlobal(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Se distribuye automáticamente por fecha de emisión y, si sobra, queda como saldo a favor del proveedor.
-                </p>
-              </div>
+                  {cuentaSeleccionada.pagos && cuentaSeleccionada.pagos.length > 0 && (
+                    <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+                      <div className="font-semibold text-sm mb-2">Pagos registrados:</div>
+                      <div className="space-y-1">
+                        {cuentaSeleccionada.pagos.map((pago, idx) => (
+                          <div key={idx} className="text-xs text-foreground flex justify-between">
+                            <span>{pago.fecha} - {pago.metodo}</span>
+                            <span className="font-semibold">{formatMoneyARS(Number(pago.monto || 0))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
 
-              <div className="grid grid-cols-2 gap-3">
+                <TabsContent value="proveedor" className="space-y-3">
+                  <div className="text-xs text-muted-foreground">
+                    Seleccioná las cuentas con saldo pendiente a pagar. Se aplicará en orden de vencimiento y el excedente queda como saldo a favor.
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-medium">Cuentas pendientes</div>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={
+                          cuentasPendientesProveedorParaPago.length > 0 &&
+                          cuentasPendientesProveedorParaPago.every((c) => cuentasSeleccionadasPagoProveedor?.[String(c.id)])
+                        }
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          const next = {};
+                          if (checked) {
+                            for (const c of cuentasPendientesProveedorParaPago) next[String(c.id)] = true;
+                          }
+                          setCuentasSeleccionadasPagoProveedor(next);
+                          const sum = cuentasPendientesProveedorParaPago
+                            .filter((c) => next[String(c.id)])
+                            .reduce((acc, c) => acc + Number(c._saldo || 0), 0);
+                          const saldoAFavor = Number(resumenProveedorParaPago?.saldoAFavor || 0);
+                          setMontoPago(String(Math.max(sum - saldoAFavor, 0)));
+                        }}
+                        className="w-4 h-4"
+                      />
+                      Seleccionar todas
+                    </label>
+                  </div>
+
+                  {cuentasPendientesProveedorParaPago.length === 0 ? (
+                    <div className="text-sm text-muted-foreground border border-border/60 rounded-lg p-3 bg-muted/30">
+                      No hay cuentas con saldo pendiente para este proveedor.
+                    </div>
+                  ) : (
+                    <div className="max-h-[28vh] overflow-y-auto space-y-2 border border-border/60 rounded-lg p-2 bg-muted/20">
+                      {cuentasPendientesProveedorParaPago.map((c) => (
+                        <label
+                          key={c.id}
+                          className="flex items-center justify-between gap-3 rounded-md px-2 py-2 bg-card border border-border/60 cursor-pointer"
+                        >
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!!cuentasSeleccionadasPagoProveedor?.[String(c.id)]}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setCuentasSeleccionadasPagoProveedor((prev) => {
+                                  const next = { ...(prev || {}) };
+                                  if (checked) next[String(c.id)] = true;
+                                  else delete next[String(c.id)];
+                                  const sum = cuentasPendientesProveedorParaPago
+                                    .filter((acc) => next[String(acc.id)])
+                                    .reduce((acc, accObj) => acc + Number(accObj._saldo || 0), 0);
+                                  const saldoAFavor = Number(resumenProveedorParaPago?.saldoAFavor || 0);
+                                  setMontoPago(String(Math.max(sum - saldoAFavor, 0)));
+                                  return next;
+                                });
+                              }}
+                              className="mt-0.5 w-4 h-4"
+                            />
+                            <div>
+                              <div className="text-sm font-medium">
+                                {formatFechaAR(c.fecha)}{c.fechaVencimiento ? ` · Vence ${formatFechaAR(c.fechaVencimiento)}` : ""}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Total {formatMoneyARS(Number(c.monto || 0))} · Pagado {formatMoneyARS(Number(c.montoPagado || 0))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-sm font-semibold text-red-600">{formatMoneyARS(Number(c._saldo || 0))}</div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {distribucionPagoProveedor.aplicaciones.length > 0 || distribucionPagoProveedor.excedente > 0 ? (
+                    <div className="bg-muted/50 p-3 rounded-lg border border-border/60 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Aplicado a cuentas:</span>
+                        <span className="font-semibold">{formatMoneyARS(Number(distribucionPagoProveedor.aplicado || 0))}</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-muted-foreground">Excedente a saldo a favor:</span>
+                        <span className="font-semibold">{formatMoneyARS(Number(distribucionPagoProveedor.excedente || 0))}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </TabsContent>
+              </Tabs>
+
+              <Accordion type="single" collapsible defaultValue="comprobantes" className="space-y-2">
+                <AccordionItem value="moneda" className="shadow-none dark:shadow-none py-3 px-3 dark:bg-transparent rounded-lg border border-border/60 bg-muted/20">
+                  <AccordionTrigger className="py-0">Moneda</AccordionTrigger>
+                  <AccordionContent className="pt-3">
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <Switch
+                          checked={!!pagoEnDolares}
+                          onCheckedChange={(checked) => {
+                            setPagoEnDolares(checked);
+                            if (!checked) setValorOficialDolar(null);
+                          }}
+                          color="warning"
+                        />
+                        <span className="text-sm font-medium">Pago en dólares</span>
+                      </label>
+                      {pagoEnDolares && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-full md:w-44 px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                              value={valorOficialDolar ?? ""}
+                              onChange={(e) => setValorOficialDolar(e.target.value ? Number(e.target.value) : null)}
+                              placeholder="Ej: 1440"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDolarBlue}
+                              disabled={loadingDolar}
+                              className="shrink-0 h-9"
+                            >
+                              {loadingDolar ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
+                            </Button>
+                          </div>
+                          {ultimaActualizacionDolar && (
+                            <p className="text-xs text-muted-foreground">
+                              Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}{" "}
+                              (se actualiza cada 5 min)
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="comprobantes" className="shadow-none dark:shadow-none py-3 px-3 dark:bg-transparent rounded-lg border border-border/60 bg-muted/20">
+                  <AccordionTrigger className="py-0">Comprobantes</AccordionTrigger>
+                  <AccordionContent className="pt-3">
+                    <ComprobantesPagoSection
+                      comprobantes={comprobantesPago || []}
+                      onComprobantesChange={setComprobantesPago}
+                      disabled={loadingDolar || guardando}
+                      maxFiles={8}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <Label>Fecha de Pago *</Label>
+                  <Label>{pagoModo === "proveedor" ? "Monto a pagar al proveedor *" : "Monto a pagar *"}</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Monto del pago"
+                    value={montoPago}
+                    onChange={(e) => setMontoPago(e.target.value)}
+                    max={pagoModo === "cuenta" ? Number(calcularSaldoCuenta(cuentaSeleccionada) || 0) : undefined}
+                  />
+                </div>
+
+                <div>
+                  <Label>Fecha *</Label>
                   <DateInput
-                    value={fechaPagoGlobal}
-                    onChange={(v) => setFechaPagoGlobal(v)}
+                    value={fechaPago}
+                    onChange={(v) => setFechaPago(v)}
                     buttonClassName="w-full justify-start"
                   />
                 </div>
+
                 <div>
-                  <Label>Método de Pago</Label>
+                  <Label>Método</Label>
                   <select
-                    value={metodoPagoGlobal}
-                    onChange={(e) => setMetodoPagoGlobal(e.target.value)}
+                    value={metodoPago}
+                    onChange={(e) => setMetodoPago(e.target.value)}
                     className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
                   >
                     <option value="Efectivo">Efectivo</option>
@@ -2875,98 +2934,37 @@ const GastosPage = () => {
               </div>
 
               <div>
-                <Label>Notas del Pago</Label>
+                <Label>Notas</Label>
                 <Textarea
-                  placeholder="Detalles del pago global..."
-                  value={notasPagoGlobal}
-                  onChange={(e) => setNotasPagoGlobal(e.target.value)}
+                  placeholder="Detalles del pago..."
+                  value={notasPago}
+                  onChange={(e) => setNotasPago(e.target.value)}
                   rows={2}
                 />
               </div>
-
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <Switch
-                    checked={!!pagoGlobalEnDolares}
-                    onCheckedChange={(checked) => {
-                      setPagoGlobalEnDolares(checked);
-                      if (!checked) setValorOficialDolarGlobal(null);
-                    }}
-                    color="warning"
-                  />
-                  <span className="text-sm font-medium">Pago en dólares</span>
-                </label>
-                {pagoGlobalEnDolares && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-full md:w-40 px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
-                        value={valorOficialDolarGlobal ?? ""}
-                        onChange={(e) =>
-                          setValorOficialDolarGlobal(
-                            e.target.value ? Number(e.target.value) : null
-                          )
-                        }
-                        placeholder="Ej: 1440"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchDolarBlueGlobal}
-                        disabled={loadingDolarGlobal}
-                        className="shrink-0 h-9"
-                      >
-                        {loadingDolarGlobal ? <Loader2 className="w-4 h-4 animate-spin" /> : "Actualizar"}
-                      </Button>
-                    </div>
-                    {ultimaActualizacionDolarGlobal && (
-                      <p className="text-xs text-muted-foreground">
-                        Última cotización: {ultimaActualizacionDolarGlobal.toLocaleString("es-AR", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}{" "}
-                        (se actualiza cada 5 min)
-                      </p>
-                    )}
-                  </div>
+                  </>
                 )}
               </div>
+            </ScrollArea>
 
-              <ComprobantesPagoSection
-                comprobantes={comprobantesPagoGlobal || []}
-                onComprobantesChange={setComprobantesPagoGlobal}
-                disabled={loadingDolarGlobal || guardando}
-                maxFiles={8}
-              />
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOpenPagoGlobal(false);
-                setProveedorPagoGlobal(null);
-                limpiarEstadoPagoGlobal();
-              }}
-              disabled={guardando}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleRegistrarPagoGlobal}
-              disabled={
-                guardando ||
-                !Number.isFinite(parseMoneyARS(montoPagoGlobal)) ||
-                parseMoneyARS(montoPagoGlobal) <= 0
-              }
-            >
-              {guardando ? "Guardando..." : "Registrar Pago Global"}
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="px-5 py-4 border-t border-border/60 bg-card">
+              <Button variant="outline" onClick={() => setOpenPago(false)} disabled={guardando}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleRegistrarPago}
+                disabled={
+                  guardando ||
+                  !Number.isFinite(parseMoneyARS(montoPago)) ||
+                  parseMoneyARS(montoPago) <= 0 ||
+                  (pagoModo === "proveedor" &&
+                    Object.keys(cuentasSeleccionadasPagoProveedor || {}).filter((id) => cuentasSeleccionadasPagoProveedor?.[id]).length === 0)
+                }
+              >
+                {guardando ? "Guardando..." : "Registrar Pago"}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -3186,14 +3184,52 @@ const GastosPage = () => {
                                 <div className="text-muted-foreground">Registrado: {formatFechaHoraArgentina(fechaRegistro)}</div>
                               ) : null}
                               {pago?.notas && (
-                                <div className="text-muted-foreground italic">"{String(pago.notas)}"</div>
+                                <div className="text-muted-foreground italic">&quot;{String(pago.notas)}&quot;</div>
                               )}
                               {pago?.responsable && (
                                 <div className="text-muted-foreground">Por: {String(pago.responsable)}</div>
                               )}
                               {pago?.comprobantes && pago.comprobantes.length > 0 && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {pago.comprobantes.length} comprobante{pago.comprobantes.length !== 1 ? "s" : ""}
+                                <div className="mt-2 space-y-2">
+                                  <div className="text-xs text-muted-foreground">
+                                    {pago.comprobantes.length} comprobante{pago.comprobantes.length !== 1 ? "s" : ""}
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-2">
+                                    {pago.comprobantes.slice(0, 4).map((comp, cidx) => {
+                                      const tipo = String(comp?.tipo || "").toLowerCase();
+                                      const url = String(comp?.url || "");
+                                      const nombre = String(comp?.nombre || `Comprobante ${cidx + 1}`);
+                                      if (!url) return null;
+                                      return (
+                                        <button
+                                          key={`${url}_${cidx}`}
+                                          type="button"
+                                          className="group relative w-full aspect-square rounded-md border border-border/60 bg-muted/20 overflow-hidden hover:border-border hover:shadow-sm transition-all"
+                                          onClick={() => {
+                                            setComprobantePreview({ url, tipo: tipo || "image", nombre });
+                                            setOpenComprobantePreview(true);
+                                          }}
+                                          title="Ver comprobante"
+                                        >
+                                          {tipo === "pdf" ? (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                              <FileText className="w-6 h-6 text-red-600" />
+                                            </div>
+                                          ) : (
+                                            <img src={url} alt={nombre} className="w-full h-full object-cover" />
+                                          )}
+                                          <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Eye className="w-5 h-5 text-white" />
+                                          </div>
+                                          {cidx === 3 && pago.comprobantes.length > 4 ? (
+                                            <div className="absolute inset-0 bg-black/50 text-white text-xs flex items-center justify-center">
+                                              +{pago.comprobantes.length - 4}
+                                            </div>
+                                          ) : null}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -3258,6 +3294,37 @@ const GastosPage = () => {
               Cerrar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openComprobantePreview}
+        onOpenChange={(open) => {
+          setOpenComprobantePreview(open);
+          if (!open) setComprobantePreview(null);
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[980px] border border-border/60 bg-card">
+          <DialogHeader>
+            <DialogTitle>{String(comprobantePreview?.nombre || "Comprobante")}</DialogTitle>
+          </DialogHeader>
+          {comprobantePreview?.url ? (
+            String(comprobantePreview?.tipo || "").toLowerCase() === "pdf" ? (
+              <iframe
+                src={comprobantePreview.url}
+                title={String(comprobantePreview?.nombre || "Comprobante")}
+                className="w-full h-[70vh] rounded-lg border border-border/60 bg-background"
+              />
+            ) : (
+              <img
+                src={comprobantePreview.url}
+                alt={String(comprobantePreview?.nombre || "Comprobante")}
+                className="w-full max-h-[70vh] object-contain rounded-lg border border-border/60 bg-background"
+              />
+            )
+          ) : (
+            <div className="text-sm text-muted-foreground">Sin comprobante</div>
+          )}
         </DialogContent>
       </Dialog>
 

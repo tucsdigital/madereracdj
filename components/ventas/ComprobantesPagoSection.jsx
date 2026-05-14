@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Upload, FileText, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "@/components/ui/use-toast";
 
 export default function ComprobantesPagoSection({
   comprobantes = [],
@@ -52,7 +53,11 @@ export default function ComprobantesPagoSection({
         }
         onComprobantesChange([...comprobantes, ...nuevos]);
       } catch (err) {
-        alert(err.message || "Error al subir comprobante");
+        toast({
+          title: "Error",
+          description: err?.message || "Error al subir comprobante",
+          color: "destructive",
+        });
       } finally {
         setUploading(false);
         setUploadProgress(0);
@@ -81,7 +86,11 @@ export default function ComprobantesPagoSection({
         const next = comprobantes.filter((_, i) => i !== idx);
         onComprobantesChange(next);
       } catch (err) {
-        alert(err.message || "Error al eliminar comprobante");
+        toast({
+          title: "Error",
+          description: err?.message || "Error al eliminar comprobante",
+          color: "destructive",
+        });
       } finally {
         setDeletingIdx(null);
       }
