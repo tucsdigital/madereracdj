@@ -32,6 +32,7 @@ const ModalCambiarCliente = dynamic(
   { ssr: false }
 );
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
+import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -504,10 +505,7 @@ const VentaDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      const productosData = snapProductos.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const productosData = snapProductos.docs.map((doc) => mapFirestoreDoc(doc));
       console.log("=== DEBUG CARGA PRODUCTOS ===");
       console.log("Productos cargados:", productosData);
       console.log("Cantidad de productos:", productosData.length);
@@ -714,16 +712,16 @@ const VentaDetalle = () => {
     try {
       // Obtener productos actualizados desde Firebase
       const productosSnap = await getDocs(collection(db, "productos"));
-      const productosActualizados = productosSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const productosActualizados = productosSnap.docs.map((doc) => mapFirestoreDoc(doc));
 
       // Actualizar precios de productos en ventaEdit
       const productosConPreciosActualizados = (ventaEdit.productos || []).map(
         (productoVenta) => {
+          const lineKey = productoVenta.originalId || productoVenta.id;
           const productoActualizado = productosActualizados.find(
-            (p) => p.id === productoVenta.id
+            (p) =>
+              p.id === lineKey ||
+              (productoVenta.codigo && p.codigo === productoVenta.codigo)
           );
           if (productoActualizado) {
             let nuevoPrecio = 0;
@@ -3494,6 +3492,7 @@ const VentaDetalle = () => {
                                                 {
                                                   id: prod.id,
                                                   originalId: prod.id,
+                                                  codigo: prod.codigo || "",
                                                   nombre: prod.nombre,
                                                   detalle: prod.detalle || "",
                                                   precio: precioCalc,
@@ -3526,6 +3525,7 @@ const VentaDetalle = () => {
                                               {
                                                 id: prod.id,
                                                 originalId: prod.id,
+                                                codigo: prod.codigo || "",
                                                 nombre: prod.nombre,
                                                 detalle: prod.detalle || "",
                                                 precio: prod.valorVenta || 0,
@@ -3548,6 +3548,7 @@ const VentaDetalle = () => {
                                               {
                                                 id: prod.id,
                                                 originalId: prod.id,
+                                                codigo: prod.codigo || "",
                                                 nombre: prod.nombre,
                                                 detalle: prod.detalle || "",
                                                 precio: precioOtro,

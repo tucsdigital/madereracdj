@@ -59,7 +59,7 @@ export async function GET(request) {
 
     const items = [];
     const pushDocs = (snap) => {
-      snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+      snap.forEach((d) => items.push({ ...(d.data() || {}), id: d.id }));
     };
 
     const normalize = (s) =>
@@ -290,7 +290,7 @@ export async function GET(request) {
         const snaps = await Promise.all(dimQueries.map((p) => p.catch(() => null)));
         snaps
           .filter(Boolean)
-          .forEach((snap) => snap.forEach((d) => items.push({ id: d.id, ...d.data() })));
+          .forEach((snap) => snap.forEach((d) => items.push({ ...(d.data() || {}), id: d.id })));
       } catch (_) {}
 
       // Si aún no llegamos al límite, como fallback rápido: hacer un barrido ligero por nombre
@@ -307,7 +307,7 @@ export async function GET(request) {
             limit(Math.max(1000, Math.min(5000, lim * 25)))
           );
           const snap = await getDocs(qq);
-          snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+          snap.forEach((d) => items.push({ ...(d.data() || {}), id: d.id }));
         } catch (_) {}
       }
 
@@ -319,7 +319,7 @@ export async function GET(request) {
             limit(Math.max(1000, Math.min(5000, lim * 25)))
           );
           const snapAll = await getDocs(qqAll);
-          snapAll.forEach((d) => items.push({ id: d.id, ...d.data() }));
+          snapAll.forEach((d) => items.push({ ...(d.data() || {}), id: d.id }));
         } catch (_) {}
       }
 
@@ -347,7 +347,7 @@ export async function GET(request) {
             const snap = await getDocs(qBase);
             if (snap.empty) break;
             snap.forEach((d) => {
-              const it = { id: d.id, ...d.data() };
+              const it = { ...(d.data() || {}), id: d.id };
               const nombre = `${it.nombre || ""}`;
               const nombreNorm = normalize(nombre);
               const nombreLower = nombre.toLowerCase();

@@ -59,7 +59,7 @@ export async function GET(request) {
       const snap = await getDocs(q);
       const items = [];
       snap.forEach((d) => {
-        const prod = { id: d.id, ...d.data() };
+        const prod = { ...(d.data() || {}), id: d.id };
         const normalized = normalizarProductoEntrada(prod);
         const pricing = calcularPreciosProducto(normalized, { cantidad, redondear, modoRedondeo });
         const integration = getIntegrationFields(prod);
@@ -88,7 +88,7 @@ export async function GET(request) {
         const prodData = snap.data();
         // Verificar que el producto esté activo en tienda
         if (prodData.estadoTienda === "Activo") {
-          producto = { id: snap.id, ...prodData };
+          producto = { ...prodData, id: snap.id };
         } else {
           return withCors(NextResponse.json({ 
             error: "Producto inactivo en tienda", 
@@ -105,7 +105,7 @@ export async function GET(request) {
         limit(1)
       );
       const snap = await getDocs(qq);
-      snap.forEach((d) => (producto = { id: d.id, ...d.data() }));
+      snap.forEach((d) => (producto = { ...(d.data() || {}), id: d.id }));
     } else if (nombre) {
       // Búsqueda simple por igualdad; para fuzzy ver /api/productos/search
       // SOLO productos activos en tienda
@@ -116,7 +116,7 @@ export async function GET(request) {
         limit(1)
       );
       const snap = await getDocs(qq);
-      snap.forEach((d) => (producto = { id: d.id, ...d.data() }));
+      snap.forEach((d) => (producto = { ...(d.data() || {}), id: d.id }));
     } else {
       return withCors(NextResponse.json({ error: "Debe enviar id, codigo o nombre" }, { status: 400 }));
     }

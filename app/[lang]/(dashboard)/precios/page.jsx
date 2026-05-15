@@ -77,7 +77,7 @@ const PreciosPage = () => {
       try {
         const q = query(collection(db, "productos"), orderBy("nombre"));
         const snap = await getDocs(q);
-        setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setProductos(snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id })));
       } catch (error) {
         console.error("Error al cargar productos:", error);
         setMsg("Error al cargar productos: " + error.message);
@@ -272,7 +272,7 @@ const PreciosPage = () => {
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
-      setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setProductos(snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id })));
       
       setTimeout(() => {
         setModalSeleccionMultiple(false);
@@ -364,7 +364,7 @@ const PreciosPage = () => {
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
-      setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setProductos(snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id })));
       
       setTimeout(() => {
         setModalOpen(false);
@@ -458,7 +458,7 @@ const PreciosPage = () => {
 
       const q = query(collection(db, "productos"), orderBy("nombre"));
       const snap = await getDocs(q);
-      setProductos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setProductos(snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id })));
       
       setTimeout(() => {
         setModalOpen(false);

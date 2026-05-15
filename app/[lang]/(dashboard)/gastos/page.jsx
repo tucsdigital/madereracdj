@@ -2551,7 +2551,7 @@ const GastosPage = () => {
                   <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-card border border-border/60 rounded-md shadow-lg max-h-60 overflow-y-auto">
                     {proveedoresFiltrados.length === 0 ? (
                       <div className="p-3 text-sm text-muted-foreground text-center">
-                        No se encontraron proveedores que coincidan con "{busquedaProveedor}"
+                        No se encontraron proveedores que coincidan con &quot;{busquedaProveedor}&quot;
                       </div>
                     ) : (
                       proveedoresFiltrados.map(proveedor => (

@@ -41,6 +41,7 @@ import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { toast } from "@/components/ui/use-toast";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
 
 function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
@@ -227,7 +228,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     const unsubscribe = onSnapshot(
       qRef,
       (snap) => {
-      const productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const productos = snap.docs.map((d) => mapFirestoreDoc(d));
       setProductosState(productos);
       const agrupados = {};
       productos.forEach((p) => {
@@ -411,6 +412,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         {
           id: real.id,
           originalId: real.id,
+          codigo: real.codigo || "",
           nombre: real.nombre,
           detalle: real.detalle || "",
           precio: precioConCepilladoInicial,
@@ -1105,7 +1107,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       }
 
       const snap = await getDocs(collection(db, "clientes"));
-      const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const list = snap.docs.map((doc) => mapFirestoreDoc(doc));
       const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
       const next = tieneDefault ? list : [defaultCliente, ...list];
       setClientesState(next);
@@ -1165,6 +1167,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
         const obj = {
           id: p.id,
           originalId: p.originalId || p.id,
+          codigo: p.codigo || "",
           nombre: p.nombre,
           detalle: p.detalle || "",
           cantidad: p.cantidad,

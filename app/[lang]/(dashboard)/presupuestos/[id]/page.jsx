@@ -41,6 +41,7 @@ import { Icon } from "@iconify/react";
 // import { FormularioVentaPresupuesto } from "@/components/ventas/FormularioVentaPresupuesto";
 import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
+import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -331,10 +332,7 @@ const PresupuestoDetalle = () => {
         snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
       );
       const snapProductos = await getDocs(collection(db, "productos"));
-      const productosData = snapProductos.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const productosData = snapProductos.docs.map((doc) => mapFirestoreDoc(doc));
       console.log("=== DEBUG PRESUPUESTO CARGA PRODUCTOS ===");
       console.log("Productos cargados:", productosData);
       console.log("Cantidad de productos:", productosData.length);
@@ -601,17 +599,17 @@ const PresupuestoDetalle = () => {
     try {
       // Obtener productos actualizados desde Firebase
       const productosSnap = await getDocs(collection(db, "productos"));
-      const productosActualizados = productosSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const productosActualizados = productosSnap.docs.map((doc) => mapFirestoreDoc(doc));
 
       // Actualizar precios de productos en presupuestoEdit
       const productosConPreciosActualizados = (
         presupuestoEdit.productos || []
       ).map((productoPresupuesto) => {
+        const lineKey = productoPresupuesto.originalId || productoPresupuesto.id;
         const productoActualizado = productosActualizados.find(
-          (p) => p.id === productoPresupuesto.id
+          (p) =>
+            p.id === lineKey ||
+            (productoPresupuesto.codigo && p.codigo === productoPresupuesto.codigo)
         );
         if (productoActualizado) {
           let nuevoPrecio = 0;
@@ -2983,6 +2981,7 @@ const PresupuestoDetalle = () => {
                                                 {
                                                   id: prod.id,
                                                   originalId: prod.id,
+                                                  codigo: prod.codigo || "",
                                                   nombre: prod.nombre,
                                                   detalle: prod.detalle || "",
                                                   precio: precioCalculado,
