@@ -4124,9 +4124,11 @@ const PresupuestoDetalle = () => {
                       venta: {
                         ...cleanVentaData,
                         idempotencyKey:
-                          (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
-                            ? globalThis.crypto.randomUUID()
-                            : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+                          String(presupuesto?.id || "").trim()
+                            ? `presupuesto_${String(presupuesto.id).trim()}`
+                            : (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function"
+                                ? globalThis.crypto.randomUUID()
+                                : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
                       },
                       origen: "ui_presupuesto_convert",
                     }),
