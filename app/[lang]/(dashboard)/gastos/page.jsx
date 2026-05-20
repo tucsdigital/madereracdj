@@ -165,7 +165,7 @@ const GastosPage = () => {
   const [openGestionCategorias, setOpenGestionCategorias] = useState(false);
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
-  const [proveedorPagosSeleccionado, setProveedorPagosSeleccionado] = useState(null);
+  const [proveedorPagosSeleccionadoId, setProveedorPagosSeleccionadoId] = useState("");
   const [pagoDetalleProveedor, setPagoDetalleProveedor] = useState(null);
   const [pagosProveedorSeleccionados, setPagosProveedorSeleccionados] = useState({});
   const [movimientosProveedorSeleccionados, setMovimientosProveedorSeleccionados] = useState({});
@@ -1669,7 +1669,10 @@ const GastosPage = () => {
   }, [cuentaSeleccionada, movimientosProveedor]);
 
   const resumenProveedorPagosSeleccionado = useMemo(() => {
-    const grupo = proveedorPagosSeleccionado;
+    const id = String(proveedorPagosSeleccionadoId || "");
+    const grupo = id
+      ? cuentasPorProveedor.find((g) => String(g?.proveedorId || g?.proveedor?.id || "") === id) || null
+      : null;
     if (!grupo) return null;
     const cuentasGrupo = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
     const cuentasActivasGrupo = cuentasGrupo.filter((c) => !esCuentaAnulada(c));
@@ -1694,10 +1697,13 @@ const GastosPage = () => {
       netoLabel,
       netoValor,
     };
-  }, [proveedorPagosSeleccionado]);
+  }, [proveedorPagosSeleccionadoId, cuentasPorProveedor]);
 
   const pagosDetalleProveedorSeleccionado = useMemo(() => {
-    const grupo = proveedorPagosSeleccionado;
+    const id = String(proveedorPagosSeleccionadoId || "");
+    const grupo = id
+      ? cuentasPorProveedor.find((g) => String(g?.proveedorId || g?.proveedor?.id || "") === id) || null
+      : null;
     if (!grupo) return [];
 
     const cuentasGrupo = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
@@ -1892,10 +1898,13 @@ const GastosPage = () => {
     });
 
     return visibles.sort((a, b) => new Date(b._sortKey || 0) - new Date(a._sortKey || 0));
-  }, [proveedorPagosSeleccionado, movimientosProveedor]);
+  }, [proveedorPagosSeleccionadoId, cuentasPorProveedor, movimientosProveedor]);
 
   const movimientosDetalleProveedorSeleccionado = useMemo(() => {
-    const grupo = proveedorPagosSeleccionado;
+    const id = String(proveedorPagosSeleccionadoId || "");
+    const grupo = id
+      ? cuentasPorProveedor.find((g) => String(g?.proveedorId || g?.proveedor?.id || "") === id) || null
+      : null;
     if (!grupo) return [];
     const provId = String(grupo?.proveedorId || grupo?.proveedor?.id || "");
     const movs = Array.isArray(movimientosProveedor) ? movimientosProveedor : [];
@@ -1911,16 +1920,19 @@ const GastosPage = () => {
         _rowId: String(m?.id || ""),
       }))
       .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
-  }, [proveedorPagosSeleccionado, movimientosProveedor]);
+  }, [proveedorPagosSeleccionadoId, cuentasPorProveedor, movimientosProveedor]);
 
   const cuentasProveedorSeleccionadoById = useMemo(() => {
-    const grupo = proveedorPagosSeleccionado;
+    const id = String(proveedorPagosSeleccionadoId || "");
+    const grupo = id
+      ? cuentasPorProveedor.find((g) => String(g?.proveedorId || g?.proveedor?.id || "") === id) || null
+      : null;
     const cuentas = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
     return cuentas.reduce((acc, c) => {
       if (c?.id) acc[String(c.id)] = c;
       return acc;
     }, {});
-  }, [proveedorPagosSeleccionado]);
+  }, [proveedorPagosSeleccionadoId, cuentasPorProveedor]);
 
   const pagosProveedorByRowId = useMemo(() => {
     return pagosDetalleProveedorSeleccionado.reduce((acc, p) => {
@@ -2485,7 +2497,7 @@ const GastosPage = () => {
                               className="h-8 w-8 p-0 text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setProveedorPagosSeleccionado(grupo);
+                                setProveedorPagosSeleccionadoId(String(grupo?.proveedorId || grupo?.proveedor?.id || ""));
                                 setPagosProveedorSeleccionados({});
                                 setMovimientosProveedorSeleccionados({});
                                 setOpenPagosProveedor(true);
@@ -3707,7 +3719,7 @@ const GastosPage = () => {
         onOpenChange={(open) => {
           setOpenPagosProveedor(open);
           if (!open) {
-            setProveedorPagosSeleccionado(null);
+            setProveedorPagosSeleccionadoId("");
             setPagoDetalleProveedor(null);
             setOpenPagoDetalleProveedor(false);
             setPagosProveedorSeleccionados({});
@@ -4517,7 +4529,7 @@ const GastosPage = () => {
               variant="outline"
               onClick={() => {
                 setOpenPagosProveedor(false);
-                setProveedorPagosSeleccionado(null);
+                setProveedorPagosSeleccionadoId("");
               }}
             >
               Cerrar
