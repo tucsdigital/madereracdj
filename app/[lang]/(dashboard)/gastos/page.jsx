@@ -354,9 +354,10 @@ const GastosPage = () => {
   }, [vistaActiva]);
 
   // Función para cargar datos desde Firebase (reutilizable)
-  const cargarDatos = useCallback(async () => {
+  const cargarDatos = useCallback(async (opts = {}) => {
+    const silent = Boolean(opts?.silent);
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [proveedoresSnap, gastosSnap] = await Promise.all([
         getDocs(collection(db, "proveedores")),
         getDocs(collection(db, "gastos")),
@@ -409,7 +410,7 @@ const GastosPage = () => {
     } catch (error) {
       console.error("Error al cargar datos:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -535,7 +536,7 @@ const GastosPage = () => {
       }
 
       // Recargar datos para reflejar cambios dinámicamente
-      await cargarDatos();
+      await cargarDatos({ silent: true });
 
       resetInterno();
       setOpenInterno(false);
@@ -610,7 +611,7 @@ const GastosPage = () => {
       }
 
       // Recargar datos para reflejar cambios dinámicamente
-      await cargarDatos();
+      await cargarDatos({ silent: true });
 
       resetProveedor();
       setOpenProveedor(false);
@@ -795,7 +796,7 @@ const GastosPage = () => {
         });
         const out = await resp.json().catch(() => ({}));
         if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar el pago");
-        await cargarDatos();
+        await cargarDatos({ silent: true });
         setOpenPago(false);
         setCuentaSeleccionada(null);
         setMontoPago("");
@@ -857,7 +858,7 @@ const GastosPage = () => {
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al registrar el pago");
       
       // Recargar datos para reflejar cambios dinámicamente
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       
       setOpenPago(false);
       setCuentaSeleccionada(null);
@@ -907,7 +908,7 @@ const GastosPage = () => {
       });
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al anular la cuenta");
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       if (cuentaSeleccionada?.id === cuentaId) {
         setOpenHistorial(false);
         setCuentaSeleccionada(null);
@@ -957,7 +958,7 @@ const GastosPage = () => {
       });
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al anular");
-      await cargarDatos();
+      await cargarDatos({ silent: true });
     } catch (e) {
       console.error("Error al anular movimiento:", e);
       toast({
@@ -1026,7 +1027,7 @@ const GastosPage = () => {
       );
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al aplicar saldo a favor");
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       toast({
         title: "Saldo aplicado",
         description: `Aplicado a cuentas: ${formatMoneyARS(Number(out.aplicadoACuentas || 0))} · Saldo a favor restante: ${formatMoneyARS(
@@ -1078,7 +1079,7 @@ const GastosPage = () => {
       );
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al quitar saldo a favor");
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       setOpenQuitarSaldoAFavor(false);
       setProveedorQuitarSaldo(null);
       limpiarEstadoQuitarSaldo();
@@ -1169,7 +1170,7 @@ const GastosPage = () => {
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al guardar la edición");
 
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       setOpenEditarPago(false);
       setPagoEdit(null);
     } catch (err) {
@@ -1235,7 +1236,7 @@ const GastosPage = () => {
       const out = await resp.json().catch(() => ({}));
       if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al eliminar el pago");
 
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       // cerrar edición si estaba abierto sobre ese índice
       setOpenEditarPago(false);
       setPagoEdit(null);
@@ -1296,7 +1297,7 @@ const GastosPage = () => {
       if (!resp.ok || !out?.ok) {
         throw new Error(out?.error || "Error al anular");
       }
-      await cargarDatos();
+      await cargarDatos({ silent: true });
       setOpenHistorial(false);
       setCuentaSeleccionada(null);
     } catch (e) {
@@ -1375,7 +1376,7 @@ const GastosPage = () => {
     try {
       await deleteDoc(doc(db, "gastos", id));
       // Recargar datos para reflejar cambios dinámicamente
-      await cargarDatos();
+      await cargarDatos({ silent: true });
     } catch (error) {
       console.error("Error al eliminar:", error);
       toast({ title: "Error", description: `Error al eliminar: ${error.message}`, color: "destructive" });
@@ -3856,7 +3857,7 @@ const GastosPage = () => {
                                     deleted += 1;
                                   }
                                 }
-                                await cargarDatos();
+                                await cargarDatos({ silent: true });
                                 setPagosProveedorSeleccionados({});
                                 toast({
                                   title: "Acción aplicada",
@@ -4073,7 +4074,7 @@ const GastosPage = () => {
                                               setGuardando(true);
                                               try {
                                                 await anularMovimientoProveedor({ movimientoId });
-                                                await cargarDatos();
+                                                await cargarDatos({ silent: true });
                                                 setPagosProveedorSeleccionados((prev) => {
                                                   const next = { ...(prev || {}) };
                                                   delete next[rowId];
@@ -4153,7 +4154,7 @@ const GastosPage = () => {
                                               setGuardando(true);
                                               try {
                                                 await anularMovimientoProveedor({ movimientoId });
-                                                await cargarDatos();
+                                                await cargarDatos({ silent: true });
                                                 setPagosProveedorSeleccionados((prev) => {
                                                   const next = { ...(prev || {}) };
                                                   delete next[rowId];
@@ -4199,7 +4200,7 @@ const GastosPage = () => {
                                               action: "delete",
                                               idx: pago._idxOriginal,
                                             });
-                                            await cargarDatos();
+                                            await cargarDatos({ silent: true });
                                             setPagosProveedorSeleccionados((prev) => {
                                               const next = { ...(prev || {}) };
                                               delete next[rowId];
@@ -4297,7 +4298,7 @@ const GastosPage = () => {
                                   await anularMovimientoProveedor({ movimientoId: m.id });
                                   anulados += 1;
                                 }
-                                await cargarDatos();
+                                await cargarDatos({ silent: true });
                                 setMovimientosProveedorSeleccionados({});
                                 toast({
                                   title: "Movimientos anulados",
@@ -4731,7 +4732,7 @@ const GastosPage = () => {
                             setGuardando(true);
                             try {
                               await anularMovimientoProveedor({ movimientoId });
-                              await cargarDatos();
+                              await cargarDatos({ silent: true });
                               setOpenPagoDetalleProveedor(false);
                               setPagoDetalleProveedor(null);
                               toast({
@@ -4810,7 +4811,7 @@ const GastosPage = () => {
                               action: "delete",
                               idx: pago._idxOriginal,
                             });
-                            await cargarDatos();
+                            await cargarDatos({ silent: true });
                             setOpenPagoDetalleProveedor(false);
                             setPagoDetalleProveedor(null);
                             setPagosProveedorSeleccionados((prev) => {
