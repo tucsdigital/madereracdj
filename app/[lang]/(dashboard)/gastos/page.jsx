@@ -5,14 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/ui/date-input";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableFooter } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight } from "lucide-react";
+import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight, MoreHorizontal } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
@@ -152,10 +159,16 @@ const GastosPage = () => {
   const [openPago, setOpenPago] = useState(false);
   const [openQuitarSaldoAFavor, setOpenQuitarSaldoAFavor] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
+  const [openPagosProveedor, setOpenPagosProveedor] = useState(false);
+  const [openPagoDetalleProveedor, setOpenPagoDetalleProveedor] = useState(false);
   const [openMovimientoDetalle, setOpenMovimientoDetalle] = useState(false);
   const [openGestionCategorias, setOpenGestionCategorias] = useState(false);
   const [editando, setEditando] = useState(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState(null);
+  const [proveedorPagosSeleccionado, setProveedorPagosSeleccionado] = useState(null);
+  const [pagoDetalleProveedor, setPagoDetalleProveedor] = useState(null);
+  const [pagosProveedorSeleccionados, setPagosProveedorSeleccionados] = useState({});
+  const [movimientosProveedorSeleccionados, setMovimientosProveedorSeleccionados] = useState({});
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
   const [proveedorQuitarSaldo, setProveedorQuitarSaldo] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -1654,6 +1667,378 @@ const GastosPage = () => {
     return normalizados.sort((a, b) => new Date(b._sortKey || 0) - new Date(a._sortKey || 0));
   }, [cuentaSeleccionada, movimientosProveedor]);
 
+  const resumenProveedorPagosSeleccionado = useMemo(() => {
+    const grupo = proveedorPagosSeleccionado;
+    if (!grupo) return null;
+    const cuentasGrupo = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
+    const cuentasActivasGrupo = cuentasGrupo.filter((c) => !esCuentaAnulada(c));
+    const totalActivo = cuentasActivasGrupo.reduce((acc, c) => acc + (Number(c?.monto) || 0), 0);
+    const pagadoActivo = cuentasActivasGrupo.reduce((acc, c) => acc + (Number(c?.montoPagado) || 0), 0);
+    const saldoPendienteBruto = cuentasActivasGrupo.reduce((acc, c) => acc + calcularSaldoCuenta(c), 0);
+    const saldoAFavor = Number(grupo?.saldoAFavor || grupo?.proveedor?.saldoAFavor || 0);
+    const saldoPendienteNeto = Math.max(saldoPendienteBruto - saldoAFavor, 0);
+    const saldoAFavorRestante = Math.max(saldoAFavor - saldoPendienteBruto, 0);
+    const netoLabel = saldoPendienteNeto > 0 ? "Saldo pendiente (neto)" : "Saldo a favor (remanente)";
+    const netoValor = saldoPendienteNeto > 0 ? saldoPendienteNeto : saldoAFavorRestante;
+    return {
+      proveedorId: grupo?.proveedorId || grupo?.proveedor?.id || "",
+      proveedorNombre: grupo?.proveedor?.nombre || "Proveedor",
+      cuentasActivas: Number(cuentasActivasGrupo.length || 0),
+      totalActivo,
+      pagadoActivo,
+      saldoPendienteBruto,
+      saldoAFavor,
+      saldoPendienteNeto,
+      saldoAFavorRestante,
+      netoLabel,
+      netoValor,
+    };
+  }, [proveedorPagosSeleccionado]);
+
+  const pagosDetalleProveedorSeleccionado = useMemo(() => {
+    const grupo = proveedorPagosSeleccionado;
+    if (!grupo) return [];
+
+    const cuentasGrupo = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
+    const provId = String(grupo?.proveedorId || grupo?.proveedor?.id || "");
+
+    const normalizados = [];
+    for (const c of cuentasGrupo) {
+      const pagos = Array.isArray(c?.pagos) ? c.pagos : [];
+      const cuentaId = String(c?.id || "");
+      const cuentaFecha = formatFechaSegura(c?.fecha);
+      const cuentaAnulada = esCuentaAnulada(c);
+
+      for (let idx = 0; idx < pagos.length; idx += 1) {
+        const p = pagos[idx];
+        const monto = Number(p?.monto ?? 0);
+        const fecha = formatFechaSegura(p?.fecha);
+        const fechaRegistro =
+          (typeof p?.fechaRegistro === "string" ? p.fechaRegistro : "") ||
+          (typeof p?.fechaActualizacion === "string" ? p.fechaActualizacion : "") ||
+          (typeof p?.fechaCreacion === "string" ? p.fechaCreacion : "");
+        const esReversion = p?.pagoGlobalReversion === true || String(p?.metodo || "") === "Anulación" || monto < 0;
+        const esGlobal = p?.pagoGlobalProveedor === true;
+        const esSaldoAFavor = p?.saldoAFavorAplicado === true;
+        const kind = esReversion ? "reversion" : esSaldoAFavor ? "saldoAFavor" : esGlobal ? "pagoGlobal" : "manual";
+        const sortKey = fechaRegistro || fecha || "";
+
+        normalizados.push({
+          ...p,
+          _idxOriginal: idx,
+          _kind: kind,
+          _monto: monto,
+          _fecha: fecha,
+          _fechaRegistro: fechaRegistro,
+          _sortKey: sortKey,
+          _rowId: `${cuentaId}|idx:${idx}|${sortKey || fecha || ""}`,
+          _origenMovimiento: false,
+          _movimientoAnulado: false,
+          _cuentaId: cuentaId,
+          _cuentaFecha: cuentaFecha,
+          _cuentaAnulada: cuentaAnulada,
+        });
+      }
+    }
+
+    const movs = Array.isArray(movimientosProveedor) ? movimientosProveedor : [];
+    const movimientosRelacionados = movs.filter((m) => {
+      const tipo = String(m?.tipo || "");
+      if (tipo !== "pagoGlobal" && tipo !== "saldoAFavor") return false;
+      return String(m?.proveedorId || "") === provId;
+    });
+
+    const movimientosPorCuentaMonto = new Map();
+    const movimientoById = movimientosRelacionados.reduce((acc, m) => {
+      if (m?.id) acc[String(m.id)] = m;
+      return acc;
+    }, {});
+    for (const m of movimientosRelacionados) {
+      const apps = Array.isArray(m?.cuentasAplicadas) ? m.cuentasAplicadas : [];
+      for (const a of apps) {
+        const cuentaId = String(a?.cuentaId || "");
+        const montoAplicado = Number(a?.montoAplicado ?? 0);
+        const movimientoId = String(m?.id || "");
+        if (!cuentaId || !movimientoId || !Number.isFinite(montoAplicado) || montoAplicado === 0) continue;
+        const key = `${cuentaId}|${Number(montoAplicado).toFixed(2)}`;
+        const sortKey = String(m?.fechaRegistro || m?.fecha || m?.fechaActualizacion || m?.fechaCreacion || "");
+        if (!movimientosPorCuentaMonto.has(key)) movimientosPorCuentaMonto.set(key, []);
+        movimientosPorCuentaMonto.get(key).push({ id: movimientoId, sortKey });
+      }
+    }
+
+    for (const p of normalizados) {
+      const kind = String(p?._kind || "");
+      const requiereMovimiento =
+        kind === "pagoGlobal" ||
+        kind === "saldoAFavor" ||
+        kind === "reversion" ||
+        p?.pagoGlobalProveedor === true ||
+        p?.saldoAFavorAplicado === true ||
+        p?.pagoGlobalReversion === true;
+      if (!requiereMovimiento) continue;
+
+      const existing = String(p?.pagoGlobalId || "");
+      if (existing) {
+        p._movimientoAnulado = movimientoById?.[existing]?.anulado === true || p?._movimientoAnulado === true;
+        p._rowId = `${String(p?._cuentaId || "")}|mov:${existing}|${String(p?._kind || "")}`;
+        continue;
+      }
+
+      const cuentaId = String(p?._cuentaId || "");
+      const montoAbs = Number(Math.abs(Number(p?._monto ?? p?.monto ?? 0)).toFixed(2));
+      const key = `${cuentaId}|${Number(montoAbs).toFixed(2)}`;
+      const candidates = movimientosPorCuentaMonto.get(key) || [];
+      if (candidates.length > 0) {
+        const pSort = new Date(String(p?._sortKey || "")).getTime();
+        const pick =
+          candidates.length === 1
+            ? candidates[0]
+            : candidates.reduce(
+                (best, cur) => {
+                  const curT = new Date(String(cur?.sortKey || "")).getTime();
+                  const bestT = new Date(String(best?.sortKey || "")).getTime();
+                  const curDiff = Number.isFinite(pSort) && Number.isFinite(curT) ? Math.abs(pSort - curT) : Number.POSITIVE_INFINITY;
+                  const bestDiff = Number.isFinite(pSort) && Number.isFinite(bestT) ? Math.abs(pSort - bestT) : Number.POSITIVE_INFINITY;
+                  return curDiff < bestDiff ? cur : best;
+                },
+                candidates[0]
+              );
+        const resolved = String(pick?.id || "");
+        if (resolved) {
+          p.pagoGlobalId = resolved;
+          p._movimientoAnulado = movimientoById?.[resolved]?.anulado === true || p?._movimientoAnulado === true;
+          p._rowId = `${String(p?._cuentaId || "")}|mov:${resolved}|${String(p?._kind || "")}`;
+        }
+      }
+    }
+
+    const existingByCuentaYMovimiento = new Set();
+    for (const p of normalizados) {
+      const movId = String(p?.pagoGlobalId || "");
+      const cuentaId = String(p?._cuentaId || "");
+      if (movId && cuentaId) existingByCuentaYMovimiento.add(`${cuentaId}|${movId}`);
+    }
+
+    for (const m of movimientosRelacionados) {
+      const apps = Array.isArray(m?.cuentasAplicadas) ? m.cuentasAplicadas : [];
+      for (const app of apps) {
+        const cuentaId = String(app?.cuentaId || "");
+        const key = `${cuentaId}|${String(m?.id || "")}`;
+        if (!cuentaId || !m?.id || existingByCuentaYMovimiento.has(key)) continue;
+
+        const cuenta = cuentasGrupo.find((c) => String(c?.id || "") === cuentaId) || null;
+        normalizados.push({
+          monto: Number(app?.montoAplicado ?? 0),
+          fecha: formatFechaSegura(m?.fecha),
+          metodo: m?.metodo || "Pago global",
+          notas: m?.notas || "",
+          responsable: m?.responsable || "",
+          fechaRegistro: m?.fechaRegistro || "",
+          pagoEnDolares: !!m?.pagoEnDolares,
+          valorOficialDolar: m?.valorOficialDolar ?? null,
+          comprobantes: Array.isArray(m?.comprobantes) ? m.comprobantes : [],
+          pagoGlobalProveedor: true,
+          saldoAFavorAplicado: String(m?.tipo || "") === "saldoAFavor",
+          pagoGlobalId: m.id,
+          _idxOriginal: null,
+          _kind: String(m?.tipo || "") === "saldoAFavor" ? "saldoAFavor" : "pagoGlobal",
+          _monto: Number(app?.montoAplicado ?? 0),
+          _fecha: formatFechaSegura(m?.fecha),
+          _fechaRegistro: typeof m?.fechaRegistro === "string" ? m.fechaRegistro : "",
+          _sortKey: m?.fechaRegistro || m?.fecha || "",
+          _rowId: `${cuentaId}|mov:${String(m?.id || "")}|${m?.fechaRegistro || m?.fecha || ""}`,
+          _origenMovimiento: true,
+          _movimientoAnulado: m?.anulado === true,
+          _cuentaId: cuentaId,
+          _cuentaFecha: formatFechaSegura(cuenta?.fecha),
+          _cuentaAnulada: cuenta ? esCuentaAnulada(cuenta) : false,
+        });
+      }
+    }
+
+    const originalByKey = new Map();
+    for (const p of normalizados) {
+      const kind = String(p?._kind || "");
+      const movId = String(p?.pagoGlobalId || "");
+      const cuentaId = String(p?._cuentaId || "");
+      if (!movId || !cuentaId) continue;
+      if (kind === "reversion") continue;
+      originalByKey.set(`${cuentaId}|${movId}`, p);
+    }
+
+    for (const p of normalizados) {
+      const kind = String(p?._kind || "");
+      if (kind !== "reversion") continue;
+      const movId = String(p?.pagoGlobalId || "");
+      const cuentaId = String(p?._cuentaId || "");
+      if (!movId || !cuentaId) continue;
+      const key = `${cuentaId}|${movId}`;
+      const orig = originalByKey.get(key);
+      if (orig) {
+        orig._tieneReversion = true;
+        orig._movimientoAnulado = true;
+      }
+    }
+
+    const visibles = normalizados.filter((p) => {
+      const kind = String(p?._kind || "");
+      if (kind !== "reversion") return true;
+      const movId = String(p?.pagoGlobalId || "");
+      const cuentaId = String(p?._cuentaId || "");
+      if (!movId || !cuentaId) return true;
+      return !originalByKey.has(`${cuentaId}|${movId}`);
+    });
+
+    return visibles.sort((a, b) => new Date(b._sortKey || 0) - new Date(a._sortKey || 0));
+  }, [proveedorPagosSeleccionado, movimientosProveedor]);
+
+  const movimientosDetalleProveedorSeleccionado = useMemo(() => {
+    const grupo = proveedorPagosSeleccionado;
+    if (!grupo) return [];
+    const provId = String(grupo?.proveedorId || grupo?.proveedor?.id || "");
+    const movs = Array.isArray(movimientosProveedor) ? movimientosProveedor : [];
+    const sortKey = (m) => m.fechaRegistro || m.fechaActualizacion || m.fechaCreacion || m.fecha;
+    return movs
+      .filter((m) => String(m?.proveedorId || "") === provId)
+      .filter((m) => {
+        const tipo = String(m?.tipo || "");
+        return tipo === "pagoGlobal" || tipo === "saldoAFavor";
+      })
+      .map((m) => ({
+        ...m,
+        _rowId: String(m?.id || ""),
+      }))
+      .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
+  }, [proveedorPagosSeleccionado, movimientosProveedor]);
+
+  const cuentasProveedorSeleccionadoById = useMemo(() => {
+    const grupo = proveedorPagosSeleccionado;
+    const cuentas = Array.isArray(grupo?.cuentas) ? grupo.cuentas : [];
+    return cuentas.reduce((acc, c) => {
+      if (c?.id) acc[String(c.id)] = c;
+      return acc;
+    }, {});
+  }, [proveedorPagosSeleccionado]);
+
+  const pagosProveedorByRowId = useMemo(() => {
+    return pagosDetalleProveedorSeleccionado.reduce((acc, p) => {
+      if (p?._rowId) acc[String(p._rowId)] = p;
+      return acc;
+    }, {});
+  }, [pagosDetalleProveedorSeleccionado]);
+
+  const movimientosProveedorByRowId = useMemo(() => {
+    return movimientosDetalleProveedorSeleccionado.reduce((acc, m) => {
+      if (m?._rowId) acc[String(m._rowId)] = m;
+      return acc;
+    }, {});
+  }, [movimientosDetalleProveedorSeleccionado]);
+
+  const pagosProveedorIds = useMemo(() => {
+    return pagosDetalleProveedorSeleccionado.map((p) => String(p?._rowId || "")).filter(Boolean);
+  }, [pagosDetalleProveedorSeleccionado]);
+
+  const movimientosProveedorIds = useMemo(() => {
+    return movimientosDetalleProveedorSeleccionado.map((m) => String(m?._rowId || "")).filter(Boolean);
+  }, [movimientosDetalleProveedorSeleccionado]);
+
+  const totalesTablaPagosProveedor = useMemo(() => {
+    const selectedIds = Object.keys(pagosProveedorSeleccionados || {}).filter((k) => pagosProveedorSeleccionados[k]);
+    const efectivo = (p) => {
+      if (!p) return 0;
+      if (p?._cuentaAnulada === true) return 0;
+      if (p?._movimientoAnulado === true || p?._tieneReversion === true) return 0;
+      return Number(p?._monto ?? 0);
+    };
+    const sumAll = pagosDetalleProveedorSeleccionado.reduce((acc, p) => acc + efectivo(p), 0);
+    const sumSelected = selectedIds.reduce((acc, id) => acc + efectivo(pagosProveedorByRowId[id]), 0);
+    return {
+      countAll: pagosDetalleProveedorSeleccionado.length,
+      sumAll: Number(sumAll.toFixed(2)),
+      countSelected: selectedIds.length,
+      sumSelected: Number(sumSelected.toFixed(2)),
+    };
+  }, [pagosDetalleProveedorSeleccionado, pagosProveedorSeleccionados, pagosProveedorByRowId]);
+
+  const totalesTablaMovimientosProveedor = useMemo(() => {
+    const selectedIds = Object.keys(movimientosProveedorSeleccionados || {}).filter((k) => movimientosProveedorSeleccionados[k]);
+    const sumIngresado = movimientosDetalleProveedorSeleccionado.reduce((acc, m) => {
+      const tipo = String(m?.tipo || "");
+      const montoIngresado =
+        tipo === "pagoGlobal"
+          ? Number(m?.pagoIngresado ?? m?.monto ?? 0)
+          : Number(m?.montoDelta ?? m?.monto ?? 0);
+      return acc + montoIngresado;
+    }, 0);
+    const sumAplicado = movimientosDetalleProveedorSeleccionado.reduce((acc, m) => acc + Number(m?.aplicadoACuentas ?? 0), 0);
+    const sumDelta = movimientosDetalleProveedorSeleccionado.reduce(
+      (acc, m) => acc + Number(m?.montoDeltaSaldoAFavor ?? m?.montoDeltaSaldo ?? 0),
+      0
+    );
+    const sumSelectedIngresado = selectedIds.reduce((acc, id) => {
+      const m = movimientosProveedorByRowId[id];
+      if (!m) return acc;
+      const tipo = String(m?.tipo || "");
+      const montoIngresado =
+        tipo === "pagoGlobal"
+          ? Number(m?.pagoIngresado ?? m?.monto ?? 0)
+          : Number(m?.montoDelta ?? m?.monto ?? 0);
+      return acc + montoIngresado;
+    }, 0);
+    return {
+      countAll: movimientosDetalleProveedorSeleccionado.length,
+      sumIngresado: Number(sumIngresado.toFixed(2)),
+      sumAplicado: Number(sumAplicado.toFixed(2)),
+      sumDelta: Number(sumDelta.toFixed(2)),
+      countSelected: selectedIds.length,
+      sumSelectedIngresado: Number(sumSelectedIngresado.toFixed(2)),
+    };
+  }, [movimientosDetalleProveedorSeleccionado, movimientosProveedorSeleccionados, movimientosProveedorByRowId]);
+
+  const mutarPagoManual = useCallback(
+    async ({ cuentaId, action, idx, pago }) => {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/cuentas-pagar/${encodeURIComponent(String(cuentaId))}/pagos/mutar`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+          idx,
+          pago,
+          origen: "ui_gastos_modal_pagos_proveedor",
+        }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al actualizar pago");
+      return out;
+    },
+    [user]
+  );
+
+  const anularMovimientoProveedor = useCallback(
+    async ({ movimientoId }) => {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(`/api/erp/pagos-proveedores/${encodeURIComponent(String(movimientoId))}/anular`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ origen: "ui_gastos_modal_pagos_proveedor", motivo: "" }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al anular movimiento");
+      return out;
+    },
+    [user]
+  );
+
   // Componente QuickRangeButton
   const QuickRangeButton = ({ value, label, icon }) => (
     <button
@@ -2086,9 +2471,28 @@ const GastosPage = () => {
                     >
                       <CardContent className="p-4">
                         <div className="mb-3">
-                          <div className="font-bold text-lg flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-blue-600" />
-                            {grupo.proveedor?.nombre || "Sin nombre"}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-bold text-lg flex items-center gap-2 truncate">
+                                <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                                <span className="truncate">{grupo.proveedor?.nombre || "Sin nombre"}</span>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0 text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProveedorPagosSeleccionado(grupo);
+                                setPagosProveedorSeleccionados({});
+                                setMovimientosProveedorSeleccionados({});
+                                setOpenPagosProveedor(true);
+                              }}
+                              title="Ver pagos del proveedor"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {Number(cuentasActivasGrupo.length)} cuenta{Number(cuentasActivasGrupo.length) !== 1 ? "s" : ""} activa{Number(cuentasActivasGrupo.length) !== 1 ? "s" : ""}
@@ -3298,6 +3702,1151 @@ const GastosPage = () => {
       </Dialog>
 
       <Dialog
+        open={openPagosProveedor}
+        onOpenChange={(open) => {
+          setOpenPagosProveedor(open);
+          if (!open) {
+            setProveedorPagosSeleccionado(null);
+            setPagoDetalleProveedor(null);
+            setOpenPagoDetalleProveedor(false);
+            setPagosProveedorSeleccionados({});
+            setMovimientosProveedorSeleccionados({});
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[1000px] border border-border/60 bg-card p-0 overflow-hidden">
+          <DialogHeader className="px-5 py-4 border-b border-border/60">
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              Pagos — {String(resumenProveedorPagosSeleccionado?.proveedorNombre || "Proveedor")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-5 py-4 space-y-4">
+            {resumenProveedorPagosSeleccionado ? (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="bg-card p-3 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Total proveedor (activo)</div>
+                  <div className="text-lg font-bold text-blue-700">{formatMoneyARS(resumenProveedorPagosSeleccionado.totalActivo)}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {resumenProveedorPagosSeleccionado.cuentasActivas} cuenta{resumenProveedorPagosSeleccionado.cuentasActivas !== 1 ? "s" : ""}
+                  </div>
+                </div>
+                <div className="bg-card p-3 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Total pagado (activo)</div>
+                  <div className="text-lg font-bold text-emerald-600">{formatMoneyARS(resumenProveedorPagosSeleccionado.pagadoActivo)}</div>
+                </div>
+                <div className="bg-card p-3 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">{resumenProveedorPagosSeleccionado.netoLabel}</div>
+                  <div
+                    className={cn(
+                      "text-lg font-bold",
+                      resumenProveedorPagosSeleccionado.saldoPendienteNeto > 0 ? "text-red-600" : "text-emerald-600"
+                    )}
+                  >
+                    {formatMoneyARS(resumenProveedorPagosSeleccionado.netoValor)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Bruto: {formatMoneyARS(resumenProveedorPagosSeleccionado.saldoPendienteBruto)} · Saldo a favor:{" "}
+                    {formatMoneyARS(resumenProveedorPagosSeleccionado.saldoAFavor)}
+                  </div>
+                </div>
+                <div className="bg-card p-3 rounded-md border border-border/60">
+                  <div className="text-xs text-muted-foreground">Saldo a favor</div>
+                  <div className={cn("text-lg font-bold", resumenProveedorPagosSeleccionado.saldoAFavor > 0 ? "text-emerald-600" : "text-muted-foreground")}>
+                    {formatMoneyARS(resumenProveedorPagosSeleccionado.saldoAFavor)}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <Tabs defaultValue="pagos" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pagos" className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4" />
+                  Pagos
+                </TabsTrigger>
+                <TabsTrigger value="movimientos" className="flex items-center gap-2">
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Movimientos
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pagos" className="mt-4">
+                {pagosDetalleProveedorSeleccionado.length > 0 ? (
+                  <div className="border border-border/60 rounded-lg overflow-hidden">
+                    {totalesTablaPagosProveedor.countSelected > 0 ? (
+                      <div className="px-3 py-2 border-b border-border/60 bg-muted/20 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                        <div className="text-sm">
+                          <span className="font-semibold">{totalesTablaPagosProveedor.countSelected}</span>{" "}
+                          seleccionad{totalesTablaPagosProveedor.countSelected !== 1 ? "os" : "o"} ·{" "}
+                          <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                            {formatMoneyARS(totalesTablaPagosProveedor.sumSelected)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                            disabled={guardando}
+                            onClick={async () => {
+                              const selectedIds = Object.keys(pagosProveedorSeleccionados || {}).filter((k) => pagosProveedorSeleccionados[k]);
+                              const items = selectedIds.map((id) => pagosProveedorByRowId[id]).filter(Boolean);
+                              const movimientoIds = Array.from(
+                                new Set(
+                                  items
+                                    .filter(
+                                      (p) =>
+                                        String(p?._kind || "") === "pagoGlobal" ||
+                                        String(p?._kind || "") === "saldoAFavor" ||
+                                        p?._origenMovimiento === true ||
+                                        p?.pagoGlobalProveedor === true
+                                    )
+                                    .map((p) => String(p?.pagoGlobalId || ""))
+                                    .filter(Boolean)
+                                )
+                              );
+                              const movimientosAAnular = movimientoIds.filter((id) => movimientosProveedorByRowId?.[id]?.anulado !== true);
+                              const eliminables = items.filter(
+                                (p) =>
+                                  String(p?._kind || "") === "manual" &&
+                                  typeof p?._idxOriginal === "number" &&
+                                  p?.pagoGlobalProveedor !== true &&
+                                  p?._origenMovimiento !== true
+                              );
+                              if (eliminables.length === 0 && movimientosAAnular.length === 0) {
+                                toast({
+                                  title: "Sin acciones",
+                                  description:
+                                    "La selección no tiene pagos manuales para eliminar ni movimientos activos para anular.",
+                                  color: "warning",
+                                });
+                                return;
+                              }
+                              const ok = await confirmAsync({
+                                title: "Eliminar seleccionados",
+                                description: `Se eliminarán ${eliminables.length} pago${eliminables.length !== 1 ? "s" : ""} manual${eliminables.length !== 1 ? "es" : ""} y se anularán ${movimientosAAnular.length} movimiento${movimientosAAnular.length !== 1 ? "s" : ""} (pagos globales / saldo a favor).`,
+                                confirmText: "Eliminar",
+                                cancelText: "Cancelar",
+                                confirmColor: "destructive",
+                              });
+                              if (!ok) return;
+                              setGuardando(true);
+                              try {
+                                let anulados = 0;
+                                for (const movimientoId of movimientosAAnular) {
+                                  await anularMovimientoProveedor({ movimientoId });
+                                  anulados += 1;
+                                }
+                                const porCuenta = eliminables.reduce((acc, p) => {
+                                  const cuentaId = String(p?._cuentaId || "");
+                                  const idx = p?._idxOriginal;
+                                  if (!cuentaId || typeof idx !== "number") return acc;
+                                  if (!acc[cuentaId]) acc[cuentaId] = [];
+                                  acc[cuentaId].push(idx);
+                                  return acc;
+                                }, {});
+                                let deleted = 0;
+                                const cuentaIds = Object.keys(porCuenta);
+                                for (const cuentaId of cuentaIds) {
+                                  const indices = (porCuenta[cuentaId] || []).slice().sort((a, b) => b - a);
+                                  for (const idx of indices) {
+                                    await mutarPagoManual({ cuentaId, action: "delete", idx });
+                                    deleted += 1;
+                                  }
+                                }
+                                await cargarDatos();
+                                setPagosProveedorSeleccionados({});
+                                toast({
+                                  title: "Acción aplicada",
+                                  description: `Movimientos anulados: ${anulados}. Pagos manuales eliminados: ${deleted}.`,
+                                  color: "success",
+                                });
+                              } catch (e) {
+                                console.error("Error al eliminar/anular seleccionados:", e);
+                                toast({
+                                  title: "Error",
+                                  description: `No se pudo completar la acción: ${e?.message || String(e)}`,
+                                  color: "destructive",
+                                });
+                              } finally {
+                                setGuardando(false);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Eliminar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setPagosProveedorSeleccionados({})}>
+                            <X className="w-4 h-4 mr-1" />
+                            Limpiar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="max-h-[55vh] overflow-auto">
+                      <Table className="table-fixed [&_th]:uppercase [&_th]:text-[11px] [&_th]:h-10 [&_th]:px-2 [&_th]:py-2 [&_td]:p-2 [&_td]:align-top">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10">
+                              <input
+                                type="checkbox"
+                                checked={pagosProveedorIds.length > 0 && pagosProveedorIds.every((id) => !!pagosProveedorSeleccionados?.[id])}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setPagosProveedorSeleccionados(() => {
+                                    if (!checked) return {};
+                                    return pagosProveedorIds.reduce((acc, id) => {
+                                      acc[id] = true;
+                                      return acc;
+                                    }, {});
+                                  });
+                                }}
+                                className="w-4 h-4"
+                                aria-label="Seleccionar todos los pagos"
+                              />
+                            </TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Cuenta</TableHead>
+                            <TableHead>Método</TableHead>
+                            <TableHead>Origen</TableHead>
+                            <TableHead className="w-24">Comp.</TableHead>
+                            <TableHead className="text-right">Monto</TableHead>
+                            <TableHead className="w-40">Estado</TableHead>
+                            <TableHead className="w-14 text-right">Acc.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pagosDetalleProveedorSeleccionado.map((pago) => {
+                            const rowId = String(pago?._rowId || "");
+                            const monto = Number(pago?._monto ?? pago?.monto ?? 0);
+                            const fecha = pago?._fecha || formatFechaSegura(pago?.fecha);
+                            const fechaRegistro = pago?._fechaRegistro || (typeof pago?.fechaRegistro === "string" ? pago.fechaRegistro : "");
+                            const kind = String(pago?._kind || "manual");
+                            const origenLabel =
+                              kind === "reversion"
+                                ? "Anulación"
+                                : kind === "saldoAFavor"
+                                ? "Saldo a favor"
+                                : kind === "pagoGlobal"
+                                ? "Pago global"
+                                : "Manual";
+                            const cuentaLabel = pago?._cuentaFecha
+                              ? formatFechaAR(pago._cuentaFecha)
+                              : pago?._cuentaId
+                                ? `#${String(pago._cuentaId).slice(0, 8)}`
+                                : "-";
+                            const estadoFlags = [];
+                            if (pago?._movimientoAnulado) estadoFlags.push("Movimiento anulado");
+                            if (pago?._cuentaAnulada) estadoFlags.push("Cuenta anulada");
+                            if (pago?._origenMovimiento) estadoFlags.push("Detectado por movimiento");
+                            const comprobantes = Array.isArray(pago?.comprobantes) ? pago.comprobantes : [];
+                            const cuenta = cuentasProveedorSeleccionadoById[String(pago?._cuentaId || "")] || null;
+                            const puedeEditarEliminar =
+                              kind === "manual" &&
+                              typeof pago?._idxOriginal === "number" &&
+                              pago?.pagoGlobalProveedor !== true &&
+                              pago?._origenMovimiento !== true;
+
+                            return (
+                              <TableRow key={rowId} className={pago?._cuentaAnulada ? "opacity-70" : ""}>
+                                <TableCell className="w-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!pagosProveedorSeleccionados?.[rowId]}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setPagosProveedorSeleccionados((prev) => {
+                                        const next = { ...(prev || {}) };
+                                        if (checked) next[rowId] = true;
+                                        else delete next[rowId];
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-4 h-4"
+                                    aria-label="Seleccionar pago"
+                                  />
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  {fecha ? formatFechaAR(fecha) : fechaRegistro ? formatFechaHoraArgentina(fechaRegistro) : "-"}
+                                  {fechaRegistro ? (
+                                    <div className="text-xs text-muted-foreground">Reg: {formatFechaHoraArgentina(fechaRegistro)}</div>
+                                  ) : null}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">{cuentaLabel}</TableCell>
+                                <TableCell className="whitespace-nowrap">{String(pago?.metodo || "Efectivo")}</TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  <Badge variant="outline" className="text-xs">
+                                    {origenLabel}
+                                  </Badge>
+                                  {pago?.pagoEnDolares ? (
+                                    <Badge variant="subtle" className="text-xs ml-1">
+                                      USD
+                                    </Badge>
+                                  ) : null}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  {comprobantes.length > 0 ? (
+                                    <Badge variant="outline" className="text-xs">
+                                      {comprobantes.length}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell
+                                  className={cn(
+                                    "text-right font-semibold",
+                                    pago?._movimientoAnulado
+                                      ? "text-muted-foreground line-through"
+                                      : monto >= 0
+                                        ? "text-emerald-600"
+                                        : "text-red-600"
+                                  )}
+                                >
+                                  {formatMoneyARS(monto)}
+                                </TableCell>
+                                <TableCell>
+                                  {estadoFlags.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {estadoFlags.slice(0, 2).map((t) => (
+                                        <Badge key={t} variant="outline" className="text-xs">
+                                          {t}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">OK</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 w-8 p-0"
+                                        title="Acciones"
+                                      >
+                                        <MoreHorizontal className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-[200px] bg-background border-border">
+                                      <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        onSelect={() => {
+                                          setPagoDetalleProveedor({ pago, cuenta });
+                                          setOpenPagoDetalleProveedor(true);
+                                        }}
+                                      >
+                                        <Eye className="w-4 h-4 mr-2" />
+                                        Ver detalle
+                                      </DropdownMenuItem>
+                                      {!puedeEditarEliminar && String(pago?.pagoGlobalId || "") ? (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            disabled={guardando || movimientosProveedorByRowId?.[String(pago.pagoGlobalId)]?.anulado === true}
+                                            className="text-red-600 focus:text-red-700"
+                                            onSelect={async () => {
+                                              const movimientoId = String(pago?.pagoGlobalId || "");
+                                              if (!movimientoId) return;
+                                              if (movimientosProveedorByRowId?.[movimientoId]?.anulado === true) {
+                                                toast({
+                                                  title: "Movimiento anulado",
+                                                  description: "Este movimiento ya está anulado.",
+                                                  color: "warning",
+                                                });
+                                                return;
+                                              }
+                                              const ok = await confirmAsync({
+                                                title: "Eliminar pago global",
+                                                description:
+                                                  "Este pago proviene de un movimiento (pago global / saldo a favor). Se eliminará anulando el movimiento completo.",
+                                                confirmText: "Eliminar",
+                                                cancelText: "Cancelar",
+                                                confirmColor: "destructive",
+                                              });
+                                              if (!ok) return;
+                                              setGuardando(true);
+                                              try {
+                                                await anularMovimientoProveedor({ movimientoId });
+                                                await cargarDatos();
+                                                setPagosProveedorSeleccionados((prev) => {
+                                                  const next = { ...(prev || {}) };
+                                                  delete next[rowId];
+                                                  return next;
+                                                });
+                                                toast({
+                                                  title: "Movimiento anulado",
+                                                  description: "Se anuló el movimiento asociado al pago global.",
+                                                  color: "success",
+                                                });
+                                              } catch (e) {
+                                                console.error("Error al anular movimiento desde pago:", e);
+                                                toast({
+                                                  title: "Error",
+                                                  description: `No se pudo anular el movimiento: ${e?.message || String(e)}`,
+                                                  color: "destructive",
+                                                });
+                                              } finally {
+                                                setGuardando(false);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Eliminar (anular mov.)
+                                          </DropdownMenuItem>
+                                        </>
+                                      ) : null}
+                                      <DropdownMenuItem
+                                        disabled={!puedeEditarEliminar || !cuenta || guardando}
+                                        onSelect={() => {
+                                          if (!puedeEditarEliminar) return;
+                                          if (!cuenta) return;
+                                          setCuentaSeleccionada(cuenta);
+                                          setPagoEdit({
+                                            ...pago,
+                                            idx: pago._idxOriginal,
+                                            monto: Number(pago?.monto ?? pago?._monto ?? 0),
+                                            fecha: formatFechaSegura(pago?.fecha),
+                                            metodo: pago?.metodo || "Efectivo",
+                                            notas: pago?.notas || "",
+                                            responsable: pago?.responsable || user?.email || "Usuario no identificado",
+                                            pagoEnDolares: !!pago?.pagoEnDolares,
+                                            valorOficialDolar: pago?.pagoEnDolares ? (pago?.valorOficialDolar ?? null) : null,
+                                            comprobantes: comprobantes,
+                                          });
+                                          setOpenEditarPago(true);
+                                        }}
+                                      >
+                                        <Edit className="w-4 h-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        disabled={!puedeEditarEliminar || guardando}
+                                        className="text-red-600 focus:text-red-700"
+                                        onSelect={async () => {
+                                          if (!puedeEditarEliminar) {
+                                            const movimientoId = String(pago?.pagoGlobalId || "");
+                                            if (movimientoId) {
+                                              if (movimientosProveedorByRowId?.[movimientoId]?.anulado === true) {
+                                                toast({
+                                                  title: "Movimiento anulado",
+                                                  description: "Este movimiento ya está anulado.",
+                                                  color: "warning",
+                                                });
+                                                return;
+                                              }
+                                              const ok = await confirmAsync({
+                                                title: "Eliminar pago global",
+                                                description:
+                                                  "Este pago proviene de un movimiento. Se eliminará anulando el movimiento completo.",
+                                                confirmText: "Eliminar",
+                                                cancelText: "Cancelar",
+                                                confirmColor: "destructive",
+                                              });
+                                              if (!ok) return;
+                                              setGuardando(true);
+                                              try {
+                                                await anularMovimientoProveedor({ movimientoId });
+                                                await cargarDatos();
+                                                setPagosProveedorSeleccionados((prev) => {
+                                                  const next = { ...(prev || {}) };
+                                                  delete next[rowId];
+                                                  return next;
+                                                });
+                                                toast({
+                                                  title: "Movimiento anulado",
+                                                  description: "Se anuló el movimiento asociado.",
+                                                  color: "success",
+                                                });
+                                              } catch (e) {
+                                                console.error("Error al anular movimiento desde pago:", e);
+                                                toast({
+                                                  title: "Error",
+                                                  description: `No se pudo anular el movimiento: ${e?.message || String(e)}`,
+                                                  color: "destructive",
+                                                });
+                                              } finally {
+                                                setGuardando(false);
+                                              }
+                                              return;
+                                            }
+                                            toast({
+                                              title: "Acción no disponible",
+                                              description:
+                                                "Este pago proviene de un pago global/saldo a favor. Para revertirlo, anulá el movimiento asociado.",
+                                              color: "warning",
+                                            });
+                                            return;
+                                          }
+                                          const ok = await confirmAsync({
+                                            title: "Eliminar pago",
+                                            description: "¿Eliminar este pago manual? Esta acción no se puede deshacer.",
+                                            confirmText: "Eliminar",
+                                            cancelText: "Cancelar",
+                                            confirmColor: "destructive",
+                                          });
+                                          if (!ok) return;
+                                          setGuardando(true);
+                                          try {
+                                            await mutarPagoManual({
+                                              cuentaId: String(pago?._cuentaId || ""),
+                                              action: "delete",
+                                              idx: pago._idxOriginal,
+                                            });
+                                            await cargarDatos();
+                                            setPagosProveedorSeleccionados((prev) => {
+                                              const next = { ...(prev || {}) };
+                                              delete next[rowId];
+                                              return next;
+                                            });
+                                            toast({
+                                              title: "Pago eliminado",
+                                              description: "Se eliminó el pago manual.",
+                                              color: "success",
+                                            });
+                                          } catch (e) {
+                                            console.error("Error al eliminar pago manual:", e);
+                                            toast({
+                                              title: "Error",
+                                              description: `No se pudo eliminar: ${e?.message || String(e)}`,
+                                              color: "destructive",
+                                            });
+                                          } finally {
+                                            setGuardando(false);
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Eliminar
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell colSpan={9} className="p-3">
+                              <div className="flex flex-col sm:flex-row gap-1 sm:items-center sm:justify-between text-sm">
+                                <div className="text-muted-foreground">
+                                  Filas: <span className="font-semibold text-foreground">{totalesTablaPagosProveedor.countAll}</span>{" "}
+                                  · Pagado (activo):{" "}
+                                  <span className="font-semibold text-foreground">{formatMoneyARS(totalesTablaPagosProveedor.sumAll)}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  No incluye cuentas anuladas ni movimientos anulados.
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground border border-border/60 rounded-lg">
+                    <Wallet className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <div className="font-medium">Sin pagos registrados</div>
+                    <div className="text-sm">Este proveedor no tiene pagos en el rango seleccionado.</div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="movimientos" className="mt-4">
+                {movimientosDetalleProveedorSeleccionado.length > 0 ? (
+                  <div className="border border-border/60 rounded-lg overflow-hidden">
+                    {totalesTablaMovimientosProveedor.countSelected > 0 ? (
+                      <div className="px-3 py-2 border-b border-border/60 bg-muted/20 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                        <div className="text-sm">
+                          <span className="font-semibold">{totalesTablaMovimientosProveedor.countSelected}</span>{" "}
+                          seleccionad{totalesTablaMovimientosProveedor.countSelected !== 1 ? "os" : "o"} ·{" "}
+                          <span className="font-semibold text-blue-700 dark:text-blue-300">
+                            {formatMoneyARS(totalesTablaMovimientosProveedor.sumSelectedIngresado)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                            disabled={guardando}
+                            onClick={async () => {
+                              const selectedIds = Object.keys(movimientosProveedorSeleccionados || {}).filter((k) => movimientosProveedorSeleccionados[k]);
+                              const items = selectedIds.map((id) => movimientosProveedorByRowId[id]).filter(Boolean);
+                              const activos = items.filter((m) => m?.anulado !== true && m?.id);
+                              const ok = await confirmAsync({
+                                title: "Anular movimientos seleccionados",
+                                description: `Se anularán ${activos.length} movimiento${activos.length !== 1 ? "s" : ""}. Esto revertirá su impacto y mantendrá trazabilidad.`,
+                                confirmText: "Anular",
+                                cancelText: "Cancelar",
+                                confirmColor: "destructive",
+                              });
+                              if (!ok) return;
+                              setGuardando(true);
+                              try {
+                                let anulados = 0;
+                                for (const m of activos) {
+                                  await anularMovimientoProveedor({ movimientoId: m.id });
+                                  anulados += 1;
+                                }
+                                await cargarDatos();
+                                setMovimientosProveedorSeleccionados({});
+                                toast({
+                                  title: "Movimientos anulados",
+                                  description: `Se anularon ${anulados} movimiento${anulados !== 1 ? "s" : ""}.`,
+                                  color: "success",
+                                });
+                              } catch (e) {
+                                console.error("Error al anular movimientos seleccionados:", e);
+                                toast({
+                                  title: "Error",
+                                  description: `No se pudieron anular los movimientos: ${e?.message || String(e)}`,
+                                  color: "destructive",
+                                });
+                              } finally {
+                                setGuardando(false);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Anular
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setMovimientosProveedorSeleccionados({})}>
+                            <X className="w-4 h-4 mr-1" />
+                            Limpiar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="max-h-[55vh] overflow-auto">
+                      <Table className="table-fixed [&_th]:uppercase [&_th]:text-[11px] [&_th]:h-10 [&_th]:px-2 [&_th]:py-2 [&_td]:p-2 [&_td]:align-top">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  movimientosProveedorIds.length > 0 &&
+                                  movimientosProveedorIds.every((id) => !!movimientosProveedorSeleccionados?.[id])
+                                }
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setMovimientosProveedorSeleccionados(() => {
+                                    if (!checked) return {};
+                                    return movimientosProveedorIds.reduce((acc, id) => {
+                                      acc[id] = true;
+                                      return acc;
+                                    }, {});
+                                  });
+                                }}
+                                className="w-4 h-4"
+                                aria-label="Seleccionar todos los movimientos"
+                              />
+                            </TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Comprobantes</TableHead>
+                            <TableHead className="text-right">Monto ingresado</TableHead>
+                            <TableHead className="text-right">Aplicado</TableHead>
+                            <TableHead className="text-right">Δ saldo</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="w-28 text-right">Acc.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {movimientosDetalleProveedorSeleccionado.map((m) => {
+                            const rowId = String(m?._rowId || "");
+                            const tipo = String(m?.tipo || "");
+                            const labelTipo = tipo === "saldoAFavor" ? "Saldo a favor" : "Pago global";
+                            const montoIngresado =
+                              tipo === "pagoGlobal"
+                                ? Number(m?.pagoIngresado ?? m?.monto ?? 0)
+                                : Number(m?.montoDelta ?? m?.monto ?? 0);
+                            const aplicado = Number(m?.aplicadoACuentas ?? 0);
+                            const deltaSaldo = Number(m?.montoDeltaSaldoAFavor ?? m?.montoDeltaSaldo ?? 0);
+                            const anulado = m?.anulado === true;
+                            const comprobantes = Array.isArray(m?.comprobantes) ? m.comprobantes : [];
+                            return (
+                              <TableRow key={m.id} className={anulado ? "opacity-60" : ""}>
+                                <TableCell className="w-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!movimientosProveedorSeleccionados?.[rowId]}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setMovimientosProveedorSeleccionados((prev) => {
+                                        const next = { ...(prev || {}) };
+                                        if (checked) next[rowId] = true;
+                                        else delete next[rowId];
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-4 h-4"
+                                    aria-label="Seleccionar movimiento"
+                                  />
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  {m?.fecha ? formatFechaAR(m.fecha) : m?.fechaRegistro ? formatFechaHoraArgentina(m.fechaRegistro) : "-"}
+                                  {m?.fechaRegistro ? (
+                                    <div className="text-xs text-muted-foreground">Reg: {formatFechaHoraArgentina(m.fechaRegistro)}</div>
+                                  ) : null}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  <Badge variant="outline" className="text-xs">
+                                    {labelTipo}
+                                  </Badge>
+                                  {m?.pagoEnDolares ? (
+                                    <Badge variant="subtle" className="text-xs ml-1">
+                                      USD
+                                    </Badge>
+                                  ) : null}
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">
+                                  {comprobantes.length > 0 ? (
+                                    <Badge variant="outline" className="text-xs">
+                                      {comprobantes.length}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">{formatMoneyARS(montoIngresado)}</TableCell>
+                                <TableCell className="text-right text-muted-foreground">{formatMoneyARS(aplicado)}</TableCell>
+                                <TableCell className={cn("text-right font-semibold", deltaSaldo >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                  {formatMoneyARS(deltaSaldo)}
+                                </TableCell>
+                                <TableCell>
+                                  {anulado ? (
+                                    <Badge className="bg-muted/50 text-muted-foreground border border-border/60">Anulado</Badge>
+                                  ) : (
+                                    <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20">Activo</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-1 justify-end">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-blue-600 border-blue-500/20 hover:text-blue-700 hover:bg-blue-500/10 hover:border-blue-500/40"
+                                      onClick={() => {
+                                        setMovimientoSeleccionado(m);
+                                        setOpenMovimientoDetalle(true);
+                                      }}
+                                      title="Ver detalle"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40"
+                                      onClick={() => handleAnularMovimientoProveedorDoc(m)}
+                                      title="Eliminar (anular) movimiento"
+                                      disabled={guardando || anulado}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell colSpan={9} className="p-3">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
+                                <div className="text-muted-foreground">
+                                  Total: <span className="font-semibold text-foreground">{totalesTablaMovimientosProveedor.countAll}</span>{" "}
+                                  movimiento{totalesTablaMovimientosProveedor.countAll !== 1 ? "s" : ""}
+                                </div>
+                                <div className="flex items-center justify-between md:justify-start md:gap-2">
+                                  <span className="text-muted-foreground">Ingresado:</span>
+                                  <span className="font-semibold text-blue-700 dark:text-blue-300">
+                                    {formatMoneyARS(totalesTablaMovimientosProveedor.sumIngresado)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between md:justify-start md:gap-2">
+                                  <span className="text-muted-foreground">Aplicado:</span>
+                                  <span className="font-semibold text-muted-foreground">
+                                    {formatMoneyARS(totalesTablaMovimientosProveedor.sumAplicado)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between md:justify-start md:gap-2">
+                                  <span className="text-muted-foreground">Δ saldo:</span>
+                                  <span
+                                    className={cn(
+                                      "font-semibold",
+                                      totalesTablaMovimientosProveedor.sumDelta >= 0
+                                        ? "text-emerald-700 dark:text-emerald-300"
+                                        : "text-red-700 dark:text-red-300"
+                                    )}
+                                  >
+                                    {formatMoneyARS(totalesTablaMovimientosProveedor.sumDelta)}
+                                  </span>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground border border-border/60 rounded-lg">
+                    <ArrowLeftRight className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <div className="font-medium">Sin movimientos</div>
+                    <div className="text-sm">No se encontraron pagos globales ni ajustes de saldo a favor.</div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          <DialogFooter className="px-5 py-4 border-t border-border/60 bg-card">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenPagosProveedor(false);
+                setProveedorPagosSeleccionado(null);
+              }}
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openPagoDetalleProveedor}
+        onOpenChange={(open) => {
+          setOpenPagoDetalleProveedor(open);
+          if (!open) setPagoDetalleProveedor(null);
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-[760px] border border-border/60 bg-card p-0 overflow-hidden">
+          <DialogHeader className="px-5 py-4 border-b border-border/60">
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-blue-600" />
+              Detalle de pago
+            </DialogTitle>
+          </DialogHeader>
+
+          {pagoDetalleProveedor?.pago ? (
+            <div className="px-5 py-4 space-y-4">
+              {(() => {
+                const pago = pagoDetalleProveedor.pago;
+                const cuenta = pagoDetalleProveedor.cuenta || null;
+                const monto = Number(pago?._monto ?? pago?.monto ?? 0);
+                const fecha = pago?._fecha || formatFechaSegura(pago?.fecha);
+                const fechaRegistro = pago?._fechaRegistro || (typeof pago?.fechaRegistro === "string" ? pago.fechaRegistro : "");
+                const kind = String(pago?._kind || "manual");
+                const origenLabel =
+                  kind === "reversion"
+                    ? "Anulación"
+                    : kind === "saldoAFavor"
+                    ? "Saldo a favor"
+                    : kind === "pagoGlobal"
+                    ? "Pago global"
+                    : "Manual";
+                const comprobantes = Array.isArray(pago?.comprobantes) ? pago.comprobantes : [];
+                const puedeEditarEliminar =
+                  kind === "manual" &&
+                  typeof pago?._idxOriginal === "number" &&
+                  pago?.pagoGlobalProveedor !== true &&
+                  pago?._origenMovimiento !== true;
+                const movimientoId = String(pago?.pagoGlobalId || "");
+
+                return (
+                  <>
+                    <div className="bg-muted/30 p-4 rounded-lg border border-border/60">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className={cn("text-2xl font-extrabold tracking-tight", monto >= 0 ? "text-emerald-600" : "text-red-600")}>
+                            {formatMoneyARS(monto)}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {origenLabel}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {String(pago?.metodo || "Efectivo")}
+                            </Badge>
+                            {pago?.pagoEnDolares ? (
+                              <Badge variant="subtle" className="text-xs">
+                                USD
+                              </Badge>
+                            ) : null}
+                            {pago?._movimientoAnulado ? (
+                              <Badge variant="outline" className="text-xs">
+                                Movimiento anulado
+                              </Badge>
+                            ) : null}
+                            {pago?._cuentaAnulada ? (
+                              <Badge variant="outline" className="text-xs">
+                                Cuenta anulada
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {fecha ? formatFechaAR(fecha) : fechaRegistro ? formatFechaHoraArgentina(fechaRegistro) : "-"}
+                            {fechaRegistro ? <span className="ml-2 text-xs">· Reg: {formatFechaHoraArgentina(fechaRegistro)}</span> : null}
+                          </div>
+                          {pago?.responsable ? (
+                            <div className="text-sm text-muted-foreground">Por: {String(pago.responsable)}</div>
+                          ) : null}
+                        </div>
+
+                        {cuenta ? (
+                          <div className="bg-card border border-border/60 rounded-lg p-3 min-w-[240px]">
+                            <div className="text-xs text-muted-foreground">Cuenta</div>
+                            <div className="font-semibold">
+                              {cuenta?.fecha ? formatFechaAR(cuenta.fecha) : `#${String(cuenta?.id || "").slice(0, 8)}`}
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                              <div className="bg-muted/20 border border-border/60 rounded-md p-2">
+                                <div className="text-muted-foreground">Total</div>
+                                <div className="font-semibold">{formatMoneyARS(Number(cuenta?.monto ?? 0))}</div>
+                              </div>
+                              <div className="bg-muted/20 border border-border/60 rounded-md p-2">
+                                <div className="text-muted-foreground">Pagado</div>
+                                <div className="font-semibold text-emerald-600">{formatMoneyARS(Number(cuenta?.montoPagado ?? 0))}</div>
+                              </div>
+                              <div className="bg-muted/20 border border-border/60 rounded-md p-2">
+                                <div className="text-muted-foreground">Saldo</div>
+                                <div className="font-semibold text-red-600">
+                                  {formatMoneyARS(Math.max(Number(cuenta?.monto ?? 0) - Number(cuenta?.montoPagado ?? 0), 0))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {pago?.notas ? (
+                        <div className="mt-3 text-sm">
+                          <div className="text-xs text-muted-foreground mb-1">Notas</div>
+                          <div className="whitespace-pre-wrap">{String(pago.notas)}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Comprobantes
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {comprobantes.length} archivo{comprobantes.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+
+                      {comprobantes.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                          {comprobantes.slice(0, 12).map((comp, cidx) => {
+                            const tipo = String(comp?.tipo || "").toLowerCase();
+                            const url = String(comp?.url || "");
+                            const nombre = String(comp?.nombre || `Comprobante ${cidx + 1}`);
+                            if (!url) return null;
+                            return (
+                              <button
+                                key={`${url}_${cidx}`}
+                                type="button"
+                                className="group relative w-full aspect-square rounded-md border border-border/60 bg-muted/20 overflow-hidden hover:border-border hover:shadow-sm transition-all"
+                                onClick={() => {
+                                  setComprobantePreview({ url, tipo: tipo || "image", nombre });
+                                  setOpenComprobantePreview(true);
+                                }}
+                                title="Ver comprobante"
+                              >
+                                {tipo === "pdf" ? (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <FileText className="w-6 h-6 text-red-600" />
+                                  </div>
+                                ) : (
+                                  <img src={url} alt={nombre} className="w-full h-full object-cover" />
+                                )}
+                                <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white" />
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground border border-border/60 bg-muted/20 rounded-lg p-3">
+                          Sin comprobantes para este pago.
+                        </div>
+                      )}
+                    </div>
+
+                    {pago?._origenMovimiento ? (
+                      <div className="text-sm text-muted-foreground border border-border/60 bg-muted/20 rounded-lg p-3">
+                        Este pago está ligado a un movimiento. Para revertirlo, anulá el movimiento en la pestaña Movimientos.
+                      </div>
+                    ) : null}
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setOpenPagoDetalleProveedor(false);
+                          setPagoDetalleProveedor(null);
+                        }}
+                      >
+                        Cerrar
+                      </Button>
+                      {!puedeEditarEliminar && movimientoId ? (
+                        <Button
+                          variant="outline"
+                          disabled={guardando || movimientosProveedorByRowId?.[movimientoId]?.anulado === true}
+                          className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 disabled:opacity-50"
+                          onClick={async () => {
+                            if (movimientosProveedorByRowId?.[movimientoId]?.anulado === true) {
+                              toast({
+                                title: "Movimiento anulado",
+                                description: "Este movimiento ya está anulado.",
+                                color: "warning",
+                              });
+                              return;
+                            }
+                            const ok = await confirmAsync({
+                              title: "Eliminar pago global",
+                              description:
+                                "Este pago proviene de un movimiento (pago global / saldo a favor). Se eliminará anulando el movimiento completo.",
+                              confirmText: "Eliminar",
+                              cancelText: "Cancelar",
+                              confirmColor: "destructive",
+                            });
+                            if (!ok) return;
+                            setGuardando(true);
+                            try {
+                              await anularMovimientoProveedor({ movimientoId });
+                              await cargarDatos();
+                              setOpenPagoDetalleProveedor(false);
+                              setPagoDetalleProveedor(null);
+                              toast({
+                                title: "Movimiento anulado",
+                                description: "Se anuló el movimiento asociado al pago.",
+                                color: "success",
+                              });
+                            } catch (e) {
+                              console.error("Error al anular movimiento desde detalle de pago:", e);
+                              toast({
+                                title: "Error",
+                                description: `No se pudo anular el movimiento: ${e?.message || String(e)}`,
+                                color: "destructive",
+                              });
+                            } finally {
+                              setGuardando(false);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Eliminar (anular mov.)
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        disabled={!puedeEditarEliminar || guardando || !cuenta}
+                        className="text-amber-600 border-amber-500/20 hover:text-amber-700 hover:bg-amber-500/10 hover:border-amber-500/40 disabled:opacity-50"
+                        onClick={() => {
+                          if (!puedeEditarEliminar || !cuenta) return;
+                          setCuentaSeleccionada(cuenta);
+                          setPagoEdit({
+                            ...pago,
+                            idx: pago._idxOriginal,
+                            monto: Number(pago?.monto ?? pago?._monto ?? 0),
+                            fecha: formatFechaSegura(pago?.fecha),
+                            metodo: pago?.metodo || "Efectivo",
+                            notas: pago?.notas || "",
+                            responsable: pago?.responsable || user?.email || "Usuario no identificado",
+                            pagoEnDolares: !!pago?.pagoEnDolares,
+                            valorOficialDolar: pago?.pagoEnDolares ? (pago?.valorOficialDolar ?? null) : null,
+                            comprobantes: comprobantes,
+                          });
+                          setOpenEditarPago(true);
+                          setOpenPagoDetalleProveedor(false);
+                        }}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={!puedeEditarEliminar || guardando}
+                        className="text-red-600 border-red-500/20 hover:text-red-700 hover:bg-red-500/10 hover:border-red-500/40 disabled:opacity-50"
+                        onClick={async () => {
+                          if (!puedeEditarEliminar) {
+                            toast({
+                              title: "Acción no disponible",
+                              description:
+                                "Este pago proviene de un pago global/saldo a favor o de un movimiento. Para revertirlo, anulá el movimiento en la pestaña Movimientos.",
+                              color: "warning",
+                            });
+                            return;
+                          }
+                          const ok = await confirmAsync({
+                            title: "Eliminar pago",
+                            description: "¿Eliminar este pago manual? Esta acción no se puede deshacer.",
+                            confirmText: "Eliminar",
+                            cancelText: "Cancelar",
+                            confirmColor: "destructive",
+                          });
+                          if (!ok) return;
+                          setGuardando(true);
+                          try {
+                            await mutarPagoManual({
+                              cuentaId: String(pago?._cuentaId || ""),
+                              action: "delete",
+                              idx: pago._idxOriginal,
+                            });
+                            await cargarDatos();
+                            setOpenPagoDetalleProveedor(false);
+                            setPagoDetalleProveedor(null);
+                            setPagosProveedorSeleccionados((prev) => {
+                              const next = { ...(prev || {}) };
+                              const rowId = String(pago?._rowId || "");
+                              if (rowId) delete next[rowId];
+                              return next;
+                            });
+                            toast({ title: "Pago eliminado", description: "Se eliminó el pago manual.", color: "success" });
+                          } catch (e) {
+                            console.error("Error al eliminar pago manual:", e);
+                            toast({
+                              title: "Error",
+                              description: `No se pudo eliminar: ${e?.message || String(e)}`,
+                              color: "destructive",
+                            });
+                          } finally {
+                            setGuardando(false);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="px-5 py-8 text-sm text-muted-foreground">Sin detalle disponible.</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={openComprobantePreview}
         onOpenChange={(open) => {
           setOpenComprobantePreview(open);
@@ -3347,6 +4896,11 @@ const GastosPage = () => {
                 <div className="text-sm text-muted-foreground">
                   {formatFechaAR(movimientoSeleccionado.fecha)} · {String(movimientoSeleccionado.tipo || "")}
                 </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {movimientoSeleccionado?.fechaRegistro ? `Reg: ${formatFechaHoraArgentina(movimientoSeleccionado.fechaRegistro)}` : null}
+                  {movimientoSeleccionado?.metodo ? ` · ${String(movimientoSeleccionado.metodo)}` : null}
+                  {movimientoSeleccionado?.responsable ? ` · ${String(movimientoSeleccionado.responsable)}` : null}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
@@ -3387,6 +4941,87 @@ const GastosPage = () => {
                   <div className="text-foreground whitespace-pre-wrap">{String(movimientoSeleccionado.notas)}</div>
                 </div>
               ) : null}
+
+              {(() => {
+                const comprobantes = Array.isArray(movimientoSeleccionado?.comprobantes) ? movimientoSeleccionado.comprobantes : [];
+                const cuentasAplicadas = Array.isArray(movimientoSeleccionado?.cuentasAplicadas) ? movimientoSeleccionado.cuentasAplicadas : [];
+                const totalAplicado = cuentasAplicadas.reduce((acc, a) => acc + Number(a?.montoAplicado ?? 0), 0);
+                return (
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="bg-card p-3 rounded-md border border-border/60">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Comprobantes
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {comprobantes.length} archivo{comprobantes.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+                      {comprobantes.length > 0 ? (
+                        <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {comprobantes.slice(0, 12).map((comp, cidx) => {
+                            const tipo = String(comp?.tipo || "").toLowerCase();
+                            const url = String(comp?.url || "");
+                            const nombre = String(comp?.nombre || `Comprobante ${cidx + 1}`);
+                            if (!url) return null;
+                            return (
+                              <button
+                                key={`${url}_${cidx}`}
+                                type="button"
+                                className="group relative w-full aspect-square rounded-md border border-border/60 bg-muted/20 overflow-hidden hover:border-border hover:shadow-sm transition-all"
+                                onClick={() => {
+                                  setComprobantePreview({ url, tipo: tipo || "image", nombre });
+                                  setOpenComprobantePreview(true);
+                                }}
+                                title="Ver comprobante"
+                              >
+                                {tipo === "pdf" ? (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <FileText className="w-6 h-6 text-red-600" />
+                                  </div>
+                                ) : (
+                                  <img src={url} alt={nombre} className="w-full h-full object-cover" />
+                                )}
+                                <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Eye className="w-5 h-5 text-white" />
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-sm text-muted-foreground bg-muted/20 border border-border/60 rounded-lg p-3">
+                          Sin comprobantes para este movimiento.
+                        </div>
+                      )}
+                    </div>
+
+                    {cuentasAplicadas.length > 0 ? (
+                      <div className="bg-card p-3 rounded-md border border-border/60">
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold text-sm">Cuentas impactadas</div>
+                          <div className="text-xs text-muted-foreground">
+                            {cuentasAplicadas.length} cuenta{cuentasAplicadas.length !== 1 ? "s" : ""} ·{" "}
+                            <span className="font-semibold">{formatMoneyARS(Number(totalAplicado || 0))}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 max-h-44 overflow-y-auto space-y-2">
+                          {cuentasAplicadas.map((a, idx) => (
+                            <div key={`${String(a?.cuentaId || "")}_${idx}`} className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">#{String(a?.cuentaId || "").slice(0, 10)}</div>
+                                <div className="text-xs text-muted-foreground truncate">{String(a?.cuentaId || "")}</div>
+                              </div>
+                              <div className="font-semibold text-emerald-600 shrink-0">{formatMoneyARS(Number(a?.montoAplicado ?? 0))}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           )}
           <DialogFooter>
@@ -3407,7 +5042,7 @@ const GastosPage = () => {
                 disabled={guardando || movimientoSeleccionado?.anulado}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                Anular
+                Eliminar
               </Button>
             )}
           </DialogFooter>
