@@ -29,6 +29,7 @@ const FormularioClienteObras = ({
     telefono: "",
     lugar: "",
     direccion: "",
+    localidad: "",
     cuit: "",
     lote: "",
     barrio: "",
@@ -43,6 +44,7 @@ const FormularioClienteObras = ({
             telefono: clienteExistente.telefono || "",
             lugar: clienteExistente.direccion || clienteExistente.localidad || "",
             direccion: clienteExistente.direccion || "",
+            localidad: clienteExistente.localidad || "",
             cuit: clienteExistente.cuit || "",
             lote: clienteExistente.lote || "",
             barrio: clienteExistente.barrio || "",
@@ -58,6 +60,7 @@ const FormularioClienteObras = ({
                   telefono: data.telefono || "",
                   lugar: data.direccion || data.localidad || "",
                   direccion: data.direccion || "",
+                  localidad: data.localidad || "",
                   cuit: data.cuit || "",
                   lote: data.lote || "",
                   barrio: data.barrio || "",
@@ -76,6 +79,7 @@ const FormularioClienteObras = ({
           telefono: "",
           lugar: "",
           direccion: "",
+          localidad: "",
           cuit: "",
           lote: "",
           barrio: "",
@@ -108,6 +112,7 @@ const FormularioClienteObras = ({
       let clienteData;
       const esModoGeneral = mode === "general";
       const direccionGeneral = formData.direccion.trim();
+      const localidadGeneral = formData.localidad.trim();
       const cuitGeneral = formData.cuit.trim();
       const lugarObras = formData.lugar.trim();
 
@@ -126,7 +131,7 @@ const FormularioClienteObras = ({
             ? direccionGeneral
             : lugarObras || datosActuales.direccion || "",
           localidad: esModoGeneral
-            ? datosActuales.localidad || ""
+            ? localidadGeneral
             : lugarObras || datosActuales.localidad || "",
           cuit: esModoGeneral ? cuitGeneral : datosActuales.cuit || "",
           lote: esModoGeneral ? datosActuales.lote || "" : formData.lote.trim() || "",
@@ -146,7 +151,7 @@ const FormularioClienteObras = ({
               direccion: direccionGeneral,
               cuit: cuitGeneral,
               email: "",
-              localidad: "",
+              localidad: localidadGeneral,
               partido: "",
               barrio: "",
               area: "",
@@ -260,20 +265,36 @@ const FormularioClienteObras = ({
           </div>
 
           {esModoGeneral ? (
-            <div className="space-y-2">
-              <Label htmlFor="direccion" className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
-                Dirección
-              </Label>
-              <Input
-                id="direccion"
-                value={formData.direccion}
-                onChange={(e) => handleInputChange("direccion", e.target.value)}
-                placeholder="Dirección completa"
-                className="w-full"
-                disabled={guardando}
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="direccion" className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-500" />
+                  Dirección
+                </Label>
+                <Input
+                  id="direccion"
+                  value={formData.direccion}
+                  onChange={(e) => handleInputChange("direccion", e.target.value)}
+                  placeholder="Dirección completa"
+                  className="w-full"
+                  disabled={guardando}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="localidad" className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-500" />
+                  Localidad
+                </Label>
+                <Input
+                  id="localidad"
+                  value={formData.localidad}
+                  onChange={(e) => handleInputChange("localidad", e.target.value)}
+                  placeholder="Ej: San Miguel"
+                  className="w-full"
+                  disabled={guardando}
+                />
+              </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label htmlFor="lugar" className="flex items-center gap-2">

@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function emailLower() {
+      return request.auth != null && request.auth.token.email != null
+        ? request.auth.token.email.toLowerCase()
+        : "";
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAgencyAdmin() {
+      return isSignedIn() && emailLower().matches('^admin@.*');
+    }
+
+    function isAgencyMember() {
+      return isSignedIn() && (
+        isAgencyAdmin() ||
+        emailLower() in [
+          'brian@maderascaballero.com',
+          'luisdamian@maderascaballero.com',
+          'ivan@maderascaballero.com'
+        ]
+      );
+    }
+
+    function canReadTicket(ticket) {
+      return isAgencyAdmin() ||
+        (
+          isSignedIn() &&
+          (
+            (ticket.keys().hasAny(['participantsEmails']) && ticket.participantsEmails.hasAny([emailLower()])) ||
+            (ticket.keys().hasAny(['assignee']) && ticket.assignee != null && ticket.assignee.email == emailLower())
+          )
+        );
+    }
+
+    function isValidClientTicketCreate() {
+      return request.resource.data.keys().hasAll([
+        'title',
+        'description',
+        'module',
+        'priority',
+        'status',
+        'dueDate',
+        'requesterSide',
+        'targetSide',
+        'requester',
+        'participantsEmails',
+        'commentCount',
+        'createdAt',
+        'updatedAt',
+        'lastActivityAt'
+      ]) &&
+      request.resource.data.requester.uid == request.auth.uid &&
+      request.resource.data.requester.email == emailLower() &&
+      request.resource.data.status == 'open' &&
+      request.resource.data.dueDate == '' &&
+      request.resource.data.requesterSide == 'cliente' &&
+      request.resource.data.targetSide == 'agencia' &&
+      (
+        !request.resource.data.keys().hasAny(['assignee']) ||
+        request.resource.data.assignee == null
+      ) &&
+      request.resource.data.participantsEmails.size() == 1 &&
+      request.resource.data.participantsEmails.hasAny([emailLower()]) &&
+      request.resource.data.commentCount == 0;
+    }
+
+    function isValidAdminTicketUpdate() {
+      return request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.requester == resource.data.requester &&
+        request.resource.data.requesterSide == resource.data.requesterSide &&
+        request.resource.data.targetSide == resource.data.targetSide;
+    }
+
+    function isValidParticipantMetaUpdate() {
+      if (!canReadTicket(resource.data)) return false;
+      let changed = request.resource.data.diff(resource.data).changedKeys();
+      return (
+        (
+          changed.hasOnly(['commentCount', 'updatedAt', 'lastActivityAt', 'participantsEmails']) &&
+          request.resource.data.commentCount == resource.data.commentCount + 1 &&
+          request.resource.data.participantsEmails.hasAll(resource.data.participantsEmails) &&
+          request.resource.data.participantsEmails.hasAny([emailLower()])
+        ) ||
+        (
+          changed.hasOnly(['title', 'updatedAt', 'lastActivityAt']) &&
+          request.resource.data.title is string &&
+          request.resource.data.title.size() > 0 &&
+          request.resource.data.title.size() < 220
+        )
+      );
+    }
+
+    match /tickets/{ticketId} {
+      allow get, list: if canReadTicket(resource.data);
+
+      allow create: if isSignedIn() && (
+        isAgencyAdmin() ||
+        isValidClientTicketCreate()
+      );
+
+      allow update: if isAgencyAdmin()
+        ? isValidAdminTicketUpdate()
+        : isValidParticipantMetaUpdate();
+
+      allow delete: if isAgencyAdmin() || (
+        isSignedIn() &&
+        resource.data.keys().hasAny(['requester']) &&
+        resource.data.requester.uid == request.auth.uid &&
+        resource.data.requester.email == emailLower()
+      );
+
+      match /comments/{commentId} {
+        allow get, list: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+
+        allow create: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data) &&
+          isSignedIn() &&
+          request.resource.data.keys().hasAll(['text', 'createdAt', 'author']) &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.author.uid == request.auth.uid &&
+          request.resource.data.author.email == emailLower();
+
+        allow update, delete: if isAgencyAdmin();
+      }
+
+      match /events/{eventId} {
+        allow get, list: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+
+        allow create: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data) &&
+          isSignedIn() &&
+          request.resource.data.keys().hasAll(['type', 'at', 'actor']) &&
+          request.resource.data.actor.uid == request.auth.uid &&
+          request.resource.data.actor.email == emailLower() &&
+          (
+            isAgencyAdmin() ||
+            request.resource.data.type == 'comment_added'
+          );
+
+        allow update, delete: if isAgencyAdmin();
+      }
+    }
+  }
+}
