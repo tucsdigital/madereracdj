@@ -1589,7 +1589,7 @@ const VentaDetalle = () => {
         : 0;
 
     // Calcular descuento de efectivo si aplica (10% sobre el subtotal)
-    const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
 
     const total = totalSinEnvio + costoEnvioCalculado - descuentoEfectivo;
     const totalAbonado = (ventaEdit.pagos || []).reduce(
@@ -3537,9 +3537,37 @@ const VentaDetalle = () => {
                 <section className="mt-4 bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
                   <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
                     <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
-                      {(ventaEdit.productos || []).length} producto{(ventaEdit.productos || []).length !== 1 ? "s" : ""}
-                    </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="pagoEnEfectivo"
+                          checked={Boolean(ventaEdit?.pagoEnEfectivo)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setVentaEdit((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                pagoEnEfectivo: checked,
+                                ...(checked ? { formaPago: "efectivo" } : null),
+                              };
+                            });
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-background border-default-300 rounded focus:ring-blue-500 focus:ring-2"
+                          disabled={loadingPrecios}
+                        />
+                        <label
+                          htmlFor="pagoEnEfectivo"
+                          className="text-sm font-medium text-default-700"
+                        >
+                          Pago en efectivo (-10%)
+                        </label>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                        {(ventaEdit.productos || []).length} producto{(ventaEdit.productos || []).length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -3553,6 +3581,7 @@ const VentaDetalle = () => {
                           <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Canteado</th>
                           <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
                           <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio en efectivo</th>
                           <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
                           <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
                         </tr>
@@ -3770,18 +3799,11 @@ const VentaDetalle = () => {
                                 />
                               ) : (
                                 <span className="block text-right font-semibold text-default-900 tabular-nums">
-                                  {venta?.pagoEnEfectivo 
-                                    ? `$${formatearNumeroArgentino(
-                                        (p.categoria === "Maderas" && p.unidad === "M2"
-                                          ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
-                                          : Number(p.precio)) * 0.9
-                                      )}`
-                                    : `$${formatearNumeroArgentino(
-                                        p.categoria === "Maderas" && p.unidad === "M2"
-                                          ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
-                                          : p.precio
-                                      )}`
-                                  }
+                                  {`$${formatearNumeroArgentino(
+                                    p.categoria === "Maderas" && p.unidad === "M2"
+                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                      : p.precio
+                                  )}`}
                                 </span>
                               )}
                             </td>
@@ -3794,24 +3816,18 @@ const VentaDetalle = () => {
                             <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
                               ${formatearNumeroArgentino(
                                 (() => {
-                                  let subtotalBase;
-                                  // Para productos de categoría "Eventual", calcular directamente precio × cantidad × (1 - descuento)
-                                  if (p.categoria === "Eventual") {
-                                    subtotalBase = Number(p.precio) * Number(p.cantidad);
-                                  } else {
-                                    // Para otros productos, usar la función computeLineBase
-                                    subtotalBase = computeLineBase(p);
-                                  }
-                                  
-                                  // Aplicar descuento individual
-                                  const subtotalConDescuento = subtotalBase * (1 - Number(p.descuento || 0) / 100);
-                                  
-                                  // Si es pago en efectivo, aplicar descuento adicional del 10%
-                                  return venta?.pagoEnEfectivo 
-                                    ? Math.round(subtotalConDescuento * 0.9)
-                                    : Math.round(subtotalConDescuento);
+                                  const precioBase = computeLineBase(p);
+                                  const precioConDescuento =
+                                    precioBase * (1 - Number(p.descuento || 0) / 100);
+                                  const efectivo = ventaEdit?.pagoEnEfectivo
+                                    ? precioConDescuento * 0.9
+                                    : precioConDescuento;
+                                  return Math.round(efectivo);
                                 })()
                               )}
+                            </td>
+                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                              ${formatearNumeroArgentino(computeLineSubtotal(p))}
                             </td>
                             <td className="p-4 align-middle text-center text-sm text-default-600">
                               <span className="group relative inline-flex">
@@ -3835,7 +3851,7 @@ const VentaDetalle = () => {
                   {(() => {
                     const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
                     const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
-                    const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
                     const totalFinal = total + envio - descuentoEfectivo;
                     return (
                       <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
@@ -3876,7 +3892,7 @@ const VentaDetalle = () => {
                     ? Number(ventaEdit.costoEnvio) || 0
                     : 0;
 
-                const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
                 const total = subtotal - descuento - descuentoEfectivo + envio;
                 const abonado = Array.isArray(ventaEdit.pagos)
                   ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
