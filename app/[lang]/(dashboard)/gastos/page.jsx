@@ -158,6 +158,7 @@ const GastosPage = () => {
   const [openProveedor, setOpenProveedor] = useState(false);
   const [openPago, setOpenPago] = useState(false);
   const [openQuitarSaldoAFavor, setOpenQuitarSaldoAFavor] = useState(false);
+  const [openAgregarSaldoAFavor, setOpenAgregarSaldoAFavor] = useState(false);
   const [openHistorial, setOpenHistorial] = useState(false);
   const [openPagosProveedor, setOpenPagosProveedor] = useState(false);
   const [openPagoDetalleProveedor, setOpenPagoDetalleProveedor] = useState(false);
@@ -171,6 +172,7 @@ const GastosPage = () => {
   const [movimientosProveedorSeleccionados, setMovimientosProveedorSeleccionados] = useState({});
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState(null);
   const [proveedorQuitarSaldo, setProveedorQuitarSaldo] = useState(null);
+  const [proveedorAgregarSaldo, setProveedorAgregarSaldo] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [comprobantePreview, setComprobantePreview] = useState(null);
   const [openComprobantePreview, setOpenComprobantePreview] = useState(false);
@@ -645,6 +647,12 @@ const GastosPage = () => {
   const [metodoQuitarSaldo, setMetodoQuitarSaldo] = useState("Ajuste");
   const [notasQuitarSaldo, setNotasQuitarSaldo] = useState("");
 
+  const [montoAgregarSaldo, setMontoAgregarSaldo] = useState("");
+  const [fechaAgregarSaldo, setFechaAgregarSaldo] = useState(new Date().toISOString().split("T")[0]);
+  const [metodoAgregarSaldo, setMetodoAgregarSaldo] = useState("Efectivo");
+  const [notasAgregarSaldo, setNotasAgregarSaldo] = useState("");
+  const [comprobantesAgregarSaldo, setComprobantesAgregarSaldo] = useState([]);
+
   // Editar / eliminar pagos individuales
   const [openEditarPago, setOpenEditarPago] = useState(false);
   const [pagoEdit, setPagoEdit] = useState(null); // { idx, monto, fecha, metodo, notas, pagoEnDolares, valorOficialDolar, comprobantesPago }
@@ -978,6 +986,26 @@ const GastosPage = () => {
     setNotasQuitarSaldo("");
   };
 
+  const limpiarEstadoAgregarSaldo = () => {
+    setMontoAgregarSaldo("");
+    setFechaAgregarSaldo(new Date().toISOString().split("T")[0]);
+    setMetodoAgregarSaldo("Efectivo");
+    setNotasAgregarSaldo("");
+    setComprobantesAgregarSaldo([]);
+  };
+
+  const abrirAgregarSaldoAFavor = ({ proveedorId, proveedorNombre, saldoAFavor }) => {
+    const provId = String(proveedorId || "").trim();
+    if (!provId) return;
+    setProveedorAgregarSaldo({
+      id: provId,
+      nombre: String(proveedorNombre || "Proveedor"),
+      saldoAFavor: Number(saldoAFavor || 0),
+    });
+    setMontoAgregarSaldo("");
+    setOpenAgregarSaldoAFavor(true);
+  };
+
   const abrirQuitarSaldoAFavor = (grupo) => {
     const provId = grupo?.proveedor?.id || grupo?.proveedorId || "";
     if (!provId) return;
@@ -1087,6 +1115,61 @@ const GastosPage = () => {
       toast({
         title: "Error",
         description: `Error al quitar saldo a favor: ${e?.message || "Error"}`,
+        color: "destructive",
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleAgregarSaldoAFavor = async () => {
+    if (!proveedorAgregarSaldo?.id) {
+      toast({ title: "Proveedor inválido", description: "No se pudo identificar el proveedor.", color: "warning" });
+      return;
+    }
+    const monto = parseMoneyARS(montoAgregarSaldo);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      toast({ title: "Monto inválido", description: "Ingresá un monto válido para adelantar.", color: "warning" });
+      return;
+    }
+    setGuardando(true);
+    try {
+      if (!user || typeof user.getIdToken !== "function") throw new Error("No hay usuario autenticado");
+      const idToken = await user.getIdToken();
+      const resp = await fetch(
+        `/api/erp/proveedores/${encodeURIComponent(String(proveedorAgregarSaldo.id))}/saldo-a-favor`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "agregar",
+            monto,
+            fecha: fechaAgregarSaldo,
+            metodo: metodoAgregarSaldo,
+            notas: notasAgregarSaldo,
+            comprobantes: comprobantesAgregarSaldo,
+            origen: "ui_gastos_agregar_saldo_a_favor",
+          }),
+        }
+      );
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out?.ok) throw new Error(out?.error || "Error al adelantar saldo a favor");
+      await cargarDatos({ silent: true });
+      setOpenAgregarSaldoAFavor(false);
+      setProveedorAgregarSaldo(null);
+      limpiarEstadoAgregarSaldo();
+      toast({
+        title: "Adelanto registrado",
+        description: `Saldo a favor actualizado: ${formatMoneyARS(Number(out.saldoAFavorDespues || 0))}`,
+        color: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: `Error al adelantar saldo a favor: ${e?.message || "Error"}`,
         color: "destructive",
       });
     } finally {
@@ -3385,6 +3468,116 @@ const GastosPage = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={openAgregarSaldoAFavor}
+        onOpenChange={(open) => {
+          setOpenAgregarSaldoAFavor(open);
+          if (!open) {
+            setProveedorAgregarSaldo(null);
+            limpiarEstadoAgregarSaldo();
+          }
+        }}
+      >
+        <DialogContent
+          className="z-[10011] w-[95vw] max-w-[560px] border border-border/60 bg-card"
+          overlayClass="z-[10010] bg-black/70 backdrop-blur-sm"
+        >
+          <DialogHeader>
+            <DialogTitle className="pr-10">Adelantar saldo a favor</DialogTitle>
+          </DialogHeader>
+          {proveedorAgregarSaldo && (
+            <div className="space-y-4 py-2">
+              <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">
+                <div className="font-semibold text-foreground">{proveedorAgregarSaldo.nombre}</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Saldo a favor actual:{" "}
+                  <span className="font-semibold text-emerald-600">
+                    ${Number(proveedorAgregarSaldo.saldoAFavor || 0).toLocaleString("es-AR")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label>Monto a adelantar *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={montoAgregarSaldo}
+                    onChange={(e) => setMontoAgregarSaldo(e.target.value)}
+                    placeholder="Monto"
+                  />
+                </div>
+                <div>
+                  <Label>Fecha *</Label>
+                  <DateInput
+                    value={fechaAgregarSaldo}
+                    onChange={(v) => setFechaAgregarSaldo(v)}
+                    buttonClassName="w-full justify-start"
+                  />
+                </div>
+                <div>
+                  <Label>Método</Label>
+                  <select
+                    value={metodoAgregarSaldo}
+                    onChange={(e) => setMetodoAgregarSaldo(e.target.value)}
+                    className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40"
+                  >
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Ajuste">Ajuste</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label>Notas</Label>
+                <Textarea
+                  placeholder="Detalle del adelanto..."
+                  value={notasAgregarSaldo}
+                  onChange={(e) => setNotasAgregarSaldo(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
+                <ComprobantesPagoSection
+                  comprobantes={comprobantesAgregarSaldo || []}
+                  onComprobantesChange={setComprobantesAgregarSaldo}
+                  disabled={guardando}
+                  maxFiles={8}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenAgregarSaldoAFavor(false);
+                setProveedorAgregarSaldo(null);
+                limpiarEstadoAgregarSaldo();
+              }}
+              disabled={guardando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAgregarSaldoAFavor}
+              disabled={
+                guardando ||
+                !Number.isFinite(parseMoneyARS(montoAgregarSaldo)) ||
+                parseMoneyARS(montoAgregarSaldo) <= 0
+              }
+            >
+              {guardando ? "Guardando..." : "Registrar adelanto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={openQuitarSaldoAFavor} onOpenChange={setOpenQuitarSaldoAFavor}>
         <DialogContent className="w-[95vw] max-w-[520px] border border-border/60 bg-card">
           <DialogHeader>
@@ -3729,7 +3922,7 @@ const GastosPage = () => {
       >
         <DialogContent className="w-[95vw] max-w-[1000px] border border-border/60 bg-card p-0 overflow-hidden">
           <DialogHeader className="px-5 py-4 border-b border-border/60">
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 pr-10">
               <Building2 className="w-5 h-5 text-blue-600" />
               Pagos — {String(resumenProveedorPagosSeleccionado?.proveedorNombre || "Proveedor")}
             </DialogTitle>
@@ -3737,7 +3930,26 @@ const GastosPage = () => {
 
           <div className="px-5 py-4 space-y-4">
             {resumenProveedorPagosSeleccionado ? (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-3">
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-emerald-700 border-emerald-500/20 hover:text-emerald-800 hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                    onClick={() =>
+                      abrirAgregarSaldoAFavor({
+                        proveedorId: resumenProveedorPagosSeleccionado.proveedorId,
+                        proveedorNombre: resumenProveedorPagosSeleccionado.proveedorNombre,
+                        saldoAFavor: resumenProveedorPagosSeleccionado.saldoAFavor,
+                      })
+                    }
+                    disabled={guardando}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Adelantar
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="bg-card p-3 rounded-md border border-border/60">
                   <div className="text-xs text-muted-foreground">Total proveedor (activo)</div>
                   <div className="text-lg font-bold text-blue-700">{formatMoneyARS(resumenProveedorPagosSeleccionado.totalActivo)}</div>
@@ -3769,6 +3981,7 @@ const GastosPage = () => {
                   <div className={cn("text-lg font-bold", resumenProveedorPagosSeleccionado.saldoAFavor > 0 ? "text-emerald-600" : "text-muted-foreground")}>
                     {formatMoneyARS(resumenProveedorPagosSeleccionado.saldoAFavor)}
                   </div>
+                </div>
                 </div>
               </div>
             ) : null}

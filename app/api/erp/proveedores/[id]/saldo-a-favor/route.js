@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 import { verifyFirebaseToken } from "@/lib/firebase-admin";
-import { quitarSaldoAFavorProveedorEngine } from "@/lib/erp/cuentas-pagar-engine";
+import { agregarSaldoAFavorProveedorEngine, quitarSaldoAFavorProveedorEngine } from "@/lib/erp/cuentas-pagar-engine";
 
 export async function POST(request, { params }) {
   try {
@@ -15,16 +15,30 @@ export async function POST(request, { params }) {
 
     const actor = { uid: String(decoded?.uid || ""), email: String(decoded?.email || "") };
     const origen = String(body?.origen || "ui_gastos").trim() || "ui_gastos";
+    const action = String(body?.action || body?.accion || body?.direccion || "").trim().toLowerCase();
 
-    const res = await quitarSaldoAFavorProveedorEngine({
-      actor,
-      proveedorId,
-      monto: body?.monto,
-      fecha: body?.fecha,
-      metodo: body?.metodo,
-      notas: body?.notas,
-      origen,
-    });
+    const isAgregar = action === "agregar" || action === "sumar" || action === "adelanto" || action === "pagar";
+    const res = isAgregar
+      ? await agregarSaldoAFavorProveedorEngine({
+          actor,
+          proveedorId,
+          monto: body?.monto,
+          fecha: body?.fecha,
+          metodo: body?.metodo,
+          notas: body?.notas,
+          comprobantes: body?.comprobantes,
+          origen,
+        })
+      : await quitarSaldoAFavorProveedorEngine({
+          actor,
+          proveedorId,
+          monto: body?.monto,
+          fecha: body?.fecha,
+          metodo: body?.metodo,
+          notas: body?.notas,
+          comprobantes: body?.comprobantes,
+          origen,
+        });
 
     return NextResponse.json(res, { status: 200 });
   } catch (err) {
@@ -32,4 +46,3 @@ export async function POST(request, { params }) {
     return NextResponse.json({ ok: false, error: err?.message || "internal_error" }, { status });
   }
 }
-
