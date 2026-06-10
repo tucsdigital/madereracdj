@@ -982,7 +982,7 @@ export function buildRemitoHtml(
         <div class="firma-col">Documento N°</div>
       </div>
       ` : ""}
-      ${(!esRetiroLocal || esEnvioDoc) ? `
+      ${(!esRetiroLocal || esEnvioDoc || paymentStatusHtml) ? `
       <div class="envio-info">
         <div class="envio-info-left">
           <div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoEnvio}</span></div>

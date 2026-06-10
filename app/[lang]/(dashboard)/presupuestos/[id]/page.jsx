@@ -4026,65 +4026,13 @@ const PresupuestoDetalle = () => {
                     fechaCreacion: new Date().toISOString(),
 
                     // Campos de pago
-                    formaPago: ventaCampos.formaPago,
-                    pagoParcial: ventaCampos.pagoParcial || false,
-                    pagoPendiente: ventaCampos.pagoPendiente || false,
                     pagoEnEfectivo: presupuesto.pagoEnEfectivo || false,
-                    montoAbonado: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { total } = computeTotals(items);
-                      const envio = ventaCampos.costoEnvio
-                        ? Number(ventaCampos.costoEnvio)
-                        : safeNumber(presupuesto.costoEnvio || 0);
-                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
-                        const { subtotal } = computeTotals(items);
-                        return subtotal * 0.1;
-                      })() : 0;
-                      const totalVenta = total + envio - descuentoEfectivo;
-                      const esPagoParcial = ventaCampos.pagoParcial || false;
-                      const esPagoPendiente = ventaCampos.pagoPendiente || false;
-
-                      if (esPagoPendiente) {
-                        // Forzar pendiente: no tomar montoAbonado y marcar 0
-                        return 0;
-                      } else if (!esPagoParcial) {
-                        // Si NO es pago parcial → montoAbonado = total
-                        return totalVenta;
-                      } else {
-                        // Si ES pago parcial → usar el valor del formulario
-                        return ventaCampos.montoAbonado || 0;
-                      }
-                    })(),
-
-                    // Determinar estado de pago
-                    estadoPago: (() => {
-                      const items = (presupuesto.productos && presupuesto.productos.length > 0) ? presupuesto.productos : (presupuesto.items || []);
-                      const { total } = computeTotals(items);
-                      const envio = ventaCampos.costoEnvio
-                        ? Number(ventaCampos.costoEnvio)
-                        : safeNumber(presupuesto.costoEnvio || 0);
-                      const descuentoEfectivo = presupuesto.pagoEnEfectivo ? (() => {
-                        const { subtotal } = computeTotals(items);
-                        return subtotal * 0.1;
-                      })() : 0;
-                      const totalVenta = total + envio - descuentoEfectivo;
-                      const esPagoParcial = ventaCampos.pagoParcial || false;
-                      const esPagoPendiente = ventaCampos.pagoPendiente || false;
-
-                      if (esPagoPendiente) {
-                        // Forzar pendiente: no tomar montoAbonado y marcar 0
-                        return "pendiente";
-                      } else if (!esPagoParcial) {
-                        // Si NO es pago parcial → estado = "pagado"
-                        return "pagado";
-                      } else {
-                        // Si ES pago parcial → calcular estado basado en el monto
-                        const montoAbonado = ventaCampos.montoAbonado || 0;
-                        if (montoAbonado >= totalVenta) return "pagado";
-                        else if (montoAbonado > 0) return "parcial";
-                        else return "pendiente";
-                      }
-                    })(),
+                    formaPago: presupuesto.pagoEnEfectivo ? "efectivo" : "",
+                    pagoPendiente: true,
+                    pagoParcial: false,
+                    montoAbonado: 0,
+                    pagos: [],
+                    estadoPago: "pendiente",
 
                     // Campos de envío
                     tipoEnvio: ventaCampos.tipoEnvio || presupuesto.tipoEnvio,
@@ -4185,56 +4133,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   }, []);
 
   const schema = yup.object().shape({
-    formaPago: yup.string().required("Selecciona la forma de pago"),
-    pagoParcial: yup.boolean(),
-    pagoPendiente: yup.boolean(),
-    montoAbonado: yup
-      .number()
-      .transform((value, originalValue) =>
-        originalValue === "" ? undefined : value
-      )
-      .when(["pagoParcial", "pagoPendiente"], {
-        is: (pagoParcial, pagoPendiente) => Boolean(pagoParcial) && !Boolean(pagoPendiente),
-        then: (s) =>
-          s
-            .typeError("Debe ingresar un monto")
-            .min(1, "Debe ingresar un monto")
-            .max(
-              (() => {
-                const subtotal = presupuesto.subtotal || 0;
-                const descuento = presupuesto.descuentoTotal || 0;
-                // Usar el costo de envío del formulario si existe, sino del presupuesto
-                const envio = watch("costoEnvio")
-                  ? Number(watch("costoEnvio"))
-                  : presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0
-                  ? Number(presupuesto.costoEnvio)
-                  : 0;
-                return subtotal - descuento + envio;
-              })(),
-              (value) => {
-                const subtotal = presupuesto.subtotal || 0;
-                const descuento = presupuesto.descuentoTotal || 0;
-                // Usar el costo de envío del formulario si existe, sino del presupuesto
-                const envio = watch("costoEnvio")
-                  ? Number(watch("costoEnvio"))
-                  : presupuesto.costoEnvio !== undefined &&
-                    presupuesto.costoEnvio !== "" &&
-                    !isNaN(Number(presupuesto.costoEnvio)) &&
-                    Number(presupuesto.costoEnvio) > 0
-                  ? Number(presupuesto.costoEnvio)
-                  : 0;
-                const total = subtotal - descuento + envio;
-                return `No puede exceder el total de $${formatearNumeroArgentino(
-                  total
-                )}`;
-              }
-            )
-            .required("Obligatorio"),
-        otherwise: (s) => s.notRequired().nullable(true),
-      }),
     tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
     costoEnvio: yup
       .number()
@@ -4269,10 +4167,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   // Determinar valores por defecto inteligentes
   const getDefaultValues = () => {
     const defaults = {
-      formaPago: "",
-      pagoParcial: false,
-      pagoPendiente: false,
-      montoAbonado: "",
       tipoEnvio: "",
       transportista: "",
       costoEnvio: "",
@@ -4282,11 +4176,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
       localidadEnvio: "",
       usarDireccionCliente: true,
     };
-
-    // Si el presupuesto tiene pago en efectivo, establecer automáticamente forma de pago en efectivo
-    if (presupuesto.pagoEnEfectivo) {
-      defaults.formaPago = "efectivo";
-    }
 
     // Si el presupuesto tiene costo de envío, establecer automáticamente como envío a domicilio
     if (presupuesto.costoEnvio && presupuesto.costoEnvio > 0) {
@@ -4311,13 +4200,6 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
   const vendedores = ["coco", "damian", "lauti", "jose"];
   const tipoEnvioSeleccionado = watch("tipoEnvio");
   const usarDireccionCliente = watch("usarDireccionCliente");
-
-  // Limpiar montoAbonado si se desmarca pagoParcial o se marca pagoPendiente
-  React.useEffect(() => {
-    if (!watch("pagoParcial") || watch("pagoPendiente")) {
-      setValue("montoAbonado", "");
-    }
-  }, [watch("pagoParcial"), watch("pagoPendiente"), setValue]);
 
   // Limpiar costoEnvio si tipoEnvio es 'retiro_local'
   React.useEffect(() => {
@@ -4482,115 +4364,13 @@ function FormularioConvertirVenta({ presupuesto, onCancel, onSubmit }) {
             )}
         </div>
 
-        {/* Condiciones de pago y entrega */}
-        <div className="space-y-4 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
+        <div className="space-y-2 bg-card rounded-lg p-4 border border-gray-200 shadow-sm">
           <div className="text-base font-semibold text-gray-800 pb-2 border-b">
-            Condiciones de pago y entrega
+            Pago
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Forma de pago *
-              {presupuesto.pagoEnEfectivo && (
-                <span className="ml-2 text-xs text-green-600 font-normal">
-                  (Presupuesto con descuento por pago en efectivo)
-                </span>
-              )}
-            </label>
-            <select
-              {...register("formaPago")}
-              disabled={presupuesto.pagoEnEfectivo}
-              className={`w-full border rounded-md px-3 py-2 ${
-                errors.formaPago ? "border-red-500" : "border-gray-300"
-              } ${presupuesto.pagoEnEfectivo ? "bg-gray-100 cursor-not-allowed" : ""}`}
-            >
-              <option value="">Seleccionar forma de pago...</option>
-              <option value="efectivo" selected={presupuesto.pagoEnEfectivo}>Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="cheque">Cheque</option>
-              <option value="otro">Otro</option>
-            </select>
-            {presupuesto.pagoEnEfectivo && (
-              <p className="text-xs text-green-600 mt-1">
-                ✓ Forma de pago establecida automáticamente en Efectivo debido al descuento aplicado en el presupuesto
-              </p>
-            )}
-            {errors.formaPago && (
-              <span className="text-red-500 text-xs">
-                {errors.formaPago.message}
-              </span>
-            )}
+          <div className="text-sm text-gray-700">
+            La venta se creará en estado <span className="font-semibold">pendiente</span>. El registro de pagos se realiza desde el detalle de la venta.
           </div>
-
-          <div className="flex items-center gap-4 mt-2">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" id="pagoPendiente" {...register("pagoPendiente")} />
-              <span className="text-sm">¿Pago pendiente?</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="pagoParcial"
-                {...register("pagoParcial")}
-                disabled={watch("pagoPendiente")}
-              />
-              <span className="text-sm">¿Pago parcial?</span>
-            </label>
-          </div>
-
-          {watch("pagoParcial") && !watch("pagoPendiente") && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Monto abonado *
-              </label>
-              <Input
-                type="number"
-                min={0}
-                max={(() => {
-                  const subtotal = presupuesto.subtotal || 0;
-                  const descuento = presupuesto.descuentoTotal || 0;
-                  // Usar el costo de envío del formulario si existe, sino del presupuesto
-                  const envio = watch("costoEnvio")
-                    ? Number(watch("costoEnvio"))
-                    : presupuesto.costoEnvio !== undefined &&
-                      presupuesto.costoEnvio !== "" &&
-                      !isNaN(Number(presupuesto.costoEnvio)) &&
-                      Number(presupuesto.costoEnvio) > 0
-                    ? Number(presupuesto.costoEnvio)
-                    : 0;
-                  return subtotal - descuento + envio;
-                })()}
-                placeholder={`Saldo pendiente: $${(() => {
-                  // Calcular el total completo incluyendo envío
-                  const subtotal = presupuesto.subtotal || 0;
-                  const descuento = presupuesto.descuentoTotal || 0;
-                  // Usar el costo de envío del formulario si existe, sino del presupuesto
-                  const envio = watch("costoEnvio")
-                    ? Number(watch("costoEnvio"))
-                    : presupuesto.costoEnvio !== undefined &&
-                      presupuesto.costoEnvio !== "" &&
-                      !isNaN(Number(presupuesto.costoEnvio)) &&
-                      Number(presupuesto.costoEnvio) > 0
-                    ? Number(presupuesto.costoEnvio)
-                    : 0;
-                  const total = subtotal - descuento + envio;
-                  const montoAbonado = watch("montoAbonado")
-                    ? Number(watch("montoAbonado"))
-                    : 0;
-                  return formatearNumeroArgentino(total - montoAbonado);
-                })()}`}
-                {...register("montoAbonado")}
-                className={`w-full ${
-                  errors.montoAbonado ? "border-red-500" : ""
-                }`}
-              />
-              {errors.montoAbonado && (
-                <span className="text-red-500 text-xs">
-                  {errors.montoAbonado.message}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
