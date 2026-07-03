@@ -1,0 +1,6620 @@
+"use client";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Boxes,
+  Plus,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Upload,
+  FileSpreadsheet,
+  Download,
+} from "lucide-react";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  updateDoc,
+  getDocs,
+  writeBatch,
+} from "firebase/firestore";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import DragDropImageModal from "@/components/productos/DragDropImageModal";
+import ToastNotification from "@/components/ui/toast-notification";
+import { useAuth } from "@/provider/auth.provider";
+import {
+  applyDerivedComboStock,
+  computeComboStock,
+  getComboComponentIds,
+  isComboProduct,
+  normalizeComboComponents,
+} from "@/lib/combos";
+
+const categorias = ["Maderas", "Ferretería", "Combos", "Obras"];
+
+// Función para formatear números en formato argentino
+const formatearNumeroArgentino = (numero) => {
+  if (numero === null || numero === undefined || isNaN(numero)) return "0";
+  return Number(numero).toLocaleString("es-AR");
+};
+
+// Función para calcular precio de corte de madera
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+// Función para calcular precio de machimbre/deck (unidad M2)
+function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
+  if (
+    [alto, largo, cantidad, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const metrosCuadrados = alto * largo;
+  const precio = metrosCuadrados * precioPorPie * cantidad;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+// Esquemas de validación por categoría
+const baseSchema = {
+  codigo: yup.string().required("El código es obligatorio"),
+  nombre: yup.string().required("El nombre es obligatorio"),
+  descripcion: yup.string().required("La descripción es obligatoria"),
+  categoria: yup.string().required("La categoría es obligatoria"),
+  subcategoria: yup.string().required("La subcategoría es obligatoria"),
+  estado: yup
+    .string()
+    .oneOf(["Activo", "Inactivo", "Descontinuado"])
+    .required(),
+  estadoTienda: yup
+    .string()
+    .oneOf(["Activo", "Inactivo"])
+    .required("El estado de tienda es obligatorio"),
+  costo: yup.number().positive().required("El costo es obligatorio"),
+};
+
+// Esquema para Maderas
+const maderasSchema = yup.object().shape({
+  ...baseSchema,
+  tipoMadera: yup.string().required("Tipo de madera obligatorio"),
+  largo: yup.number().positive().required("Largo obligatorio"),
+  ancho: yup.number().positive().required("Ancho obligatorio"),
+  alto: yup.number().positive().required("Alto obligatorio"),
+  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
+  precioPorPie: yup.number().positive().required("Valor del pie obligatorio"),
+  ubicacion: yup.string().required("Ubicación obligatoria"),
+});
+
+// Esquema para Ferretería
+const ferreteriaSchema = yup.object().shape({
+  ...baseSchema,
+  stockMinimo: yup.number().positive().required("Stock mínimo obligatorio"),
+  unidadMedida: yup.string().required("Unidad de medida obligatoria"),
+  valorCompra: yup.number().positive().required("Valor de compra obligatorio"),
+  valorVenta: yup.number().positive().required("Valor de venta obligatorio"),
+  proveedor: yup.string().required("Proveedor obligatorio"),
+});
+
+const combosSchema = yup.object().shape({
+  ...baseSchema,
+  valorVenta: yup.number().positive().required("El valor de venta es obligatorio"),
+  stockMinimo: yup.number().min(0).required("El stock mínimo es obligatorio"),
+  componentesCombo: yup
+    .array()
+    .of(
+      yup.object().shape({
+        productoId: yup.string().required(),
+        cantidad: yup.number().min(1).required(),
+      })
+    )
+    .min(1, "Debes agregar al menos un componente al combo"),
+});
+
+const esquemasPorCategoria = {
+  Maderas: maderasSchema,
+  Ferretería: ferreteriaSchema,
+  Combos: combosSchema,
+};
+
+// Componente FormularioProducto mejorado
+function FormularioProducto({ onClose, onSuccess }) {
+  const [categoria, setCategoria] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
+  const [submitMessage, setSubmitMessage] = useState("");
+  // Debug UI eliminado; se mantienen logs en consola
+  const UNIDADES_MADERAS = ["pie", "M2", "ML", "Unidad"];
+
+  // Normalizador robusto de números (acepta coma y punto)
+  const toNumber = (value) => {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === "number") return Number.isNaN(value) ? undefined : value;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const normalized = trimmed.replace(/,/g, ".");
+      const num = Number(normalized);
+      return Number.isNaN(num) ? undefined : num;
+    }
+    const num = Number(value);
+    return Number.isNaN(num) ? undefined : num;
+  };
+  
+  // Estados para agregar nuevos valores
+  const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
+  const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
+  const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
+  const [showAddProveedor, setShowAddProveedor] = useState(false);
+  const [newValue, setNewValue] = useState("");
+  
+  // Estados para valores precargados
+  const [tiposMaderaUnicos, setTiposMaderaUnicos] = useState([]);
+  const [subCategoriasUnicas, setSubCategoriasUnicas] = useState([]);
+  const [unidadesMedidaUnicas, setUnidadesMedidaUnicas] = useState([]);
+  const [proveedoresUnicos, setProveedoresUnicos] = useState([]);
+  const [catalogoProductos, setCatalogoProductos] = useState([]);
+  const [comboSearch, setComboSearch] = useState("");
+  const [comboItems, setComboItems] = useState([]);
+  
+  const schema = esquemasPorCategoria[categoria] || yup.object().shape(baseSchema);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: { estado: "Activo", estadoTienda: "Activo" },
+  });
+  const valorVentaCombo = watch("valorVenta");
+
+  useEffect(() => {
+    if (categoria) {
+      cargarDatosPrecargados();
+    }
+  }, [categoria]);
+
+  // Preseleccionar unidad de medida en Maderas
+  useEffect(() => {
+    if (categoria === "Maderas") {
+      setValue("unidadMedida", "pie");
+    } else if (categoria === "Combos") {
+      setValue("unidadMedida", "Unidad");
+      setValue("componentesCombo", comboItems);
+    } else {
+      setValue("unidadMedida", "");
+    }
+  }, [categoria, comboItems, setValue]);
+
+  const cargarDatosPrecargados = async () => {
+    try {
+      const productosSnap = await getDocs(collection(db, "productos"));
+      const productos = applyDerivedComboStock(
+        productosSnap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }))
+      );
+      setCatalogoProductos(productos);
+      
+      const productosCategoria = productos.filter(p => p.categoria === categoria);
+      
+      if (categoria === "Maderas") {
+        const tiposMadera = [...new Set(productosCategoria.map(p => p.tipoMadera).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subcategoria).filter(Boolean))];
+        setTiposMaderaUnicos(tiposMadera);
+        setSubCategoriasUnicas(subCategorias);
+        // Para Maderas, usar catálogo fijo de unidades
+        setUnidadesMedidaUnicas(UNIDADES_MADERAS);
+      } else if (categoria === "Ferretería") {
+        const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
+        const proveedores = [...new Set(productosCategoria.map(p => p.proveedor).filter(Boolean))];
+        setUnidadesMedidaUnicas(unidadesMedida);
+        setSubCategoriasUnicas(subCategorias);
+        setProveedoresUnicos(proveedores);
+      } else if (categoria === "Obras") {
+        const unidadesMedida = [...new Set(productosCategoria.map(p => p.unidadMedida).filter(Boolean))];
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subCategoria).filter(Boolean))];
+        setUnidadesMedidaUnicas(unidadesMedida);
+        setSubCategoriasUnicas(subCategorias);
+      } else if (categoria === "Combos") {
+        const subCategorias = [...new Set(productosCategoria.map(p => p.subcategoria).filter(Boolean))];
+        setSubCategoriasUnicas(subCategorias);
+        setUnidadesMedidaUnicas(["Unidad"]);
+      }
+    } catch (error) {
+      console.error("Error al cargar datos precargados:", error);
+    }
+  };
+
+  const comboCatalogo = useMemo(
+    () =>
+      (Array.isArray(catalogoProductos) ? catalogoProductos : [])
+        .filter((producto) => producto.categoria !== "Obras" && !isComboProduct(producto)),
+    [catalogoProductos]
+  );
+
+  const comboSuggestions = useMemo(() => {
+    const term = String(comboSearch || "").trim().toLowerCase();
+    const selectedIds = new Set(comboItems.map((item) => item.productoId));
+    return comboCatalogo
+      .filter((producto) => !selectedIds.has(String(producto.id)))
+      .filter((producto) => {
+        if (!term) return true;
+        return [producto.nombre, producto.codigo, producto.categoria]
+          .map((value) => String(value || "").toLowerCase())
+          .some((value) => value.includes(term));
+      })
+      .slice(0, 8);
+  }, [comboCatalogo, comboItems, comboSearch]);
+
+  const comboStockPreview = useMemo(() => {
+    const productoById = new Map(
+      comboCatalogo.map((producto) => [String(producto.id), producto])
+    );
+    return computeComboStock({ componentesCombo: comboItems }, productoById);
+  }, [comboCatalogo, comboItems]);
+
+  const addComboItem = (producto) => {
+    if (!producto?.id) return;
+    const nextItems = normalizeComboComponents([
+      ...comboItems,
+      {
+        productoId: producto.id,
+        nombre: producto.nombre || "",
+        codigo: producto.codigo || "",
+        cantidad: 1,
+      },
+    ]);
+    setComboItems(nextItems);
+    setValue("componentesCombo", nextItems);
+    setComboSearch("");
+  };
+
+  const updateComboItemQty = (productoId, cantidad) => {
+    const nextItems = normalizeComboComponents(
+      comboItems.map((item) =>
+        item.productoId === productoId ? { ...item, cantidad } : item
+      )
+    );
+    setComboItems(nextItems);
+    setValue("componentesCombo", nextItems);
+  };
+
+  const removeComboItem = (productoId) => {
+    const nextItems = comboItems.filter((item) => item.productoId !== productoId);
+    setComboItems(nextItems);
+    setValue("componentesCombo", nextItems);
+  };
+
+  const handleAddNewValue = async (tipo, valor) => {
+    if (!valor.trim()) return;
+    
+    try {
+      switch (tipo) {
+        case 'tipoMadera':
+          setTiposMaderaUnicos(prev => [...prev, valor.trim()]);
+          setValue('tipoMadera', valor.trim());
+          break;
+        case 'subcategoria':
+          setSubCategoriasUnicas(prev => [...prev, valor.trim()]);
+          setValue('subcategoria', valor.trim());
+          break;
+        case 'unidadMedida':
+          setUnidadesMedidaUnicas(prev => [...prev, valor.trim()]);
+          setValue('unidadMedida', valor.trim());
+          break;
+        case 'proveedor':
+          setProveedoresUnicos(prev => [...prev, valor.trim()]);
+          setValue('proveedor', valor.trim());
+          break;
+      }
+      
+      setShowAddTipoMadera(false);
+      setShowAddSubcategoria(false);
+      setShowAddUnidadMedida(false);
+      setShowAddProveedor(false);
+      setNewValue("");
+    } catch (error) {
+      console.error("Error al agregar nuevo valor:", error);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+    setSubmitMessage("");
+    try {
+      // Normalizar datos antes de guardar
+      const payload = { ...data };
+
+      // Mapear subcategoría según la categoría seleccionada
+      if (payload.categoria === "Ferretería") {
+        if (payload.subcategoria) {
+          payload.subCategoria = payload.subcategoria;
+          delete payload.subcategoria;
+        }
+      } else if (payload.categoria === "Maderas") {
+        // Asegurar que no quede subCategoria en maderas
+        if (payload.subCategoria) delete payload.subCategoria;
+      } else if (payload.categoria === "Obras") {
+        if (payload.subcategoria) {
+          payload.subCategoria = payload.subcategoria;
+          delete payload.subcategoria;
+        }
+      }
+
+      // Convertir tipos numéricos para consistencia en Firestore
+      if (payload.categoria === "Maderas") {
+        if (payload.costo !== undefined) payload.costo = toNumber(payload.costo);
+        if (payload.largo !== undefined) payload.largo = toNumber(payload.largo);
+        if (payload.ancho !== undefined) payload.ancho = toNumber(payload.ancho);
+        if (payload.alto !== undefined) payload.alto = toNumber(payload.alto);
+        if (payload.precioPorPie !== undefined) payload.precioPorPie = toNumber(payload.precioPorPie);
+        // Valor por defecto recomendado
+        if (!payload.unidadMedida) payload.unidadMedida = "pie";
+      } else if (payload.categoria === "Ferretería") {
+        if (payload.costo !== undefined) payload.costo = toNumber(payload.costo);
+        if (payload.stockMinimo !== undefined) payload.stockMinimo = toNumber(payload.stockMinimo);
+        if (payload.valorCompra !== undefined) payload.valorCompra = toNumber(payload.valorCompra);
+        if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
+      } else if (payload.categoria === "Obras") {
+        if (payload.stockMinimo !== undefined) payload.stockMinimo = toNumber(payload.stockMinimo);
+        if (payload.valorVenta !== undefined) payload.valorVenta = toNumber(payload.valorVenta);
+        if (payload.unidad !== undefined) payload.unidad = toNumber(payload.unidad);
+      } else if (payload.categoria === "Combos") {
+        const productoById = new Map(
+          comboCatalogo.map((producto) => [String(producto.id), producto])
+        );
+        const componentesCombo = normalizeComboComponents(comboItems);
+        payload.valorVenta = toNumber(payload.valorVenta);
+        payload.precioVenta = payload.valorVenta;
+        payload.stockMinimo = toNumber(payload.stockMinimo) ?? 0;
+        payload.unidadMedida = "Unidad";
+        payload.unidad = "Unidad";
+        payload.tipoProducto = "combo";
+        payload.esCombo = true;
+        payload.deposito = "deposito_1";
+        payload.componentesCombo = componentesCombo;
+        payload.comboComponentIds = getComboComponentIds({ componentesCombo });
+        payload.stock = computeComboStock({ componentesCombo }, productoById);
+      }
+
+      // Eliminar claves con undefined para evitar errores de Firestore
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === undefined) {
+          delete payload[k];
+        }
+      });
+
+      // Construir expectativas y posibles faltantes
+      const expectedFields = payload.categoria === "Maderas"
+        ? [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "categoria",
+            "subcategoria",
+            "estado",
+            "estadoTienda",
+            "costo",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "ubicacion",
+          ]
+        : payload.categoria === "Combos"
+          ? [
+              "codigo",
+              "nombre",
+              "descripcion",
+              "categoria",
+              "subcategoria",
+              "estado",
+              "estadoTienda",
+              "costo",
+              "valorVenta",
+              "componentesCombo",
+            ]
+        : [
+            "codigo",
+            "nombre",
+            "descripcion",
+            "categoria",
+            "subCategoria",
+            "estado",
+            "estadoTienda",
+            "costo",
+            "stockMinimo",
+            "unidadMedida",
+            "valorCompra",
+            "valorVenta",
+            "proveedor",
+          ];
+
+      const missing = expectedFields.filter((field) => {
+        const value = payload[field];
+        if (value === 0) return false;
+        return value === undefined || value === null || value === "" || Number.isNaN(value);
+      });
+
+      const typeMap = Object.fromEntries(
+        Object.entries(payload).map(([k, v]) => [k, Array.isArray(v) ? "array" : typeof v])
+      );
+
+      // Log profesional agrupado en consola
+      // Útil para inspección en devtools
+      try {
+        // eslint-disable-next-line no-console
+        console.groupCollapsed("FormularioProducto › onSubmit");
+        // eslint-disable-next-line no-console
+        console.info("Raw data (RHF):", data);
+        // eslint-disable-next-line no-console
+        console.info("Payload normalizado:", payload);
+        // eslint-disable-next-line no-console
+        console.info("Campos esperados:", expectedFields);
+        // eslint-disable-next-line no-console
+        console.warn("Faltantes:", missing);
+        // eslint-disable-next-line no-console
+        console.info("Tipos:", typeMap);
+      } finally {
+        // eslint-disable-next-line no-console
+        console.groupEnd();
+      }
+
+      await addDoc(collection(db, payload.categoria === "Obras" ? "productos_obras" : "productos"), {
+        ...payload,
+        fechaCreacion: new Date().toISOString(),
+        fechaActualizacion: new Date().toISOString(),
+      });
+      setSubmitStatus("success");
+      setSubmitMessage("Producto guardado exitosamente");
+      reset();
+      setCategoria("");
+      setComboItems([]);
+      setComboSearch("");
+      setTimeout(() => {
+        onSuccess && onSuccess();
+        onClose();
+      }, 1200);
+    } catch (e) {
+      setSubmitStatus("error");
+      setSubmitMessage("Error al guardar: " + e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onSubmitError = (errors) => {
+    const fieldNames = Object.keys(errors || {});
+    const messages = fieldNames.map((k) => errors[k]?.message || k);
+    // Solo logs en consola, sin UI
+    setSubmitStatus("error");
+    setSubmitMessage(
+      messages.length
+        ? `Validación fallida: ${messages.join("; ")}`
+        : "Validación fallida. Revisa los campos obligatorios."
+    );
+    try {
+      // eslint-disable-next-line no-console
+      console.groupCollapsed("FormularioProducto › validation errors");
+      // eslint-disable-next-line no-console
+      console.warn("Campos con error:", fieldNames);
+      // eslint-disable-next-line no-console
+      console.warn("Detalle de errores:", errors);
+    } finally {
+      // eslint-disable-next-line no-console
+      console.groupEnd();
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit, onSubmitError)} className="space-y-6">
+      {/* Feedback de guardado con animación */}
+      {submitStatus && (
+        <div
+          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm shadow-lg transform transition-all duration-300 ${
+            submitStatus === "success"
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+              : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+          }`}
+        >
+          <div className={`p-2 rounded-full ${submitStatus === "success" ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+            {submitStatus === "success" ? (
+              <CheckCircle className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-700 dark:text-red-300" />
+            )}
+          </div>
+          <div>
+            <div className="font-semibold">
+              {submitStatus === "success" ? "¡Éxito!" : "Error"}
+            </div>
+            <div className="text-sm opacity-90">{submitMessage}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug UI removido: usar consola para inspección */}
+
+      {/* Selector de categoría con diseño moderno */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <label className="text-lg font-semibold text-foreground">Categoría del Producto</label>
+        </div>
+        <div className="relative">
+          <select
+            {...register("categoria")}
+            value={categoria}
+            onChange={(e) => {
+              setCategoria(e.target.value);
+              setValue("categoria", e.target.value);
+            }}
+            className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 disabled:cursor-not-allowed"
+            disabled={isSubmitting}
+          >
+            <option value="">Selecciona una categoría</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        {errors.categoria && (
+          <div className="flex items-center gap-2 text-red-600 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            {errors.categoria.message}
+          </div>
+        )}
+      </div>
+
+      {/* Solo mostrar el resto del formulario si hay categoría seleccionada */}
+      {categoria && (
+        <div className="space-y-8">
+          {/* Sección: Datos generales */}
+          <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-2xl p-6 border border-blue-500/20">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Datos Generales</h3>
+                <p className="text-sm text-muted-foreground">Información básica del producto</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Código del Producto
+                </label>
+                <Input
+                  {...register("codigo")}
+                  placeholder="Ej: MAD-001"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                />
+                {errors.codigo && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.codigo.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Nombre del Producto
+                </label>
+                <Input
+                  {...register("nombre")}
+                  placeholder="Ej: Tabla de Pino"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                />
+                {errors.nombre && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.nombre.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Descripción
+                </label>
+                <textarea
+                  {...register("descripcion")}
+                  placeholder="Describe las características del producto..."
+                  disabled={isSubmitting}
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50 resize-none"
+                />
+                {errors.descripcion && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.descripcion.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Subcategoría
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    {...register("subcategoria")}
+                    className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Seleccionar subcategoría</option>
+                    {subCategoriasUnicas.map((subCategoria) => (
+                      <option key={subCategoria} value={subCategoria}>
+                        {subCategoria}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddSubcategoria(true)}
+                    className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200"
+                    disabled={isSubmitting}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {showAddSubcategoria && (
+                  <div className="flex gap-2 mt-3 p-3 bg-muted/50 rounded-xl border border-border/60">
+                    <Input
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      placeholder="Nueva subcategoría"
+                      className="flex-1 px-3 py-2 border border-border/60 rounded-lg bg-background text-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddNewValue('subcategoria', newValue)}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Agregar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddSubcategoria(false);
+                        setNewValue("");
+                      }}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 border border-border/60 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                {errors.subcategoria && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.subcategoria.message}
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Estado
+                </label>
+                <select
+                  {...register("estado")}
+                  className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  disabled={isSubmitting}
+                >
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+                {errors.estado && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.estado.message}
+                  </div>
+                )}
+              </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <span className="text-red-500">*</span>
+                Tienda
+              </label>
+              <select
+                {...register("estadoTienda")}
+                className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                disabled={isSubmitting}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
+              {errors.estadoTienda && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.estadoTienda.message}
+                </div>
+              )}
+            </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <span className="text-red-500">*</span>
+                  Costo Unitario
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input
+                    {...register("costo")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                </div>
+                {errors.costo && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.costo.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Sección específica por categoría */}
+          {categoria === "Maderas" && (
+            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 rounded-2xl p-6 border border-amber-500/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Madera</h3>
+                  <p className="text-sm text-muted-foreground">Dimensiones y características específicas</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Tipo de Madera
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("tipoMadera")}
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar tipo de madera</option>
+                      {tiposMaderaUnicos.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {tipo}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddTipoMadera(true)}
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-amber-500 hover:bg-amber-500/10 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddTipoMadera && (
+                    <div className="flex gap-2 mt-3 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nuevo tipo de madera"
+                        className="flex-1 px-3 py-2 border border-amber-500/30 rounded-lg bg-background text-foreground focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('tipoMadera', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddTipoMadera(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-amber-500/30 rounded-lg hover:bg-amber-500/10 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.tipoMadera && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.tipoMadera.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Largo (metros)
+                  </label>
+                  <Input
+                    {...register("largo")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.largo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.largo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Ancho (cm)
+                  </label>
+                  <Input
+                    {...register("ancho")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.ancho && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ancho.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Alto (cm)
+                  </label>
+                  <Input
+                    {...register("alto")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.alto && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.alto.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Precio por Pie
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      {...register("precioPorPie")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    />
+                  </div>
+                  {errors.precioPorPie && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.precioPorPie.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Ubicación en Depósito
+                  </label>
+                  <Input
+                    {...register("ubicacion")}
+                    placeholder="Ej: Estante A, Nivel 2"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.ubicacion && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ubicacion.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {categoria === "Ferretería" && (
+            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 rounded-2xl p-6 border border-green-500/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Ferretería</h3>
+                  <p className="text-sm text-muted-foreground">Información de stock y proveedores</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Stock Mínimo
+                  </label>
+                  <Input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.stockMinimo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.stockMinimo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Compra
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      {...register("valorCompra")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    />
+                  </div>
+                  {errors.valorCompra && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorCompra.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Venta
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      {...register("valorVenta")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    />
+                  </div>
+                  {errors.valorVenta && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorVenta.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Proveedor
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("proveedor")}
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar proveedor</option>
+                      {proveedoresUnicos.map((proveedor) => (
+                        <option key={proveedor} value={proveedor}>
+                          {proveedor}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddProveedor(true)}
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-green-500 hover:bg-green-500/10 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddProveedor && (
+                    <div className="flex gap-2 mt-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nuevo proveedor"
+                        className="flex-1 px-3 py-2 border border-green-500/30 rounded-lg bg-background text-foreground focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('proveedor', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddProveedor(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-green-500/30 rounded-lg hover:bg-green-500/10 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.proveedor && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.proveedor.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {categoria === "Combos" && (
+            <div className="bg-gradient-to-br from-fuchsia-500/10 to-pink-500/5 rounded-2xl p-6 border border-fuchsia-500/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-fuchsia-500 rounded-lg">
+                  <Boxes className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Armado del Combo</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Elegi los productos del combo y definí cuántas unidades lleva de cada uno.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Venta
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
+                    <Input
+                      {...register("valorVenta")}
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      disabled={isSubmitting}
+                      className="w-full pl-8 pr-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    />
+                  </div>
+                  {errors.valorVenta && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorVenta.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Stock Mínimo
+                  </label>
+                  <Input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.stockMinimo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.stockMinimo.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-fuchsia-500/20 bg-background/70 p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">Componentes del combo</div>
+                      <div className="text-xs text-muted-foreground">
+                        El stock se calcula automaticamente segun los componentes disponibles.
+                      </div>
+                    </div>
+                    <div className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-sm font-semibold text-fuchsia-700">
+                      Stock disponible: {comboStockPreview}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Input
+                      value={comboSearch}
+                      onChange={(e) => setComboSearch(e.target.value)}
+                      placeholder="Buscar por nombre o codigo para agregar al combo"
+                      disabled={isSubmitting}
+                      className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                    />
+
+                    {comboSuggestions.length > 0 && (
+                      <div className="grid gap-2 rounded-xl border border-border/60 bg-background p-3">
+                        {comboSuggestions.map((producto) => (
+                          <button
+                            key={producto.id}
+                            type="button"
+                            onClick={() => addComboItem(producto)}
+                            className="flex items-center justify-between rounded-lg border border-transparent px-3 py-2 text-left transition hover:border-fuchsia-500/30 hover:bg-fuchsia-500/5"
+                          >
+                            <div>
+                              <div className="font-medium text-foreground">{producto.nombre}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {producto.codigo || "Sin codigo"} · Stock {producto.stock ?? 0}
+                              </div>
+                            </div>
+                            <Plus className="w-4 h-4 text-fuchsia-600" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {comboItems.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-fuchsia-500/30 px-4 py-6 text-sm text-muted-foreground">
+                        Todavia no agregaste productos al combo.
+                      </div>
+                    )}
+
+                    {comboItems.map((item) => (
+                      <div
+                        key={item.productoId}
+                        className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <div className="font-medium text-foreground">{item.nombre || item.productoId}</div>
+                          <div className="text-xs text-muted-foreground">{item.codigo || "Sin codigo"}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={item.cantidad}
+                            onChange={(e) => updateComboItemQty(item.productoId, e.target.value)}
+                            className="w-24 px-3 py-2 border-2 border-border/60 rounded-xl focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/20"
+                            disabled={isSubmitting}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => removeComboItem(item.productoId)}
+                            disabled={isSubmitting}
+                            className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {errors.componentesCombo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.componentesCombo.message}
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-4 py-3 text-sm text-fuchsia-900">
+                    Precio de venta configurado: ${Number(valorVentaCombo || 0).toLocaleString("es-AR")}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {categoria === "Obras" && (
+            <div className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 rounded-2xl p-6 border border-purple-500/20">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Especificaciones de Obras</h3>
+                  <p className="text-sm text-muted-foreground">Información específica para productos de obras</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Stock Mínimo
+                  </label>
+                  <input
+                    {...register("stockMinimo")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.stockMinimo && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.stockMinimo.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Valor de Venta
+                  </label>
+                  <input
+                    {...register("valorVenta")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.valorVenta && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.valorVenta.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad
+                  </label>
+                  <input
+                    {...register("unidad")}
+                    type="number"
+                    step="0.01"
+                    placeholder="0"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                  />
+                  {errors.unidad && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidad.message}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    Unidad de Medida
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      {...register("unidadMedida")}
+                      className="flex-1 px-4 py-3 border-2 border-border/60 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 transition-all duration-200 bg-background text-foreground shadow-sm hover:border-border disabled:bg-muted/50"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      {unidadesMedidaUnicas.map((unidad) => (
+                        <option key={unidad} value={unidad}>
+                          {unidad}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddUnidadMedida(true)}
+                      className="px-4 py-3 border-2 border-border/60 rounded-xl hover:border-purple-500 hover:bg-purple-500/10 transition-all duration-200"
+                      disabled={isSubmitting}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {showAddUnidadMedida && (
+                    <div className="flex gap-2 mt-3 p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                      <Input
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                        placeholder="Nueva unidad de medida"
+                        className="flex-1 px-3 py-2 border border-purple-500/30 rounded-lg bg-background text-foreground focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddUnidadMedida(false);
+                          setNewValue("");
+                        }}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 border border-purple-500/30 rounded-lg hover:bg-purple-500/10 transition-colors"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                  {errors.unidadMedida && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.unidadMedida.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer con botones modernos */}
+          <div className="flex justify-end gap-4 pt-6 border-t border-border/60">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-6 py-3 border-2 border-border/60 rounded-xl hover:bg-muted transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="default" 
+              type="submit" 
+              disabled={isSubmitting}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar Producto"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+}
+
+const ProductosPage = () => {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [openBulk, setOpenBulk] = useState(false);
+  const [openBulkFerreteria, setOpenBulkFerreteria] = useState(false);
+  const [openBulkObras, setOpenBulkObras] = useState(false);
+  const [filtro, setFiltro] = useState("");
+  const [cat, setCat] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+  const [filtroTienda, setFiltroTienda] = useState("");
+  const [filtroStock, setFiltroStock] = useState(""); // "" = todos, "conStock" = con stock, "sinStock" = sin stock
+  const [filtroImagenes, setFiltroImagenes] = useState(""); // "" = todos, "conImagenes" = con imágenes, "sinImagenes" = sin imágenes
+
+  const [reload, setReload] = useState(false);
+  const [productos, setProductos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Estados para datos precargados de Firebase
+  const [proveedores, setProveedores] = useState([]);
+  const [subcategorias, setSubcategorias] = useState([]);
+  const [tiposMadera, setTiposMadera] = useState([]);
+  const [unidadesMedida, setUnidadesMedida] = useState([]);
+
+  // Estados para agregar nuevos valores
+  const [showAddProveedor, setShowAddProveedor] = useState(false);
+  const [showAddSubcategoria, setShowAddSubcategoria] = useState(false);
+  const [showAddTipoMadera, setShowAddTipoMadera] = useState(false);
+  const [showAddUnidadMedida, setShowAddUnidadMedida] = useState(false);
+  const [newValue, setNewValue] = useState("");
+
+  // Estados para carga masiva
+  const [bulkStatus, setBulkStatus] = useState(null);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkPreview, setBulkPreview] = useState(null);
+  const [bulkOnlyChanges, setBulkOnlyChanges] = useState(true);
+  const [bulkPreviewLoading, setBulkPreviewLoading] = useState(false);
+  const [bulkPreviewError, setBulkPreviewError] = useState("");
+
+  // Estados para carga masiva Ferretería
+  const [bulkStatusFerreteria, setBulkStatusFerreteria] = useState(null);
+  const [bulkMessageFerreteria, setBulkMessageFerreteria] = useState("");
+  const [bulkLoadingFerreteria, setBulkLoadingFerreteria] = useState(false);
+  const [bulkProgressFerreteria, setBulkProgressFerreteria] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [bulkFileFerreteria, setBulkFileFerreteria] = useState(null);
+  const [bulkPreviewFerreteria, setBulkPreviewFerreteria] = useState(null);
+  const [bulkOnlyChangesFerreteria, setBulkOnlyChangesFerreteria] = useState(true);
+  const [bulkPreviewLoadingFerreteria, setBulkPreviewLoadingFerreteria] = useState(false);
+  const [bulkPreviewErrorFerreteria, setBulkPreviewErrorFerreteria] = useState("");
+
+  // Estados para carga masiva Obras
+  const [bulkStatusObras, setBulkStatusObras] = useState(null);
+  const [bulkMessageObras, setBulkMessageObras] = useState("");
+  const [bulkLoadingObras, setBulkLoadingObras] = useState(false);
+  const [bulkProgressObras, setBulkProgressObras] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [bulkFileObras, setBulkFileObras] = useState(null);
+
+  // Estados para selección múltiple
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+
+  // Estados para dropdowns
+  const [importDropdownOpen, setImportDropdownOpen] = useState(false);
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+
+  // Estados para edición masiva
+  const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
+  const [bulkEditForm, setBulkEditForm] = useState({
+    estado: "",
+    estadoTienda: "",
+    unidadMedida: "",
+    stockOperation: "",
+    stockValue: "",
+  });
+  const [bulkEditLoading, setBulkEditLoading] = useState(false);
+  const [bulkEditMessage, setBulkEditMessage] = useState("");
+
+  // Estados para paginación optimizada
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina, setProductosPorPagina] = useState(20);
+  const [isLoadingPagination, setIsLoadingPagination] = useState(false);
+
+  // Estados para Drag & Drop de imágenes
+  const [dragOverProductId, setDragOverProductId] = useState(null);
+  const [dragDropModalOpen, setDragDropModalOpen] = useState(false);
+  const [draggedImage, setDraggedImage] = useState(null);
+  const [targetProduct, setTargetProduct] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("info");
+  const [showDragDropBanner, setShowDragDropBanner] = useState(true);
+  const selectAllCheckboxRef = useRef(null);
+
+  // Función para cargar datos precargados de Firebase
+  const cargarDatosPrecargados = () => {
+    // Extraer proveedores únicos
+    const proveedoresUnicos = [...new Set(
+      productos
+        .filter(p => p.proveedor)
+        .map(p => p.proveedor)
+    )].sort();
+    setProveedores(proveedoresUnicos);
+
+    // Extraer subcategorías únicas
+    const subcategoriasUnicas = [...new Set(
+      productos
+        .filter(p => p.subcategoria)
+        .map(p => p.subcategoria)
+    )].sort();
+    setSubcategorias(subcategoriasUnicas);
+
+    // Extraer tipos de madera únicos
+    const tiposMaderaUnicos = [...new Set(
+      productos
+        .filter(p => p.tipoMadera)
+        .map(p => p.tipoMadera)
+    )].sort();
+    setTiposMadera(tiposMaderaUnicos);
+
+    // Extraer unidades de medida únicas
+    const unidadesMedidaUnicas = [...new Set(
+      productos
+        .filter(p => p.unidadMedida)
+        .map(p => p.unidadMedida)
+    )].sort();
+    setUnidadesMedida(unidadesMedidaUnicas);
+  };
+
+  const computeBulkPreviewMaderas = async (file) => {
+    setBulkPreview(null);
+    setBulkPreviewError("");
+    if (!file) return;
+    setBulkPreviewLoading(true);
+    try {
+      const productosData = await processExcelFile(file);
+      const validos = [];
+      let invalidos = 0;
+      for (let i = 0; i < productosData.length; i++) {
+        const p = productosData[i];
+        if (!p.codigo || !p.nombre || !p.categoria) {
+          invalidos++;
+          continue;
+        }
+        if (p.categoria !== "Maderas") {
+          invalidos++;
+          continue;
+        }
+        if (!p.tipoMadera || !p.largo || !p.ancho || !p.alto) {
+          invalidos++;
+          continue;
+        }
+        if (p.precioPorPie === null || p.precioPorPie === undefined || p.precioPorPie === 0) {
+          invalidos++;
+          continue;
+        }
+        const valoresNumericos = ["largo", "ancho", "alto", "costo", "precioPorPie"];
+        let okNum = true;
+        for (const k of valoresNumericos) {
+          if (p[k] === null || p[k] === undefined || isNaN(p[k]) || p[k] <= 0) {
+            okNum = false;
+            break;
+          }
+        }
+        if (!okNum) {
+          invalidos++;
+          continue;
+        }
+        validos.push(p);
+      }
+      const mapExist = new Map();
+      const mapExistById = new Map();
+      productos.forEach((x) => {
+        if (x.id) {
+          mapExistById.set(String(x.id).trim(), x);
+        }
+        if ((x.categoria || "") === "Maderas" && x.codigo) {
+          const key = String(x.codigo).trim().toLowerCase();
+          if (!mapExist.has(key)) mapExist.set(key, x);
+        }
+      });
+      const nuevos = [];
+      const updates = [];
+      const sinCambios = [];
+      const muestrasNuevos = [];
+      const muestrasUpdates = [];
+      validos.forEach((p) => {
+        let ex = null;
+        if (p.id) {
+          ex = mapExistById.get(String(p.id).trim());
+        }
+        if (!ex) {
+          const key = String(p.codigo).trim().toLowerCase();
+          ex = mapExist.get(key);
+        }
+        if (!ex) {
+          nuevos.push(p);
+          if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
+        } else {
+          const fields = new Set(p.__presentFields || []);
+          const comparar = [
+            "nombre",
+            "descripcion",
+            "subcategoria",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "costo",
+            "ubicacion",
+            "estado",
+            "estadoTienda",
+            "stock",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating"
+          ];
+          const cambiados = [];
+          comparar.forEach((k) => {
+            if (fields.has(k) && p[k] !== undefined) {
+              const a = p[k];
+              const b = ex[k];
+              if (String(a) !== String(b)) cambiados.push(k);
+            }
+          });
+          if (fields.has("subCategoria") && p.subCategoria && String(p.subCategoria) !== String(ex.subcategoria || "")) {
+            cambiados.push("subcategoria");
+          }
+          if (fields.has("descuentoMonto") && String(p.descuentoMonto) !== String(ex.discount?.amount || "")) {
+            cambiados.push("descuentoMonto");
+          }
+          if (fields.has("descuentoPorcentaje") && String(p.descuentoPorcentaje) !== String(ex.discount?.percentage || "")) {
+            cambiados.push("descuentoPorcentaje");
+          }
+          if (cambiados.length > 0) {
+            updates.push({ p, cambiados });
+            if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          } else {
+            sinCambios.push({ p });
+          }
+        }
+      });
+      setBulkPreview({
+        total: validos.length,
+        invalidos,
+        nuevos: nuevos.length,
+        actualizaciones: updates.length,
+        ignorados: Math.max(0, validos.length - nuevos.length - updates.length),
+        muestrasNuevos,
+        muestrasUpdates,
+        detalles: {
+          nuevos: nuevos.map(x => ({ id: x.id || "", codigo: x.codigo || "", nombre: x.nombre || "" })),
+          actualizaciones: updates.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "", cambios: x.cambiados || x.cambios || [] })),
+          ignorados: sinCambios.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "" })),
+        }
+      });
+    } catch (e) {
+      setBulkPreviewError(e.message || "Error al previsualizar");
+    } finally {
+      setBulkPreviewLoading(false);
+    }
+  };
+
+  const computeBulkPreviewFerreteria = async (file) => {
+    setBulkPreviewFerreteria(null);
+    setBulkPreviewErrorFerreteria("");
+    if (!file) return;
+    setBulkPreviewLoadingFerreteria(true);
+    try {
+      const productosData = await processExcelFileFerreteria(file);
+      const validos = [];
+      let invalidos = 0;
+      for (let i = 0; i < productosData.length; i++) {
+        const p = productosData[i];
+        if (!p.codigo || !p.nombre || !p.categoria) {
+          invalidos++;
+          continue;
+        }
+        if (p.categoria !== "Ferretería") {
+          invalidos++;
+          continue;
+        }
+        if (!p.stockMinimo || !p.unidadMedida || !p.valorCompra || !p.valorVenta || !p.proveedor) {
+          invalidos++;
+          continue;
+        }
+        const valoresNumericos = ["costo", "stockMinimo", "valorCompra", "valorVenta"];
+        let okNum = true;
+        for (const k of valoresNumericos) {
+          if (p[k] === null || p[k] === undefined || isNaN(p[k]) || p[k] < 0) {
+            okNum = false;
+            break;
+          }
+        }
+        if (!okNum) {
+          invalidos++;
+          continue;
+        }
+        validos.push(p);
+      }
+      const mapExist = new Map();
+      const mapExistById = new Map();
+      productos.forEach((x) => {
+        if (x.id) {
+          mapExistById.set(String(x.id).trim(), x);
+        }
+        if ((x.categoria || "") === "Ferretería" && x.codigo) {
+          const key = String(x.codigo).trim().toLowerCase();
+          if (!mapExist.has(key)) mapExist.set(key, x);
+        }
+      });
+      const nuevos = [];
+      const updates = [];
+      const sinCambios = [];
+      const muestrasNuevos = [];
+      const muestrasUpdates = [];
+      validos.forEach((p) => {
+        let ex = null;
+        if (p.id) {
+          ex = mapExistById.get(String(p.id).trim());
+        }
+        if (!ex) {
+          const key = String(p.codigo).trim().toLowerCase();
+          ex = mapExist.get(key);
+        }
+        if (!ex) {
+          nuevos.push(p);
+          if (muestrasNuevos.length < 5) muestrasNuevos.push({ codigo: p.codigo, nombre: p.nombre });
+        } else {
+          const fields = new Set(p.__presentFields || []);
+          const comparar = [
+            "nombre",
+            "descripcion",
+            "subCategoria",
+            "unidadMedida",
+            "proveedor",
+            "stockMinimo",
+            "valorCompra",
+            "valorVenta",
+            "stock",
+            "estado",
+            "estadoTienda",
+            "costo",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating"
+          ];
+          const cambiados = [];
+          comparar.forEach((k) => {
+            if (fields.has(k) && p[k] !== undefined) {
+              const a = p[k];
+              const b = ex[k];
+              if (String(a) !== String(b)) cambiados.push(k);
+            }
+          });
+          if (fields.has("descuentoMonto") && String(p.descuentoMonto) !== String(ex.discount?.amount || "")) {
+            cambiados.push("descuentoMonto");
+          }
+          if (fields.has("descuentoPorcentaje") && String(p.descuentoPorcentaje) !== String(ex.discount?.percentage || "")) {
+            cambiados.push("descuentoPorcentaje");
+          }
+          if (cambiados.length > 0) {
+            updates.push({ p, cambiados });
+            if (muestrasUpdates.length < 5) muestrasUpdates.push({ codigo: p.codigo, cambios: cambiados.slice(0, 4) });
+          } else {
+            sinCambios.push({ p });
+          }
+        }
+      });
+      setBulkPreviewFerreteria({
+        total: validos.length,
+        invalidos,
+        nuevos: nuevos.length,
+        actualizaciones: updates.length,
+        ignorados: Math.max(0, validos.length - nuevos.length - updates.length),
+        muestrasNuevos,
+        muestrasUpdates,
+        detalles: {
+          nuevos: nuevos.map(x => ({ id: x.id || "", codigo: x.codigo || "", nombre: x.nombre || "" })),
+          actualizaciones: updates.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "", cambios: x.cambiados || x.cambios || [] })),
+          ignorados: sinCambios.map(x => ({ id: x.p.id || "", codigo: x.p.codigo || "", nombre: x.p.nombre || "" })),
+        }
+      });
+    } catch (e) {
+      setBulkPreviewErrorFerreteria(e.message || "Error al previsualizar");
+    } finally {
+      setBulkPreviewLoadingFerreteria(false);
+    }
+  };
+
+  // Función para cargar subcategorías específicas por categoría
+  const cargarSubcategoriasPorCategoria = (categoria) => {
+    if (categoria === "Ferretería") {
+      // Para ferretería, usar subCategoria (con C mayúscula)
+      const subcategoriasFerreteria = [...new Set(
+        productos
+          .filter(p => p.categoria === "Ferretería" && p.subCategoria)
+          .map(p => p.subCategoria)
+      )].sort();
+      setSubcategorias(subcategoriasFerreteria);
+    } else if (categoria === "Maderas") {
+      // Para maderas, usar subcategoria (con c minúscula)
+      const subcategoriasMaderas = [...new Set(
+        productos
+          .filter(p => p.categoria === "Maderas" && p.subcategoria)
+          .map(p => p.subcategoria)
+      )].sort();
+      setSubcategorias(subcategoriasMaderas);
+    } else if (categoria === "Obras") {
+      // Para obras, usar subCategoria (con C mayúscula)
+      const subcategoriasObras = [...new Set(
+        productos
+          .filter(p => p.categoria === "Obras" && p.subCategoria)
+          .map(p => p.subCategoria)
+      )].sort();
+      setSubcategorias(subcategoriasObras);
+    }
+  };
+
+  // Funciones para agregar nuevos valores
+  const handleAddNewValue = (tipo, valor) => {
+    if (!valor.trim()) return;
+    
+    switch (tipo) {
+      case 'proveedor':
+        if (!proveedores.includes(valor)) {
+          setProveedores(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, proveedor: valor }));
+        setShowAddProveedor(false);
+        break;
+      case 'subcategoria':
+        if (!subcategorias.includes(valor)) {
+          setSubcategorias(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, subcategoria: valor }));
+        setShowAddSubcategoria(false);
+        break;
+      case 'tipoMadera':
+        if (!tiposMadera.includes(valor)) {
+          setTiposMadera(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, tipoMadera: valor }));
+        setShowAddTipoMadera(false);
+        break;
+      case 'unidadMedida':
+        if (!unidadesMedida.includes(valor)) {
+          setUnidadesMedida(prev => [...prev, valor].sort());
+        }
+        setEditForm(prev => ({ ...prev, unidadMedida: valor }));
+        setShowAddUnidadMedida(false);
+        break;
+    }
+    setNewValue("");
+  };
+
+
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    
+    // Cargar productos de ambas colecciones
+    const productosQuery = query(collection(db, "productos"), orderBy("nombre"));
+    const productosObrasQuery = query(collection(db, "productos_obras"), orderBy("nombre"));
+    
+    const unsubProductos = onSnapshot(
+      productosQuery,
+      (snapshot) => {
+        const productosNormales = snapshot.docs.map((doc) => ({
+          __collection: "productos",
+          ...(doc.data() || {}),
+          id: doc.id,
+        }));
+        
+        // Cargar productos de obras
+        const unsubObras = onSnapshot(
+          productosObrasQuery,
+          (obrasSnapshot) => {
+            const productosObras = obrasSnapshot.docs.map((doc) => ({ 
+              __collection: "productos_obras",
+              ...(doc.data() || {}),
+              id: doc.id, 
+              categoria: "Obras" // Asegurar que tengan la categoría correcta
+            }));
+            
+            // Combinar ambos arrays y recalcular stock visible para combos
+            setProductos(applyDerivedComboStock([...productosNormales, ...productosObras]));
+            setLoading(false);
+            // Cargar datos precargados después de obtener los productos
+            cargarDatosPrecargados();
+          },
+          (err) => {
+            setError("Error al cargar productos de obras: " + err.message);
+            setLoading(false);
+          }
+        );
+        
+        return () => unsubObras();
+      },
+      (err) => {
+        setError("Error al cargar productos: " + err.message);
+        setLoading(false);
+      }
+    );
+    
+    return () => unsubProductos();
+  }, [reload]);
+
+  const parseNumberInput = (value) => {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === "number") return Number.isNaN(value) ? NaN : value;
+    const normalized = String(value).trim().replace(/,/g, ".");
+    if (!normalized) return NaN;
+    const num = Number(normalized);
+    return Number.isNaN(num) ? NaN : num;
+  };
+
+  const getProductDocRef = (productId) => {
+    const product = productos.find((p) => p.id === productId);
+    const collectionName = product?.__collection
+      ? product.__collection
+      : product?.categoria === "Obras"
+        ? "productos_obras"
+        : "productos";
+    return doc(db, collectionName, productId);
+  };
+
+
+  // Productos filtrados optimizados con useMemo
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
+      const normalizarTexto = (texto) => {
+        if (!texto) return "";
+        return texto.toLowerCase().replace(/\s+/g, "");
+      };
+
+      const filtroNormalizado = normalizarTexto(filtro || "");
+      const nombreNormalizado = normalizarTexto(p.nombre || "");
+      const codigoNormalizado = normalizarTexto(p.codigo || "");
+
+      const cumpleCategoria = cat ? p.categoria === cat : true;
+      let cumpleFiltro = !filtro;
+
+      if (filtro) {
+        if (filtroNormalizado.endsWith(".")) {
+          const busquedaSinPunto = filtroNormalizado.slice(0, -1);
+          cumpleFiltro =
+            nombreNormalizado.startsWith(busquedaSinPunto) ||
+            codigoNormalizado.startsWith(busquedaSinPunto);
+        } else {
+          cumpleFiltro =
+            nombreNormalizado.includes(filtroNormalizado) ||
+            codigoNormalizado.includes(filtroNormalizado);
+        }
+      }
+
+      const cumpleTipoMadera =
+        cat !== "Maderas" ||
+        filtroTipoMadera === "" ||
+        p.tipoMadera === filtroTipoMadera;
+
+      const cumpleSubCategoria =
+        cat !== "Ferretería" ||
+        filtroSubCategoria === "" ||
+        p.subCategoria === filtroSubCategoria;
+
+      const cumpleSubCategoriaObras =
+        cat !== "Obras" ||
+        filtroSubCategoria === "" ||
+        p.subCategoria === filtroSubCategoria;
+
+      const estadoTiendaProducto = p.estadoTienda || "Inactivo";
+      const cumpleTienda = filtroTienda === "" || estadoTiendaProducto === filtroTienda;
+
+      const stockProducto = Number(p.stock) || 0;
+      const cumpleStock =
+        filtroStock === "" ||
+        (filtroStock === "conStock" && stockProducto > 0) ||
+        (filtroStock === "sinStock" && stockProducto <= 0);
+
+      const tieneImagenes = p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0;
+      const cumpleImagenes =
+        filtroImagenes === "" ||
+        (filtroImagenes === "conImagenes" && tieneImagenes) ||
+        (filtroImagenes === "sinImagenes" && !tieneImagenes);
+
+      return (
+        cumpleCategoria &&
+        cumpleFiltro &&
+        cumpleTipoMadera &&
+        cumpleSubCategoria &&
+        cumpleSubCategoriaObras &&
+        cumpleTienda &&
+        cumpleStock &&
+        cumpleImagenes
+      );
+    }).sort((a, b) => {
+      // Ordenar por stock: primero los que tienen stock, luego los que no
+      const stockA = Number(a.stock) || 0;
+      const stockB = Number(b.stock) || 0;
+      
+      if (stockA > 0 && stockB === 0) return -1; // a tiene stock, b no
+      if (stockA === 0 && stockB > 0) return 1;  // b tiene stock, a no
+      
+      // Si ambos tienen stock o ambos no tienen stock, mantener orden original
+      return 0;
+    });
+  }, [productos, cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
+
+  // Productos paginados optimizados
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Cálculo de totales optimizados
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Función para cambiar página con feedback visual
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    if (nuevaPagina < 1 || nuevaPagina > totalPaginas) return;
+    
+    setIsLoadingPagination(true);
+    setPaginaActual(nuevaPagina);
+    
+    // Simular un pequeño delay para mostrar el feedback visual
+    setTimeout(() => {
+      setIsLoadingPagination(false);
+    }, 300);
+  }, [totalPaginas]);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [cat, filtro, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
+
+  // Obtener tipos de madera únicos
+  const tiposMaderaUnicos = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de obras únicas
+  const subCategoriasObras = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Obras" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+
+  // Función para procesar archivo Excel/CSV
+  const processExcelFile = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log("Archivo leído:", file.name, "Tamaño:", file.size);
+
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            const detectarDelimitador = (line) => {
+              let commas = 0;
+              let semis = 0;
+              let inQuotes = false;
+              for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                  const next = line[i + 1];
+                  if (inQuotes && next === '"') {
+                    i++;
+                    continue;
+                  }
+                  inQuotes = !inQuotes;
+                  continue;
+                }
+                if (!inQuotes) {
+                  if (ch === ",") commas++;
+                  if (ch === ";") semis++;
+                }
+              }
+              return semis > commas ? ";" : ",";
+            };
+
+            const parseCSVLine = (line, delimiter) => {
+              const result = [];
+              let current = "";
+              let inQuotes = false;
+              for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                const nextChar = line[j + 1];
+                if (char === '"' && inQuotes && nextChar === '"') {
+                  current += '"';
+                  j++;
+                } else if (char === '"') {
+                  inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                  result.push(current.trim());
+                  current = "";
+                } else {
+                  current += char;
+                }
+              }
+              result.push(current.trim());
+              return result;
+            };
+
+            const lines = content.split("\n");
+            console.log("Líneas CSV encontradas:", lines.length);
+
+            if (lines.length < 2) {
+              reject(
+                new Error(
+                  "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
+                )
+              );
+              return;
+            }
+
+            const headerLineRaw = lines.find((l) => l && l.trim() !== "") || "";
+            const delimiter = detectarDelimitador(headerLineRaw);
+            const headers = parseCSVLine(headerLineRaw, delimiter)
+              .map((h) => h.trim().replace(/^"|"$/g, "").replace(/^\uFEFF/, ""));
+            console.log("Encabezados detectados:", headers);
+
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                const values = parseCSVLine(lines[i], delimiter);
+                const producto = {};
+                const presentFields = new Set();
+
+                headers.forEach((header, index) => {
+                  let value = values[index] || "";
+
+                  // Limpiar comillas
+                  value = value.replace(/^"|"$/g, "").replace(/""/g, '"');
+
+                  // Convertir valores numéricos
+                  if (
+                    [
+                      "costo",
+                      "largo",
+                      "ancho",
+                      "alto",
+                      "precioPorPie",
+                      "rating",
+                      "descuentoMonto",
+                      "descuentoPorcentaje",
+                    ].includes(header)
+                  ) {
+                    // Manejar comas en números (formato argentino)
+                    const normalized = value.replace(",", ".");
+                    const parsed = parseFloat(normalized);
+                    value = isNaN(parsed) ? "" : parsed;
+                  } else if (["freeShipping", "featuredBrand", "newArrival", "specialOffer"].includes(header)) {
+                    const v = value.toString().toLowerCase();
+                    value = v === "si" || v === "sí" || v === "true" || v === "1" ? true : v === "no" || v === "false" || v === "0" ? false : "";
+                  } else if (header === "imagenes") {
+                    const raw = value;
+                    value = raw ? raw.split("|").map((s) => s.trim()).filter(Boolean) : [];
+                  }
+
+                  producto[header] = value;
+                  if (values[index] !== undefined && String(values[index]).trim() !== "") {
+                    presentFields.add(header);
+                  }
+                });
+
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  producto.__presentFields = Array.from(presentFields);
+                  productos.push(producto);
+                  console.log("Producto válido agregado:", producto.codigo);
+                } else {
+                  console.log("Producto inválido ignorado:", producto);
+                }
+              }
+            }
+
+            console.log("Total de productos válidos:", productos.length);
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(
+              new Error(
+                "Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente."
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error procesando archivo:", error);
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("Error al leer el archivo");
+        reject(new Error("Error al leer el archivo"));
+      };
+
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
+  // Función para procesar archivo Excel/CSV específico para Ferretería
+  const processExcelFileFerreteria = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log(
+            "Archivo Ferretería leído:",
+            file.name,
+            "Tamaño:",
+            file.size
+          );
+
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            // Parser CSV mejorado que maneja descripciones multilínea
+            const parseCSV = (text) => {
+              const detectarDelimitador = (line) => {
+                let commas = 0;
+                let semis = 0;
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                  const ch = line[i];
+                  if (ch === '"') {
+                    const next = line[i + 1];
+                    if (inQuotes && next === '"') {
+                      i++;
+                      continue;
+                    }
+                    inQuotes = !inQuotes;
+                    continue;
+                  }
+                  if (!inQuotes) {
+                    if (ch === ",") commas++;
+                    if (ch === ";") semis++;
+                  }
+                }
+                return semis > commas ? ";" : ",";
+              };
+
+              const tomarPrimeraLinea = (raw) => {
+                let line = "";
+                let inQuotes = false;
+                for (let i = 0; i < raw.length; i++) {
+                  const ch = raw[i];
+                  const next = raw[i + 1];
+                  if (ch === '"' && inQuotes && next === '"') {
+                    line += '"';
+                    i++;
+                    continue;
+                  }
+                  if (ch === '"') {
+                    inQuotes = !inQuotes;
+                    line += ch;
+                    continue;
+                  }
+                  if ((ch === "\n" || ch === "\r") && !inQuotes) {
+                    break;
+                  }
+                  line += ch;
+                }
+                return line;
+              };
+
+              const delimiter = detectarDelimitador(tomarPrimeraLinea(text));
+              const rows = [];
+              let currentRow = [];
+              let currentField = "";
+              let inQuotes = false;
+              
+              for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+                
+                if (char === '"' && nextChar === '"' && inQuotes) {
+                  // Comillas dobles dentro de un campo entrecomillado
+                  currentField += '"';
+                  i++; // Saltar la siguiente comilla
+                } else if (char === '"') {
+                  // Toggle estado de comillas
+                  inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                  // Separador de campo fuera de comillas
+                  currentRow.push(currentField.trim());
+                  currentField = "";
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                  // Fin de línea fuera de comillas
+                  if (char === '\r' && nextChar === '\n') {
+                    i++; // Saltar el \n en \r\n
+                  }
+                  if (currentField.trim() || currentRow.length > 0) {
+                    currentRow.push(currentField.trim());
+                    if (currentRow.some(field => field.length > 0)) {
+                      rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = "";
+                  }
+                } else {
+                  // Agregar carácter al campo actual
+                  currentField += char;
+                }
+              }
+              
+              // Agregar última fila si existe
+              if (currentField.trim() || currentRow.length > 0) {
+                currentRow.push(currentField.trim());
+                if (currentRow.some(field => field.length > 0)) {
+                  rows.push(currentRow);
+                }
+              }
+              
+              return rows;
+            };
+
+            const rows = parseCSV(content);
+            console.log("Filas CSV Ferretería encontradas:", rows.length);
+
+            if (rows.length < 2) {
+              reject(
+                new Error(
+                  "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
+                )
+              );
+              return;
+            }
+
+            const headers = rows[0].map(h => h.replace(/^"|"$/g, "").replace(/""/g, '"').trim().replace(/^\uFEFF/, ""));
+            console.log("Encabezados Ferretería detectados:", headers);
+
+            const productos = [];
+            for (let i = 1; i < rows.length; i++) {
+              const values = rows[i];
+              if (values.length === 0 || values.every(v => !v)) continue;
+              
+              const producto = {};
+              const presentFields = new Set();
+
+              headers.forEach((header, index) => {
+                let value = values[index] || "";
+
+                // Limpiar comillas
+                  value = value.replace(/^"|"$/g, "").replace(/""/g, '"').trim();
+
+                // Convertir valores numéricos
+                if (
+                  [
+                    "costo",
+                    "stockMinimo",
+                    "valorCompra",
+                    "valorVenta",
+                    "stock",
+                    "rating",
+                    "descuentoMonto",
+                    "descuentoPorcentaje",
+                  ].includes(header)
+                ) {
+                  // Manejar comas en números (formato argentino)
+                  const normalized = value.replace(",", ".");
+                  const parsed = parseFloat(normalized);
+                  value = isNaN(parsed) ? "" : parsed;
+                } else if (["freeShipping", "featuredBrand", "newArrival", "specialOffer"].includes(header)) {
+                  const v = value.toString().toLowerCase();
+                  value = v === "si" || v === "sí" || v === "true" || v === "1" ? true : v === "no" || v === "false" || v === "0" ? false : "";
+                } else if (header === "imagenes") {
+                  const raw = value;
+                  value = raw ? raw.split("|").map((s) => s.trim()).filter(Boolean) : [];
+                }
+
+                producto[header] = value;
+                if (values[index] !== undefined && String(values[index]).trim() !== "") {
+                  presentFields.add(header);
+                }
+              });
+
+              // Validar que tenga los campos mínimos
+              if (producto.codigo && producto.nombre && producto.categoria) {
+                producto.__presentFields = Array.from(presentFields);
+                productos.push(producto);
+                console.log(
+                  "Producto Ferretería válido agregado:",
+                  producto.codigo
+                );
+              } else {
+                console.log(
+                  "Producto Ferretería inválido ignorado en fila",
+                  i + 1,
+                  ":",
+                  producto
+                );
+              }
+            }
+
+            console.log(
+              "Total de productos Ferretería válidos:",
+              productos.length
+            );
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(
+              new Error(
+                "Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente."
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error procesando archivo Ferretería:", error);
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("Error al leer el archivo Ferretería");
+        reject(new Error("Error al leer el archivo"));
+      };
+
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
+  // Función para procesar archivo Excel/CSV específico para Obras
+  const processExcelFileObras = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          console.log(
+            "Archivo Obras leído:",
+            file.name,
+            "Tamaño:",
+            file.size
+          );
+
+          // Si es un archivo CSV, procesar directamente
+          if (file.name.toLowerCase().endsWith(".csv")) {
+            const detectarDelimitador = (line) => {
+              let commas = 0;
+              let semis = 0;
+              let inQuotes = false;
+              for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                  const next = line[i + 1];
+                  if (inQuotes && next === '"') {
+                    i++;
+                    continue;
+                  }
+                  inQuotes = !inQuotes;
+                  continue;
+                }
+                if (!inQuotes) {
+                  if (ch === ",") commas++;
+                  if (ch === ";") semis++;
+                }
+              }
+              return semis > commas ? ";" : ",";
+            };
+
+            const parseCSVLine = (line, delimiter) => {
+              const result = [];
+              let current = "";
+              let inQuotes = false;
+              for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                const nextChar = line[j + 1];
+                if (char === '"' && inQuotes && nextChar === '"') {
+                  current += '"';
+                  j++;
+                } else if (char === '"') {
+                  inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                  result.push(current.trim());
+                  current = "";
+                } else {
+                  current += char;
+                }
+              }
+              result.push(current.trim());
+              return result;
+            };
+
+            const lines = content.split("\n");
+            console.log("Líneas CSV Obras encontradas:", lines.length);
+
+            if (lines.length < 2) {
+              reject(
+                new Error(
+                  "El archivo CSV debe tener al menos una fila de encabezados y una fila de datos"
+                )
+              );
+              return;
+            }
+
+            const headerLineRaw = lines.find((l) => l && l.trim() !== "") || "";
+            const delimiter = detectarDelimitador(headerLineRaw);
+            const headers = parseCSVLine(headerLineRaw, delimiter)
+              .map((h) => h.trim().replace(/^"|"$/g, "").replace(/^\uFEFF/, ""));
+            console.log("Encabezados Obras detectados:", headers);
+
+            const productos = [];
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim()) {
+                const values = parseCSVLine(lines[i], delimiter);
+                const producto = {};
+
+                headers.forEach((header, index) => {
+                  let value = values[index] || "";
+
+                  // Limpiar comillas
+                  value = value.replace(/"/g, "");
+
+                  // Convertir valores numéricos
+                  if (
+                    [
+                      "unidad",
+                      "stockMinimo",
+                      "valorVenta",
+                      "costo"
+                    ].includes(header)
+                  ) {
+                    // Manejar comas en números (formato argentino)
+                    value = value.replace(",", ".");
+                    value = parseFloat(value) || 0;
+                  }
+
+                  producto[header] = value;
+                });
+
+                // Validar que tenga los campos mínimos
+                if (producto.codigo && producto.nombre && producto.categoria) {
+                  productos.push(producto);
+                  console.log(
+                    "Producto Obras válido agregado:",
+                    producto.codigo
+                  );
+                } else {
+                  console.log(
+                    "Producto Obras inválido ignorado:",
+                    producto
+                  );
+                }
+              }
+            }
+
+            console.log(
+              "Total de productos Obras válidos:",
+              productos.length
+            );
+            resolve(productos);
+          } else {
+            // Para archivos Excel (.xlsx, .xls), mostrar error por ahora
+            reject(
+              new Error(
+                "Los archivos Excel (.xlsx, .xls) no están soportados aún. Por favor, guarda tu archivo como CSV y súbelo nuevamente."
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error procesando archivo Obras:", error);
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("Error al leer el archivo Obras");
+        reject(new Error("Error al leer el archivo"));
+      };
+
+      // Leer como texto para CSV
+      reader.readAsText(file);
+    });
+  };
+
+  // Función para procesar carga masiva
+  const handleBulkUpload = async () => {
+    setBulkStatus(null);
+    setBulkMessage("");
+    setBulkLoading(true);
+    setBulkProgress({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFile) {
+        setBulkStatus("error");
+        setBulkMessage("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoading(false);
+        return;
+      }
+
+      try {
+        productosData = await processExcelFile(bulkFile);
+      } catch (e) {
+        setBulkStatus("error");
+        setBulkMessage("Error al procesar el archivo: " + e.message);
+        setBulkLoading(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)",
+          });
+          continue;
+        }
+
+        // Validar que sea de categoría Maderas
+        if (producto.categoria !== "Maderas") {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Solo se permiten productos de categoría 'Maderas'",
+          });
+          continue;
+        }
+
+        // Validar campos específicos de maderas
+        if (
+          !producto.tipoMadera ||
+          !producto.largo ||
+          !producto.ancho ||
+          !producto.alto
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos de maderas. tipoMadera: ${producto.tipoMadera}, largo: ${producto.largo}, ancho: ${producto.ancho}, alto: ${producto.alto}`,
+          });
+          continue;
+        }
+
+        // Validar que precioPorPie no sea null o 0
+        if (
+          producto.precioPorPie === null ||
+          producto.precioPorPie === undefined ||
+          producto.precioPorPie === 0
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `precioPorPie no puede ser null o 0. Valor actual: ${producto.precioPorPie}`,
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = [
+          "largo",
+          "ancho",
+          "alto",
+          "costo",
+          "precioPorPie",
+        ];
+        for (const campo of valoresNumericos) {
+          if (
+            producto[campo] === null ||
+            producto[campo] === undefined ||
+            isNaN(producto[campo]) ||
+            producto[campo] <= 0
+          ) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor a 0. Valor actual: ${producto[campo]}`,
+            });
+            continue;
+          }
+        }
+
+        // Respetar unidadMedida del CSV; normalizar y usar "pie" solo por defecto para maderas
+        const rawUnidad = (producto.unidadMedida ?? producto.unidad ?? "").toString().trim();
+        const unidadNormalizada =
+          rawUnidad.toLowerCase() === "m2"
+            ? "M2"
+            : rawUnidad.toLowerCase() === "pie"
+            ? "pie"
+            : rawUnidad.toLowerCase() === "unidad"
+            ? "Unidad"
+            : rawUnidad
+            ? rawUnidad
+            : "pie";
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+          unidadMedida: unidadNormalizada,
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatus("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessage(
+          `Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`
+        );
+        setBulkLoading(false);
+        return;
+      }
+
+      // Usar estado local 'productos' para evitar lecturas extra
+      const mapExistentesCodigo = new Map();
+      const mapExistentesId = new Map();
+      productos.forEach((p) => {
+        if (!p || (p.categoria || "") !== "Maderas") return;
+        if (p.id) mapExistentesId.set(String(p.id).trim(), { id: p.id, data: p });
+        if (p.codigo) {
+          const key = String(p.codigo).trim().toLowerCase();
+          if (!mapExistentesCodigo.has(key)) {
+            mapExistentesCodigo.set(key, { id: p.id, data: p });
+          }
+        }
+      });
+
+      let creados = 0;
+      let actualizados = 0;
+      setBulkProgress({ current: 0, total: productosValidos.length });
+
+      // Preparar operaciones y aplicar en lotes para acelerar
+      const toUpdate = [];
+      const toCreate = [];
+      for (const producto of productosValidos) {
+        const key = String(producto.codigo).trim().toLowerCase();
+        let existente = null;
+        if (producto.id) {
+          const byId = mapExistentesId.get(String(producto.id).trim());
+          if (byId && (byId.data.categoria || "") === "Maderas") {
+            existente = byId;
+          }
+        }
+        if (!existente) {
+          existente = mapExistentesCodigo.get(key);
+        }
+        if (existente) {
+          const fields = new Set(producto.__presentFields || []);
+          const updates = {};
+          const copiar = [
+            "nombre",
+            "descripcion",
+            "subcategoria",
+            "tipoMadera",
+            "largo",
+            "ancho",
+            "alto",
+            "unidadMedida",
+            "precioPorPie",
+            "costo",
+            "ubicacion",
+            "estado",
+            "estadoTienda",
+            "stock",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating",
+            "imagenes",
+          ];
+          if (fields.has("subCategoria") && producto.subCategoria) {
+            updates.subcategoria = producto.subCategoria;
+          }
+          copiar.forEach((k) => {
+            if (fields.has(k)) {
+              updates[k] = producto[k];
+            }
+          });
+          if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+            updates.discount = {
+              amount: fields.has("descuentoMonto")
+                ? producto.descuentoMonto
+                : existente.data?.discount?.amount || 0,
+              percentage: fields.has("descuentoPorcentaje")
+                ? producto.descuentoPorcentaje
+                : existente.data?.discount?.percentage || 0,
+            };
+          }
+          if (!String(existente.data?.id || "").trim()) {
+            updates.id = existente.id;
+          }
+          if (Object.keys(updates).length > 0 || !bulkOnlyChanges) {
+            updates.fechaActualizacion = new Date().toISOString();
+            toUpdate.push({ id: existente.id, updates });
+          }
+        } else {
+          const {
+            __presentFields, // eliminar meta interna
+            ...dataCrear
+          } = producto;
+          dataCrear.fechaCreacion = new Date().toISOString();
+          dataCrear.fechaActualizacion = new Date().toISOString();
+          toCreate.push(dataCrear);
+        }
+      }
+
+      // Aplicar en writeBatch de hasta 450 operaciones
+      let processed = 0;
+      const totalOps = toUpdate.length + toCreate.length;
+      const chunkSize = 450;
+      let indexU = 0;
+      let indexC = 0;
+      while (indexU < toUpdate.length || indexC < toCreate.length) {
+        const batch = writeBatch(db);
+        let ops = 0;
+        for (; indexU < toUpdate.length && ops < chunkSize; indexU++, ops++) {
+          const { id, updates } = toUpdate[indexU];
+          const ref = doc(db, "productos", id);
+          batch.update(ref, updates);
+        }
+        for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
+          const data = toCreate[indexC];
+          const ref = doc(collection(db, "productos"));
+          batch.set(ref, { ...data, id: ref.id });
+        }
+        if (ops > 0) {
+          await batch.commit();
+          processed += ops;
+          setBulkProgress({ current: processed, total: totalOps });
+          if (processed % 500 === 0) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+      }
+      actualizados = toUpdate.length;
+      creados = toCreate.length;
+
+      setBulkStatus("success");
+      setBulkMessage(`Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`);
+
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulk(false);
+        setBulkFile(null);
+        setBulkStatus(null);
+        setBulkMessage("");
+        setBulkLoading(false);
+        setBulkProgress({ current: 0, total: 0 });
+        setReload((r) => !r);
+      }, 2000);
+    } catch (e) {
+      setBulkStatus("error");
+      setBulkMessage("Error inesperado: " + e.message);
+      setBulkLoading(false);
+    }
+  };
+
+  // Función para procesar carga masiva de Ferretería
+  const handleBulkUploadFerreteria = async () => {
+    setBulkStatusFerreteria(null);
+    setBulkMessageFerreteria("");
+    setBulkLoadingFerreteria(true);
+    setBulkProgressFerreteria({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFileFerreteria) {
+        setBulkStatusFerreteria("error");
+        setBulkMessageFerreteria("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+
+      try {
+        productosData = await processExcelFileFerreteria(bulkFileFerreteria);
+      } catch (e) {
+        setBulkStatusFerreteria("error");
+        setBulkMessageFerreteria("Error al procesar el archivo: " + e.message);
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)",
+          });
+          continue;
+        }
+
+        // Validar que sea de categoría Ferretería
+        if (producto.categoria !== "Ferretería") {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Solo se permiten productos de categoría 'Ferretería'",
+          });
+          continue;
+        }
+
+        // Validar campos específicos de ferretería
+        if (
+          !producto.stockMinimo ||
+          !producto.unidadMedida ||
+          !producto.valorCompra ||
+          !producto.valorVenta ||
+          !producto.proveedor
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos de ferretería. stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorCompra: ${producto.valorCompra}, valorVenta: ${producto.valorVenta}, proveedor: ${producto.proveedor}`,
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = [
+          "costo",
+          "stockMinimo",
+          "valorCompra",
+          "valorVenta",
+        ];
+        for (const campo of valoresNumericos) {
+          if (
+            producto[campo] === null ||
+            producto[campo] === undefined ||
+            isNaN(producto[campo]) ||
+            producto[campo] < 0
+          ) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor o igual a 0. Valor actual: ${producto[campo]}`,
+            });
+            continue;
+          }
+        }
+
+        // Validar stock (opcional, si se proporciona debe ser válido)
+        // PERMITIR stocks negativos (útil para inventario con deuda/faltante)
+        if (producto.stock !== undefined && producto.stock !== null && producto.stock !== "") {
+          if (isNaN(producto.stock)) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo stock debe ser un número válido. Valor actual: ${producto.stock}`,
+            });
+            continue;
+          }
+          // Convertir a número (acepta negativos)
+          producto.stock = Number(producto.stock);
+        } else {
+          // Si no se proporciona stock, establecer en 0
+          producto.stock = 0;
+        }
+
+        // Validar que valorVenta sea mayor que valorCompra
+        if (producto.valorVenta <= producto.valorCompra) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `El valor de venta debe ser mayor al valor de compra. valorVenta: ${producto.valorVenta}, valorCompra: ${producto.valorCompra}`,
+          });
+          continue;
+        }
+
+        // Validar estadoTienda si está presente
+        if (producto.estadoTienda !== undefined && producto.estadoTienda !== null && producto.estadoTienda !== "") {
+          const estadoTiendaNormalizado = String(producto.estadoTienda).trim();
+          if (estadoTiendaNormalizado !== "Activo" && estadoTiendaNormalizado !== "Inactivo") {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `El campo estadoTienda debe ser "Activo" o "Inactivo". Valor actual: ${producto.estadoTienda}`,
+            });
+            continue;
+          }
+          // Normalizar el valor
+          producto.estadoTienda = estadoTiendaNormalizado;
+        } else {
+          // Si no se proporciona estadoTienda, establecer por defecto "Inactivo"
+          producto.estadoTienda = "Inactivo";
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatusFerreteria("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageFerreteria(
+          `Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`
+        );
+        setBulkLoadingFerreteria(false);
+        return;
+      }
+
+      // Usar estado local 'productos' para evitar lecturas extra
+      const mapExistentesCodigo = new Map();
+      const mapExistentesId = new Map();
+      productos.forEach((p) => {
+        if (!p || (p.categoria || "") !== "Ferretería") return;
+        if (p.id) mapExistentesId.set(String(p.id).trim(), { id: p.id, data: p });
+        if (p.codigo) {
+          const key = String(p.codigo).trim().toLowerCase();
+          if (!mapExistentesCodigo.has(key)) {
+            mapExistentesCodigo.set(key, { id: p.id, data: p });
+          }
+        }
+      });
+
+      let creados = 0;
+      let actualizados = 0;
+      setBulkProgressFerreteria({ current: 0, total: productosValidos.length });
+
+      // Preparar operaciones y aplicar en lotes para acelerar
+      const toUpdate = [];
+      const toCreate = [];
+      for (const producto of productosValidos) {
+        const key = String(producto.codigo).trim().toLowerCase();
+        let existente = null;
+        if (producto.id) {
+          const byId = mapExistentesId.get(String(producto.id).trim());
+          if (byId && (byId.data.categoria || "") === "Ferretería") {
+            existente = byId;
+          }
+        }
+        if (!existente) {
+          existente = mapExistentesCodigo.get(key);
+        }
+        if (existente) {
+          const fields = new Set(producto.__presentFields || []);
+          const updates = {};
+          const copiar = [
+            "nombre",
+            "descripcion",
+            "subCategoria",
+            "unidadMedida",
+            "proveedor",
+            "stockMinimo",
+            "valorCompra",
+            "valorVenta",
+            "stock",
+            "estado",
+            "estadoTienda",
+            "costo",
+            "freeShipping",
+            "featuredBrand",
+            "newArrival",
+            "specialOffer",
+            "rating",
+            "imagenes",
+          ];
+          copiar.forEach((k) => {
+            if (fields.has(k)) {
+              updates[k] = producto[k];
+            }
+          });
+          if (fields.has("descuentoMonto") || fields.has("descuentoPorcentaje")) {
+            updates.discount = {
+              amount: fields.has("descuentoMonto")
+                ? producto.descuentoMonto
+                : existente.data?.discount?.amount || 0,
+              percentage: fields.has("descuentoPorcentaje")
+                ? producto.descuentoPorcentaje
+                : existente.data?.discount?.percentage || 0,
+            };
+          }
+          if (!String(existente.data?.id || "").trim()) {
+            updates.id = existente.id;
+          }
+          if (Object.keys(updates).length > 0 || !bulkOnlyChangesFerreteria) {
+            updates.fechaActualizacion = new Date().toISOString();
+            toUpdate.push({ id: existente.id, updates });
+          }
+        } else {
+          const { __presentFields, ...dataCrear } = producto;
+          dataCrear.fechaCreacion = new Date().toISOString();
+          dataCrear.fechaActualizacion = new Date().toISOString();
+          toCreate.push(dataCrear);
+        }
+      }
+
+
+      // Aplicar en writeBatch de hasta 450 operaciones
+      let processed = 0;
+      const totalOps = toUpdate.length + toCreate.length;
+      const chunkSize = 450;
+      let indexU = 0;
+      let indexC = 0;
+      while (indexU < toUpdate.length || indexC < toCreate.length) {
+        const batch = writeBatch(db);
+        let ops = 0;
+        for (; indexU < toUpdate.length && ops < chunkSize; indexU++, ops++) {
+          const { id, updates } = toUpdate[indexU];
+          const ref = doc(db, "productos", id);
+          batch.update(ref, updates);
+        }
+        for (; indexC < toCreate.length && ops < chunkSize; indexC++, ops++) {
+          const data = toCreate[indexC];
+          const ref = doc(collection(db, "productos"));
+          batch.set(ref, { ...data, id: ref.id });
+        }
+        if (ops > 0) {
+          await batch.commit();
+          processed += ops;
+          setBulkProgressFerreteria({ current: processed, total: totalOps });
+          if (processed % 500 === 0) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        }
+      }
+      actualizados = toUpdate.length;
+      creados = toCreate.length;
+
+      setBulkStatusFerreteria("success");
+      setBulkMessageFerreteria(`Importación completada. Actualizados: ${actualizados}. Creados: ${creados}.`);
+
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulkFerreteria(false);
+        setBulkFileFerreteria(null);
+        setBulkStatusFerreteria(null);
+        setBulkMessageFerreteria("");
+        setBulkLoadingFerreteria(false);
+        setBulkProgressFerreteria({ current: 0, total: 0 });
+        setReload((r) => !r);
+      }, 2000);
+    } catch (e) {
+      setBulkStatusFerreteria("error");
+      setBulkMessageFerreteria("Error inesperado: " + e.message);
+      setBulkLoadingFerreteria(false);
+    }
+  };
+
+  // Función para procesar carga masiva de Obras
+  const handleBulkUploadObras = async () => {
+    setBulkStatusObras(null);
+    setBulkMessageObras("");
+    setBulkLoadingObras(true);
+    setBulkProgressObras({ current: 0, total: 0 });
+
+    try {
+      let productosData;
+
+      if (!bulkFileObras) {
+        setBulkStatusObras("error");
+        setBulkMessageObras("Debes seleccionar un archivo Excel/CSV.");
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      try {
+        productosData = await processExcelFileObras(bulkFileObras);
+      } catch (e) {
+        setBulkStatusObras("error");
+        setBulkMessageObras("Error al procesar el archivo: " + e.message);
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      // Validar productos
+      const productosValidos = [];
+      const productosInvalidos = [];
+
+      for (let i = 0; i < productosData.length; i++) {
+        const producto = productosData[i];
+
+        // Validaciones básicas
+        if (!producto.codigo || !producto.nombre || !producto.categoria) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo || "Sin código",
+            error: "Faltan campos obligatorios (código, nombre, categoría)",
+          });
+          continue;
+        }
+
+        // Validar campos específicos de obras
+        if (
+          !producto.subCategoria ||
+          !producto.unidad ||
+          !producto.stockMinimo ||
+          !producto.unidadMedida ||
+          !producto.valorVenta
+        ) {
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: `Faltan campos específicos de obras. subCategoria: ${producto.subCategoria}, unidad: ${producto.unidad}, stockMinimo: ${producto.stockMinimo}, unidadMedida: ${producto.unidadMedida}, valorVenta: ${producto.valorVenta}`,
+          });
+          continue;
+        }
+
+        // Validar que los valores numéricos sean válidos
+        const valoresNumericos = [
+          "unidad",
+          "stockMinimo",
+          "valorVenta",
+        ];
+        for (const campo of valoresNumericos) {
+          if (
+            producto[campo] === null ||
+            producto[campo] === undefined ||
+            isNaN(producto[campo]) ||
+            producto[campo] < 0
+          ) {
+            productosInvalidos.push({
+              index: i + 1,
+              codigo: producto.codigo,
+              error: `Campo ${campo} debe ser un número válido mayor o igual a 0. Valor actual: ${producto[campo]}`,
+            });
+            continue;
+          }
+        }
+
+        productosValidos.push({
+          ...producto,
+          fechaCreacion: new Date().toISOString(),
+          fechaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      // Mostrar errores si hay productos inválidos
+      if (productosInvalidos.length > 0) {
+        setBulkStatusObras("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageObras(
+          `Se encontraron ${productosInvalidos.length} productos con errores:\n\n${erroresDetallados}`
+        );
+        setBulkLoadingObras(false);
+        return;
+      }
+
+      // Procesar productos válidos
+      setBulkProgressObras({ current: 0, total: productosValidos.length });
+
+      const obrasExistentes = productos.filter(p => p.categoria === "Obras");
+      const mapObras = new Map(obrasExistentes.map(p => [p.codigo, p]));
+      let actualizados = 0;
+      let creados = 0;
+
+      for (let i = 0; i < productosValidos.length; i++) {
+        const producto = productosValidos[i];
+
+        try {
+          const { id, ...productoData } = producto;
+          const existentePorId = id ? obrasExistentes.find(p => p.id === id) : null;
+          const existentePorCodigo = mapObras.get(productoData.codigo);
+          
+          if (existentePorId) {
+            const docRef = doc(db, "productos_obras", id);
+            await updateDoc(docRef, { ...productoData, id, fechaActualizacion: new Date().toISOString() });
+            actualizados++;
+          } else if (existentePorCodigo) {
+            const docRef = doc(db, "productos_obras", existentePorCodigo.id);
+            await updateDoc(docRef, { ...productoData, id: existentePorCodigo.id, fechaActualizacion: new Date().toISOString() });
+            actualizados++;
+          } else {
+            const createdRef = await addDoc(collection(db, "productos_obras"), productoData);
+            await updateDoc(createdRef, { id: createdRef.id });
+            creados++;
+          }
+
+          setBulkProgressObras({
+            current: i + 1,
+            total: productosValidos.length,
+          });
+        } catch (error) {
+          console.error("Error al guardar producto de obras:", error);
+          productosInvalidos.push({
+            index: i + 1,
+            codigo: producto.codigo,
+            error: "Error al guardar en Firebase: " + error.message,
+          });
+        }
+      }
+
+      // Mostrar resultado final
+      if (productosInvalidos.length > 0) {
+        setBulkStatusObras("error");
+        const erroresDetallados = productosInvalidos
+          .map((p) => `Línea ${p.index} (${p.codigo}): ${p.error}`)
+          .join("\n");
+        setBulkMessageObras(
+          `Se procesaron ${productosValidos.length - productosInvalidos.length} productos exitosamente (${creados} creados, ${actualizados} actualizados), pero ${productosInvalidos.length} tuvieron errores:\n\n${erroresDetallados}`
+        );
+      } else {
+        setBulkStatusObras("success");
+        setBulkMessageObras(
+          `Se importaron exitosamente ${productosValidos.length} productos de obras (${creados} creados, ${actualizados} actualizados).`
+        );
+      }
+
+      setBulkLoadingObras(false);
+
+      // Limpiar formulario y cerrar modal
+      setTimeout(() => {
+        setOpenBulkObras(false);
+        setBulkFileObras(null);
+        setBulkStatusObras(null);
+        setBulkMessageObras("");
+        setBulkLoadingObras(false);
+        setBulkProgressObras({ current: 0, total: 0 });
+        setReload((r) => !r);
+      }, 2000);
+    } catch (e) {
+      setBulkStatusObras("error");
+      setBulkMessageObras("Error inesperado: " + e.message);
+      setBulkLoadingObras(false);
+    }
+  };
+
+  // Función para descargar CSV de ejemplo
+  const downloadExampleCSV = () => {
+    const csvContent = `\uFEFFid,codigo,nombre,descripcion,categoria,subcategoria,estado,costo,tipoMadera,largo,ancho,alto,precioPorPie,ubicacion,unidadMedida,estadoTienda,freeShipping,featuredBrand,newArrival,specialOffer,rating,descuentoMonto,descuentoPorcentaje,imagenes
+,1401,TABLAS 1/2 X 6 X 3,,Maderas,Tabla,Activo,420.0,Saligna,3.0,0.5,6.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
+,1402,TABALAS 1\" X 4 X 3,,Maderas,Tabla,Activo,353.0,Saligna,3.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,
+,1403,TABALAS 1\" X4 X 4,,Maderas,Tabla,Activo,353.0,Saligna,4.0,1.0,4.0,700.0,,pie,Inactivo,No,No,No,No,0,0,0,`;
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ejemplo_maderas.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Función para descargar CSV de ejemplo para Ferretería
+  const downloadExampleCSVFerreteria = () => {
+    const headers = [
+      "id",
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "unidadMedida",
+      "proveedor",
+      "stockMinimo",
+      "valorCompra",
+      "valorVenta",
+      "stock",
+      "estado",
+      "estadoTienda",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes",
+    ];
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      headers.join(",") +
+      "\n" +
+      ",1001,TUERCA CUPLA 1/2,TUERCA CUPLA 1/2,Ferretería,Herrajes,Unidad,Global,1,859,1700,50,Activo,Inactivo,No,No,No,No,0,0,0,";
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `plantilla_carga_masiva_ferreteria_${new Date()
+        .toISOString()
+        .split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para descargar CSV de ejemplo para Obras
+  const downloadExampleCSVObras = () => {
+    const headers = [
+      "id",
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "estado",
+      "estadoTienda",
+      "unidad",
+      "stockMinimo",
+      "unidadMedida",
+      "valorVenta",
+      "costo",
+      "proveedor",
+      "imagenes"
+    ];
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      headers.join(",") +
+      "\n" +
+      ",7000,Muelle en madera grandis,nada,Obras,Muelles,Activo,Inactivo,1,1,M2,140000,100000,Proveedor1,";
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `plantilla_carga_masiva_obras_${new Date()
+        .toISOString()
+        .split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar maderas a CSV
+  const exportarMaderasCSV = () => {
+    const maderas = productos.filter(p => p.categoria === "Maderas");
+    
+    if (maderas.length === 0) {
+      alert("No hay productos de maderas para exportar");
+      return;
+    }
+
+    const headers = [
+      "id",
+      "codigo",
+      "nombre", 
+      "descripcion",
+      "categoria",
+      "subcategoria",
+      "costo",
+      "tipoMadera",
+      "unidadMedida",
+      "alto",
+      "ancho", 
+      "largo",
+      "precioPorPie",
+      "stock",
+      "estado",
+      "estadoTienda",
+      "ubicacion",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    maderas.forEach(producto => {
+      const row = [
+        producto.id || "",
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Maderas",
+        producto.subcategoria || "",
+        producto.costo || "",
+        producto.tipoMadera || "",
+        producto.unidadMedida || "pie",
+        producto.alto || "",
+        producto.ancho || "",
+        producto.largo || "",
+        producto.precioPorPie || "",
+        producto.stock || "",
+        producto.estado || "Activo",
+        producto.estadoTienda || "Inactivo",
+        producto.ubicacion || "",
+        producto.freeShipping ? "Si" : "No",
+        producto.featuredBrand ? "Si" : "No",
+        producto.newArrival ? "Si" : "No",
+        producto.specialOffer ? "Si" : "No",
+        producto.rating || "0",
+        producto.discount?.amount || "0",
+        producto.discount?.percentage || "0",
+        (producto.imagenes || []).join(" | ")
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_maderas_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar ferretería a CSV
+  const exportarFerreteriaCSV = () => {
+    const ferreteria = productos.filter(p => p.categoria === "Ferretería");
+    
+    if (ferreteria.length === 0) {
+      alert("No hay productos de ferretería para exportar");
+      return;
+    }
+
+    const headers = [
+      "id",
+      "codigo",
+      "nombre",
+      "descripcion", 
+      "categoria",
+      "subCategoria",
+      "costo",
+      "unidadMedida",
+      "proveedor",
+      "stockMinimo",
+      "valorCompra",
+      "valorVenta",
+      "stock",
+      "estado",
+      "estadoTienda",
+      "freeShipping",
+      "featuredBrand",
+      "newArrival",
+      "specialOffer",
+      "rating",
+      "descuentoMonto",
+      "descuentoPorcentaje",
+      "imagenes"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    ferreteria.forEach(producto => {
+      const row = [
+        producto.id || "",
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Ferretería",
+        producto.subCategoria || "",
+        producto.costo || "",
+        producto.unidadMedida || "",
+        producto.proveedor || "",
+        producto.stockMinimo || "",
+        producto.valorCompra || "",
+        producto.valorVenta || "",
+        producto.stock || "0",
+        producto.estado || "Activo",
+        producto.estadoTienda || "Inactivo",
+        producto.freeShipping ? "Si" : "No",
+        producto.featuredBrand ? "Si" : "No",
+        producto.newArrival ? "Si" : "No",
+        producto.specialOffer ? "Si" : "No",
+        producto.rating || "0",
+        producto.discount?.amount || "0",
+        producto.discount?.percentage || "0",
+        (producto.imagenes || []).join(" | ")
+      ].map(field => `"${field}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_ferreteria_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para exportar obras a CSV
+  const exportarObrasCSV = () => {
+    const obras = productos.filter(p => p.categoria === "Obras");
+    
+    if (obras.length === 0) {
+      alert("No hay productos de obras para exportar");
+      return;
+    }
+
+    // Tomar todos los datos posibles
+    const headers = [
+      "id",
+      "codigo",
+      "nombre",
+      "descripcion",
+      "categoria",
+      "subCategoria",
+      "estado",
+      "estadoTienda",
+      "unidad",
+      "stockMinimo",
+      "unidadMedida",
+      "valorVenta",
+      "costo",
+      "proveedor",
+      "imagenes",
+      "fechaCreacion",
+      "fechaActualizacion"
+    ];
+
+    const csvRows = [headers.join(",")];
+    
+    obras.forEach(producto => {
+      const row = [
+        producto.id || "",
+        producto.codigo || "",
+        producto.nombre || "",
+        producto.descripcion || "",
+        producto.categoria || "Obras",
+        producto.subCategoria || "",
+        producto.estado || "Activo",
+        producto.estadoTienda || "Inactivo",
+        producto.unidad || "",
+        producto.stockMinimo || "",
+        producto.unidadMedida || "",
+        producto.valorVenta || "",
+        producto.costo || "",
+        producto.proveedor || "",
+        producto.imagenes ? (Array.isArray(producto.imagenes) ? producto.imagenes.join(";") : producto.imagenes) : "",
+        producto.fechaCreacion || "",
+        producto.fechaActualizacion || ""
+      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(",");
+      
+      csvRows.push(row);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `exportacion_obras_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Función para manejar cambios en productos
+  const handlePrecioPorPieChange = async (id, nuevoPrecioPorPie) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Maderas") {
+        // Calcular el nuevo precio considerando la unidad de medida
+        let precioBase = 0;
+        const unidad = (producto.unidadMedida || "").toString();
+        if (unidad === "M2") {
+          precioBase = calcularPrecioMachimbre({
+            alto: Number(producto.alto) || 0,
+            largo: Number(producto.largo) || 0,
+            cantidad: 1,
+            precioPorPie: Number(nuevoPrecioPorPie) || 0,
+          });
+        } else if (unidad === "Unidad") {
+          const p = Number(nuevoPrecioPorPie) || 0;
+          precioBase = Math.round(p / 100) * 100;
+        } else {
+          precioBase = calcularPrecioCorteMadera({
+            alto: Number(producto.alto) || 0,
+            ancho: Number(producto.ancho) || 0,
+            largo: Number(producto.largo) || 0,
+            precioPorPie: Number(nuevoPrecioPorPie) || 0,
+          });
+        }
+
+        const precioConCepillado = precioBase * 1.06;
+        const aplicarCepillado = unidad !== "Unidad" && (producto.cepilladoAplicado || false);
+        const precioFinal = aplicarCepillado ? precioConCepillado : precioBase;
+
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+        await updateDoc(productoRef, {
+          precioPorPie: Number(nuevoPrecioPorPie),
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
+          fechaActualizacion: new Date().toISOString(),
+        });
+
+        console.log(
+          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}. Precio calculado: ${precioRedondeado}`
+        );
+      } else {
+        await updateDoc(productoRef, {
+          precioPorPie: Number(nuevoPrecioPorPie),
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Precio por pie actualizado para producto ${id}: ${nuevoPrecioPorPie}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar precio por pie:", error);
+      alert("Error al actualizar el precio por pie: " + error.message);
+    }
+  };
+
+  const handleCepilladoChange = async (id, aplicarCepillado) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Maderas") {
+        // Calcular el nuevo precio con o sin cepillado, respetando la unidad de medida
+        let precioBase = 0;
+        const unidad = (producto.unidadMedida || "").toString();
+        if (unidad === "M2") {
+          precioBase = calcularPrecioMachimbre({
+            alto: Number(producto.alto) || 0,
+            largo: Number(producto.largo) || 0,
+            cantidad: 1,
+            precioPorPie: Number(producto.precioPorPie) || 0,
+          });
+        } else if (unidad === "Unidad") {
+          const p = Number(producto.precioPorPie) || 0;
+          precioBase = Math.round(p / 100) * 100;
+        } else {
+          precioBase = calcularPrecioCorteMadera({
+            alto: Number(producto.alto) || 0,
+            ancho: Number(producto.ancho) || 0,
+            largo: Number(producto.largo) || 0,
+            precioPorPie: Number(producto.precioPorPie) || 0,
+          });
+        }
+
+        const precioConCepillado = precioBase * 1.06;
+        const debeAplicarCepillado = unidad !== "Unidad" && aplicarCepillado;
+        const precioFinal = debeAplicarCepillado ? precioConCepillado : precioBase;
+
+        // Redondear a centenas (múltiplos de 100)
+        const precioRedondeado = Math.round(precioFinal / 100) * 100;
+
+        await updateDoc(productoRef, {
+          cepilladoAplicado: aplicarCepillado,
+          precioCalculado: precioRedondeado, // Guardar el precio calculado redondeado
+          fechaActualizacion: new Date().toISOString(),
+        });
+
+        console.log(
+          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}. Precio: ${precioRedondeado}`
+        );
+      } else {
+        await updateDoc(productoRef, {
+          cepilladoAplicado: aplicarCepillado,
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Cepillado actualizado para producto ${id}: ${aplicarCepillado}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar cepillado:", error);
+      alert("Error al actualizar el cepillado: " + error.message);
+    }
+  };
+
+  const handleCantidadChange = async (id, nuevaCantidad) => {
+    try {
+      // Si el campo está vacío o es inválido, guardar como vacío (null)
+      // Si tiene un valor, asegurarse de que sea al menos 1
+      const cantidad = nuevaCantidad === "" || nuevaCantidad === null || nuevaCantidad === undefined
+        ? null
+        : Math.max(1, parseInt(nuevaCantidad) || 1);
+      
+      const productoRef = doc(db, "productos", id);
+      await updateDoc(productoRef, {
+        cantidad: cantidad,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      console.log(`Cantidad actualizada para producto ${id}: ${cantidad || 'vacío (default: 1)'}`);
+    } catch (error) {
+      console.error("Error al actualizar cantidad:", error);
+      alert("Error al actualizar la cantidad: " + error.message);
+    }
+  };
+
+  // Funciones para Drag & Drop de imágenes
+  const showToast = (message, type = "info") => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  const handleDragOver = (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProductId(productId);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Solo resetear si realmente salimos de la fila (no de elementos hijos)
+    const currentTarget = e.currentTarget;
+    const relatedTarget = e.relatedTarget;
+    if (!currentTarget.contains(relatedTarget)) {
+      setDragOverProductId(null);
+    }
+  };
+
+  const handleDrop = async (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProductId(null);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    // Validar límite de imágenes (máximo 3 por producto)
+    const currentImagesCount = (product.imagenes || []).length;
+    if (currentImagesCount >= 3) {
+      showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
+      return;
+    }
+
+    // Calcular cuántas imágenes se pueden agregar
+    const espacioDisponible = 3 - currentImagesCount;
+    const archivosASubir = files.slice(0, espacioDisponible);
+
+    // Validar que todos sean imágenes
+    const archivosInvalidos = archivosASubir.filter(file => !file.type.startsWith('image/'));
+    if (archivosInvalidos.length > 0) {
+      showToast("Por favor, arrastra solo archivos de imagen", "error");
+      return;
+    }
+
+    // Validar tamaño (5MB máximo por imagen)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const archivosGrandes = archivosASubir.filter(file => file.size > maxSize);
+    if (archivosGrandes.length > 0) {
+      showToast(`${archivosGrandes.length} imagen(es) son demasiado grandes. Tamaño máximo: 5MB`, "error");
+      return;
+    }
+
+    // Si hay más archivos de los que se pueden subir, avisar
+    if (files.length > espacioDisponible) {
+      showToast(`Solo se pueden agregar ${espacioDisponible} imagen(es) más. Se procesarán las primeras ${espacioDisponible}.`, "warning");
+    }
+
+    // Crear previews para todas las imágenes
+    const previews = [];
+    let loadedCount = 0;
+
+    archivosASubir.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        previews[index] = {
+          file: file,
+          preview: event.target.result,
+          name: file.name
+        };
+        loadedCount++;
+
+        // Cuando todas las imágenes estén cargadas, abrir el modal
+        if (loadedCount === archivosASubir.length) {
+          setDraggedImage(previews); // Ahora es un array
+          setTargetProduct(product);
+          setDragDropModalOpen(true);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleConfirmImageUpload = async () => {
+    if (!draggedImage || !targetProduct) return;
+
+    try {
+      setUploadingImage(true);
+      setUploadProgress(0);
+      
+      // Convertir a array si es un solo archivo (retrocompatibilidad)
+      const imagesToUpload = Array.isArray(draggedImage) ? draggedImage : [draggedImage];
+      
+      // Validación adicional: verificar límite de imágenes
+      const currentImages = targetProduct.imagenes || [];
+      const espacioDisponible = 3 - currentImages.length;
+      
+      if (espacioDisponible === 0) {
+        showToast("Este producto ya tiene el máximo de 3 imágenes permitidas", "error");
+        setUploadingImage(false);
+        setDragDropModalOpen(false);
+        setDraggedImage(null);
+        setTargetProduct(null);
+        return;
+      }
+
+      // Limitar las imágenes a subir según el espacio disponible
+      const imagenesFiltradas = imagesToUpload.slice(0, espacioDisponible);
+      
+      // Mensaje inicial más descriptivo
+      const mensajeInicial = imagenesFiltradas.length === 1 
+        ? 'Preparando imagen para subir...' 
+        : `Preparando ${imagenesFiltradas.length} imágenes para subir...`;
+      showToast(mensajeInicial, "loading");
+
+      // Subir todas las imágenes al servidor
+      const uploadedUrls = [];
+      
+      for (let i = 0; i < imagenesFiltradas.length; i++) {
+        const imagen = imagenesFiltradas[i];
+        
+        // Actualizar progreso en el modal
+        const progresoActual = Math.round(((i) / imagenesFiltradas.length) * 90); // 90% para subidas, 10% para guardar
+        setUploadProgress(progresoActual);
+        
+        // Actualizar toast con progreso
+        if (imagenesFiltradas.length > 1) {
+          showToast(
+            `📤 Subiendo imagen ${i + 1} de ${imagenesFiltradas.length}`, 
+            "loading"
+          );
+        }
+        
+        const formData = new FormData();
+        formData.append('file', imagen.file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Error al subir imagen');
+        }
+
+        const result = await response.json();
+        uploadedUrls.push(result.url);
+      }
+
+      // Actualizar el producto en Firebase con todas las nuevas imágenes
+      setUploadProgress(95);
+      showToast("💾 Guardando en la base de datos...", "loading");
+      const productoRef = doc(db, "productos", targetProduct.id);
+      
+      await updateDoc(productoRef, {
+        imagenes: [...currentImages, ...uploadedUrls],
+        fechaActualizacion: new Date().toISOString(),
+      });
+
+      setUploadProgress(100);
+
+      // Cerrar modal y mostrar éxito
+      setDragDropModalOpen(false);
+      setDraggedImage(null);
+      setTargetProduct(null);
+      setUploadProgress(0);
+      
+      const totalImagenes = currentImages.length + uploadedUrls.length;
+      const imagenesRestantes = 3 - totalImagenes;
+      
+      const mensajeExito = imagenesFiltradas.length === 1
+        ? `✅ Imagen subida correctamente. Galería: ${totalImagenes}/3${imagenesRestantes > 0 ? ` (${imagenesRestantes} espacio${imagenesRestantes !== 1 ? 's' : ''} disponible${imagenesRestantes !== 1 ? 's' : ''})` : ' (completa)'}`
+        : `✅ ${uploadedUrls.length} imágenes subidas correctamente. Galería: ${totalImagenes}/3${imagenesRestantes > 0 ? ` (${imagenesRestantes} espacio${imagenesRestantes !== 1 ? 's' : ''} disponible${imagenesRestantes !== 1 ? 's' : ''})` : ' (completa)'}`;
+      
+      showToast(mensajeExito, "success");
+
+    } catch (error) {
+      console.error("Error al subir imágenes:", error);
+      showToast("❌ Error al subir las imágenes: " + error.message, "error");
+      setUploadProgress(0);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleCloseImageModal = () => {
+    if (!uploadingImage) {
+      setDragDropModalOpen(false);
+      setDraggedImage(null);
+      setTargetProduct(null);
+    }
+  };
+
+  const handleValorVentaChange = async (id, nuevoValorVenta) => {
+    try {
+      const productoRef = doc(db, "productos", id);
+      const producto = productos.find((p) => p.id === id);
+
+      if (producto && producto.categoria === "Ferretería") {
+        await updateDoc(productoRef, {
+          valorVenta: Number(nuevoValorVenta),
+          fechaActualizacion: new Date().toISOString(),
+        });
+        console.log(
+          `Valor de venta actualizado para producto ${id}: ${nuevoValorVenta}`
+        );
+      }
+    } catch (error) {
+      console.error("Error al actualizar valor de venta:", error);
+      alert("Error al actualizar el valor de venta: " + error.message);
+    }
+  };
+
+  // Función para cambiar el estado de tienda rápidamente
+  const handleToggleEstadoTienda = async (id, estadoActual) => {
+    try {
+      const nuevoEstado = estadoActual === "Activo" ? "Inactivo" : "Activo";
+      const productoRef = doc(db, "productos", id);
+      
+      await updateDoc(productoRef, {
+        estadoTienda: nuevoEstado,
+        fechaActualizacion: new Date().toISOString(),
+      });
+      
+      showToast(
+        `Estado de tienda cambiado a ${nuevoEstado}`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Error al cambiar estado de tienda:", error);
+      showToast("Error al cambiar el estado de tienda", "error");
+    }
+  };
+
+  // Efecto para actualizar selectAll cuando cambia la selección
+  useEffect(() => {
+    if (productosPaginados.length > 0) {
+      const allSelected = productosPaginados.every(p => selectedProducts.includes(p.id));
+      setSelectAll(allSelected);
+      const selectedOnPageCount = productosPaginados.filter(p => selectedProducts.includes(p.id)).length;
+      if (selectAllCheckboxRef.current) {
+        selectAllCheckboxRef.current.indeterminate =
+          selectedOnPageCount > 0 && selectedOnPageCount < productosPaginados.length;
+      }
+    } else {
+      setSelectAll(false);
+      if (selectAllCheckboxRef.current) {
+        selectAllCheckboxRef.current.indeterminate = false;
+      }
+    }
+  }, [selectedProducts, productosPaginados]);
+
+  // Efecto para limpiar selección cuando cambian los filtros
+  useEffect(() => {
+    setSelectedProducts([]);
+    setSelectAll(false);
+  }, [filtro, cat, filtroTipoMadera, filtroSubCategoria, filtroTienda, filtroStock, filtroImagenes]);
+
+  // Efecto para cerrar dropdowns cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.dropdown-container')) {
+        setImportDropdownOpen(false);
+        setExportDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Efecto para cerrar dropdowns cuando se abren modales
+  useEffect(() => {
+    if (open || openBulk || openBulkFerreteria || openBulkObras || deleteModalOpen || bulkEditModalOpen) {
+      setImportDropdownOpen(false);
+      setExportDropdownOpen(false);
+    }
+  }, [open, openBulk, openBulkFerreteria, openBulkObras, deleteModalOpen, bulkEditModalOpen]);
+
+  // Funciones para selección múltiple
+  const handleSelectProduct = (productId) => {
+    setSelectedProducts(prev => {
+      if (prev.includes(productId)) {
+        return prev.filter(id => id !== productId);
+      } else {
+        return [...prev, productId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedProducts([]);
+      setSelectAll(false);
+    } else {
+      setSelectedProducts(productosPaginados.map(p => p.id));
+      setSelectAll(true);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedProducts.length === 0) return;
+    
+    setDeleteLoading(true);
+    setDeleteMessage("");
+    
+    try {
+      const batch = writeBatch(db);
+      
+      selectedProducts.forEach(productId => {
+        const productRef = getProductDocRef(productId);
+        batch.delete(productRef);
+      });
+      
+      await batch.commit();
+      
+      setDeleteMessage(`Se eliminaron ${selectedProducts.length} producto(s) correctamente`);
+      setSelectedProducts([]);
+      setSelectAll(false);
+      
+      setTimeout(() => {
+        setDeleteModalOpen(false);
+        setDeleteMessage("");
+      }, 2000);
+      
+    } catch (error) {
+      setDeleteMessage("Error al eliminar productos: " + error.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Función para edición masiva de productos
+  const handleBulkEdit = async () => {
+    if (selectedProducts.length === 0) return;
+    
+    setBulkEditLoading(true);
+    setBulkEditMessage("");
+    
+    try {
+      if (!user || typeof user.getIdToken !== "function") {
+        setBulkEditMessage("No hay usuario autenticado.");
+        setBulkEditLoading(false);
+        return;
+      }
+      const batch = writeBatch(db);
+      const updates = {};
+      
+      // Solo incluir campos que han sido modificados
+      if (bulkEditForm.estado) {
+        updates.estado = bulkEditForm.estado;
+      }
+      if (bulkEditForm.estadoTienda) {
+        updates.estadoTienda = bulkEditForm.estadoTienda;
+      }
+      if (bulkEditForm.unidadMedida) {
+        updates.unidadMedida = bulkEditForm.unidadMedida;
+      }
+
+      if (bulkEditForm.stockOperation) {
+        const parsedStockValue = parseNumberInput(bulkEditForm.stockValue);
+        if (Number.isNaN(parsedStockValue)) {
+          setBulkEditMessage("El stock debe ser un número válido.");
+          setBulkEditLoading(false);
+          return;
+        }
+
+        const op = String(bulkEditForm.stockOperation || "");
+        const abs = Math.abs(parsedStockValue);
+        if ((op === "add" || op === "subtract") && abs === 0) {
+          setBulkEditMessage("El ajuste de stock debe ser distinto de 0.");
+          setBulkEditLoading(false);
+          return;
+        }
+
+        const idToken = await user.getIdToken();
+        await Promise.all(
+          selectedProducts.map(async (productId) => {
+            const payload =
+              op === "set"
+                ? {
+                    productoId: productId,
+                    tipo: "ajuste",
+                    modoAjuste: "absoluto",
+                    stockFinalDeseado: parsedStockValue,
+                    motivo: "Edición masiva de productos",
+                    observaciones: `Set stock = ${parsedStockValue}`,
+                    origen: "ui_productos_bulk_edit",
+                  }
+                : {
+                    productoId: productId,
+                    tipo: "ajuste",
+                    modoAjuste: "delta",
+                    cantidad: op === "add" ? abs : -abs,
+                    motivo: "Edición masiva de productos",
+                    observaciones: `Delta stock = ${op === "add" ? "+" : "-"}${abs}`,
+                    origen: "ui_productos_bulk_edit",
+                  };
+
+            const resp = await fetch("/api/erp/stock/movimientos", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${idToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+            const out = await resp.json().catch(() => ({}));
+            if (!resp.ok || !out?.ok) {
+              throw new Error(out?.error || `Error ajustando stock del producto ${productId}`);
+            }
+          })
+        );
+      }
+      
+      // Si no hay campos para actualizar, mostrar mensaje
+      if (Object.keys(updates).length === 0) {
+        setBulkEditMessage("No hay campos para actualizar. Selecciona al menos un campo.");
+        setBulkEditLoading(false);
+        return;
+      }
+      
+      // Agregar fecha de actualización
+      updates.fechaActualizacion = new Date().toISOString();
+      
+      // Aplicar actualizaciones a todos los productos seleccionados
+      selectedProducts.forEach(productId => {
+        const productRef = getProductDocRef(productId);
+        batch.update(productRef, updates);
+      });
+      
+      await batch.commit();
+      
+      setBulkEditMessage(`Se actualizaron ${selectedProducts.length} producto(s) correctamente`);
+      
+      // Limpiar formulario y cerrar modal después de un delay
+      setTimeout(() => {
+        setBulkEditModalOpen(false);
+        setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "", stockOperation: "", stockValue: "" });
+        setBulkEditMessage("");
+        setSelectedProducts([]);
+        setSelectAll(false);
+      }, 2000);
+      
+    } catch (error) {
+      setBulkEditMessage("Error al actualizar productos: " + error.message);
+    } finally {
+      setBulkEditLoading(false);
+    }
+  };
+
+  // Función para abrir modal de edición masiva
+  const openBulkEditModal = () => {
+    setBulkEditForm({ estado: "", estadoTienda: "", unidadMedida: "", stockOperation: "", stockValue: "" });
+    setBulkEditMessage("");
+    setBulkEditModalOpen(true);
+  };
+
+  return (
+    <div className="py-8 px-2 max-w-8xl mx-auto">
+      <div className="mb-8 flex items-center gap-4">
+        <Boxes className="w-10 h-10 text-primary" />
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Productos</h1>
+          <p className="text-lg text-muted-foreground">
+            Catálogo y stock de productos madereros.
+          </p>
+        </div>
+      </div>
+      <Card>
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between">
+            {/* Filtros y búsqueda */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+              <select
+                value={cat}
+                onChange={(e) => {
+                  setCat(e.target.value);
+                  // Limpiar filtros específicos al cambiar categoría
+                  setFiltroTipoMadera("");
+                  setFiltroSubCategoria("");
+                }}
+                className="w-full sm:w-48 px-3 py-2 border border-border/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-background text-foreground shadow-sm hover:border-border transition-colors"
+              >
+                <option value="">Todas las categorías</option>
+                {categorias.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <Input
+                placeholder="Buscar producto..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="w-full sm:w-64 shadow-sm hover:shadow-md transition-shadow"
+              />
+            </div>
+
+            {/* Botones de acción principales */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+              {/* Botón Agregar Producto */}
+              <Button 
+                variant="default" 
+                onClick={() => setOpen(true)}
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Producto
+              </Button>
+
+              {/* Botón Importar con dropdown */}
+              <div className="relative dropdown-container">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setImportDropdownOpen(!importDropdownOpen)}
+                  className="w-full sm:w-auto border-2 border-border/60 hover:border-blue-500 hover:bg-blue-500/10 transition-all duration-200 font-medium"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar
+                  <svg className={`w-4 h-4 ml-2 transition-transform duration-200 ${importDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Button>
+                
+                {/* Dropdown de importación */}
+                {importDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-popover text-popover-foreground border border-border/60 rounded-lg shadow-xl z-50">
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-3 py-2 border-b border-border/60">
+                        Seleccionar tipo de importación
+                      </div>
+                      <button
+                        onClick={() => {
+                          setOpenBulk(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-orange-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-orange-700 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Importar Maderas</div>
+                          <div className="text-xs text-muted-foreground">Productos de madera desde CSV</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOpenBulkFerreteria(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-blue-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-blue-700 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Importar Ferretería</div>
+                          <div className="text-xs text-muted-foreground">Herramientas y accesorios</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOpenBulkObras(true);
+                          setImportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-green-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-green-700 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Importar Obras</div>
+                          <div className="text-xs text-muted-foreground">Productos para construcción</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón Exportar con dropdown */}
+              <div className="relative dropdown-container">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                  className="w-full sm:w-auto border-2 border-border/60 hover:border-green-500 hover:bg-green-500/10 transition-all duration-200 font-medium"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar
+                  <svg className={`w-4 h-4 ml-2 transition-transform duration-200 ${exportDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </Button>
+                
+                {/* Dropdown de exportación */}
+                {exportDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-popover text-popover-foreground border border-border/60 rounded-lg shadow-xl z-50">
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-3 py-2 border-b border-border/60">
+                        Seleccionar tipo de exportación
+                      </div>
+                      <button
+                        onClick={() => {
+                          exportarMaderasCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-orange-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-orange-700 dark:text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Exportar Maderas</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de maderas</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportarFerreteriaCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-blue-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-blue-700 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Exportar Ferretería</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de ferretería</div>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportarObrasCSV();
+                          setExportDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-purple-500/10 rounded-md transition-colors duration-150 flex items-center gap-3 group"
+                      >
+                        <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                          <svg className="w-5 h-5 text-purple-700 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">Exportar Obras</div>
+                          <div className="text-xs text-muted-foreground">Descargar catálogo de obras</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botones de acción para productos seleccionados (siempre visibles) */}
+              {/* Botón Editar Masivo */}
+              <Button
+                variant="outline"
+                onClick={openBulkEditModal}
+                disabled={selectedProducts.length === 0}
+                className={`w-full sm:w-auto border-2 transition-all duration-200 font-medium ${
+                  selectedProducts.length > 0
+                    ? 'border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 text-blue-700 dark:text-blue-300'
+                    : 'border-border/60 text-muted-foreground cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar {selectedProducts.length > 0 ? `(${selectedProducts.length})` : ''}
+              </Button>
+
+              {/* Botón Borrar Seleccionados */}
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteModalOpen(true)}
+                disabled={selectedProducts.length === 0}
+                className={`w-full sm:w-auto transition-all duration-200 font-medium ${
+                  selectedProducts.length > 0
+                    ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Borrar {selectedProducts.length > 0 ? `(${selectedProducts.length})` : ''}
+              </Button>
+            </div>
+          </div>
+
+          {/* Filtros específicos por categoría */}
+          <div className="flex flex-col gap-3">
+            {/* Filtro de tipo de madera */}
+            {cat === "Maderas" && tiposMaderaUnicos.length > 0 && (
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                  <button
+                    type="button"
+                    className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                      filtroTipoMadera === ""
+                        ? "bg-orange-600 text-white"
+                        : "bg-muted text-foreground hover:bg-muted/80"
+                    }`}
+                    onClick={() => setFiltroTipoMadera("")}
+                  >
+                    Todos los tipos
+                  </button>
+                  {tiposMaderaUnicos.map((tipo) => (
+                    <button
+                      key={tipo}
+                      type="button"
+                      className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                        filtroTipoMadera === tipo
+                          ? "bg-orange-600 text-white"
+                          : "bg-muted text-foreground hover:bg-muted/80"
+                      }`}
+                      onClick={() => setFiltroTipoMadera(tipo)}
+                    >
+                      {tipo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filtro de subcategoría de ferretería */}
+            {cat === "Ferretería" && subCategoriasFerreteria.length > 0 && (
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                  <button
+                    type="button"
+                    className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                      filtroSubCategoria === ""
+                        ? "bg-blue-600 text-white"
+                        : "bg-muted text-foreground hover:bg-muted/80"
+                    }`}
+                    onClick={() => setFiltroSubCategoria("")}
+                  >
+                    Todas las subcategorías
+                  </button>
+                  {subCategoriasFerreteria.map((subCategoria) => (
+                    <button
+                      key={subCategoria}
+                      type="button"
+                      className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                        filtroSubCategoria === subCategoria
+                          ? "bg-blue-600 text-white"
+                          : "bg-muted text-foreground hover:bg-muted/80"
+                      }`}
+                      onClick={() => setFiltroSubCategoria(subCategoria)}
+                    >
+                      {subCategoria}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filtro de subcategoría de obras */}
+            {cat === "Obras" && subCategoriasObras.length > 0 && (
+              <div className="w-full">
+                <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                  <button
+                    type="button"
+                    className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                      filtroSubCategoria === ""
+                        ? "bg-purple-600 text-white"
+                        : "bg-muted text-foreground hover:bg-muted/80"
+                    }`}
+                    onClick={() => setFiltroSubCategoria("")}
+                  >
+                    Todas las subcategorías
+                  </button>
+                  {subCategoriasObras.map((subCategoria) => (
+                    <button
+                      key={subCategoria}
+                      type="button"
+                      className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                        filtroSubCategoria === subCategoria
+                          ? "bg-purple-600 text-white"
+                          : "bg-muted text-foreground hover:bg-muted/80"
+                      }`}
+                      onClick={() => setFiltroSubCategoria(subCategoria)}
+                    >
+                      {subCategoria}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Filtro de estado de tienda - siempre visible */}
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroTienda === ""
+                      ? "bg-purple-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroTienda("")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span className="hidden sm:inline">Todas las tiendas</span>
+                  <span className="sm:hidden">Todas</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "" ? "bg-white/20" : "bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                  }`}>
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroTienda === "Activo"
+                      ? "bg-green-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroTienda("Activo")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="hidden sm:inline">Activos en tienda</span>
+                  <span className="sm:hidden">Activos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "Activo"
+                      ? "bg-white/20"
+                      : "bg-green-500/10 text-green-700 dark:text-green-300"
+                  }`}>
+                    {productos.filter(p => p.estadoTienda === "Activo").length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroTienda === "Inactivo"
+                      ? "bg-red-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroTienda("Inactivo")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="hidden sm:inline">Inactivos en tienda</span>
+                  <span className="sm:hidden">Inactivos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroTienda === "Inactivo"
+                      ? "bg-white/20"
+                      : "bg-red-500/10 text-red-700 dark:text-red-300"
+                  }`}>
+                    {productos.filter(p => !p.estadoTienda || p.estadoTienda === "Inactivo").length}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filtro de stock - siempre visible */}
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroStock === ""
+                      ? "bg-blue-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroStock("")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  <span className="hidden sm:inline">Todos los productos</span>
+                  <span className="sm:hidden">Todos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "" ? "bg-white/20" : "bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                  }`}>
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroStock === "conStock"
+                      ? "bg-green-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroStock("conStock")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="hidden sm:inline">Con stock</span>
+                  <span className="sm:hidden">Con stock</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "conStock"
+                      ? "bg-white/20"
+                      : "bg-green-500/10 text-green-700 dark:text-green-300"
+                  }`}>
+                    {productos.filter(p => (Number(p.stock) || 0) > 0).length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroStock === "sinStock"
+                      ? "bg-orange-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroStock("sinStock")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="hidden sm:inline">Sin stock</span>
+                  <span className="sm:hidden">Sin stock</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroStock === "sinStock"
+                      ? "bg-white/20"
+                      : "bg-orange-500/10 text-orange-700 dark:text-orange-300"
+                  }`}>
+                    {productos.filter(p => (Number(p.stock) || 0) <= 0).length}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filtro de imágenes - siempre visible */}
+            <div className="w-full">
+              <div className="flex flex-wrap gap-2 bg-muted/30 rounded-lg p-2 shadow-sm border border-border/60">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === ""
+                      ? "bg-purple-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroImagenes("")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Todos</span>
+                  <span className="sm:hidden">Todos</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "" ? "bg-white/20" : "bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                  }`}>
+                    {productos.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === "conImagenes"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroImagenes("conImagenes")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Con imágenes</span>
+                  <span className="sm:hidden">Con imágenes</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "conImagenes"
+                      ? "bg-white/20"
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  }`}>
+                    {productos.filter(p => p.imagenes && Array.isArray(p.imagenes) && p.imagenes.length > 0).length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-xs sm:text-sm flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    filtroImagenes === "sinImagenes"
+                      ? "bg-amber-600 text-white"
+                      : "bg-muted text-foreground hover:bg-muted/80"
+                  }`}
+                  onClick={() => setFiltroImagenes("sinImagenes")}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="hidden sm:inline">Sin imágenes</span>
+                  <span className="sm:hidden">Sin imágenes</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                    filtroImagenes === "sinImagenes"
+                      ? "bg-white/20"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {productos.filter(p => !p.imagenes || !Array.isArray(p.imagenes) || p.imagenes.length === 0).length}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Indicador de productos filtrados y banner de ayuda drag & drop */}
+          <div className="flex flex-col gap-3">
+            {(filtro || cat || filtroTipoMadera || filtroSubCategoria || filtroTienda || filtroStock || filtroImagenes) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFiltro("");
+                  setCat("");
+                  setFiltroTipoMadera("");
+                  setFiltroSubCategoria("");
+                  setFiltroTienda("");
+                  setFiltroStock("");
+                  setFiltroImagenes("");
+                }}
+                className="text-xs w-fit"
+              >
+                Limpiar filtros
+              </Button>
+            )}
+            
+            {/* Banner informativo sobre drag & drop de imágenes */}
+            {showDragDropBanner && (
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 shadow-sm animate-fadeIn">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-background/60 rounded-lg flex-shrink-0 shadow-sm border border-border/60">
+                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                      <span className="text-lg">💡</span>
+                      <span>Tip: Agregar imágenes a productos</span>
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Puedes <strong className="font-bold bg-primary/10 px-1.5 py-0.5 rounded">arrastrar y soltar</strong> imágenes (o múltiples imágenes a la vez) directamente sobre cualquier producto de la lista. 
+                      Cada producto puede tener hasta <strong className="font-bold text-foreground">3 imágenes</strong>. 
+                      El <span className="inline-flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-primary font-medium">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px]">0/3</span>
+                      </span> indicador muestra cuántas ya tiene cada producto.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDragDropBanner(false)}
+                    className="p-1.5 hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0 group"
+                    title="Cerrar"
+                  >
+                    <svg className="w-4 h-4 text-primary group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-destructive py-4 text-center">{error}</div>
+          ) : productosFiltrados.length === 0 ? (
+            <div className="text-muted-foreground py-4 text-center">
+              No hay productos para mostrar.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full caption-top text-sm overflow-hidden">
+                <thead className="bg-muted/30 [&_tr]:border-b [&_tr]:border-border/60">
+                  <tr className="border-b border-border/60 transition-colors data-[state=selected]:bg-muted">
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          ref={selectAllCheckboxRef}
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                        />
+                      </div>
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Código
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Producto
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Categoría
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Subcategoría
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Unidad Medida
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Estado
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Tienda
+                    </th>
+                    <th className="h-14 px-4 ltr:text-left rtl:text-right last:ltr:text-right last:rtl:text-left align-middle font-semibold text-sm text-default-800 capitalize [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="relative">
+                  {/* Overlay de carga durante la paginación */}
+                  {isLoadingPagination && (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                      <div className="flex items-center gap-3 bg-background px-4 py-3 rounded-lg shadow-lg border border-border">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Cargando productos...
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {productosPaginados.map((p) => (
+                    <tr
+                      key={p.id}
+                      className={`border-b border-border/60 relative ${
+                        dragOverProductId === p.id 
+                          ? (p.imagenes && p.imagenes.length >= 3)
+                            ? 'bg-red-500/5 border-red-500/30'
+                            : 'bg-green-500/5 border-green-500/30'
+                          : selectedProducts.includes(p.id)
+                            ? 'bg-primary/10'
+                            : 'hover:bg-muted/50'
+                      }`}
+                      onDragOver={(e) => handleDragOver(e, p.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, p)}
+                    >
+                      {/* Overlay cuando se arrastra sobre el producto */}
+                      {dragOverProductId === p.id && (
+                        <td colSpan="100%" className="absolute inset-0 pointer-events-none z-10 p-0">
+                          <div className={`absolute inset-0 flex items-center justify-center ${
+                            (p.imagenes && p.imagenes.length >= 3)
+                              ? 'bg-red-500/5'
+                              : 'bg-green-500/5'
+                          }`}>
+                            <div className={`flex items-center gap-3 px-6 py-3 rounded-lg shadow-lg border ${
+                              (p.imagenes && p.imagenes.length >= 3)
+                                ? 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300'
+                                : 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300'
+                            }`}>
+                              {(p.imagenes && p.imagenes.length >= 3) ? (
+                                <>
+                                  <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.64-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                  </svg>
+                                  <div>
+                                    <div className="font-semibold text-sm">Límite alcanzado</div>
+                                    <div className="text-xs">Este producto ya tiene 3/3 imágenes</div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <div>
+                                    <div className="font-semibold text-sm flex items-center gap-2">
+                                      <span>Soltar imágenes aquí</span>
+                                    </div>
+                                    <div className="text-xs">
+                                      {p.imagenes && p.imagenes.length > 0 
+                                        ? `${p.imagenes.length}/3 imágenes - ${3 - p.imagenes.length} espacio${3 - p.imagenes.length !== 1 ? 's' : ''} disponible${3 - p.imagenes.length !== 1 ? 's' : ''}`
+                                        : 'Hasta 3 imágenes permitidas'
+                                      }
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                    
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedProducts.includes(p.id)}
+                            onChange={() => handleSelectProduct(p.id)}
+                            className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                          />
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.codigo}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-default-900 flex-1">
+                            {p.nombre}
+                          </div>
+                          {p.imagenes && p.imagenes.length > 0 ? (
+                            <div className="group relative flex-shrink-0">
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${
+                                p.imagenes.length >= 3
+                                  ? 'bg-green-500/10 border border-green-500/20'
+                                  : 'bg-primary/10 border border-primary/20'
+                              }`}>
+                                <svg className={`w-3.5 h-3.5 ${
+                                  p.imagenes.length >= 3 ? 'text-green-600 dark:text-green-400' : 'text-primary'
+                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className={`text-xs font-semibold ${
+                                  p.imagenes.length >= 3 ? 'text-green-700 dark:text-green-300' : 'text-primary'
+                                }`}>
+                                  {p.imagenes.length}/3
+                                </span>
+                                {p.imagenes.length >= 3 && (
+                                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-popover text-popover-foreground border border-border shadow-md text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                                {p.imagenes.length >= 3 
+                                  ? '✓ Límite alcanzado (3/3)'
+                                  : `${p.imagenes.length} ${p.imagenes.length === 1 ? 'imagen' : 'imágenes'} - Puedes agregar ${3 - p.imagenes.length} más`
+                                }
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-popover"></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group relative flex-shrink-0">
+                              <div className="flex items-center gap-1 px-2 py-1 bg-muted/40 border border-border/60 rounded-full opacity-40">
+                                <svg className="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  0/3
+                                </span>
+                              </div>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-popover text-popover-foreground border border-border shadow-md text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                                Sin imágenes - Arrastra una imagen aquí
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-popover"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.categoria}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.categoria === "Maderas" ? (p.subcategoria || "-") : (p.subCategoria || "-")}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="font-semibold text-default-900">
+                          {p.unidadMedida || "-"}
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            p.estado === "Activo"
+                              ? "bg-green-500/10 text-green-700 dark:text-green-300"
+                              : p.estado === "Inactivo"
+                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+                              : "bg-red-500/10 text-red-700 dark:text-red-300"
+                          }`}
+                        >
+                          {p.estado}
+                        </span>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleToggleEstadoTienda(p.id, p.estadoTienda || "Inactivo")}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${
+                              p.estadoTienda === "Activo"
+                                ? "bg-green-500"
+                                : "bg-muted"
+                            }`}
+                            title={`Click para ${p.estadoTienda === "Activo" ? "desactivar" : "activar"} en tienda`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
+                                p.estadoTienda === "Activo"
+                                  ? "translate-x-6"
+                                  : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                          <span
+                            className={`text-xs font-semibold ${
+                              p.estadoTienda === "Activo"
+                                ? "text-green-700 dark:text-green-300"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {p.estadoTienda || "Inactivo"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 align-middle text-sm text-default-600 last:text-right last:rtl:text-left font-normal [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0">
+                        <div className="flex gap-2 justify-center">
+                          <Link href={`/productos/${p.id}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                              Editar
+                            </Button>
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          
+          {/* Paginación profesional */}
+          {productosFiltrados.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando <span className="font-semibold">
+                    {((paginaActual - 1) * productosPorPagina) + 1}
+                  </span> a <span className="font-semibold">
+                    {Math.min(paginaActual * productosPorPagina, totalProductos)}
+                  </span> de <span className="font-semibold">{totalProductos}</span> productos
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Productos por página:</span>
+                  <select
+                    value={productosPorPagina}
+                    onChange={(e) => {
+                      setProductosPorPagina(Number(e.target.value));
+                      setPaginaActual(1);
+                    }}
+                    className="px-2 py-1 text-sm border border-border bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const paginas = [];
+                    const paginasAMostrar = 5;
+                    const inicio = Math.max(1, paginaActual - Math.floor(paginasAMostrar / 2));
+                    const fin = Math.min(totalPaginas, inicio + paginasAMostrar - 1);
+                    
+                    // Agregar primera página si no está incluida
+                    if (inicio > 1) {
+                      paginas.push(
+                        <Button
+                          key={1}
+                          variant={paginaActual === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(1)}
+                          className="px-3 py-1"
+                        >
+                          1
+                        </Button>
+                      );
+                      if (inicio > 2) {
+                        paginas.push(
+                          <span key="dots1" className="px-2 text-muted-foreground">...</span>
+                        );
+                      }
+                    }
+                    
+                    // Agregar páginas del rango
+                    for (let i = inicio; i <= fin; i++) {
+                      paginas.push(
+                        <Button
+                          key={i}
+                          variant={paginaActual === i ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(i)}
+                          className="px-3 py-1"
+                        >
+                          {i}
+                        </Button>
+                      );
+                    }
+                    
+                    // Agregar última página si no está incluida
+                    if (fin < totalPaginas) {
+                      if (fin < totalPaginas - 1) {
+                        paginas.push(
+                          <span key="dots2" className="px-2 text-muted-foreground">...</span>
+                        );
+                      }
+                      paginas.push(
+                        <Button
+                          key={totalPaginas}
+                          variant={paginaActual === totalPaginas ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => cambiarPagina(totalPaginas)}
+                          className="px-3 py-1"
+                        >
+                          {totalPaginas}
+                        </Button>
+                      );
+                    }
+                    
+                    return paginas;
+                  })()}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cambiarPagina(totalPaginas)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[95vw] max-w-[1000px] p-0 overflow-hidden shadow-2xl">
+          <div className="relative">
+            {/* Header con gradiente y diseño moderno */}
+            <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white px-8 py-8 relative overflow-hidden">
+              <div className="absolute inset-0 bg-black/10"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Boxes className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-3xl font-bold text-white mb-1">
+                      Agregar Nuevo Producto
+                    </DialogTitle>
+                    <p className="text-blue-100 text-base">
+                      Complete la información del producto para agregarlo al inventario
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {/* Elementos decorativos animados */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20 animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16 animate-pulse delay-1000"></div>
+              <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-white/3 rounded-full animate-bounce"></div>
+            </div>
+            
+            {/* Contenido del formulario con scroll suave */}
+            <div className="max-h-[75vh] overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-muted/30">
+              <div className="px-8 py-8">
+                <FormularioProducto
+                  onClose={() => setOpen(false)}
+                  onSuccess={() => setReload((r) => !r)}
+                />
+              </div>
+            </div>
+            
+            {/* Footer con diseño moderno - solo información */}
+            <div className="bg-muted/30 border-t border-border px-8 py-4">
+              <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="font-medium">Tip:</span> Los campos marcados con <span className="text-red-500 font-bold">*</span> son obligatorios
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva */}
+      <Dialog open={openBulk} onOpenChange={setOpenBulk}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Importar Maderas</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatus && (
+              <div
+                className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                  bulkStatus === "success"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                }`}
+              >
+                {bulkStatus === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                {bulkMessage}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoading && bulkProgress.total > 0 && (
+              <div className="bg-primary/10 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>
+                    {bulkProgress.current} / {bulkProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        (bulkProgress.current / bulkProgress.total) * 100
+                      }%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const f = e.target.files[0];
+                    setBulkFile(f);
+                    setBulkStatus(null);
+                    setBulkMessage("");
+                    setBulkPreview(null);
+                    setBulkPreviewError("");
+                    if (f) computeBulkPreviewMaderas(f);
+                  }}
+                  className="hidden"
+                  id="file-upload"
+                  disabled={bulkLoading}
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFile && (
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Archivo seleccionado: <strong>{bulkFile.name}</strong>
+                    </p>
+                  </div>
+                )}
+                {bulkPreviewLoading && (
+                  <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
+                    Analizando archivo...
+                  </div>
+                )}
+                {bulkPreviewError && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-700 dark:text-red-300">
+                    {bulkPreviewError}
+                  </div>
+                )}
+                {bulkPreview && (
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-foreground">Previsualización</div>
+                      <div className="text-xs text-muted-foreground">Válidos: {bulkPreview.total} • Inválidos: {bulkPreview.invalidos}</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="p-2 rounded-md bg-green-500/10 border border-green-500/20">
+                        <div className="font-medium text-green-700 dark:text-green-300">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700 dark:text-green-300">{bulkPreview.nuevos}</div>
+                        {bulkPreview.muestrasNuevos.length > 0 && (
+                          <ul className="mt-1 text-xs text-green-700 dark:text-green-300 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreview.muestrasNuevos.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.nombre}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <div className="font-medium text-amber-700 dark:text-amber-300">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{bulkPreview.actualizaciones}</div>
+                        {bulkPreview.muestrasUpdates.length > 0 && (
+                          <ul className="mt-1 text-xs text-amber-700 dark:text-amber-300 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreview.muestrasUpdates.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-muted/50 border border-border">
+                        <div className="font-medium text-foreground">Ignorados</div>
+                        <div className="text-2xl font-bold text-muted-foreground">{bulkPreview.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          Productos válidos sin cambios detectados
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={bulkOnlyChanges}
+                          onChange={(e) => setBulkOnlyChanges(e.target.checked)}
+                          disabled={bulkLoading}
+                        />
+                        <span>
+                          Aplicar solo cambios detectados y nuevos <span className="text-green-700 font-medium">(Recomendado)</span>
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkPreview) return;
+                          const headers = ["accion","id","codigo","nombre","cambios"];
+                          const rows = [headers.join(",")];
+                          bulkPreview.detalles?.nuevos?.forEach((x) => {
+                            rows.push(["nuevo", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreview.detalles?.actualizaciones?.forEach((x) => {
+                            rows.push(["actualizacion", x.id, x.codigo, x.nombre, (x.cambios||[]).join(" | ")].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreview.detalles?.ignorados?.forEach((x) => {
+                            rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          const csv = "data:text/csv;charset=utf-8,\uFEFF" + rows.join("\n");
+                          const encodedUri = encodeURI(csv);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", encodedUri);
+                          link.setAttribute("download", `reporte_previsualizacion_maderas_${new Date().toISOString().split("T")[0]}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="text-xs bg-background border border-border text-foreground px-3 py-1.5 rounded-md hover:bg-muted/50"
+                      >
+                        Descargar reporte
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSV}
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
+                  Instrucciones:
+                </h4>
+              </div>
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                      <li>• Si se incluye la columna &quot;id&quot;, se usará para actualizar ese producto</li>
+                <li>• Solo se permiten productos de categoría &quot;Maderas&quot;</li>
+                <li>• Todos los campos obligatorios deben estar presentes</li>
+                <li>• El campo &quot;precioPorPie&quot; no puede ser null o 0</li>
+                <li>• Se agregarán automáticamente las fechas de creación</li>
+                <li>
+                  • La unidad de medida se establecerá automáticamente como
+                  &quot;pie&quot;
+                </li>
+                <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• Los campos numéricos se convertirán automáticamente</li>
+                <li>• Se ignorarán las filas vacías</li>
+                <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                <li>
+                  • Asegúrate de que las columnas coincidan con el formato
+                  esperado
+                </li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpenBulk(false)}
+              disabled={bulkLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleBulkUpload}
+              disabled={bulkLoading || !bulkFile}
+            >
+              {bulkLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva Ferretería */}
+      <Dialog open={openBulkFerreteria} onOpenChange={setOpenBulkFerreteria}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Importar Ferretería</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatusFerreteria && (
+              <div
+                className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                  bulkStatusFerreteria === "success"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                }`}
+              >
+                {bulkStatusFerreteria === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                {bulkMessageFerreteria}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoadingFerreteria && bulkProgressFerreteria.total > 0 && (
+              <div className="bg-primary/10 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>
+                    {bulkProgressFerreteria.current} /{" "}
+                    {bulkProgressFerreteria.total}
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        (bulkProgressFerreteria.current /
+                          bulkProgressFerreteria.total) *
+                        100
+                      }%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const f = e.target.files[0];
+                    setBulkFileFerreteria(f);
+                    setBulkStatusFerreteria(null);
+                    setBulkMessageFerreteria("");
+                    setBulkPreviewFerreteria(null);
+                    setBulkPreviewErrorFerreteria("");
+                    if (f) computeBulkPreviewFerreteria(f);
+                  }}
+                  className="hidden"
+                  id="file-upload-ferreteria"
+                  disabled={bulkLoadingFerreteria}
+                />
+                <label
+                  htmlFor="file-upload-ferreteria"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFileFerreteria && (
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Archivo seleccionado:{" "}
+                      <strong>{bulkFileFerreteria.name}</strong>
+                    </p>
+                  </div>
+                )}
+                {bulkPreviewLoadingFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
+                    Analizando archivo...
+                  </div>
+                )}
+                {bulkPreviewErrorFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-700 dark:text-red-300">
+                    {bulkPreviewErrorFerreteria}
+                  </div>
+                )}
+                {bulkPreviewFerreteria && (
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-foreground">Previsualización</div>
+                      <div className="text-xs text-muted-foreground">Válidos: {bulkPreviewFerreteria.total} • Inválidos: {bulkPreviewFerreteria.invalidos}</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="p-2 rounded-md bg-green-500/10 border border-green-500/20">
+                        <div className="font-medium text-green-700 dark:text-green-300">Nuevos</div>
+                        <div className="text-2xl font-bold text-green-700 dark:text-green-300">{bulkPreviewFerreteria.nuevos}</div>
+                        {bulkPreviewFerreteria.muestrasNuevos.length > 0 && (
+                          <ul className="mt-1 text-xs text-green-700 dark:text-green-300 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreviewFerreteria.muestrasNuevos.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.nombre}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                        <div className="font-medium text-amber-700 dark:text-amber-300">Actualizaciones</div>
+                        <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{bulkPreviewFerreteria.actualizaciones}</div>
+                        {bulkPreviewFerreteria.muestrasUpdates.length > 0 && (
+                          <ul className="mt-1 text-xs text-amber-700 dark:text-amber-300 space-y-0.5 max-h-24 overflow-auto">
+                            {bulkPreviewFerreteria.muestrasUpdates.map((m, idx) => (
+                              <li key={idx}>{m.codigo} — {m.cambios.join(", ")}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-md bg-muted/50 border border-border">
+                        <div className="font-medium text-foreground">Ignorados</div>
+                        <div className="text-2xl font-bold text-muted-foreground">{bulkPreviewFerreteria.ignorados || 0}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          Productos válidos sin cambios detectados
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={bulkOnlyChangesFerreteria}
+                          onChange={(e) => setBulkOnlyChangesFerreteria(e.target.checked)}
+                          disabled={bulkLoadingFerreteria}
+                        />
+                        <span>
+                          Aplicar solo cambios detectados y nuevos <span className="text-green-700 font-medium">(Recomendado)</span>
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!bulkPreviewFerreteria) return;
+                          const headers = ["accion","id","codigo","nombre","cambios"];
+                          const rows = [headers.join(",")];
+                          bulkPreviewFerreteria.detalles?.nuevos?.forEach((x) => {
+                            rows.push(["nuevo", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreviewFerreteria.detalles?.actualizaciones?.forEach((x) => {
+                            rows.push(["actualizacion", x.id, x.codigo, x.nombre, (x.cambios||[]).join(" | ")].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          bulkPreviewFerreteria.detalles?.ignorados?.forEach((x) => {
+                            rows.push(["ignorado", x.id, x.codigo, x.nombre, ""].map(v => `"${(v||"")}"`).join(","));
+                          });
+                          const csv = "data:text/csv;charset=utf-8,\uFEFF" + rows.join("\n");
+                          const encodedUri = encodeURI(csv);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", encodedUri);
+                          link.setAttribute("download", `reporte_previsualizacion_ferreteria_${new Date().toISOString().split("T")[0]}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="text-xs bg-background border border-border text-foreground px-3 py-1.5 rounded-md hover:bg-muted/50"
+                      >
+                        Descargar reporte
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSVFerreteria}
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.96-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
+                  Instrucciones:
+                </h4>
+              </div>
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                <li>• Solo se permiten productos de categoría &quot;Ferretería&quot;</li>
+                <li>• <strong>Campos obligatorios:</strong> codigo, nombre, descripcion, categoria, subCategoria, unidadMedida, proveedor, stockMinimo, valorCompra, valorVenta, estado</li>
+                <li>• <strong>Campos opcionales:</strong> stock (si no se proporciona, se establecerá en 0), estadoTienda</li>
+                <li>• El campo &quot;estadoTienda&quot; debe ser &quot;Activo&quot; o &quot;Inactivo&quot;. Si no se proporciona, se establecerá por defecto como &quot;Inactivo&quot;</li>
+                      <li>• Si se incluye la columna &quot;id&quot;, se usará para actualizar ese producto</li>
+                <li>• El campo &quot;stockMinimo&quot; debe ser un número positivo</li>
+                <li>
+                  • El campo &quot;valorCompra&quot; y &quot;valorVenta&quot; deben ser números
+                  positivos
+                </li>
+                <li>• El campo &quot;stock&quot; es opcional y <strong>puede ser negativo</strong> (útil para registrar deuda o faltante de inventario)</li>
+                <li>• El campo &quot;proveedor&quot; es obligatorio</li>
+                <li>• Se agregarán automáticamente las fechas de creación</li>
+                <li>• El archivo debe tener encabezados en la primera fila</li>
+                <li>• <strong>Las descripciones pueden tener múltiples líneas</strong> dentro de comillas</li>
+                <li>• Los campos numéricos se convertirán automáticamente</li>
+                <li>• Se ignorarán las filas vacías</li>
+                <li>• Guarda tu archivo Excel como CSV antes de subirlo</li>
+                <li>
+                  • Asegúrate de que las columnas coincidan con el formato
+                  esperado
+                </li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpenBulkFerreteria(false)}
+              disabled={bulkLoadingFerreteria}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleBulkUploadFerreteria}
+              disabled={bulkLoadingFerreteria || !bulkFileFerreteria}
+            >
+              {bulkLoadingFerreteria ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Cargar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Carga Masiva Obras */}
+      <Dialog open={openBulkObras} onOpenChange={setOpenBulkObras}>
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Importar Obras</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkStatusObras && (
+              <div
+                className={`p-3 rounded-lg flex items-center gap-2 text-sm ${
+                  bulkStatusObras === "success"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                    : "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                }`}
+              >
+                {bulkStatusObras === "success" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                {bulkMessageObras}
+              </div>
+            )}
+
+            {/* Barra de progreso */}
+            {bulkLoadingObras && bulkProgressObras.total > 0 && (
+              <div className="bg-primary/10 p-3 rounded-lg">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Procesando productos...</span>
+                  <span>
+                    {bulkProgressObras.current} /{" "}
+                    {bulkProgressObras.total}
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        (bulkProgressObras.current /
+                          bulkProgressObras.total) *
+                        100
+                      }%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-sm mb-2 block">
+                Archivo Excel/CSV
+              </label>
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => setBulkFileObras(e.target.files[0])}
+                  className="hidden"
+                  id="file-upload-obras"
+                  disabled={bulkLoadingObras}
+                />
+                <label
+                  htmlFor="file-upload-obras"
+                  className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Seleccionar archivo CSV
+                </label>
+                {bulkFileObras && (
+                  <div className="mt-4 p-3 bg-green-500/10 rounded-lg flex items-center gap-2 border border-green-500/20">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      Archivo seleccionado:{" "}
+                      <strong>{bulkFileObras.name}</strong>
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">
+                  Formato soportado: CSV (guarda tu Excel como CSV)
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadExampleCSVObras}
+                  className="mt-4 text-sm text-primary hover:text-primary/80 underline flex items-center gap-1.5 mx-auto"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Descargar ejemplo CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200">
+                  Formato requerido para Obras:
+                </h4>
+              </div>
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                <li>• <strong>codigo</strong>: Código único del producto</li>
+                <li>• <strong>nombre</strong>: Nombre del producto</li>
+                <li>• <strong>descripcion</strong>: Descripción del producto</li>
+                <li>• <strong>categoria</strong>: Categoría del producto</li>
+                <li>• <strong>subCategoria</strong>: Subcategoría del producto</li>
+                <li>• <strong>estado</strong>: Estado del producto (Activo/Inactivo)</li>
+                <li>• <strong>unidad</strong>: Cantidad de unidades</li>
+                <li>• <strong>stockMinimo</strong>: Stock mínimo requerido</li>
+                <li>• <strong>unidadMedida</strong>: Unidad de medida (M2, etc.)</li>
+                <li>• <strong>valorVenta</strong>: Precio de venta</li>
+              </ul>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setOpenBulkObras(false)}
+                disabled={bulkLoadingObras}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleBulkUploadObras}
+                disabled={!bulkFileObras || bulkLoadingObras}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                {bulkLoadingObras ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Cargando Productos
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Cargar Productos
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+
+      {/* Modal de Edición Masiva */}
+      <Dialog open={bulkEditModalOpen} onOpenChange={setBulkEditModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edición Masiva de Productos
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {/* Información de productos seleccionados */}
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-semibold text-primary">Productos Seleccionados</span>
+              </div>
+              <p className="text-foreground">
+                Se editarán <strong>{selectedProducts.length}</strong> producto(s) seleccionado(s).
+                Los cambios se aplicarán a todos los productos de la selección.
+              </p>
+            </div>
+
+            {/* Formulario de edición masiva */}
+            <div className="space-y-6">
+              {/* Campo Estado */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Estado de los Productos
+                </label>
+                <select
+                  value={bulkEditForm.estado}
+                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, estado: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">No cambiar estado</option>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                  <option value="Descontinuado">Descontinuado</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona un nuevo estado para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              {/* Campo Tienda */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Estado de Tienda
+                </label>
+                <select
+                  value={bulkEditForm.estadoTienda}
+                  onChange={(e) => setBulkEditForm(prev => ({ ...prev, estadoTienda: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">No cambiar estado de tienda</option>
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona un nuevo estado de tienda para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              {/* Campo Unidad de Medida */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Unidad de Medida
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={bulkEditForm.unidadMedida}
+                    onChange={(e) => setBulkEditForm(prev => ({ ...prev, unidadMedida: e.target.value }))}
+                    className="flex-1 px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">No cambiar unidad de medida</option>
+                    {unidadesMedida.map((unidad) => (
+                      <option key={unidad} value={unidad}>
+                        {unidad}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddUnidadMedida(true)}
+                    className="px-3"
+                  >
+                    +
+                  </Button>
+                </div>
+                {showAddUnidadMedida && (
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      placeholder="Nueva unidad de medida"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddNewValue('unidadMedida', newValue)}
+                    >
+                      Agregar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddUnidadMedida(false);
+                        setNewValue("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Selecciona una nueva unidad de medida para todos los productos o déjalo vacío para no modificar
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Stock
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select
+                    value={bulkEditForm.stockOperation}
+                    onChange={(e) =>
+                      setBulkEditForm((prev) => ({
+                        ...prev,
+                        stockOperation: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">No cambiar stock</option>
+                    <option value="set">Fijar stock</option>
+                    <option value="add">Sumar</option>
+                    <option value="subtract">Restar</option>
+                  </select>
+                  <Input
+                    type="number"
+                    value={bulkEditForm.stockValue}
+                    onChange={(e) =>
+                      setBulkEditForm((prev) => ({
+                        ...prev,
+                        stockValue: e.target.value,
+                      }))
+                    }
+                    disabled={!bulkEditForm.stockOperation}
+                    placeholder={bulkEditForm.stockOperation === "set" ? "Nuevo stock" : "Cantidad a ajustar"}
+                    className="w-full"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Fijar reemplaza el stock. Sumar/Restar ajusta automáticamente usando operación atómica.
+                </p>
+              </div>
+
+              {/* Mensaje de estado */}
+              {bulkEditMessage && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  bulkEditMessage.startsWith("Error")
+                    ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                    : "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+                }`}>
+                  {bulkEditMessage}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setBulkEditModalOpen(false)}
+              disabled={bulkEditLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleBulkEdit}
+              disabled={bulkEditLoading}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {bulkEditLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Actualizar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación de borrado */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-destructive">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Confirmar Borrado
+              </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+                            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span className="font-semibold text-destructive">¡Atención!</span>
+                  </div>
+              <p className="text-destructive">
+                Estás a punto de eliminar <strong>{selectedProducts.length}</strong> producto(s) de forma permanente.
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+            
+            {deleteMessage && (
+              <div className={`p-3 rounded-lg text-sm mb-4 ${
+                deleteMessage.startsWith("Error")
+                  ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20"
+                  : "bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20"
+              }`}>
+                {deleteMessage}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={deleteLoading}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Eliminar Productos
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación para Drag & Drop de imágenes */}
+      <DragDropImageModal
+        isOpen={dragDropModalOpen}
+        onClose={handleCloseImageModal}
+        onConfirm={handleConfirmImageUpload}
+        imagePreview={Array.isArray(draggedImage) ? draggedImage : draggedImage?.preview}
+        fileName={draggedImage?.name}
+        producto={targetProduct}
+        uploading={uploadingImage}
+        uploadProgress={uploadProgress}
+      />
+
+      {/* Notificación Toast */}
+      <ToastNotification
+        type={toastType}
+        message={toastMessage}
+        isVisible={toastVisible}
+        onClose={() => setToastVisible(false)}
+      />
+    </div>
+  );
+};
+
+export default ProductosPage;

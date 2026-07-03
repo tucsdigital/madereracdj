@@ -1,0 +1,4213 @@
+"use client";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
+import {
+  computeLineBase,
+  computeLineSubtotal,
+  computeTotals,
+} from "@/lib/pricing";
+import QuantityMeasureControl, { MedidaValue } from "@/components/ui/quantity-measure-control";
+import { useParams, useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  updateDoc,
+  increment,
+  serverTimestamp,
+  addDoc,
+} from "firebase/firestore";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { DateInput } from "@/components/ui/date-input";
+import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer, Truck, XCircle } from "lucide-react";
+import { Icon } from "@iconify/react";
+import { useAuth } from "@/provider/auth.provider";
+import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
+
+const ModalCambiarCliente = dynamic(
+  () => import("@/components/clientes/ModalCambiarCliente"),
+  { ssr: false }
+);
+import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
+import { mapFirestoreDoc } from "@/lib/erp/producto-id";
+
+// Agregar función utilitaria para fechas
+function formatFechaLocal(dateString) {
+  if (!dateString) return "-";
+  if (dateString.includes("T")) {
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleDateString("es-AR");
+  }
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return dateString;
+  const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+  return dateObj.toLocaleDateString("es-AR");
+}
+
+const calcAbonado = (ventaLike) => {
+  const pagosArr = Array.isArray(ventaLike?.pagos) ? ventaLike.pagos : [];
+  if (pagosArr.length > 0) return pagosArr.reduce((acc, p) => acc + (Number(p?.monto) || 0), 0);
+  return Number(ventaLike?.montoAbonado || 0);
+};
+
+const deriveEstadoPago = ({ estadoPago, total, abonado }) => {
+  const e = String(estadoPago || "").toLowerCase();
+  if (e === "pagado" || e === "parcial" || e === "pendiente") return e;
+  const t = Number(total) || 0;
+  const a = Number(abonado) || 0;
+  if (t > 0 && a >= t) return "pagado";
+  if (a > 0) return "parcial";
+  return "pendiente";
+};
+
+const buildPagoSnapshot = (ventaLike) => {
+  const total = Number(ventaLike?.total) || 0;
+  const abonado = calcAbonado(ventaLike);
+  const estadoPago = deriveEstadoPago({ estadoPago: ventaLike?.estadoPago, total, abonado });
+  const saldo = Math.max(total - abonado, 0);
+  return { estadoPago, total, abonado, saldo };
+};
+
+const mergeComprobantesPago = (a, b) => {
+  const out = [];
+  const seen = new Set();
+  const push = (c) => {
+    if (!c || typeof c !== "object") return;
+    const url = String(c.url || "").trim();
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    out.push(c);
+  };
+  for (const c of Array.isArray(a) ? a : []) push(c);
+  for (const c of Array.isArray(b) ? b : []) push(c);
+  return out;
+};
+
+function calcularPrecioCorteMadera({
+  alto,
+  ancho,
+  largo,
+  precioPorPie,
+  factor = 0.2734,
+}) {
+  if (
+    [alto, ancho, largo, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const precio = factor * alto * ancho * largo * precioPorPie;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+// Función para calcular precio de machimbre (precio por pie × alto × largo × cantidad)
+function calcularPrecioMachimbre({
+  alto,
+  largo,
+  cantidad,
+  precioPorPie,
+}) {
+  if (
+    [alto, largo, cantidad, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+  const metrosCuadrados = alto * largo;
+  const precio = metrosCuadrados * precioPorPie * cantidad;
+  // Redondear a centenas (múltiplos de 100)
+  return Math.round(precio / 100) * 100;
+}
+
+function calcularPrecioMetroLineal({ largo, cantidad, precioPorPie }) {
+  if (
+    [largo, cantidad, precioPorPie].some(
+      (v) => typeof v !== "number" || v <= 0
+    )
+  ) {
+    return 0;
+  }
+  const metrosLineales = largo * cantidad;
+  const precio = metrosLineales * precioPorPie;
+  return Math.round(precio / 100) * 100;
+}
+
+const VentaDetalle = () => {
+  const params = useParams();
+  const router = useRouter();
+  const { id, lang } = params;
+  const { user } = useAuth();
+  const [venta, setVenta] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editando, setEditando] = useState(false);
+  const [ventaEdit, setVentaEdit] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+  const [errorForm, setErrorForm] = useState("");
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const ventaAnulada = useMemo(() => {
+    if (!venta) return false;
+    return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
+  }, [venta]);
+  const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
+  const [printingPDF, setPrintingPDF] = useState(false);
+  const [printingPDFEmpleado, setPrintingPDFEmpleado] = useState(false);
+  const [printingPDFEnvio, setPrintingPDFEnvio] = useState(false);
+  const printingRef = useRef(false);
+  const printingEmpleadoRef = useRef(false);
+  const printingEnvioRef = useRef(false);
+
+  // Inicializar singleton global usando useEffect para evitar problemas con las reglas de hooks
+  // DEBE estar antes de cualquier return temprano
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.__printLock) {
+      window.__printLock = { active: false, iframe: null, lastPrintTime: 0 };
+    }
+  }, []);
+
+  // Función para imprimir - Solución simple y básica
+  // DEBE estar antes de cualquier return temprano (es un hook useCallback)
+  const handlePrintPDF = useCallback(async (paraEmpleado = false, event = null) => {
+    // Prevenir propagación del evento
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    if (!venta?.id) return;
+    
+    // Verificar si ya hay una impresión en proceso
+    const currentRef = paraEmpleado ? printingEmpleadoRef : printingRef;
+    if (currentRef.current) return;
+    
+    // Activar flag INMEDIATAMENTE
+    currentRef.current = true;
+    
+    if (paraEmpleado) {
+      setPrintingPDFEmpleado(true);
+    } else {
+      setPrintingPDF(true);
+    }
+    
+    try {
+      // Obtener HTML
+      const res = await fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: paraEmpleado,
+        }),
+      });
+      
+      if (!res.ok) {
+        alert("Error al generar el remito. Por favor, intenta nuevamente.");
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+        return;
+      }
+      
+      const html = await res.text();
+      
+      // Crear iframe
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+      
+      // Flag simple para asegurar que solo se imprima una vez
+      let printed = false;
+      let timeoutId = null;
+      
+      const printOnce = () => {
+        if (printed) return;
+        printed = true;
+        
+        // Cancelar timeout si existe
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Error al imprimir:", e);
+        }
+        
+        // Limpiar después de imprimir
+        currentRef.current = false;
+        if (paraEmpleado) {
+          setPrintingPDFEmpleado(false);
+        } else {
+          setPrintingPDF(false);
+        }
+        
+        // Remover iframe después de un tiempo
+        setTimeout(() => {
+          try {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          } catch (e) {
+            // Ignorar errores
+          }
+        }, 2000);
+      };
+      
+      // Escribir HTML
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(html);
+      iframe.contentDocument?.close();
+      
+      // SOLO usar timeout - NO usar onload para evitar múltiples disparos
+      // Esperar 500ms para que el HTML se cargue completamente
+      timeoutId = setTimeout(() => {
+        printOnce();
+      }, 500);
+      
+    } catch (e) {
+      console.error("Error imprimiendo remito", e);
+      alert("Error al generar el remito. Por favor, intenta nuevamente.");
+      currentRef.current = false;
+      if (paraEmpleado) {
+        setPrintingPDFEmpleado(false);
+      } else {
+        setPrintingPDF(false);
+      }
+    }
+  }, [venta?.id]);
+
+  const handlePrintEnvio = useCallback(async (event = null) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!venta?.id) return;
+    if (printingEnvioRef.current) return;
+
+    printingEnvioRef.current = true;
+    setPrintingPDFEnvio(true);
+
+    try {
+      const res = await fetch("/api/pdf/remito-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: false,
+          purpose: "envio",
+        }),
+      });
+
+      if (!res.ok) {
+        alert("Error al generar el documento de envío. Por favor, intenta nuevamente.");
+        printingEnvioRef.current = false;
+        setPrintingPDFEnvio(false);
+        return;
+      }
+
+      const html = await res.text();
+
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      let printed = false;
+      let timeoutId = null;
+
+      const printOnce = () => {
+        if (printed) return;
+        printed = true;
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error("Error al imprimir:", e);
+        }
+
+        printingEnvioRef.current = false;
+        setPrintingPDFEnvio(false);
+
+        setTimeout(() => {
+          try {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          } catch (e) {}
+        }, 2000);
+      };
+
+      iframe.contentDocument?.open();
+      iframe.contentDocument?.write(html);
+      iframe.contentDocument?.close();
+
+      timeoutId = setTimeout(() => {
+        printOnce();
+      }, 500);
+    } catch (e) {
+      console.error("Error imprimiendo documento de envío", e);
+      alert("Error al generar el documento de envío. Por favor, intenta nuevamente.");
+      printingEnvioRef.current = false;
+      setPrintingPDFEnvio(false);
+    }
+  }, [venta?.id]);
+
+  // Hook para pagosSimples si no hay array pagos
+  const [pagosSimples, setPagosSimples] = useState([]);
+
+  // 1. Agregar estado para loader y mensaje de éxito
+  const [registrandoPago, setRegistrandoPago] = useState(false);
+  const [pagoExitoso, setPagoExitoso] = useState(false);
+
+  // Estados para borrado de pagos
+  const [borrandoPago, setBorrandoPago] = useState(false);
+  const [pagoABorrar, setPagoABorrar] = useState(null);
+  const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] = useState(false);
+
+  // Estado para cambio de cliente
+  const [showSelectorCliente, setShowSelectorCliente] = useState(false);
+
+  // Dólar Blue dinámico (venta)
+  const [loadingDolar, setLoadingDolar] = useState(false);
+  const [ultimaActualizacionDolar, setUltimaActualizacionDolar] = useState(null);
+
+  // Estados para filtros de productos
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+
+  // Estados para catálogo (idénticos a ventas/page.jsx)
+  const [productosState, setProductosState] = useState([]);
+  const [productosPorCategoria, setProductosPorCategoria] = useState({});
+  const [categoriasState, setCategoriasState] = useState([]);
+
+  // Sin búsqueda remota: todo se filtra en memoria (idéntico)
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12);
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+  const [isPending, startTransition] = React.useTransition();
+
+  // Derivar categorías y agrupación desde los productos cargados (igual intención que ventas/page.jsx)
+  useEffect(() => {
+    if (!Array.isArray(productos) || productos.length === 0) {
+      setProductosState([]);
+      setProductosPorCategoria({});
+      setCategoriasState([]);
+      return;
+    }
+    setProductosState(productos);
+    const agrupados = {};
+    productos.forEach((p) => {
+      (agrupados[p.categoria] = agrupados[p.categoria] || []).push(p);
+    });
+    setProductosPorCategoria(agrupados);
+    setCategoriasState(Object.keys(agrupados));
+  }, [productos]);
+
+  useEffect(() => {
+    const fetchVenta = async () => {
+      try {
+        console.log("=== DEBUG VENTA ===");
+        console.log("Params completos:", params);
+        console.log("ID extraído:", id);
+        console.log("Lang extraído:", lang);
+        console.log("URL actual:", window.location.href);
+
+        if (!id) {
+          console.error("No se encontró ID en los parámetros");
+          setError("No se proporcionó ID de venta");
+          setLoading(false);
+          return;
+        }
+
+        const docRef = doc(db, "ventas", id);
+        console.log("Referencia del documento:", docRef);
+
+        const docSnap = await getDoc(docRef);
+        console.log("Documento existe:", docSnap.exists());
+        console.log("Datos del documento:", docSnap.data());
+
+        if (docSnap.exists()) {
+          const ventaData = { id: docSnap.id, ...docSnap.data() };
+          console.log("Venta cargada exitosamente:", ventaData);
+          setVenta(ventaData);
+        } else {
+          console.error("Venta no encontrada en Firebase");
+          setError("La venta no existe en la base de datos");
+        }
+      } catch (error) {
+        console.error("Error al cargar venta:", error);
+        setError(`Error al cargar la venta: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVenta();
+  }, [id, lang, params]);
+
+  // Cambiar el título de la página dinámicamente para el nombre del PDF
+  useEffect(() => {
+    if (venta?.numeroPedido) {
+      document.title = venta.numeroPedido;
+    }
+    // Restaurar el título original al desmontar el componente
+    return () => {
+      document.title = "Maderas Caballero - Panel Administrativo";
+    };
+  }, [venta?.numeroPedido]);
+
+  // Cargar clientes y productos para selects y edición
+  useEffect(() => {
+    const fetchClientesYProductos = async () => {
+      const snapClientes = await getDocs(collection(db, "clientes"));
+      setClientes(
+        snapClientes.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
+      const snapProductos = await getDocs(collection(db, "productos"));
+      const productosData = snapProductos.docs.map((doc) => mapFirestoreDoc(doc));
+      console.log("=== DEBUG CARGA PRODUCTOS ===");
+      console.log("Productos cargados:", productosData);
+      console.log("Cantidad de productos:", productosData.length);
+      setProductos(productosData);
+    };
+    fetchClientesYProductos();
+  }, []);
+  // Al activar edición, clonar venta
+  useEffect(() => {
+    if (editando && venta) {
+      console.log("=== DEBUG Clonando venta para edición ===");
+      console.log("venta original:", venta);
+      console.log("venta.clienteId:", venta.clienteId);
+      console.log("venta.cliente:", venta.cliente);
+
+      const ventaClonada = JSON.parse(JSON.stringify(venta));
+
+      // Asegurar que TODA la información del cliente se preserve
+      if (venta.clienteId) {
+        ventaClonada.clienteId = venta.clienteId;
+      }
+      if (venta.cliente) {
+        ventaClonada.cliente = venta.cliente;
+      }
+
+      // Inicializar campos de pago para el formulario
+      ventaClonada.nuevoPagoMonto = "";
+      ventaClonada.nuevoPagoMetodo = "";
+
+      // Comprobantes de pago y pago en dólares
+      ventaClonada.comprobantesPago = Array.isArray(ventaClonada.comprobantesPago) ? ventaClonada.comprobantesPago : [];
+      ventaClonada.pagoEnDolares = ventaClonada.pagoEnDolares ?? false;
+      ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
+      ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
+        p.categoria === "Maderas"
+          ? (() => {
+              const normalizarBool = (value) =>
+                value === true ||
+                value === "true" ||
+                value === 1 ||
+                value === "1" ||
+                value === "on";
+              const normalizarUnidadMadera = (raw) => {
+                const txt = String(raw || "").trim();
+                const up = txt.toUpperCase();
+                if (up === "M2") return "M2";
+                if (up === "ML") return "ML";
+                if (up === "UN" || up === "UNIDAD" || up === "UNIDADES" || up === "U")
+                  return "Unidad";
+                return txt;
+              };
+              const calibradoAplicado = normalizarBool(p.calibradoAplicado);
+              const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+                p.calibradoPorcentaje
+              );
+              const unidad = normalizarUnidadMadera(p.unidad || p.unidadMedida || "");
+              const cepilladoAplicadoRaw = p.cepilladoAplicado;
+              const cepilladoAplicado =
+                (cepilladoAplicadoRaw === null || cepilladoAplicadoRaw === undefined) && unidad === "M2"
+                  ? true
+                  : normalizarBool(cepilladoAplicadoRaw);
+              const cepilladoPorcentaje =
+                unidad === "M2" ? 0 : normalizarCepilladoPorcentaje(p.cepilladoPorcentaje);
+              const altoParsed = parseNumericValue(p.alto);
+              const anchoParsed = parseNumericValue(p.ancho);
+              const largoParsed = parseNumericValue(p.largo);
+              const cantidadParsed = parseNumericValue(p.cantidad);
+              let precioPorPieParsed = parseNumericValue(p.precioPorPie);
+              const alto = altoParsed === "" ? 0 : altoParsed;
+              const ancho = anchoParsed === "" ? 0 : anchoParsed;
+              const largo = largoParsed === "" ? 0 : largoParsed;
+              const cantidad = cantidadParsed === "" ? 1 : Math.max(1, Math.ceil(cantidadParsed));
+              if ((precioPorPieParsed === "" || precioPorPieParsed === 0) && unidad === "Unidad") {
+                const precioFallback = parseNumericValue(p.precio);
+                if (precioFallback !== "" && precioFallback > 0) {
+                  precioPorPieParsed = precioFallback;
+                }
+              }
+              const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+              const precioStoredParsed = parseNumericValue(p.precio);
+              let precio = precioStoredParsed === "" ? 0 : precioStoredParsed;
+              if (precio <= 0 && unidad === "M2") {
+                const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
+                if (altoM2 > 0 && largo > 0 && precioPorPie > 0) {
+                  precio = calcularPrecioMachimbre({
+                    alto: altoM2,
+                    largo,
+                    cantidad,
+                    precioPorPie,
+                  });
+                }
+              }
+              return {
+                ...p,
+                unidad,
+                alto,
+                ancho,
+                largo,
+                cantidad,
+                precioPorPie,
+                precio,
+                cepilladoAplicado,
+                cepilladoPorcentaje,
+                calibradoAplicado,
+                calibradoPorcentaje,
+              };
+            })()
+          : p
+      );
+
+      // Verificar que los datos se copiaron correctamente
+      console.log("venta clonada:", ventaClonada);
+      console.log("ventaClonada.clienteId:", ventaClonada.clienteId);
+      console.log("ventaClonada.cliente:", ventaClonada.cliente);
+      console.log("ventaClonada.nuevoPagoMonto:", ventaClonada.nuevoPagoMonto);
+      console.log("ventaClonada.nuevoPagoMetodo:", ventaClonada.nuevoPagoMetodo);
+
+      setVentaEdit(ventaClonada);
+    }
+  }, [editando, venta]);
+
+  // Cotización oficial BNA: usa el promedio entre compra y venta para pagos en USD
+  const fetchDolarBlue = useCallback(async () => {
+    setLoadingDolar(true);
+    try {
+      const res = await fetch("/api/dolar-blue");
+      const data = await res.json();
+      if (res.ok && data?.referencia != null) {
+        setVentaEdit((prev) => {
+          if (!prev?.pagoEnDolares) return prev;
+          return { ...prev, valorOficialDolar: Number(data.referencia) };
+        });
+        setUltimaActualizacionDolar(data.fechaActualizacion ? new Date(data.fechaActualizacion) : new Date());
+      }
+    } catch (err) {
+      console.warn("Error al obtener dólar oficial BNA:", err);
+    } finally {
+      setLoadingDolar(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editando || !ventaEdit?.pagoEnDolares) return;
+    fetchDolarBlue();
+    const interval = setInterval(fetchDolarBlue, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [editando, ventaEdit?.pagoEnDolares, fetchDolarBlue]);
+
+  // Al activar edición, inicializar pagosSimples si no hay array pagos
+  useEffect(() => {
+    if (editando && venta && !Array.isArray(venta.pagos)) {
+      setPagosSimples(
+        [
+          venta.montoAbonado > 0
+            ? {
+                fecha: venta.fecha || new Date().toISOString().split("T")[0],
+                monto: Number(venta.montoAbonado),
+                metodo: venta.formaPago || "-",
+                usuario: "-",
+              }
+            : null,
+        ].filter(Boolean)
+      );
+    }
+  }, [editando, venta]);
+
+  // Handler para cambiar cliente (usado por el componente ModalCambiarCliente)
+  const handleClienteSeleccionado = async (clienteId, clienteData) => {
+    try {
+      if (!venta?.id) {
+        console.error("No se puede actualizar: venta no disponible");
+        return;
+      }
+
+      // Actualizar la venta en Firestore
+      await updateDoc(doc(db, "ventas", venta.id), {
+        clienteId: clienteId,
+        cliente: clienteData,
+        actualizadoEn: new Date().toISOString(),
+      });
+
+      // Actualizar el estado local
+      const ventaActualizada = {
+        ...venta,
+        clienteId: clienteId,
+        cliente: clienteData,
+      };
+      setVenta(ventaActualizada);
+
+      // Actualizar lista de clientes si es un cliente nuevo
+      const clienteExiste = clientes.find((c) => c.id === clienteId);
+      if (!clienteExiste) {
+        setClientes((prev) => [...prev, { id: clienteId, ...clienteData }]);
+      }
+    } catch (error) {
+      console.error("Error al actualizar cliente:", error);
+      alert("Error al actualizar el cliente");
+    }
+  };
+
+  // Función para actualizar precios
+  const handleActualizarPrecios = async () => {
+    setLoadingPrecios(true);
+    try {
+      // Obtener productos actualizados desde Firebase
+      const productosSnap = await getDocs(collection(db, "productos"));
+      const productosActualizados = productosSnap.docs.map((doc) => mapFirestoreDoc(doc));
+
+      // Actualizar precios de productos en ventaEdit
+      const productosConPreciosActualizados = (ventaEdit.productos || []).map(
+        (productoVenta) => {
+          const lineKey = productoVenta.originalId || productoVenta.id;
+          const productoActualizado = productosActualizados.find(
+            (p) =>
+              p.id === lineKey ||
+              (productoVenta.codigo && p.codigo === productoVenta.codigo)
+          );
+          if (productoActualizado) {
+            let nuevoPrecio = 0;
+            if (productoActualizado.categoria === "Maderas") {
+              const altoParsed = parseNumericValue(productoVenta.alto ?? productoActualizado.alto);
+              const anchoParsed = parseNumericValue(productoVenta.ancho ?? productoActualizado.ancho);
+              const largoParsed = parseNumericValue(productoVenta.largo ?? productoActualizado.largo);
+              const precioPorPieParsed = parseNumericValue(
+                productoVenta.precioPorPie ?? productoActualizado.precioPorPie
+              );
+              const alto = altoParsed === "" ? 0 : altoParsed;
+              const ancho = anchoParsed === "" ? 0 : anchoParsed;
+              const largo = largoParsed === "" ? 0 : largoParsed;
+              const precioPorPie = precioPorPieParsed === "" ? 0 : precioPorPieParsed;
+              const unidadUp = String(
+                productoVenta.unidad || productoVenta.unidadMedida || ""
+              )
+                .trim()
+                .toUpperCase();
+
+              if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                const precioBase =
+                  unidadUp === "M2"
+                    ? calcularPrecioMachimbre({
+                        alto,
+                        largo,
+                        cantidad: productoVenta.cantidad || 1,
+                        precioPorPie,
+                      })
+                    : 0.2734 * alto * ancho * largo * precioPorPie;
+                nuevoPrecio = calcularPrecioMaderaConTratamientos(
+                  productoVenta,
+                  precioBase
+                );
+              }
+            } else if (productoActualizado.categoria === "Ferretería") {
+              nuevoPrecio = productoActualizado.valorVenta || 0;
+            } else {
+              nuevoPrecio =
+                productoActualizado.precioUnidad ||
+                productoActualizado.precioUnidadVenta ||
+                productoActualizado.precioUnidadHerraje ||
+                productoActualizado.precioUnidadQuimico ||
+                productoActualizado.precioUnidadHerramienta ||
+                0;
+            }
+
+            return {
+              ...productoVenta,
+              precio: nuevoPrecio,
+            };
+          }
+          return productoVenta;
+        }
+      );
+
+      setVentaEdit((prev) => ({
+        ...prev,
+        productos: productosConPreciosActualizados,
+      }));
+
+      setProductos(productosActualizados);
+    } catch (error) {
+      console.error("Error al actualizar precios:", error);
+    } finally {
+      setLoadingPrecios(false);
+    }
+  };
+
+  // Función para recalcular precios de productos de madera cuando cambia el checkbox de cepillado
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6;
+  const DEFAULT_CALIBRADO_PORCENTAJE = 3;
+  const parseNumericValue = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : "";
+    }
+    let normalizedValue = String(value).trim().replace(/\s/g, "");
+    if (!normalizedValue) return "";
+    if (normalizedValue.includes(",")) {
+      normalizedValue = normalizedValue.replace(/\./g, "").replace(",", ".");
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(normalizedValue)) {
+      normalizedValue = normalizedValue.replace(/\./g, "");
+    }
+    const num = Number(normalizedValue);
+    return Number.isNaN(num) ? "" : num;
+  };
+  const normalizarCalibradoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
+  const normalizarCepilladoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CEPILLADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
+  const calcularPrecioMaderaConTratamientos = (
+    producto,
+    precioBase,
+    overrides = {}
+  ) => {
+    const cepilladoAplicado =
+      overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const unidadMadera = String(overrides.unidad ?? producto.unidad ?? "").trim();
+    const cepilladoPorcentaje =
+      unidadMadera === "M2"
+        ? 0
+        : normalizarCepilladoPorcentaje(
+            overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+          );
+    const calibradoAplicado =
+      overrides.calibradoAplicado ?? producto.calibradoAplicado;
+    const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+      overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
+    );
+    const factorCepillado =
+      cepilladoAplicado
+        ? 1 + cepilladoPorcentaje / 100
+        : 1;
+    const factorCalibrado = calibradoAplicado
+      ? 1 + calibradoPorcentaje / 100
+      : 1;
+    return Math.round((precioBase * factorCepillado * factorCalibrado) / 100) * 100;
+  };
+  const recalcularTratamientosMadera = (productoId, cambios = {}) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === productoId && p.categoria === "Maderas") {
+          let precioBase;
+
+          if (p.unidad === "M2") {
+            // Para machimbres/deck: usar la fórmula específica
+            precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: p.precioPorPie,
+            });
+          } else if (p.unidad === "ML") {
+            precioBase = calcularPrecioMetroLineal({
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: p.precioPorPie,
+            });
+          } else if (p.unidad === "Unidad") {
+            const unit = Math.round((Number(p.precioPorPie) || 0) / 100) * 100;
+            const cantidad = Number(p.cantidad) || 1;
+            return {
+              ...p,
+              ...cambios,
+              precio: unit,
+              precioIncluyeCantidad: false,
+              cepilladoAplicado: false,
+              calibradoAplicado: false,
+              cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+                cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+              ),
+              calibradoPorcentaje: normalizarCalibradoPorcentaje(
+                cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
+              ),
+              cantidad,
+            };
+          } else {
+            // Para otras maderas: usar la fórmula estándar
+            precioBase = 0.2734 * p.alto * p.ancho * p.largo * p.precioPorPie;
+          }
+
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase,
+            cambios
+          );
+
+          return {
+            ...p,
+            ...cambios,
+            precio: precioRedondeado,
+            cepilladoPorcentaje:
+              p.unidad === "M2"
+                ? 0
+                : normalizarCepilladoPorcentaje(
+                    cambios.cepilladoPorcentaje ?? p.cepilladoPorcentaje
+                  ),
+            calibradoPorcentaje: normalizarCalibradoPorcentaje(
+              cambios.calibradoPorcentaje ?? p.calibradoPorcentaje
+            ),
+            precioIncluyeCantidad: p.unidad === "M2" || p.unidad === "ML",
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+  const recalcularPreciosMadera = (productoId, aplicarCepillado) => {
+    recalcularTratamientosMadera(productoId, {
+      cepilladoAplicado: aplicarCepillado,
+    });
+  };
+  const handleCalibradoAplicadoChange = (productoId, aplicarCalibrado) => {
+    recalcularTratamientosMadera(productoId, {
+      calibradoAplicado: aplicarCalibrado,
+    });
+  };
+  const handleCepilladoPorcentajeChange = (productoId, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCepilladoPorcentaje(parsed);
+    recalcularTratamientosMadera(productoId, {
+      cepilladoPorcentaje: porcentajeNormalizado,
+    });
+  };
+  const handleCalibradoPorcentajeChange = (productoId, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCalibradoPorcentaje(parsed);
+    recalcularTratamientosMadera(productoId, {
+      calibradoPorcentaje: porcentajeNormalizado,
+    });
+  };
+
+  // Función para recalcular precio cuando se cambia el precio por pie
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          let precioBase;
+
+          if (p.unidad === "M2") {
+            // Para machimbres/deck: usar la fórmula específica
+            precioBase = calcularPrecioMachimbre({
+              alto: p.alto,
+              largo: p.largo,
+              cantidad: p.cantidad || 1,
+              precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
+            });
+          } else {
+            // Para otras maderas: usar la fórmula estándar
+            precioBase =
+              0.2734 *
+              p.alto *
+              p.ancho *
+              p.largo *
+              (parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie);
+          }
+
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+
+          return {
+            ...p,
+            precioPorPie: parsedPrecioPorPie,
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  // Función para formatear números en formato argentino
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return Number(numero).toLocaleString("es-AR");
+  };
+
+  // Función para obtener información completa del producto desde la base de datos
+  const getProductoCompleto = (productoId) => {
+    return productos.find((p) => p.id === productoId);
+  };
+
+  // Obtener tipos de madera únicos
+  const tiposMadera = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+
+  // Obtener subcategorías de ferretería únicas
+  const subCategoriasFerreteria = [
+    ...new Set(
+      productos
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+
+  // Función para normalizar texto (optimizada)
+  const normalizarTexto = useCallback((texto) => {
+    if (!texto) return "";
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+  }, []);
+
+  
+
+  // Filtrado idéntico a ventas/page.jsx
+  const productosFiltrados = useMemo(() => {
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = productosPorCategoria[categoriaId] || [];
+        fuente = localCat;
+      } else {
+        fuente = productos;
+      }
+    } else if (categoriaId) {
+      // derivar agrupación local
+      const agrupados = productos.reduce((acc, p) => {
+        (acc[p.categoria] = acc[p.categoria] || []).push(p);
+        return acc;
+      }, {});
+      fuente = agrupados[categoriaId];
+    }
+    if (!fuente) return [];
+
+    const busquedaNormalizada = normalizarTexto(busquedaDefer);
+    return fuente
+      .filter((prod) => {
+        const nombreNormalizado = normalizarTexto(prod.nombre);
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+        let cumpleBusqueda = busquedaNormalizada === "";
+        if (busquedaNormalizada !== "") {
+          if (busquedaNormalizada.endsWith(".")) {
+            const busquedaSinPunto = busquedaNormalizada.slice(0, -1);
+            cumpleBusqueda = 
+              nombreNormalizado.startsWith(busquedaSinPunto) ||
+              unidadNormalizada.startsWith(busquedaSinPunto);
+          } else {
+            cumpleBusqueda = 
+              nombreNormalizado.includes(busquedaNormalizada) ||
+              unidadNormalizada.includes(busquedaNormalizada);
+          }
+        }
+        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
+        return (
+          cumpleCategoria && cumpleBusqueda && cumpleTipoMadera && cumpleSubCategoria
+        );
+      })
+      .sort((a, b) => {
+      const stockA = Number(a.stock) || 0;
+      const stockB = Number(b.stock) || 0;
+        if (stockA > 0 && stockB === 0) return -1;
+        if (stockA === 0 && stockB > 0) return 1;
+      return 0;
+    });
+  }, [productos, productosPorCategoria, categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria, normalizarTexto]);
+
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  const cambiarPagina = useCallback((nuevaPagina) => {
+    startTransition(() => {
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+    });
+  }, [totalPaginas, startTransition]);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
+
+  // Funciones para manejar cambios en productos
+  const handleDecrementarCantidad = (id) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id === id) {
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = Math.max(1, current - 1);
+          
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  });
+
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(
+              p,
+              precioBase
+            );
+
+            return {
+              ...p,
+              cantidad: nuevaCantidad,
+              precio: precioRedondeado,
+              precioIncluyeCantidad: true,
+            };
+          }
+          // Para otros productos, solo cambiar cantidad
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleIncrementarCantidad = (id) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id === id) {
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = current + 1;
+          
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: p.precioPorPie,
+                  });
+
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(
+              p,
+              precioBase
+            );
+
+            return {
+              ...p,
+              cantidad: nuevaCantidad,
+              precio: precioRedondeado,
+              precioIncluyeCantidad: true,
+            };
+          }
+          // Para otros productos, solo cambiar cantidad
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleCantidadChange = (id, cantidad) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id === id) {
+          // Si es M2, recalcular precio por m²
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const cantidadNum = Math.max(1, Math.ceil(Number(cantidad) || 1));
+            const precioBase =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: p.alto,
+                    largo: p.largo,
+                    cantidad: cantidadNum,
+                    precioPorPie: p.precioPorPie,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: p.largo,
+                    cantidad: cantidadNum,
+                    precioPorPie: p.precioPorPie,
+                  });
+
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(
+              p,
+              precioBase
+            );
+
+            return {
+              ...p,
+              cantidad: cantidadNum,
+              precio: precioRedondeado,
+              precioIncluyeCantidad: true,
+            };
+          }
+          // Para otros productos, solo cambiar cantidad
+          return { ...p, cantidad: Math.max(1, Math.ceil(Number(cantidad) || 1)) };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleDescuentoChange = (id, descuento) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) =>
+        p.id === id ? { ...p, descuento: Number(descuento) } : p
+      ),
+    }));
+  };
+
+  // Permitir editar el nombre del producto cuando sea un producto manual/especial
+  const handleNombreChange = (id, nombre) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) =>
+        p.id === id ? { ...p, nombre } : p
+      ),
+    }));
+  };
+
+  // Permitir editar el precio unitario cuando el producto lo admita (p.esEditable)
+  const handlePrecioChange = (id, precio) => {
+    const parsed = precio === "" ? "" : Number(precio);
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.map((p) => {
+        if (p.id !== id) return p;
+        const precioNumerico = parsed === "" ? 0 : Number(parsed);
+        if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+          const cantidad = Number(p.cantidad) || 1;
+          return { ...p, precio: precioNumerico * cantidad, precioIncluyeCantidad: true };
+        }
+        return { ...p, precio: precioNumerico };
+      }),
+    }));
+  };
+
+  const handleQuitarProducto = (id) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: prev.productos.filter((p) => p.id !== id),
+    }));
+  };
+  const buildProductoUniqueId = (baseId) => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    return `${baseId}-${timestamp}-${randomSuffix}`;
+  };
+  const handleClonarProducto = (id) => {
+    setVentaEdit((prev) => {
+      const producto = (prev.productos || []).find((p) => p.id === id);
+      if (!producto) return prev;
+      const baseId = producto.originalId || producto.id;
+      const duplicado = {
+        ...producto,
+        id: buildProductoUniqueId(baseId),
+        originalId: baseId,
+      };
+      return {
+        ...prev,
+        productos: [...(prev.productos || []), duplicado],
+      };
+    });
+  };
+  const handleQuitarProductoDesdeCatalogo = (productoId) => {
+    setVentaEdit((prev) => {
+      const productos = prev.productos || [];
+      const indices = productos
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => (p.originalId || p.id) === productoId);
+      if (indices.length === 0) return prev;
+      const idxToRemove = indices[indices.length - 1].idx;
+      return {
+        ...prev,
+        productos: productos.filter((_, idx) => idx !== idxToRemove),
+      };
+    });
+  };
+
+  // Función para manejar cambios en alto para machimbre/deck
+  const handleAltoChange = (id, nuevoAlto) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" && p.unidad === "M2"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            alto: Number(nuevoAlto),
+            largo: p.largo,
+            cantidad: p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+
+          return {
+            ...p,
+            alto: Number(nuevoAlto),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  // Función para manejar cambios en ancho para machimbre/deck
+  const handleAnchoChange = (id, nuevoAncho) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" && p.unidad === "M2"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            alto: p.alto,
+            largo: p.largo,
+            cantidad: p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+
+          return {
+            ...p,
+            ancho: Number(nuevoAncho),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  // Función para manejar cambios en largo para machimbre/deck
+  const handleLargoChange = (id, nuevoLargo) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (
+          p.id === id &&
+          p.categoria === "Maderas" && p.unidad === "M2"
+        ) {
+          const precioBase = calcularPrecioMachimbre({
+            alto: p.alto,
+            largo: Number(nuevoLargo),
+            cantidad: p.cantidad || 1,
+            precioPorPie: p.precioPorPie,
+          });
+
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+
+          return {
+            ...p,
+            largo: Number(nuevoLargo),
+            precio: precioRedondeado,
+          };
+        }
+        return p;
+      }),
+    }));
+  };
+
+
+  // Funciones para manejar cambios en dimensiones para maderas normales (no machimbre/deck)
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+          const alto = Number(nuevoAlto);
+          const ancho = Number(p.ancho);
+          const largo = Number(p.largo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+          return { ...p, alto, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+          const alto = Number(p.alto);
+          const ancho = Number(nuevoAncho);
+          const largo = Number(p.largo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+          return { ...p, ancho, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id === id && p.categoria === "Maderas" && p.unidad !== "M2") {
+          const alto = Number(p.alto);
+          const ancho = Number(p.ancho);
+          const largo = Number(nuevoLargo);
+          const precioPorPie = Number(p.precioPorPie);
+          let precioBase = 0;
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precioBase = 0.2734 * alto * ancho * largo * precioPorPie;
+          }
+          const precioRedondeado = calcularPrecioMaderaConTratamientos(
+            p,
+            precioBase
+          );
+          return { ...p, largo, precio: precioRedondeado };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  // Wrapper para precio por pie en maderas normales para mantener la API de la nueva tabla
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
+    // Reutiliza la lógica existente que ya diferencia por subcategoría
+    handlePrecioPorPieChange(id, nuevoPrecioPorPie);
+  };
+
+
+
+  // Guardar cambios en Firestore
+  const handleGuardarCambios = async () => {
+    setErrorForm("");
+
+    // Debug logs para entender qué está pasando
+    console.log("=== DEBUG handleGuardarCambios ===");
+    console.log("ventaEdit:", ventaEdit);
+    console.log("ventaEdit.clienteId:", ventaEdit.clienteId);
+    console.log("ventaEdit.cliente:", ventaEdit.cliente);
+    console.log("ventaEdit.cliente?.nombre:", ventaEdit.cliente?.nombre);
+    console.log("venta original:", venta);
+    console.log("venta.clienteId:", venta.clienteId);
+    console.log("venta.cliente:", venta.cliente);
+
+    // Validación robusta del cliente (sin bloquear por falta de clienteId)
+    if (!ventaEdit.clienteId) {
+      console.log("Advertencia: No hay clienteId en ventaEdit, generando fallback...");
+      // Priorizar: id → CUIT → teléfono → email → id de venta → 'sin-id'
+      const telefonoLimpio = (
+        (ventaEdit.cliente?.telefono || venta.cliente?.telefono || "") + ""
+      )
+        .replace(/\D/g, "")
+        .trim();
+      const fallbackId =
+        venta.clienteId ||
+        ventaEdit.cliente?.cuit ||
+        venta.cliente?.cuit ||
+        (telefonoLimpio || undefined) ||
+        ventaEdit.cliente?.email ||
+        ventaEdit.id ||
+        "sin-id";
+      ventaEdit.clienteId = fallbackId;
+      console.log("clienteId asignado (fallback):", ventaEdit.clienteId);
+    }
+
+    if (!ventaEdit.cliente) {
+      console.log("Advertencia: No hay objeto cliente en ventaEdit, armando objeto mínimo...");
+      ventaEdit.cliente =
+        venta.cliente || {
+          nombre: ventaEdit.clienteId || "Cliente",
+          cuit: ventaEdit.clienteId || "",
+          direccion: "",
+          telefono: "",
+          email: "",
+        };
+      console.log("cliente asignado:", ventaEdit.cliente);
+    }
+
+    if (!ventaEdit.cliente?.nombre) {
+      // Evitar confusión por nombres repetidos: priorizar teléfono o CUIT si existen
+      const telefonoLimpio = (
+        (ventaEdit.cliente?.telefono || venta.cliente?.telefono || "") + ""
+      )
+        .replace(/\D/g, "")
+        .trim();
+      ventaEdit.cliente.nombre =
+        (telefonoLimpio ? `Cliente ${telefonoLimpio}` : undefined) ||
+        ventaEdit.cliente?.cuit ||
+        venta.cliente?.nombre ||
+        ventaEdit.clienteId ||
+        "Cliente sin nombre";
+      console.log("Nombre de cliente asignado:", ventaEdit.cliente.nombre);
+    }
+
+    console.log("✅ Validación del cliente exitosa");
+    console.log("clienteId final:", ventaEdit.clienteId);
+    console.log("cliente final:", ventaEdit.cliente);
+
+    if (!ventaEdit.productos?.length && !ventaEdit.items?.length) {
+      setErrorForm("Agrega al menos un producto.");
+      return;
+    }
+    for (const p of ventaEdit.productos || ventaEdit.items) {
+      if (!p.cantidad || p.cantidad <= 0) {
+        setErrorForm("Todas las cantidades deben ser mayores a 0.");
+        return;
+      }
+      if (p.descuento < 0 || p.descuento > 100) {
+        setErrorForm("El descuento debe ser entre 0 y 100%.");
+        return;
+      }
+    }
+
+    const productosArr = ventaEdit.productos || ventaEdit.items;
+    const { subtotal, descuentoTotal, total: totalSinEnvio } = computeTotals(productosArr);
+
+    // Calcular costo de envío solo si no es retiro local
+    const costoEnvioCalculado =
+      ventaEdit.tipoEnvio &&
+      ventaEdit.tipoEnvio !== "retiro_local" &&
+      ventaEdit.costoEnvio !== undefined &&
+      ventaEdit.costoEnvio !== "" &&
+      !isNaN(Number(ventaEdit.costoEnvio))
+        ? Number(ventaEdit.costoEnvio)
+        : 0;
+
+    // Calcular descuento de efectivo si aplica (10% sobre el subtotal)
+    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+
+    const total = totalSinEnvio + costoEnvioCalculado - descuentoEfectivo;
+    const totalAbonado = (ventaEdit.pagos || []).reduce(
+      (acc, p) => acc + Number(p.monto),
+      0
+    );
+    const estadoPagoSeleccionado = String(ventaEdit.estadoPago || "").toLowerCase();
+    const estadoPagoCalculado =
+      estadoPagoSeleccionado === "pagado" ||
+      estadoPagoSeleccionado === "parcial" ||
+      estadoPagoSeleccionado === "pendiente"
+        ? estadoPagoSeleccionado
+        : totalAbonado >= total
+          ? "pagado"
+          : totalAbonado > 0
+            ? "parcial"
+            : "pendiente";
+    ventaEdit.estadoPago = estadoPagoCalculado;
+    ventaEdit.pagoPendiente = estadoPagoCalculado === "pendiente";
+    ventaEdit.pagoParcial = estadoPagoCalculado === "parcial";
+    if (!Array.isArray(ventaEdit.pagos)) {
+      if (estadoPagoCalculado === "pendiente") {
+        ventaEdit.montoAbonado = 0;
+      } else if (estadoPagoCalculado === "pagado" && Number(ventaEdit.montoAbonado || 0) <= 0) {
+        ventaEdit.montoAbonado = total;
+      }
+    }
+
+    // Guardar correctamente los pagos del saldo pendiente
+    console.log("=== DEBUG MANEJO DE PAGOS ===");
+    console.log("ventaEdit.pagos:", ventaEdit.pagos);
+    console.log("Array.isArray(ventaEdit.pagos):", Array.isArray(ventaEdit.pagos));
+    console.log("pagosSimples:", pagosSimples);
+    console.log("ventaEdit.montoAbonado:", ventaEdit.montoAbonado);
+    
+    if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
+      console.log("✅ Usando array de pagos existente");
+      delete ventaEdit.montoAbonado;
+    } else if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
+      console.log("✅ Convirtiendo pagosSimples a array de pagos");
+      ventaEdit.pagos = pagosSimples;
+      delete ventaEdit.montoAbonado;
+    } else if (!Array.isArray(ventaEdit.pagos) && ventaEdit.montoAbonado > 0) {
+      console.log("✅ Creando array de pagos desde montoAbonado");
+      ventaEdit.pagos = [
+        {
+          fecha: new Date().toISOString().split("T")[0],
+          monto: Number(ventaEdit.montoAbonado),
+          metodo: ventaEdit.formaPago || "-",
+          usuario: "-",
+        },
+      ];
+      delete ventaEdit.montoAbonado;
+    } else {
+      console.log("⚠️ No se encontraron pagos para procesar");
+    }
+    
+    console.log("Pagos finales:", ventaEdit.pagos);
+
+    // Asegurar que la información del cliente se preserve
+    if (!ventaEdit.cliente && venta.cliente) {
+      ventaEdit.cliente = venta.cliente;
+    }
+    if (!ventaEdit.clienteId && venta.clienteId) {
+      ventaEdit.clienteId = venta.clienteId;
+    }
+
+    // ===== LÓGICA PROFESIONAL PARA MANEJAR CAMBIOS =====
+
+    // 4. Manejar cambios de envío de manera más robusta
+    const tipoEnvioOriginal = venta.tipoEnvio || "retiro_local";
+    const tipoEnvioNuevo = ventaEdit.tipoEnvio || "retiro_local";
+    const costoEnvioOriginal = Number(venta.costoEnvio) || 0;
+    const costoEnvioNuevo = costoEnvioCalculado;
+
+    console.log("=== ANÁLISIS DE ENVÍO ===");
+    console.log("Tipo envío original:", tipoEnvioOriginal);
+    console.log("Tipo envío nuevo:", tipoEnvioNuevo);
+    console.log("Costo envío original:", costoEnvioOriginal);
+    console.log("Costo envío nuevo:", costoEnvioNuevo);
+
+    // 5. Actualizar la venta con los nuevos totales calculados correctamente
+    const ventaActualizada = {
+      ...ventaEdit,
+      subtotal,
+      descuentoTotal,
+      total,
+      productos: productosArr,
+      items: productosArr,
+      version: venta?.version ?? ventaEdit?.version ?? 1,
+      // Asegurar que el costo de envío se guarde correctamente
+      costoEnvio: costoEnvioNuevo,
+      // Limpiar campos de envío si es retiro local
+      ...(tipoEnvioNuevo === "retiro_local" && {
+        costoEnvio: 0,
+        direccionEnvio: "",
+        localidadEnvio: "",
+      }),
+    };
+
+    const before = buildPagoSnapshot(venta);
+    const after = buildPagoSnapshot(ventaActualizada);
+    if (!user || typeof user.getIdToken !== "function") {
+      throw new Error("No hay usuario autenticado");
+    }
+    const idToken = await user.getIdToken();
+    const tryPutVenta = async (ventaPayload, origen) => {
+      const resp = await fetch(`/api/erp/ventas/${encodeURIComponent(String(ventaEdit.id))}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venta: ventaPayload, origen }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      return { resp, out };
+    };
+
+    let { resp, out } = await tryPutVenta(ventaActualizada, "ui_ventas_detail_edit");
+    if ((!resp.ok || !out?.ok) && resp.status === 409) {
+      const latestSnap = await getDoc(doc(db, "ventas", String(ventaEdit.id)));
+      if (!latestSnap.exists()) {
+        throw new Error(out?.error || "Conflicto de edición. Recargá y volvé a intentar.");
+      }
+      const latest = { ...(latestSnap.data() || {}), id: latestSnap.id };
+      const merged = {
+        ...latest,
+        ...ventaActualizada,
+        version: latest?.version ?? ventaActualizada?.version ?? 1,
+        comprobantesPago: mergeComprobantesPago(latest?.comprobantesPago, ventaActualizada?.comprobantesPago),
+      };
+      ({ resp, out } = await tryPutVenta(merged, "ui_ventas_detail_edit_retry_409"));
+    }
+
+    if (!resp.ok || !out?.ok) {
+      throw new Error(out?.error || "Error al actualizar la venta");
+    }
+
+    const flags = out?.flags || {};
+    const nextVersion = Number(out?.version);
+    const ventaActualizadaConFlags = {
+      ...ventaActualizada,
+      stockNegativo: Boolean(flags?.stockNegativo),
+      productosSinPrecio: Boolean(flags?.productosSinPrecio),
+      productosSinCosto: Boolean(flags?.productosSinCosto),
+      requiereRevision: Boolean(flags?.requiereRevision),
+      ...(Number.isFinite(nextVersion) ? { version: nextVersion } : null),
+    };
+
+    if (before.estadoPago !== after.estadoPago && user) {
+      const numeroPedido = String(
+        ventaActualizadaConFlags?.numeroPedido ||
+          venta?.numeroPedido ||
+          ventaActualizadaConFlags?.numero ||
+          venta?.numero ||
+          ""
+      );
+      await addDoc(collection(db, "ventas", ventaEdit.id, "pago_events"), {
+        type: "estado_pago_changed",
+        ventaId: String(ventaEdit.id || ""),
+        numeroPedido,
+        clienteId: String(ventaActualizada?.clienteId || ""),
+        clienteNombre: String(ventaActualizada?.cliente?.nombre || ""),
+        before,
+        after,
+        becamePagado:
+          (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+        at: serverTimestamp(),
+        byUid: String(user.uid || ""),
+        byEmail: String(user.email || ""),
+        source: "ventas_detail_save",
+      });
+    }
+
+    // Actualizar el estado local
+    setVenta(ventaActualizadaConFlags);
+    setEditando(false);
+    
+    // Limpiar campos de pago
+    setVentaEdit((prev) => ({
+      ...prev,
+      nuevoPagoMonto: "",
+      nuevoPagoMetodo: "",
+    }));
+
+    console.log("✅ Venta actualizada exitosamente");
+    console.log("Total final:", total);
+    console.log("Costo envío final:", costoEnvioNuevo);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="">Cargando venta...</p>
+          <p className="text-sm text-muted-foreground mt-2">ID: {id}</p>
+          <p className="text-sm text-muted-foreground">Lang: {lang}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !venta) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            Venta no encontrada
+          </h2>
+          <p className=" mb-4">
+            {error || "La venta que buscas no existe o ha sido eliminada."}
+          </p>
+          <div className="bg-muted/50 border border-border/60 rounded-lg p-4 mb-6 text-left">
+            <p className="text-sm text-foreground">
+              <strong>ID buscado:</strong> {id}
+            </p>
+            <p className="text-sm text-foreground">
+              <strong>Lang:</strong> {lang}
+            </p>
+            <p className="text-sm text-foreground">
+              <strong>URL:</strong> {window.location.href}
+            </p>
+            <p className="text-sm text-foreground">
+              <strong>Params:</strong> {JSON.stringify(params)}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => router.back()} className="no-print">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/${lang}/ventas`)}
+              className="no-print"
+            >
+              Ver todas las ventas
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Función para descargar PDF - Optimizada
+  const handleDownloadPDF = async (paraEmpleado = false) => {
+    if (!venta?.id) return;
+    
+    // Activar loading inmediatamente
+    if (paraEmpleado) {
+      setDownloadingPDFEmpleado(true);
+    } else {
+      setDownloadingPDF(true);
+    }
+    
+    try {
+      // Usar AbortController para poder cancelar si es necesario
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      
+      const res = await fetch("/api/pdf/remito", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "venta",
+          id: venta.id,
+          empleado: paraEmpleado,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Error generando remito PDF", errorText);
+        alert("Error al generar el PDF. Por favor, intenta nuevamente.");
+        return;
+      }
+      
+      // Convertir a blob y descargar inmediatamente
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${venta.numeroPedido || venta.id?.slice(-8) || "documento"}${paraEmpleado ? "-empleado" : ""}.pdf`;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpiar inmediatamente después del click
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    } catch (e) {
+      if (e?.name === "AbortError") {
+        alert("La descarga tardó demasiado. Por favor, intenta nuevamente.");
+      } else {
+        console.error("Error descargando remito PDF", e);
+        alert("Error al descargar el PDF. Por favor, intenta nuevamente.");
+      }
+    } finally {
+      // Desactivar loading
+      if (paraEmpleado) {
+        setDownloadingPDFEmpleado(false);
+      } else {
+        setDownloadingPDF(false);
+      }
+    }
+  };
+
+  // Función para obtener el estado del pago
+  const getEstadoPagoColor = (estado) => {
+    switch (estado) {
+      case "pagado":
+        return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+      case "pendiente":
+        return "bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      default:
+        return "bg-muted/50 text-muted-foreground";
+    }
+  };
+
+  const estadoPago = venta.estadoPago || "pendiente";
+  // Calcular monto abonado correctamente: priorizar array pagos, sino usar montoAbonado
+  const montoAbonado =
+    Array.isArray(venta.pagos) && venta.pagos.length > 0
+      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+      : Number(venta.montoAbonado || 0);
+  const saldoPendiente = (venta.total || 0) - montoAbonado;
+
+  // Usar el estadoPago de la base de datos, no recalcular
+  // Solo recalcular si no existe estadoPago en la BD
+  const estadoPagoFinal =
+    venta.estadoPago ||
+    (() => {
+      const montoAbonadoReal =
+        Array.isArray(venta.pagos) && venta.pagos.length > 0
+          ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+          : Number(venta.montoAbonado || 0);
+
+      return montoAbonadoReal >= (venta.total || 0)
+        ? "pagado"
+        : montoAbonadoReal > 0
+        ? "parcial"
+        : "pendiente";
+    })();
+
+  // Función para borrar pago del historial (solo para admin@admin.com)
+  const handleBorrarPago = async (pagoIndex) => {
+    if (user?.email !== "admin@admin.com") {
+      console.log("Usuario no autorizado para borrar pagos");
+      return;
+    }
+
+    setBorrandoPago(true);
+    setPagoABorrar(pagoIndex);
+
+    try {
+      // Simular delay para UX
+      await new Promise((res) => setTimeout(res, 500));
+
+      // Crear nueva lista de pagos sin el pago a borrar
+      const nuevosPagos = venta.pagos.filter((_, index) => index !== pagoIndex);
+
+      // Actualizar la venta en el estado local
+      const ventaActualizada = {
+        ...venta,
+        pagos: nuevosPagos,
+      };
+
+      // Actualizar en Firebase
+      const before = buildPagoSnapshot(venta);
+      const after = buildPagoSnapshot(ventaActualizada);
+      const docRef = doc(db, "ventas", venta.id);
+      await updateDoc(docRef, { pagos: nuevosPagos, estadoPago: after.estadoPago });
+
+      if (before.estadoPago !== after.estadoPago && user) {
+        const numeroPedido = String(venta?.numeroPedido || venta?.numero || "");
+        await addDoc(collection(db, "ventas", venta.id, "pago_events"), {
+          type: "estado_pago_changed",
+          ventaId: String(venta.id || ""),
+          numeroPedido,
+          clienteId: String(venta?.clienteId || ""),
+          clienteNombre: String(venta?.cliente?.nombre || ""),
+          before,
+          after,
+          becamePagado:
+            (before.estadoPago === "pendiente" || before.estadoPago === "parcial") && after.estadoPago === "pagado",
+          at: serverTimestamp(),
+          byUid: String(user.uid || ""),
+          byEmail: String(user.email || ""),
+          source: "ventas_detail_delete_pago",
+        });
+      }
+
+      // Actualizar estado local
+      setVenta(ventaActualizada);
+
+      console.log("✅ Pago borrado exitosamente");
+    } catch (error) {
+      console.error("Error al borrar pago:", error);
+    } finally {
+      setBorrandoPago(false);
+      setPagoABorrar(null);
+    }
+  };
+
+  // Función para confirmar borrado de pago
+  const confirmarBorradoPago = (pagoIndex) => {
+    if (user?.email !== "admin@admin.com") {
+      return;
+    }
+    setPagoABorrar(pagoIndex);
+    setMostrarConfirmacionBorrado(true);
+  };
+
+  return (
+    <div className="min-h-screen py-8">
+      <style>{`
+    select {
+      background: #fff !important;
+      border: 1px solid #d1d5db !important;
+      border-radius: 6px !important;
+      padding: 8px 12px !important;
+      font-size: 1rem !important;
+      color: #222 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transition: border 0.2s;
+    }
+    select:focus {
+      border: 1.5px solid #2563eb !important;
+      box-shadow: 0 0 0 2px #2563eb22 !important;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.5s;
+    }
+    #venta-print .sello-pendiente { color: #b91c1c; border-color: #b91c1c; }
+    #venta-print .sello-parcial { color: #b45309; border-color: #b45309; }
+    #venta-print .sello-pagado { color: #065f46; border-color: #065f46; }
+    @media print {
+      @page { 
+        margin: 20px !important; 
+        size: A4;
+      }
+      body { 
+        margin: 0 !important; 
+        padding: 0 !important; 
+      }
+      body * { visibility: hidden !important; }
+      #venta-print, #venta-print * { visibility: visible !important; }
+      #venta-print .no-print, #venta-print .no-print * { display: none !important; }
+      #venta-print {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        background: white !important;
+      }
+      /* Layout 2 columnas con espaciado sutil para legibilidad */
+      #venta-print .grid { 
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 16px !important;
+        margin-bottom: 12px !important;
+      }
+      /* Tarjetas sin sombras pero con separación mínima */
+      #venta-print .bg-card {
+        background: #fff !important;
+        padding: 8px !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+      }
+      /* Reducir tamaños de fuente para que quepa todo */
+      #venta-print h3 {
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+      }
+      #venta-print .text-sm { font-size: 11px !important; }
+      #venta-print h3 { margin: 0 0 6px 0 !important; }
+      #venta-print .space-y-2 > div { margin-bottom: 3px !important; }
+      /* Reducir espaciados utilitarios en impresión, no eliminarlos */
+      #venta-print .p-6, 
+      #venta-print .p-4 { padding: 8px !important; }
+      #venta-print .px-4 { padding-left: 8px !important; padding-right: 8px !important; }
+      #venta-print .py-4 { padding-top: 8px !important; padding-bottom: 8px !important; }
+      #venta-print .mb-6 { margin-bottom: 10px !important; }
+      #venta-print .mb-4 { margin-bottom: 8px !important; }
+      #venta-print .mt-6 { margin-top: 10px !important; }
+      #venta-print .mt-4 { margin-top: 8px !important; }
+      /* Compactar tabla de productos */
+      #venta-print table th, 
+      #venta-print table td { padding-top: 6px !important; padding-bottom: 6px !important; }
+      #venta-print .border-b { border-bottom: 1px solid #e5e7eb !important; }
+      
+      /* Estilos específicos para impresión de empleados */
+      body.print-empleado #venta-print .precio-empleado,
+      body.print-empleado #venta-print .subtotal-empleado,
+      body.print-empleado #venta-print .total-empleado,
+      body.print-empleado #venta-print .descuento-empleado,
+      body.print-empleado #venta-print .costo-envio-empleado,
+      body.print-empleado #venta-print .monto-abonado-empleado,
+      body.print-empleado #venta-print .saldo-pendiente-empleado,
+      body.print-empleado #venta-print .estado-pago-empleado,
+      body.print-empleado #venta-print .forma-pago-empleado,
+      body.print-empleado #venta-print .historial-pagos-empleado {
+        display: none !important;
+      }
+      
+      /* Mostrar mensaje para empleados */
+      body.print-empleado #venta-print .mensaje-empleado {
+        display: block !important;
+        background: #f0f9ff !important;
+        border: 2px solid #0ea5e9 !important;
+        padding: 15px !important;
+        margin: 20px 0 !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        color: #0c4a6e !important;
+      }
+      
+      /* Ocultar mensaje en impresión normal */
+      body:not(.print-empleado) #venta-print .mensaje-empleado {
+        display: none !important;
+      }
+      
+    }
+  `}</style>
+      <div id="venta-print" className="mx-auto px-4">
+        {/* Header profesional igual al de presupuesto */}
+        <div
+          className="flex items-center gap-4 border-b pb-4 mb-6 print-header"
+          style={{ marginBottom: 32 }}
+        >
+          <img
+            src="/logo-maderera.png"
+            alt="Logo Maderera"
+            style={{ height: 60, width: "auto" }}
+          />
+          <div>
+            <h1 className="text-2xl font-bold " style={{ letterSpacing: 1 }}>
+              Maderas Caballero
+            </h1>
+            <div className=" text-sm">Venta / Comprobante</div>
+            <div className="text-muted-foreground text-xs">
+              www.caballeromaderas.com
+            </div>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-xs text-muted-foreground">
+              Fecha: {venta?.fecha ? formatFechaLocal(venta.fecha) : "-"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+            </div>
+          </div>
+        </div>
+        {/* Header con botones */}
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6 no-print">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="text-2xl lg:text-3xl font-bold">
+                N°: {venta?.numeroPedido || venta?.id?.slice(-8)}
+              </h1>
+              {ventaAnulada && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+                  <XCircle className="w-4 h-4" />
+                  <span>Venta anulada</span>
+                  {venta?.anulacionMotivo ? (
+                    <span className="font-normal opacity-90">· {String(venta.anulacionMotivo)}</span>
+                  ) : null}
+                </div>
+              )}
+              {/* Mostrar observaciones si existen */}
+              {venta.observaciones && (
+                <p className="text-muted-foreground mt-1 whitespace-pre-line">
+                  {venta.observaciones}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 lg:gap-3 w-full lg:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => router.back()}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1 lg:mr-2" />
+                <span className="hidden sm:inline">Volver</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(false)}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {downloadingPDF ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
+                ) : (
+                  <Download className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Descargar</span>
+                <span className="sm:hidden relative z-10">{downloadingPDF ? "⏳" : "📥"}</span>
+              </Button>
+              <Button
+                onClick={() => handleDownloadPDF(true)}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="hidden no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {downloadingPDFEmpleado ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-sky-700 dark:text-sky-300 relative z-10" />
+                ) : (
+                  <User className="w-4 h-4 mr-1 lg:mr-2 text-sky-700 dark:text-sky-300 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Descargar Empleado</span>
+                <span className="sm:hidden relative z-10">{downloadingPDFEmpleado ? "⏳" : "👤"}</span>
+              </Button>
+              <Button
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                  handlePrintPDF(false, e);
+                }}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-card/60 border border-border/60 text-foreground shadow-sm hover:bg-card/80 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDF ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-muted-foreground relative z-10" />
+                ) : (
+                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-muted-foreground group-hover:text-foreground transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir</span>
+                <span className="sm:hidden relative z-10">{printingPDF ? "⏳" : "🖨️"}</span>
+              </Button>
+              <Button
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                  handlePrintEnvio(e);
+                }}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 shadow-sm hover:bg-emerald-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDFEnvio ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-emerald-800 dark:text-emerald-200 relative z-10" />
+                ) : (
+                  <Truck className="w-4 h-4 mr-1 lg:mr-2 text-emerald-800 dark:text-emerald-200 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir Envío</span>
+                <span className="sm:hidden relative z-10">{printingPDFEnvio ? "⏳" : "🚚"}</span>
+              </Button>
+              <Button
+                onClick={(e) => {
+                  if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                  handlePrintPDF(true, e);
+                }}
+                disabled={downloadingPDF || downloadingPDFEmpleado || printingPDF || printingPDFEmpleado || printingPDFEnvio}
+                className="no-print flex-1 lg:flex-none text-sm lg:text-base relative overflow-hidden group bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 shadow-sm hover:bg-sky-500/15 hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 rounded-xl backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
+                {printingPDFEmpleado ? (
+                  <Loader2 className="w-4 h-4 mr-1 lg:mr-2 animate-spin text-sky-700 dark:text-sky-300 relative z-10" />
+                ) : (
+                  <Printer className="w-4 h-4 mr-1 lg:mr-2 text-sky-700 dark:text-sky-300 transition-colors duration-300 relative z-10" />
+                )}
+                <span className="hidden sm:inline relative z-10 font-medium">Imprimir Empleado</span>
+                <span className="sm:hidden relative z-10">{printingPDFEmpleado ? "⏳" : "🖨️"}</span>
+              </Button>
+              {!editando && !ventaAnulada && (
+                <Button
+                  onClick={() => setEditando(true)}
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
+                  <span className="hidden sm:inline">Editar</span>
+                  <span className="sm:hidden">✏️</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* 1. Información del cliente y venta */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-lg">
+                Información del Cliente
+              </h3>
+              {editando && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSelectorCliente(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cambiar Cliente</span>
+                  <span className="sm:hidden">Cambiar</span>
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="font-medium">Nombre:</span>{" "}
+                {venta.cliente?.nombre || "-"}
+              </div>
+              <div>
+                <span className="font-medium">CUIT / DNI:</span>{" "}
+                {venta.cliente?.cuit || "-"}
+              </div>
+                <div>
+                  <span className="font-medium">Dirección:</span>{" "}
+                  {venta.usarDireccionCliente === false
+                    ? (venta.direccionEnvio || "-")
+                    : (venta.cliente?.direccion || "-")}
+                </div>
+                <div>
+                  <span className="font-medium">Localidad:</span>{" "}
+                  {venta.usarDireccionCliente === false
+                    ? (venta.localidadEnvio || "-")
+                    : (venta.cliente?.localidad || "-")}
+                </div>
+              <div>
+                <span className="font-medium">Teléfono:</span>{" "}
+                {venta.cliente?.telefono || "-"}
+              </div>
+              {venta.cliente?.partido && (
+                <div>
+                  <span className="font-medium">Partido:</span>{" "}
+                  {venta.cliente.partido}
+                </div>
+              )}
+              {venta.cliente?.barrio && (
+                <div>
+                  <span className="font-medium">Barrio:</span>{" "}
+                  {venta.cliente.barrio}
+                </div>
+              )}
+              {venta.cliente?.area && (
+                <div>
+                  <span className="font-medium">Área:</span>{" "}
+                  {venta.cliente.area}
+                </div>
+              )}
+              {venta.cliente?.lote && (
+                <div>
+                  <span className="font-medium">Lote:</span>{" "}
+                  {venta.cliente.lote}
+                </div>
+              )}
+              {venta.cliente?.descripcion && (
+                <div>
+                  <span className="font-medium">Descripción:</span>{" "}
+                  {venta.cliente.descripcion}
+                </div>
+              )}
+              <div>
+                <span className="font-medium">Email:</span>{" "}
+                {venta.cliente?.email || "-"}
+              </div>
+            </div>
+          </div>
+          {venta.tipoEnvio && venta.tipoEnvio !== "retiro_local" ? (
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-6 flex flex-col gap-4">
+              <h3 className="font-semibold text-lg mb-2 ">
+                Información de Envío y Pago
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Tipo de envío:</span>{" "}
+                    {venta.tipoEnvio === "envio_domicilio"
+                      ? "Envío a Domicilio"
+                      : venta.tipoEnvio}
+                  </div>
+                  <div>
+                    <span className="font-medium">Dirección:</span>{" "}
+                    {venta.usarDireccionCliente === false
+                      ? (venta.direccionEnvio || "-")
+                      : (venta.cliente?.direccion || "-")}
+                  </div>
+                  <div>
+                    <span className="font-medium">Localidad:</span>{" "}
+                    {venta.usarDireccionCliente === false
+                      ? (venta.localidadEnvio || "-")
+                      : (venta.cliente?.localidad || "-")}
+                  </div>
+                  <div>
+                    <span className="font-medium">Fecha de envío:</span>{" "}
+                    {formatFechaLocal(venta.fechaEntrega)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Rango horario:</span>{" "}
+                    {venta.rangoHorario || "-"}
+                  </div>
+                  <div className="no-print">
+                    <span className="font-medium">Vendedor:</span>{" "}
+                    {venta.vendedor || "-"}
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Forma de pago:</span>{" "}
+                    <span className="forma-pago-empleado">
+                      {venta.formaPago || "-"}
+                    </span>
+                  </div>
+                  {venta.costoEnvio !== undefined &&
+                    Number(venta.costoEnvio) > 0 && (
+                      <div className="costo-envio-empleado">
+                        <span className="font-medium">Costo de envío:</span> $
+                        {Number(venta.costoEnvio).toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-4">
+              <h3 className="font-semibold text-lg mb-2 ">
+                Información de Envío y Pago
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium">Tipo de entrega:</span> Retiro
+                  en local
+                </div>
+                <div>
+                  <span className="font-medium">Fecha de retiro:</span>{" "}
+                  {formatFechaLocal(venta.fechaEntrega)}
+                </div>
+                <div>
+                  <span className="font-medium">Horario de retiro:</span>{" "}
+                  {venta.rangoHorario || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Vendedor:</span>{" "}
+                  {venta.vendedor || "-"}
+                </div>
+                <div>
+                  <span className="font-medium">Forma de pago:</span>{" "}
+                  {venta.formaPago || "-"}
+                </div>
+                {/* Estado de la venta */}
+                <div className="estado-pago-empleado space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Estado de la venta:</span>{" "}
+                    {(() => {
+                      // Usar el estadoPago de la base de datos, no recalcular
+                      const estadoPago = venta.estadoPago || "pendiente";
+
+                      if (estadoPago === "pagado") {
+                        return (
+                          <span className="text-green-700 font-bold ml-2">
+                            Pagado
+                          </span>
+                        );
+                      } else if (estadoPago === "parcial") {
+                        return (
+                          <span className="text-yellow-700 font-bold ml-2">
+                            Parcial
+                          </span>
+                        );
+                      } else {
+                        return (
+                          <span className="text-red-700 font-bold ml-2">
+                            Pendiente
+                          </span>
+                        );
+                      }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Información de Pagos */}
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
+          <h3 className="font-semibold text-lg mb-4 ">Información de Pagos</h3>
+
+          {/* Estado de pago */}
+          <div className="mb-4 bg-card rounded-lg no-print">
+            <div className="flex justify-between">
+              <span className="font-medium">Estado de pago:</span>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  venta.estadoPago === "pagado"
+                    ? "bg-green-100 text-green-800"
+                    : venta.estadoPago === "parcial"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {venta.estadoPago === "pagado"
+                  ? "Pagado"
+                  : venta.estadoPago === "parcial"
+                  ? "Pago Parcial"
+                  : "Pendiente"}
+              </span>
+            </div>
+          </div>
+
+          {/* Detalles de pagos */}
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="">Total de la venta:</span>
+              <span className="font-semibold total-empleado">
+                ${formatearNumeroArgentino(venta.total || 0)}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="">Monto abonado:</span>
+              <span className="font-semibold text-green-600 monto-abonado-empleado">
+                ${formatearNumeroArgentino(montoAbonado)}
+              </span>
+            </div>
+
+            {saldoPendiente > 0 && (
+              <div className="flex justify-between border-t pt-2">
+                <span className="">Saldo pendiente:</span>
+                <span className="font-semibold text-red-600 saldo-pendiente-empleado">
+                  ${formatearNumeroArgentino(saldoPendiente)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Historial de pagos */}
+          {((Array.isArray(venta.pagos) && venta.pagos.length > 0) || venta.estadoPago !== 'pagado') && (
+            <div className="mt-4 historial-pagos-empleado">
+              <h4 className="font-medium mb-2">Historial de pagos:</h4>
+              {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
+                <div className="bg-card rounded-lg p-3">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-card border-b">
+                        <th className="text-left py-1">Fecha</th>
+                        <th className="text-left py-1">Método</th>
+                        <th className="text-right py-1">Monto</th>
+                        {user?.email === "admin@admin.com" && (
+                          <th className="text-center py-1">Acciones</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {venta.pagos.map((pago, idx) => (
+                        <tr key={idx} className="border-b border-border/50">
+                          <td className="py-1">{formatFechaLocal(pago.fecha)}</td>
+                          <td className="py-1">{pago.metodo}</td>
+                          <td className="py-1 text-right">
+                            ${Number(pago.monto).toFixed(2)}
+                          </td>
+                          {user?.email === "admin@admin.com" && (
+                            <td className="py-1 text-center">
+                              <button
+                                type="button"
+                                onClick={() => confirmarBorradoPago(idx)}
+                                disabled={borrandoPago}
+                                className={`p-1 rounded text-red-700 dark:text-red-300 hover:text-red-700 hover:bg-red-500/10 transition-colors ${
+                                  borrandoPago && pagoABorrar === idx
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                                }`}
+                                title="Borrar pago"
+                              >
+                                {borrandoPago && pagoABorrar === idx ? (
+                                  <svg
+                                    className="animate-spin h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                      fill="none"
+                                    />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v8z"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Sin pagos registrados</div>
+              )}
+            </div>
+          )}
+
+          {/* Información de pago en dólares y comprobantes - Independiente del historial de pagos */}
+          {((venta.pagoEnDolares && venta.valorOficialDolar) || (Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0)) && (
+            <div className={`mt-6 ${!(venta.pagoEnDolares && venta.valorOficialDolar) ? 'no-print' : ''}`}>
+              <div className="rounded-xl border border-border/60 bg-card/70 overflow-hidden">
+                <div className="px-4 py-3 bg-muted/50 border-b border-border/60">
+                  <h4 className="font-semibold text-foreground text-sm">Información de pago</h4>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Pago en dólares - Dólar Blue */}
+                  {venta.pagoEnDolares && venta.valorOficialDolar && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pago en dólares</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm text-muted-foreground">Dólar Blue (venta):</span>
+                        <span className="text-lg font-bold text-amber-700 dark:text-amber-300">$ {formatearNumeroArgentino(Number(venta.valorOficialDolar))}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comprobantes adjuntos */}
+                  {Array.isArray(venta.comprobantesPago) && venta.comprobantesPago.length > 0 && (
+                    <div className="no-print">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">Comprobantes adjuntos</span>
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr className="text-left text-muted-foreground border-b border-border/60">
+                            <th className="py-2 pr-3 font-medium">#</th>
+                            <th className="py-2 pr-3 font-medium">Tipo</th>
+                            <th className="py-2 font-medium">Archivo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {venta.comprobantesPago.map((comp, idx) => (
+                            <tr key={idx} className="border-b border-border/50 last:border-0">
+                              <td className="py-2 pr-3 text-muted-foreground">{idx + 1}</td>
+                              <td className="py-2 pr-3">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium border ${comp.tipo === "pdf" ? "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300" : "bg-sky-500/10 border-sky-500/20 text-sky-700 dark:text-sky-300"}`}>
+                                  {comp.tipo === "pdf" ? "PDF" : "Imagen"}
+                                </span>
+                              </td>
+                              <td className="py-2">
+                                <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium no-print">
+                                  {comp.nombre || `Comprobante ${idx + 1}`}
+                                </a>
+                                <span className="print:inline hidden">{comp.nombre || `Comprobante ${idx + 1}`}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {/* Miniaturas: visibles en vista e impresión */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {venta.comprobantesPago.filter((c) => c.tipo !== "pdf").map((comp, idx) => (
+                          <a key={idx} href={comp.url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                            <img src={comp.url} alt={comp.nombre || "Comprobante"} className="h-16 w-auto max-w-20 rounded border border-border/60 object-cover hover:opacity-90 print:h-14 print:max-w-16" />
+                          </a>
+                        ))}
+                        {venta.comprobantesPago.filter((c) => c.tipo === "pdf").length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {venta.comprobantesPago.filter((c) => c.tipo === "pdf").map((comp, idx) => (
+                              <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50 border border-border/60 text-xs font-medium">
+                                PDF: {comp.nombre || `Comprobante ${idx + 1}`}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Productos y Servicios */}
+        {(Array.isArray(venta.productos) && venta.productos.length > 0) ||
+        (Array.isArray(venta.items) && venta.items.length > 0) ? (
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4">
+            <h3 className="font-semibold text-lg mb-4 ">
+              Productos y Servicios
+            </h3>
+            <DetalleVentaPresupuestoItemsTable
+              items={venta.productos || venta.items}
+              formatearNumeroArgentino={formatearNumeroArgentino}
+              paraEmpleado={false}
+            />
+            {/* Totales (recalculados desde items para consistencia) */}
+            {(() => {
+              const items = (venta.productos && venta.productos.length > 0) ? venta.productos : (venta.items || []);
+              const { subtotal, descuentoTotal, total } = computeTotals(items);
+              const envio = venta.costoEnvio !== undefined && venta.costoEnvio !== "" && !isNaN(Number(venta.costoEnvio)) ? Number(venta.costoEnvio) : 0;
+              const descuentoEfectivo = venta?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+              const totalFinal = total + envio - descuentoEfectivo;
+              return (
+                <div className="mt-6 flex justify-end">
+                  <div className="bg-card rounded-lg p-4 min-w-[300px]">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between subtotal-empleado">
+                        <span>Subtotal:</span>
+                        <span>$ {subtotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between descuento-empleado">
+                        <span>Descuento total:</span>
+                        <span>$ {descuentoTotal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {descuentoEfectivo > 0 && (
+                        <div className="flex justify-between descuento-empleado">
+                          <span>Descuento (Efectivo 10%):</span>
+                          <span className="text-green-600">$ {descuentoEfectivo.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {envio > 0 && (
+                        <div className="flex justify-between costo-envio-empleado">
+                          <span>Cotización de envío:</span>
+                          <span>$ {envio.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between font-bold text-lg total-empleado">
+                        <span>Total:</span>
+                        <span className="text-primary">$ {totalFinal.toLocaleString("es-AR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        ) : null}
+
+        {/* 5. Observaciones */}
+        {venta.observaciones && (
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-4 flex flex-col gap-2">
+            <h3 className="font-semibold text-lg mb-2 ">Observaciones</h3>
+            <p className="text-foreground whitespace-pre-wrap">
+              {venta.observaciones}
+            </p>
+          </div>
+        )}
+
+        {/* 8. Edición: cada bloque editable en su propia tarjeta, alineado y con labels claros */}
+        {editando && ventaEdit && (
+          <div className="flex flex-col gap-8 mt-8">
+            {/* Información de envío */}
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-border/60 shadow-sm">
+              <h3 className="text-lg font-semibold  mb-2">
+                Información de envío
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium">Tipo de envío</span>
+                  <select
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                    value={ventaEdit.tipoEnvio || ""}
+                    onChange={(e) => {
+                      const nuevoTipoEnvio = e.target.value;
+                      setVentaEdit((prev) => {
+                        const updated = { ...prev, tipoEnvio: nuevoTipoEnvio };
+
+                        // Si cambia de envío a retiro local, limpiar solo datos exclusivos del envío
+                        if (nuevoTipoEnvio === "retiro_local") {
+                          updated.costoEnvio = "";
+                          updated.direccionEnvio = "";
+                          updated.localidadEnvio = "";
+                        }
+
+                        // Si cambia de retiro local a envío, inicializar campos
+                        if (
+                          nuevoTipoEnvio !== "retiro_local" &&
+                          prev.tipoEnvio === "retiro_local"
+                        ) {
+                          updated.usarDireccionCliente = true;
+                          updated.costoEnvio = "0";
+                        }
+
+                        return updated;
+                      });
+                    }}
+                  >
+                    <option value="">Selecciona...</option>
+                    <option value="retiro_local">Retiro en local</option>
+                    <option value="envio_domicilio">Envío a domicilio</option>
+                  </select>
+                </label>
+                {ventaEdit.tipoEnvio && (
+                    <>
+                      {ventaEdit.tipoEnvio !== "retiro_local" && (
+                        <>
+                      <label className="block col-span-2">
+                        <span className="text-sm font-medium">
+                          ¿Usar dirección del cliente?
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="ml-2"
+                          checked={ventaEdit.usarDireccionCliente !== false}
+                          onChange={(e) =>
+                            setVentaEdit({
+                              ...ventaEdit,
+                              usarDireccionCliente: e.target.checked,
+                            })
+                          }
+                        />
+                      </label>
+                      {ventaEdit.usarDireccionCliente === false ? (
+                        <>
+                          <input
+                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                            value={ventaEdit.direccionEnvio || ""}
+                            onChange={(e) =>
+                              setVentaEdit({
+                                ...ventaEdit,
+                                direccionEnvio: e.target.value,
+                              })
+                            }
+                            placeholder="Dirección de envío"
+                          />
+                          <input
+                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                            value={ventaEdit.localidadEnvio || ""}
+                            onChange={(e) =>
+                              setVentaEdit({
+                                ...ventaEdit,
+                                localidadEnvio: e.target.value,
+                              })
+                            }
+                            placeholder="Localidad/Ciudad"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                            value={ventaEdit.cliente?.direccion || ""}
+                            readOnly
+                            placeholder="Dirección del cliente"
+                          />
+                          <input
+                            className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                            value={ventaEdit.cliente?.localidad || ""}
+                            readOnly
+                            placeholder="Localidad del cliente"
+                          />
+                        </>
+                      )}
+                      <input
+                        className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                        value={ventaEdit.costoEnvio || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            costoEnvio: e.target.value,
+                          })
+                        }
+                        placeholder="Costo de envío"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                      />
+                        </>
+                      )}
+                      <DateInput
+                        value={ventaEdit.fechaEntrega || ""}
+                        onChange={(v) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            fechaEntrega: v,
+                          })
+                        }
+                        buttonClassName="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg justify-start"
+                      />
+                      <input
+                        className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                        value={ventaEdit.rangoHorario || ""}
+                        onChange={(e) =>
+                          setVentaEdit({
+                            ...ventaEdit,
+                            rangoHorario: e.target.value,
+                          })
+                        }
+                        placeholder={
+                          ventaEdit.tipoEnvio === "retiro_local"
+                            ? "Horario de retiro (opcional)"
+                            : "Rango horario (ej: 8-12, 14-18)"
+                        }
+                      />
+                    </>
+                  )}
+              </div>
+            </section>
+
+            {/* Información adicional */}
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-border/60 shadow-sm">
+              <h3 className="text-lg font-semibold  mb-2">
+                Información adicional
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm font-medium">
+                    Vendedor responsable
+                  </span>
+                  <input
+                    type="text"
+                    value={ventaEdit.vendedor || ""}
+                    readOnly
+                    className="w-full px-3 py-2 border border-border/60 rounded-lg bg-muted/50 text-muted-foreground cursor-not-allowed"
+                    placeholder="Vendedor (no editable)"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    El vendedor no se puede modificar una vez creada la venta
+                  </p>
+                </label>
+                <label className="block col-span-2">
+                  <span className="text-sm font-medium">Observaciones</span>
+                  <textarea
+                    className="w-full px-3 flex [&>svg]:h-5 [&>svg]:w-5 justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                    value={ventaEdit.observaciones || ""}
+                    onChange={(e) =>
+                      setVentaEdit({
+                        ...ventaEdit,
+                        observaciones: e.target.value,
+                      })
+                    }
+                    placeholder="Observaciones"
+                  />
+                </label>
+              </div>
+            </section>
+
+            {/* Pago en dólares y comprobantes adjuntos */}
+            <section className="space-y-4 bg-card rounded-lg p-4 border border-border/60 shadow-sm">
+              <h3 className="text-lg font-semibold mb-2">Pago en dólares y comprobantes</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3 col-span-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Switch
+                      checked={!!ventaEdit.pagoEnDolares}
+                      onCheckedChange={(checked) => {
+                        // Solo actualizar pagoEnDolares y valorOficialDolar. NUNCA afectar
+                        // estadoPago, total, pagos, montoAbonado ni saldoPendiente.
+                        setVentaEdit((prev) => ({
+                          ...prev,
+                          pagoEnDolares: checked,
+                          valorOficialDolar: checked ? (prev.valorOficialDolar ?? "") : null,
+                        }));
+                      }}
+                      color="warning"
+                    />
+                    <span className="text-sm font-medium">Pago en dólares</span>
+                  </label>
+                  {ventaEdit.pagoEnDolares && (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="block">
+                          <span className="text-sm font-medium">Dólar oficial BNA (promedio compra/venta)</span>
+                          <div className="flex gap-2 mt-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="w-full md:w-40 px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
+                              value={ventaEdit.valorOficialDolar ?? ""}
+                              onChange={(e) =>
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  valorOficialDolar: e.target.value ? Number(e.target.value) : null,
+                                }))
+                              }
+                              placeholder="Ej: 1440"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={fetchDolarBlue}
+                              disabled={loadingDolar}
+                              className="shrink-0 h-9"
+                            >
+                              {loadingDolar ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Actualizar"
+                              )}
+                            </Button>
+                          </div>
+                        </label>
+                      </div>
+                      {ultimaActualizacionDolar && (
+                        <p className="text-xs text-muted-foreground">
+                          Última cotización: {ultimaActualizacionDolar.toLocaleString("es-AR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}{" "}
+                          (se actualiza cada 5 min)
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <ComprobantesPagoSection
+                    comprobantes={ventaEdit.comprobantesPago || []}
+                    onComprobantesChange={(lista) =>
+                      setVentaEdit((prev) => ({ ...prev, comprobantesPago: lista }))
+                    }
+                    disabled={loadingPrecios}
+                    maxFiles={10}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Editar productos de la venta - BLOQUE COPIADO Y ADAPTADO */}
+            <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+              <h3 className="font-semibold text-lg mb-4 ">
+                Editar productos de la venta
+              </h3>
+              {/* --- INICIO BLOQUE COPIADO DE ventas/page.jsx --- */}
+              <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
+                {/* Header con estadísticas */}
+                <div className="bg-gradient-to-r from-sky-500/10 via-transparent to-transparent px-6 py-4 border-b border-border/60">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-sky-500/10 rounded-lg flex items-center justify-center">
+                        <svg
+                          className="w-6 h-6 text-sky-700 dark:text-sky-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold ">Productos</h3>
+                        <p className="text-sm ">
+                          Selecciona los productos para tu venta
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const productoEjemplo = {
+                            id: "ejemplo-" + Date.now(),
+                            nombre: "Producto de Ejemplo",
+                            precio: 15000,
+                            unidad: "unidad",
+                            stock: 100,
+                            cantidad: 1,
+                            descuento: 0,
+                            categoria: "Eventual",
+                            esEditable: true, // Marca que es un producto editable
+                          };
+                          setVentaEdit({
+                            ...ventaEdit,
+                            productos: [
+                              ...(ventaEdit.productos || []),
+                              productoEjemplo,
+                            ],
+                          });
+                        }}
+                        className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/15"
+                      >
+                        <Icon
+                          icon="heroicons:plus-circle"
+                          className="w-3 h-3 mr-1"
+                        />
+                        Agregar Ejemplo
+                      </Button>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">
+                          {(ventaEdit.productos || []).length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          productos agregados
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Filtros mejorados */}
+                  <div className="flex flex-col gap-3">
+                    {/* Filtro de categorías */}
+                    <div className="flex-1">
+                      <div className="flex bg-card rounded-lg p-1 shadow-sm border border-border/60">
+                        {categoriasState.map((categoria) => (
+                          <button
+                            key={categoria}
+                            type="button"
+                            className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                              categoriaId === categoria
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted/50 text-foreground hover:bg-muted"
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (categoriaId === categoria) {
+                                setCategoriaId("");
+                                setFiltroTipoMadera("");
+                                setFiltroSubCategoria("");
+                              } else {
+                                setCategoriaId(categoria);
+                                setFiltroTipoMadera("");
+                                setFiltroSubCategoria("");
+                              }
+                            }}
+                          >
+                            {categoria}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Buscador mejorado - siempre visible */}
+                    <div className="w-full">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg
+                            className="h-5 w-5 text-muted-foreground"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar productos..."
+                          value={busquedaProducto}
+                          onChange={(e) => setBusquedaProducto(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-border/60 rounded-lg focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-200 bg-background text-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Filtros específicos por categoría */}
+                    <div className="flex flex-col gap-3">
+                      {/* Filtro de tipo de madera */}
+                      {categoriaId === "Maderas" && tiposMadera.length > 0 && (
+                        <div className="w-full">
+                          <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-border/60">
+                            <button
+                              type="button"
+                              className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                filtroTipoMadera === ""
+                                  ? "bg-orange-600 text-white"
+                                  : "bg-muted/50 text-foreground hover:bg-muted"
+                              }`}
+                              onClick={() => setFiltroTipoMadera("")}
+                            >
+                              Todos los tipos
+                            </button>
+                            {tiposMadera.map((tipo) => (
+                              <button
+                                key={tipo}
+                                type="button"
+                                className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                  filtroTipoMadera === tipo
+                                    ? "bg-orange-600 text-white"
+                                    : "bg-muted/50 text-foreground hover:bg-muted"
+                                }`}
+                                onClick={() => setFiltroTipoMadera(tipo)}
+                              >
+                                {tipo}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Filtro de subcategoría de ferretería */}
+                      {categoriaId === "Ferretería" &&
+                        subCategoriasFerreteria.length > 0 && (
+                          <div className="w-full">
+                            <div className="flex flex-wrap gap-2 bg-card rounded-lg p-2 shadow-sm border border-border/60 overflow-x-auto">
+                              <button
+                                type="button"
+                                className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                  filtroSubCategoria === ""
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted/50 text-foreground hover:bg-muted"
+                                }`}
+                                onClick={() => setFiltroSubCategoria("")}
+                              >
+                                Todas las subcategorías
+                              </button>
+                              {subCategoriasFerreteria.map((subCategoria) => (
+                                <button
+                                  key={subCategoria}
+                                  type="button"
+                                  className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                    filtroSubCategoria === subCategoria
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-muted/50 text-foreground hover:bg-muted"
+                                  }`}
+                                  onClick={() =>
+                                    setFiltroSubCategoria(subCategoria)
+                                  }
+                                >
+                                  {subCategoria}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </div>
+                {/* Lista de productos (alineada a ventas/page.jsx) */}
+                <div className="max-h-150 overflow-y-auto">
+                  {!categoriaId ? (
+                        <div className="p-8 text-center">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-sky-500/10 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                      <h3 className="text-lg font-medium  mb-2">Selecciona una categoría</h3>
+                      <p className="text-muted-foreground">Elige una categoría para ver los productos disponibles</p>
+                        </div>
+                  ) : productosFiltrados.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-amber-500/10 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                      <h3 className="text-lg font-medium  mb-2">No se encontraron productos</h3>
+                      <p className="text-muted-foreground">Intenta cambiar los filtros o la búsqueda</p>
+                        </div>
+                  ) : (
+                    <div className="space-y-4">
+                        {/* Indicador de rendimiento */}
+                        <div className="px-4 py-2 bg-sky-500/10 border-b border-sky-500/20">
+                          <div className="flex items-center justify-between text-sm">
+                          <span className="text-sky-700 dark:text-sky-300">Mostrando {productosPaginados.length} de {totalProductos} productos filtrados</span>
+                          <span className="text-sky-700/90 dark:text-sky-300/90 font-medium">Página {paginaActual} de {totalPaginas}</span>
+                          </div>
+                        </div>
+
+                        {/* Grid de productos paginados */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 relative">
+                          {/* Overlay de carga durante la paginación */}
+                        {isPending && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                              <div className="flex items-center gap-3 bg-card px-4 py-3 rounded-lg shadow-lg border border-border/60">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              <span className="text-sm font-medium text-foreground">Cargando productos...</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {productosPaginados.map((prod) => {
+                          const productosMismoOrigen = (ventaEdit.productos || []).filter((p) => (p.originalId || p.id) === prod.id);
+                          const yaAgregado = productosMismoOrigen.length > 0;
+                          const itemAgregado = productosMismoOrigen[0];
+                          const cantidadActual = itemAgregado?.cantidad || 0;
+                          const precio = (() => {
+                            if (prod.categoria === "Maderas") return prod.precioPorPie || 0;
+                            if (prod.categoria === "Ferretería") return prod.valorVenta || 0;
+                            return (
+                              prod.precioUnidad ||
+                              prod.precioUnidadVenta ||
+                              prod.precioUnidadHerraje ||
+                              prod.precioUnidadQuimico ||
+                              prod.precioUnidadHerramienta ||
+                              0
+                            );
+                          })();
+
+                          return (
+                            <div key={prod.id} className={`group relative bg-card rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${yaAgregado ? "border-emerald-500/30 bg-emerald-500/5" : "border-border/60 hover:border-primary/50"}`}>
+                              <div className="p-4 flex flex-col h-full">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${prod.categoria === "Maderas" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>
+                                        {prod.categoria === "Maderas" ? "🌲" : "🔧"}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-semibold text-foreground truncate">{prod.nombre}</h4>
+                                        {prod.categoria === "Maderas" && prod.tipoMadera && (
+                                            <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">🌲 {prod.tipoMadera}</span>
+                                            </div>
+                                          )}
+                                        {prod.categoria === "Ferretería" && prod.subCategoria && (
+                                            <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🔧 {prod.subCategoria}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {yaAgregado && (
+                                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                                          <span className="text-xs font-medium">Agregado</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                      </div>
+                                      </div>
+
+                                {/* Información del producto */}
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-muted-foreground">Precio:</span>
+                                    <span className="text-sm font-semibold text-foreground">${formatearNumeroArgentino(precio)}</span>
+                                      </div>
+                                  {prod.unidadMedida && (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-muted-foreground">Unidad:</span>
+                                      <span className="text-xs text-foreground">{prod.unidadMedida}</span>
+                                    </div>
+                                  )}
+                                  {prod.stock !== undefined && (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-muted-foreground">Stock:</span>
+                                      <span className={`text-xs font-medium ${prod.stock > 10 ? "text-green-600 dark:text-green-400" : prod.stock > 0 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`}>{prod.stock} unidades</span>
+                                  </div>
+                                  )}
+                                </div>
+
+                                {/* Botón de agregar o controles de cantidad */}
+                                <div className="mt-4">
+                                {yaAgregado ? (
+                                  <div className="grid grid-cols-4 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (cantidadActual > 1) {
+                                          handleDecrementarCantidad(itemAgregado.id);
+                                        } else {
+                                          handleQuitarProductoDesdeCatalogo(prod.id);
+                                        }
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                      −
+                                    </button>
+                                    <div className="flex-1 text-center">
+                                      <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                        {cantidadActual}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleIncrementarCantidad(itemAgregado.id);
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleClonarProducto(itemAgregado.id);
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                      title="Clonar"
+                                    >
+                                      Clonar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                        if (prod.categoria === "Maderas") {
+                                          const alto = Number(prod.alto) || 0;
+                                          const ancho = Number(prod.ancho) || 0;
+                                          const largo = Number(prod.largo) || 0;
+                                          const precioPorPie = Number(prod.precioPorPie) || 0;
+                                          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+                                            const precioCalc = calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                              productos: [
+                                                ...(prev.productos || []),
+                                                {
+                                                  id: prod.id,
+                                                  originalId: prod.id,
+                                                  codigo: prod.codigo || "",
+                                                  nombre: prod.nombre,
+                                                  detalle: prod.detalle || "",
+                                                  precio: precioCalc,
+                                                  unidad: prod.unidadMedida,
+                                                  stock: prod.stock,
+                                                  cantidad: 1,
+                                                  descuento: 0,
+                                                  categoria: prod.categoria,
+                                                  alto,
+                                                  ancho,
+                                                  largo,
+                                                  precioPorPie,
+                                                  cepilladoAplicado: String(prod.unidadMedida || "").trim().toUpperCase() === "M2",
+                                                  cepilladoPorcentaje: String(prod.unidadMedida || "").trim().toUpperCase() === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
+                                                  calibradoAplicado: false,
+                                                  calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+                                                  tipoMadera: prod.tipoMadera || "",
+                                                  subcategoria: prod.subcategoria || prod.subCategoria || "",
+                                                },
+                                              ],
+                                            }));
+                                          } else {
+                                            console.warn("El producto de madera no tiene dimensiones válidas.");
+                                          }
+                                        } else if (prod.categoria === "Ferretería") {
+                                            setVentaEdit((prev) => ({
+                                              ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                originalId: prod.id,
+                                                codigo: prod.codigo || "",
+                                                nombre: prod.nombre,
+                                                detalle: prod.detalle || "",
+                                                precio: prod.valorVenta || 0,
+                                                unidad: prod.unidadMedida || prod.unidadVenta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                              },
+                                            ],
+                                          }));
+                                        } else {
+                                          const precioOtro = (
+                                            prod.precioUnidad || prod.precioUnidadVenta || prod.precioUnidadHerraje || prod.precioUnidadQuimico || prod.precioUnidadHerramienta || 0
+                                          );
+                                          setVentaEdit((prev) => ({
+                                            ...prev,
+                                            productos: [
+                                              ...(prev.productos || []),
+                                              {
+                                                id: prod.id,
+                                                originalId: prod.id,
+                                                codigo: prod.codigo || "",
+                                                nombre: prod.nombre,
+                                                detalle: prod.detalle || "",
+                                                precio: precioOtro,
+                                                unidad: prod.unidadMedida || prod.unidadVenta,
+                                                stock: prod.stock,
+                                                cantidad: 1,
+                                                descuento: 0,
+                                                categoria: prod.categoria,
+                                              },
+                                            ],
+                                          }));
+                                        }
+                                      }}
+                                      disabled={loadingPrecios}
+                                      className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
+                                    >
+                                      Agregar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Controles de paginación */}
+                      {totalPaginas > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-t border-border/60">
+                          {/* Información de página */}
+                          <div className="text-sm text-foreground flex items-center gap-2">
+                            {isPending && (<div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>)}
+                            <span>Mostrando {paginaActual}-{Math.min(paginaActual + productosPorPagina - 1, totalProductos)} de {totalProductos} productos</span>
+                          </div>
+                          {/* Controles de navegación */}
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => cambiarPagina(1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Primera página">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+                            </button>
+                            <button onClick={() => cambiarPagina(paginaActual - 1)} disabled={paginaActual === 1 || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página anterior">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                                let pageNum;
+                                if (totalPaginas <= 5) pageNum = i + 1;
+                                else if (paginaActual <= 3) pageNum = i + 1;
+                                else if (paginaActual >= totalPaginas - 2) pageNum = totalPaginas - 4 + i;
+                                else pageNum = paginaActual - 2 + i;
+                                return (
+                                  <button key={pageNum} onClick={() => cambiarPagina(pageNum)} disabled={isPending} className={`px-3 py-1 text-sm rounded-md transition-colors ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : paginaActual === pageNum ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"}`}>
+                                    {pageNum}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button onClick={() => cambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Página siguiente">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                            <button onClick={() => cambiarPagina(totalPaginas)} disabled={paginaActual === totalPaginas || isPending} className={`p-2 rounded-md transition-all duration-200 ${isPending ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"}`} title="Última página">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7m-8 0l7-7-7-7"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                        </div>
+                      )}
+              </div>
+            </section>
+
+              {/* Tabla de productos seleccionados - diseño EXACTO de ventas/page.jsx */}
+              {(ventaEdit.productos || []).length > 0 && (
+                <section className="mt-4 bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
+                  <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
+                    <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="pagoEnEfectivo"
+                          checked={Boolean(ventaEdit?.pagoEnEfectivo)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setVentaEdit((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                pagoEnEfectivo: checked,
+                                ...(checked ? { formaPago: "efectivo" } : null),
+                              };
+                            });
+                          }}
+                          className="w-4 h-4 text-blue-600 bg-background border-default-300 rounded focus:ring-blue-500 focus:ring-2"
+                          disabled={loadingPrecios}
+                        />
+                        <label
+                          htmlFor="pagoEnEfectivo"
+                          className="text-sm font-medium text-default-700"
+                        >
+                          Pago en efectivo (-10%)
+                        </label>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                        {(ventaEdit.productos || []).length} producto{(ventaEdit.productos || []).length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-[15px]">
+                      <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
+                        <tr className="border-b border-default-200">
+                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
+                          <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Medida</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Canteado</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio en efectivo</th>
+                          <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
+                          <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-default-200">
+                        {(ventaEdit.productos || []).map((p, idx) => (
+                          <tr key={p.id} className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.categoria && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
+                                  {p.categoria}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 align-top text-sm text-default-600">
+                              <div className="font-semibold text-default-900">
+                                {p.esEditable ? (
+                                  <input
+                                    type="text"
+                                    value={p.nombre}
+                                    onChange={(e) => handleNombreChange(p.id, e.target.value)}
+                                    className="w-full px-2 py-1 border border-border/60 uppercase rounded text-base font-bold bg-background text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                                    disabled={loadingPrecios}
+                                    placeholder="Nombre del producto"
+                                  />
+                                ) : (
+                                  <div>
+                                    {p.nombre}
+                                    {p.categoria === "Maderas" && p.tipoMadera && (
+                                      <span className="font-semibold text-default-900"> {" "}- {p.tipoMadera.toUpperCase()}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {p.detalle && (
+                                <div className="mt-1 text-xs text-default-500">
+                                  {p.detalle}
+                                </div>
+                              )}
+                              {p.categoria === "Ferretería" && p.subCategoria && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{p.subCategoria}</span>
+                                </div>
+                              )}
+
+                              {p.categoria === "Maderas" && p.unidad !== "Unidad" && (
+                                <div className="mt-2 flex flex-wrap items-start gap-3">
+                                  <div className="inline-block w-fit rounded-md border border-orange-500/20 bg-orange-500/10 p-1.5 align-top">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
+                                        Dimensiones
+                                      </span>
+                                      {p.unidad === "M2" ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
+                                          Total {(((p.alto || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m²
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-700 dark:text-orange-300 text-sm font-semibold">
+                                          Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0)).toFixed(2))} m³
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {p.unidad === "M2" ? (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChange(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input type="number" min="0" step="0.01" value={p.alto === "" ? "" : p.alto || ""} onChange={(e) => handleAltoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                          <input type="number" min="0" step="0.01" value={p.ancho === "" ? "" : p.ancho || ""} onChange={(e) => handleAnchoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input type="number" min="0" step="0.01" value={p.largo === "" ? "" : p.largo || ""} onChange={(e) => handleLargoChangeMadera(p.id, e.target.value)} className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-background text-foreground text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800" disabled={loadingPrecios} />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="inline-block w-fit p-1.5 bg-emerald-500/10 rounded-md border border-emerald-500/20 align-top">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>
+                                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">Precio</span>
+                                    </div>
+                                    <div className="inline-block w-fit">
+                                      <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">Valor</label>
+                                      <div className="relative">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
+                                        <input type="number" min="0" step="0.01" value={p.precioPorPie === "" ? "" : p.precioPorPie || ""} onChange={(e) => {
+                                          if (p.unidad === "M2") {
+                                            handlePrecioPorPieChange(p.id, e.target.value);
+                                          } else {
+                                            handlePrecioPorPieChangeMadera(p.id, e.target.value);
+                                          }
+                                        }} className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-background text-foreground focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums" disabled={loadingPrecios} placeholder="0.00" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              <div className="flex items-center justify-center">
+                                <QuantityMeasureControl
+                                  product={p}
+                                  cantidad={p.cantidad === "" ? "" : p.cantidad}
+                                  disabled={loadingPrecios}
+                                  onCantidadChange={(next) => handleCantidadChange(p.id, next)}
+                                  onIncrement={() => handleIncrementarCantidad(p.id)}
+                                  onDecrement={() => handleDecrementarCantidad(p.id)}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleClonarProducto(p.id)}
+                                  disabled={loadingPrecios}
+                                  className="ml-2 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                  title="Clonar producto"
+                                >
+                                  Clonar
+                                </button>
+                              </div>
+                              <div className="mt-1 text-[11px] text-default-500 text-center tabular-nums">
+                                <MedidaValue
+                                  product={{
+                                    ...p,
+                                    cantidad: Math.max(
+                                      1,
+                                      Math.ceil(Number(p.cantidad) || 1)
+                                    ),
+                                  }}
+                                  className="text-[11px] text-default-500"
+                                />
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.categoria === "Maderas" ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <input type="checkbox" checked={p.cepilladoAplicado || false} onChange={(e) => { recalcularPreciosMadera(p.id, e.target.checked); }} className="w-4 h-4 text-blue-600 bg-background border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2" disabled={loadingPrecios} title="Aplicar cepillado" />
+                                  <div className="relative w-16">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.1}
+                                      value={p.unidad === "M2" ? 0 : p.cepilladoPorcentaje === "" ? "" : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE}
+                                      onChange={(e) => handleCepilladoPorcentajeChange(p.id, e.target.value)}
+                                      className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-background text-foreground focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
+                                      disabled={loadingPrecios || !p.cepilladoAplicado || p.unidad === "M2"}
+                                    />
+                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.categoria === "Maderas" ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={p.calibradoAplicado || false}
+                                    onChange={(e) => handleCalibradoAplicadoChange(p.id, e.target.checked)}
+                                    className="w-4 h-4 text-indigo-600 bg-background border-default-300 rounded focus:ring-indigo-500 dark:focus:ring-indigo-600 focus:ring-2"
+                                    disabled={loadingPrecios}
+                                    title="Aplicar calibrado"
+                                  />
+                                  <div className="relative w-16">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.1}
+                                      value={p.calibradoPorcentaje === "" ? "" : p.calibradoPorcentaje ?? DEFAULT_CALIBRADO_PORCENTAJE}
+                                      onChange={(e) => handleCalibradoPorcentajeChange(p.id, e.target.value)}
+                                      className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-5 bg-background text-foreground focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 text-xs"
+                                      disabled={loadingPrecios || !p.calibradoAplicado}
+                                    />
+                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-default-500">%</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              {p.esEditable ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="100"
+                                  value={
+                                    p.precio === ""
+                                      ? ""
+                                      : p.categoria === "Maderas" && p.unidad === "M2"
+                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                      : p.precio
+                                  }
+                                  onChange={(e) => handlePrecioChange(p.id, e.target.value)}
+                                  className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-background text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
+                                  disabled={loadingPrecios}
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <span className="block text-right font-semibold text-default-900 tabular-nums">
+                                  {`$${formatearNumeroArgentino(
+                                    p.categoria === "Maderas" && p.unidad === "M2"
+                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                      : p.precio
+                                  )}`}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-sm text-default-600">
+                              <div className="relative w-20 md:w-24 mx-auto">
+                                <input type="number" min={0} max={100} value={p.descuento === "" ? "" : p.descuento || ""} onChange={(e) => handleDescuentoChange(p.id, e.target.value)} className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-background text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-200" disabled={loadingPrecios} />
+                                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                              ${formatearNumeroArgentino(
+                                (() => {
+                                  const precioBase = computeLineBase(p);
+                                  const precioConDescuento =
+                                    precioBase * (1 - Number(p.descuento || 0) / 100);
+                                  const efectivo = ventaEdit?.pagoEnEfectivo
+                                    ? precioConDescuento * 0.9
+                                    : precioConDescuento;
+                                  return Math.round(efectivo);
+                                })()
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                              ${formatearNumeroArgentino(computeLineSubtotal(p))}
+                            </td>
+                            <td className="p-4 align-middle text-center text-sm text-default-600">
+                              <span className="group relative inline-flex">
+                                <button type="button" aria-label="Eliminar producto" onClick={() => handleQuitarProducto(p.id)} disabled={loadingPrecios} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50" title="Eliminar">
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" /></svg>
+                                </button>
+                                <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {/* Totales y botones por debajo de la tabla */}
+              {(ventaEdit.productos || []).length > 0 && (
+                <div className="flex flex-col items-end gap-2 mt-4">
+                  {(() => {
+                    const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
+                    const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
+                    const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                    const totalFinal = total + envio - descuentoEfectivo;
+                    return (
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                        <div>
+                          Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
+                        </div>
+                        <div>
+                          Descuento: <span className="font-bold">${formatearNumeroArgentino(descuentoTotal)}</span>
+                        </div>
+                        {descuentoEfectivo > 0 && (
+                          <div>
+                            Descuento (Efectivo 10%): <span className="font-bold text-green-600">${formatearNumeroArgentino(descuentoEfectivo)}</span>
+                          </div>
+                        )}
+                        {envio > 0 && (
+                          <div>
+                            Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
+                          </div>
+                        )}
+                        <div>
+                          Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {(() => {
+                // Cálculo limpio y UI mejorada para pagos pendientes
+                const totalesEdicion = computeTotals(ventaEdit.productos || []);
+                const subtotal = totalesEdicion.subtotal;
+                const descuento = totalesEdicion.descuentoTotal;
+
+                // Calcular costo de envío basado en el tipo de envío actual
+                const envio =
+                  ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local"
+                    ? Number(ventaEdit.costoEnvio) || 0
+                    : 0;
+
+                const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
+                const total = subtotal - descuento - descuentoEfectivo + envio;
+                const abonado = Array.isArray(ventaEdit.pagos)
+                  ? ventaEdit.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
+                  : Number(ventaEdit.montoAbonado || 0);
+                const saldo = total - abonado;
+
+                if (saldo > 0) {
+                  // Validar que los campos estén inicializados
+                  const montoValido = ventaEdit.nuevoPagoMonto && 
+                    Number(ventaEdit.nuevoPagoMonto) > 0 && 
+                    Number(ventaEdit.nuevoPagoMonto) <= saldo;
+                  const metodoValido = ventaEdit.nuevoPagoMetodo && 
+                    ventaEdit.nuevoPagoMetodo.trim() !== "";
+                  const botonHabilitado = !registrandoPago && montoValido && metodoValido;
+
+                  return (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 my-3 w-full max-w-xl ml-auto">
+                      {/* Encabezado con jerarquía tipográfica */}
+                      <div className="mb-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg text-yellow-900">Saldo pendiente</span>
+                          <span className="text-lg font-extrabold text-yellow-900">${formatearNumeroArgentino(saldo)}</span>
+                        </div>
+                        <div className="mt-1 text-lg font-medium text-green-700">Abonado ${formatearNumeroArgentino(abonado)}</div>
+                      </div>
+
+                      <div className="mb-3">
+                        <select
+                          className="h-9 w-full border border-amber-500/30 rounded-md px-3 text-sm bg-background text-foreground"
+                          value={ventaEdit.estadoPago || (abonado >= total ? "pagado" : abonado > 0 ? "parcial" : "pendiente")}
+                          onChange={(e) =>
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              estadoPago: e.target.value,
+                            }))
+                          }
+                        >
+                          <option value="pendiente">Pendiente</option>
+                          <option value="parcial">Parcial</option>
+                          <option value="pagado">Pagado</option>
+                        </select>
+                      </div>
+
+                      {/* Línea de captura: monto + método + acción */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={saldo}
+                          step="0.01"
+                          placeholder="0,00"
+                          className={`flex-1 h-9 border rounded-md px-3 text-sm ${ventaEdit.nuevoPagoMonto && !montoValido ? 'border-red-500 bg-red-500/10' : 'border-amber-500/30 bg-background'} text-foreground`}
+                          value={ventaEdit.nuevoPagoMonto || ""}
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              nuevoPagoMonto: valor,
+                            }));
+                          }}
+                          disabled={registrandoPago}
+                        />
+                        <select
+                          className={`h-9 w-full md:w-44 border rounded-md px-2 text-sm ${ventaEdit.nuevoPagoMetodo && !metodoValido ? 'border-red-500 bg-red-500/10' : 'border-amber-500/30 bg-background'} text-foreground`}
+                          value={ventaEdit.nuevoPagoMetodo || ""}
+                          onChange={(e) => {
+                            const valor = e.target.value;
+                            setVentaEdit((prev) => ({
+                              ...prev,
+                              nuevoPagoMetodo: valor,
+                            }));
+                          }}
+                          disabled={registrandoPago}
+                        >
+                          <option value="">Selecciona...</option>
+                          <option value="efectivo">Efectivo</option>
+                          <option value="transferencia">Transferencia</option>
+                          <option value="tarjeta">Tarjeta</option>
+                          <option value="cheque">Cheque</option>
+                          <option value="otro">Otro</option>
+                        </select>
+                        <button
+                          type="button"
+                          className={`h-9 px-3 inline-flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${botonHabilitado ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+                          onClick={async () => {
+                            if (!botonHabilitado) {
+                              return;
+                            }
+
+                            setRegistrandoPago(true);
+                            
+                            try {
+                              await new Promise((res) => setTimeout(res, 400));
+                              
+                              if (Array.isArray(ventaEdit.pagos)) {
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  pagos: [
+                                    ...prev.pagos,
+                                    {
+                                      fecha: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      monto: Number(prev.nuevoPagoMonto),
+                                      metodo: prev.nuevoPagoMetodo,
+                                      usuario: "usuario",
+                                    },
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              } else {
+                                setVentaEdit((prev) => ({
+                                  ...prev,
+                                  pagos: [
+                                    {
+                                      fecha: new Date()
+                                        .toISOString()
+                                        .split("T")[0],
+                                      monto: Number(prev.nuevoPagoMonto),
+                                      metodo: prev.nuevoPagoMetodo,
+                                      usuario: "usuario",
+                                    },
+                                  ],
+                                  nuevoPagoMonto: "",
+                                  nuevoPagoMetodo: "",
+                                }));
+                              }
+                              setPagoExitoso(true);
+                              setTimeout(() => setPagoExitoso(false), 1800);
+                            } catch (error) {
+                              console.error("Error al registrar pago:", error);
+                            } finally {
+                              setRegistrandoPago(false);
+                            }
+                          }}
+                          disabled={!botonHabilitado}
+                        >
+                          {registrandoPago ? (
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                          ) : (
+                            'Registrar pago'
+                          )}
+                        </button>
+                      </div>
+                      {/* Mensajes de validación compactos */}
+                      {ventaEdit.nuevoPagoMonto && !montoValido && (
+                        <div className="mt-2 text-xs text-red-600">{Number(ventaEdit.nuevoPagoMonto) <= 0 ? 'El monto debe ser mayor a 0' : Number(ventaEdit.nuevoPagoMonto) > saldo ? `No puede superar $${formatearNumeroArgentino(saldo)}` : 'Monto inválido'}</div>
+                      )}
+                      {ventaEdit.nuevoPagoMetodo && !metodoValido && (
+                        <div className="mt-1 text-xs text-red-600">Selecciona un método válido</div>
+                      )}
+                      {pagoExitoso && (<div className="mt-2 text-xs text-green-700 font-semibold">¡Pago registrado!</div>)}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              <div className="flex flex-wrap gap-2 mt-6">
+                <Button
+                  variant="default"
+                  onClick={handleGuardarCambios}
+                  disabled={loadingPrecios}
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
+                  <span className="hidden sm:inline">Guardar cambios</span>
+                  <span className="sm:hidden">💾</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditando(false)}
+                  disabled={loadingPrecios}
+                  className="no-print flex-1 lg:flex-none text-sm lg:text-base"
+                >
+                  <span className="hidden sm:inline">Cancelar</span>
+                  <span className="sm:hidden">❌</span>
+                </Button>
+              </div>
+              {errorForm && (
+                <div className="text-red-500 mt-2">{errorForm}</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal de confirmación para borrar pago */}
+      {mostrarConfirmacionBorrado && pagoABorrar !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border/60 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-700 dark:text-red-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Confirmar borrado
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  ¿Estás seguro de que quieres borrar este pago?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 border border-border/60 rounded-lg p-3 mb-4">
+              <div className="text-sm text-foreground">
+                <div className="font-medium">Detalles del pago:</div>
+                <div className="mt-1">
+                  <span className="text-muted-foreground">Fecha:</span>{" "}
+                  {formatFechaLocal(venta.pagos[pagoABorrar].fecha)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Método:</span>{" "}
+                  {venta.pagos[pagoABorrar].metodo}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Monto:</span>{" "}
+                  <span className="font-semibold text-red-700 dark:text-red-300">
+                    ${Number(venta.pagos[pagoABorrar].monto).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarConfirmacionBorrado(false);
+                  setPagoABorrar(null);
+                }}
+                className="px-4 py-2 text-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMostrarConfirmacionBorrado(false);
+                  await handleBorrarPago(pagoABorrar);
+                }}
+                disabled={borrandoPago}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  borrandoPago
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {borrandoPago ? (
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8z"
+                      />
+                    </svg>
+                    Borrando...
+                  </div>
+                ) : (
+                  "Borrar pago"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para cambiar cliente - Componente reutilizable */}
+      <ModalCambiarCliente
+        open={showSelectorCliente}
+        onClose={() => setShowSelectorCliente(false)}
+        clienteActual={venta?.cliente ? {
+          id: venta.clienteId,
+          ...(venta.cliente || {})
+        } : null}
+        clientes={clientes}
+        onClienteSeleccionado={handleClienteSeleccionado}
+      />
+    </div>
+  );
+};
+
+export default VentaDetalle;

@@ -1,0 +1,3388 @@
+"use client";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+// Nota: columnsPresupuestos y columnsVentas no se usan en este componente
+// import {
+//   columnsPresupuestos,
+//   columnsVentas,
+// } from "../(invoice)/invoice-list/invoice-list-table/components/columns-enhanced";
+// Nota: DataTableEnhanced no se usa en este componente
+// import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import QuantityMeasureControl from "@/components/ui/quantity-measure-control";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DateInput } from "@/components/ui/date-input";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { Loader2, CheckCircle, AlertCircle, Trash2, X, AlertTriangle, Info } from "lucide-react";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  increment,
+  serverTimestamp,
+  query,
+  where,
+  limit,
+  orderBy,
+  startAfter,
+  onSnapshot,
+} from "firebase/firestore";
+// Nota: useRouter y useParams no se usan en este componente
+// import { useRouter, useParams } from "next/navigation";
+import { Icon } from "@iconify/react";
+import { useAuth } from "@/provider/auth.provider";
+import { toast } from "@/components/ui/use-toast";
+import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import { mapFirestoreDoc } from "@/lib/erp/producto-id";
+import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
+import {
+  applyDerivedComboStock,
+  collectInventoryRequirements,
+  isComboProduct,
+  normalizeComboComponents,
+} from "@/lib/combos";
+
+function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [cloneFeedbackById, setCloneFeedbackById] = useState({});
+  const [cloneHighlightId, setCloneHighlightId] = useState(null);
+  const cloneTimersRef = useRef({});
+  const DEFAULT_CLIENTE_ID = "consumidor_final";
+  const DEFAULT_CLIENTE_DATA = useMemo(
+    () => ({
+      nombre: "CONSUMIDOR FINAL",
+      email: "",
+      telefono: "",
+      direccion: "",
+      cuit: "",
+      localidad: "",
+      esClienteDefault: true,
+    }),
+    []
+  );
+
+  // Esquema Yup para presupuesto
+  const schemaPresupuesto = yup.object().shape({
+    fecha: yup.string().required("La fecha es obligatoria"),
+    clienteId: yup.string().notRequired(),
+    cliente: yup.object().shape({
+      nombre: yup.string().required("Obligatorio"),
+      email: yup.string().email("Email inválido").notRequired(),
+      telefono: yup.string().notRequired(),
+      direccion: yup.string().notRequired(),
+      cuit: yup.string().notRequired(),
+    }),
+    items: yup
+      .array()
+      .of(
+        yup.object().shape({
+          descripcion: yup.string().required("Obligatorio"),
+          cantidad: yup.number().min(1, "Mínimo 1").required("Obligatorio"),
+          precio: yup
+            .number()
+            .min(0, "No puede ser negativo")
+            .required("Obligatorio"),
+          unidad: yup.string().required("Obligatorio"),
+          moneda: yup.string().required("Obligatorio"),
+          descuento: yup.number().min(0).max(100),
+        })
+      )
+      .min(1, "Agrega al menos un ítem"),
+    tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
+    costoEnvio: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" || originalValue === undefined ? undefined : value
+      )
+      .nullable()
+      .when("tipoEnvio", {
+        is: (val) => val && val !== "retiro_local",
+        then: (s) => s.required("La cotización del envío es obligatoria"),
+        otherwise: (s) => s.notRequired(),
+      }),
+  });
+
+  // Esquema Yup para venta
+  const schemaVenta = yup.object().shape({
+    fecha: yup.string().required("La fecha es obligatoria"),
+    clienteId: yup.string().notRequired(),
+    cliente: yup.object().shape({
+      nombre: yup.string().required("Obligatorio"),
+      email: yup.string().email("Email inválido").notRequired(),
+      telefono: yup.string().notRequired(),
+      direccion: yup.string().notRequired(),
+      cuit: yup.string().notRequired(),
+    }),
+    items: yup
+      .array()
+      .of(
+        yup.object().shape({
+          descripcion: yup.string().required("Obligatorio"),
+          cantidad: yup.number().min(1, "Mínimo 1").required("Obligatorio"),
+          precio: yup
+            .number()
+            .min(0, "No puede ser negativo")
+            .required("Obligatorio"),
+          unidad: yup.string().required("Obligatorio"),
+          moneda: yup.string().required("Obligatorio"),
+          descuento: yup.number().min(0).max(100),
+        })
+      )
+      .min(1, "Agrega al menos un ítem"),
+    formaPago: yup.string().required("Selecciona la forma de pago"),
+    pagoParcial: yup.boolean(),
+    pagoPendiente: yup.boolean(),
+    montoAbonado: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" ? undefined : value
+      )
+      .when(["pagoParcial", "pagoPendiente"], {
+        is: (pagoParcial, pagoPendiente) => Boolean(pagoParcial) && !Boolean(pagoPendiente),
+        then: (s) =>
+          s
+            .typeError("Debe ingresar un monto")
+            .min(1, "Debe ingresar un monto")
+            .required("Obligatorio"),
+        otherwise: (s) => s.notRequired().nullable(true),
+      }),
+    tipoEnvio: yup.string().required("Selecciona el tipo de envío"),
+    usarDireccionCliente: yup.boolean().default(true),
+    fechaEntrega: yup.string().when("tipoEnvio", {
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("La fecha de entrega es obligatoria"),
+      otherwise: (s) => s.notRequired(),
+    }),
+    rangoHorario: yup.string().when("tipoEnvio", {
+      is: (val) => val && val !== "retiro_local",
+      then: (s) => s.required("El rango horario es obligatorio"),
+      otherwise: (s) => s.notRequired(),
+    }),
+    costoEnvio: yup
+      .number()
+      .transform((value, originalValue) =>
+        originalValue === "" || originalValue === undefined ? undefined : value
+      )
+      .nullable()
+      .notRequired(),
+    observaciones: yup.string().notRequired(),
+    direccionEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) =>
+        tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: (s) => s.required("La dirección de envío es obligatoria"),
+      otherwise: (s) => s.notRequired(),
+    }),
+    localidadEnvio: yup.string().when(["tipoEnvio", "usarDireccionCliente"], {
+      is: (tipoEnvio, usarDireccionCliente) =>
+        tipoEnvio && tipoEnvio !== "retiro_local" && !usarDireccionCliente,
+      then: (s) => s.required("La localidad es obligatoria"),
+      otherwise: (s) => s.notRequired(),
+    }),
+  });
+
+  const schema = tipo === "presupuesto" ? schemaPresupuesto : schemaVenta;
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+    watch,
+  } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      fecha: new Date().toISOString().split("T")[0],
+      clienteId: "",
+      cliente: { nombre: "", email: "", telefono: "", direccion: "", cuit: "" },
+      items: [],
+      usarDireccionCliente: true,
+    },
+  });
+
+  const items = watch("items");
+  const tipoEnvio = watch("tipoEnvio");
+  const costoEnvio = watch("costoEnvio");
+  const [clienteId, setClienteId] = useState("");
+  const [clientesState, setClientesState] = useState([]);
+  const [clientesLoading, setClientesLoading] = useState(true);
+  const clienteSeleccionado = clientesState.find((c) => c.id === clienteId);
+  const [openNuevoCliente, setOpenNuevoCliente] = useState(false);
+
+  const [productosSeleccionados, setProductosSeleccionados] = useState([]);
+  const [productosState, setProductosState] = useState([]);
+  const [productosPorCategoria, setProductosPorCategoria] = useState({});
+  const [categoriasState, setCategoriasState] = useState([]);
+  const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
+  const [productosLoading, setProductosLoading] = useState(true);
+  // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
+
+  // Suscripción en tiempo real a todos los productos (idéntico a productos/page.jsx)
+  useEffect(() => {
+    setProductosLoading(true);
+    const qRef = query(collection(db, "productos"), orderBy("nombre"));
+    const unsubscribe = onSnapshot(
+      qRef,
+      (snap) => {
+      const productos = applyDerivedComboStock(snap.docs.map((d) => mapFirestoreDoc(d)));
+      setProductosState(productos);
+      const agrupados = {};
+      productos.forEach((p) => {
+        if (!agrupados[p.categoria]) agrupados[p.categoria] = [];
+        agrupados[p.categoria].push(p);
+      });
+      setProductosPorCategoria(agrupados);
+      setCategoriasState(Object.keys(agrupados));
+      setProductosLoading(false);
+      },
+      () => setProductosLoading(false)
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Estados de filtros y categoría (deben declararse antes de efectos que los usan)
+  const [categoriaId, setCategoriaId] = useState("");
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroTipoMadera, setFiltroTipoMadera] = useState("");
+  const [filtroSubCategoria, setFiltroSubCategoria] = useState("");
+
+  // Búsqueda local con debounce + deferred (sin endpoint)
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaDebounced(busquedaProducto), 100);
+    return () => clearTimeout(id);
+  }, [busquedaProducto]);
+  const busquedaDefer = React.useDeferredValue(busquedaDebounced);
+
+  // Sin carga global extra: la suscripción ya provee todo el catálogo
+
+  // Sin búsqueda remota: todo se filtra en memoria
+
+  
+
+  // Sin cache por categoría: se deriva desde la suscripción global
+
+  
+
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina] = useState(12); // Mostrar 12 productos por página
+  // Mejora de fluidez al paginar
+  const [isPending, startTransition] = React.useTransition();
+
+  // Al escribir en el input ya se actualiza busquedaDebounced; no se requiere botón
+
+  const handleAgregarProducto = useCallback((producto) => {
+    // Intentar resolver el producto real desde distintas fuentes locales (estado inicial o agrupación por categoría)
+    let real = productosState.find((p) => p.id === producto.id);
+    if (!real && categoriaId && productosPorCategoria[categoriaId]) {
+      real = (productosPorCategoria[categoriaId] || []).find((p) => p.id === producto.id);
+    }
+    // Si aún no se encontró, usar el objeto recibido (proviene del catálogo remoto)
+    if (!real) {
+      real = producto;
+    }
+    if (!productosSeleccionados.some((p) => p.id === real.id)) {
+      let precio;
+      const unidad = String(
+        real.unidadMedida ||
+          real.unidad ||
+          real.unidadVenta ||
+          real.unidadVentaHerraje ||
+          real.unidadVentaQuimico ||
+          real.unidadVentaHerramienta ||
+          ""
+      );
+      const unidadMadera = (() => {
+        if (real.categoria !== "Maderas") return unidad;
+        const raw = String(unidad || "").trim();
+        const up = raw.toUpperCase();
+        if (!up) return "Pie";
+        if (up === "UN" || up === "UNI" || up === "UNIDAD") return "Unidad";
+        if (up === "M2" || up === "M²") return "M2";
+        if (up === "ML" || up === "M.L" || up === "M.L." || up === "METROLINEAL") return "ML";
+        if (up === "PIE" || up === "P3" || up === "P") return "Pie";
+        return "Pie";
+      })();
+
+      let alto = 0;
+      let ancho = 0;
+      let largo = 0;
+      let precioPorPie = 0;
+
+      if (isComboProduct(real)) {
+        precio =
+          Number(real.precioVenta ?? real.valorVenta ?? real.precioCalculado ?? real.precioUnidad ?? 0) || 0;
+      } else if (real.categoria === "Maderas") {
+        alto = Number(real.alto) || 0;
+        ancho = Number(real.ancho) || 0;
+        largo = Number(real.largo) || 0;
+        precioPorPie = Number(real.precioPorPie) || 0;
+
+        if (unidadMadera === "M2") {
+          const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
+          alto = altoM2;
+          if (alto > 0 && largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioMachimbre({
+              alto,
+              largo,
+              cantidad: 1, // Cantidad inicial por defecto
+              precioPorPie,
+            });
+          } else {
+            precio = 0;
+            toast({
+              title: "Faltan dimensiones",
+              description:
+                "Este producto M2 no tiene alto/largo/precio válidos. Completalos y el precio se recalcula automáticamente.",
+              variant: "destructive",
+            });
+          }
+        } else if (unidadMadera === "ML") {
+          if (largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioMetroLineal({
+              largo,
+              cantidad: 1,
+              precioPorPie,
+            });
+          } else {
+            precio = 0;
+            toast({
+              title: "Faltan datos",
+              description:
+                "Este producto ML no tiene largo/precio válidos. Completalos y el precio se recalcula automáticamente.",
+              variant: "destructive",
+            });
+          }
+        } else if (unidadMadera === "Unidad") {
+          if (precioPorPie > 0) {
+            precio = Math.round(precioPorPie / 100) * 100;
+          } else {
+            precio = 0;
+            toast({
+              title: "Falta precio",
+              description:
+                "Este producto de madera por unidad no tiene un precio válido. Completalo para calcular el total.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          if (alto > 0 && ancho > 0 && largo > 0 && precioPorPie > 0) {
+            precio = calcularPrecioCorteMadera({
+              alto,
+              ancho,
+              largo,
+              precioPorPie,
+            });
+          } else {
+            precio = 0;
+            toast({
+              title: "Faltan dimensiones",
+              description:
+                "Este producto de madera no tiene alto/ancho/largo/precio válidos. Completalos y el precio se recalcula automáticamente.",
+              variant: "destructive",
+            });
+          }
+        }
+      } else {
+        if (real.categoria === "Ferretería") {
+          precio = real.valorVenta || 0;
+        } else {
+          precio =
+            real.precioUnidad ||
+            real.precioUnidadVenta ||
+            real.precioUnidadHerraje ||
+            real.precioUnidadQuimico ||
+            real.precioUnidadHerramienta ||
+            0;
+        }
+      }
+
+      // Determinar si es machimbre o deck para marcar cepillado automáticamente
+      const subcategoria = String(real.subcategoria || real.subCategoria || "").toLowerCase();
+      const esMachimbreODeck =
+        unidadMadera === "M2" &&
+        (subcategoria === "machimbre" || subcategoria === "deck" || !subcategoria);
+      const cepilladoDefault = real.categoria === "Maderas" && unidadMadera === "M2";
+      const precioConCepilladoInicial = precio;
+      
+      setProductosSeleccionados([
+        ...productosSeleccionados,
+        {
+          id: real.id,
+          originalId: real.id,
+          codigo: real.codigo || "",
+          nombre: real.nombre,
+          detalle: real.detalle || "",
+          precio: precioConCepilladoInicial,
+          unidad: isComboProduct(real)
+            ? "Unidad"
+            : real.categoria === "Maderas"
+              ? unidadMadera
+              : unidad,
+          stock: real.stock,
+          cantidad: 1, // Cantidad de paquetes (siempre empieza en 1)
+          descuento: 0,
+          categoria: real.categoria,
+          precioIncluyeCantidad:
+            real.categoria === "Maderas" && (unidadMadera === "M2" || unidadMadera === "ML"),
+          alto: alto || 0,
+          ancho: ancho || 0,
+          largo: largo || 0,
+          precioPorPie: precioPorPie || 0,
+          // Para machimbre ya no usamos cantidadPaquete, solo cantidad
+          cepilladoAplicado: cepilladoDefault || esMachimbreODeck,
+          cepilladoPorcentaje: unidadMadera === "M2" ? 0 : DEFAULT_CEPILLADO_PORCENTAJE,
+          calibradoAplicado: false,
+          calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+          tipoMadera: real.tipoMadera || "",
+          subcategoria: real.subcategoria || "",
+          esCombo: isComboProduct(real),
+          tipoProducto: isComboProduct(real) ? "combo" : (real.tipoProducto || "simple"),
+          componentesCombo: normalizeComboComponents(real.componentesCombo),
+        },
+      ]);
+    }
+  }, [productosState, productosSeleccionados, productosPorCategoria, categoriaId]);
+  const handleQuitarProducto = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.filter((p) => p.id !== id)
+    );
+  };
+  const buildProductoUniqueId = (baseId) => {
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 5);
+    return `${baseId}-${timestamp}-${randomSuffix}`;
+  };
+  const handleQuitarProductoDesdeCatalogo = (productoId) => {
+    setProductosSeleccionados((prev) => {
+      const indices = prev
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => (p.originalId || p.id) === productoId);
+      if (indices.length === 0) return prev;
+      const idxToRemove = indices[indices.length - 1].idx;
+      return prev.filter((_, idx) => idx !== idxToRemove);
+    });
+  };
+  const handleClonarProducto = (id) => {
+    const producto = productosSeleccionados.find((p) => p.id === id);
+    if (!producto) return;
+    const baseId = producto.originalId || producto.id;
+    const nuevoId = buildProductoUniqueId(baseId);
+    const duplicado = {
+      ...producto,
+      id: nuevoId,
+      originalId: baseId,
+    };
+    setProductosSeleccionados((prev) => [...prev, duplicado]);
+    setCloneFeedbackById((prev) => ({ ...prev, [id]: true }));
+    if (cloneTimersRef.current[`btn-${id}`]) {
+      clearTimeout(cloneTimersRef.current[`btn-${id}`]);
+    }
+    cloneTimersRef.current[`btn-${id}`] = setTimeout(() => {
+      setCloneFeedbackById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }, 1400);
+    setCloneHighlightId(nuevoId);
+    if (cloneTimersRef.current.row) {
+      clearTimeout(cloneTimersRef.current.row);
+    }
+    cloneTimersRef.current.row = setTimeout(() => {
+      setCloneHighlightId(null);
+    }, 2200);
+    toast({
+      title: "Producto clonado",
+      description: `${producto.nombre} · Cantidad ${Number(producto.cantidad) || 1}`,
+      color: "success",
+    });
+  };
+  const DEFAULT_CEPILLADO_PORCENTAJE = 6;
+  const DEFAULT_CALIBRADO_PORCENTAJE = 3;
+  const calcularPrecioMetroLineal = ({ largo, cantidad, precioPorPie }) => {
+    if (
+      [largo, cantidad, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    const precio = largo * precioPorPie * cantidad;
+    return Math.round(precio / 100) * 100;
+  };
+  // Función helper para manejar valores numéricos
+  const parseNumericValue = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+    const normalized = String(value).trim().replace(",", ".");
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : "";
+  };
+  const normalizarCalibradoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CALIBRADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
+  const normalizarCepilladoPorcentaje = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return DEFAULT_CEPILLADO_PORCENTAJE;
+    return Math.max(0, num);
+  };
+  const calcularPrecioMaderaConTratamientos = (
+    producto,
+    precioBase,
+    overrides = {}
+  ) => {
+    const cepilladoAplicado =
+      overrides.cepilladoAplicado ?? producto.cepilladoAplicado;
+    const unidadMadera = String(overrides.unidad ?? producto.unidad ?? "").trim();
+    const cepilladoPorcentaje =
+      unidadMadera === "M2"
+        ? 0
+        : normalizarCepilladoPorcentaje(
+            overrides.cepilladoPorcentaje ?? producto.cepilladoPorcentaje
+          );
+    const calibradoAplicado =
+      overrides.calibradoAplicado ?? producto.calibradoAplicado;
+    const calibradoPorcentaje = normalizarCalibradoPorcentaje(
+      overrides.calibradoPorcentaje ?? producto.calibradoPorcentaje
+    );
+    const factorCepillado =
+      cepilladoAplicado
+        ? 1 + cepilladoPorcentaje / 100
+        : 1;
+    const factorCalibrado = calibradoAplicado
+      ? 1 + calibradoPorcentaje / 100
+      : 1;
+    return Math.round((precioBase * factorCepillado * factorCalibrado) / 100) * 100;
+  };
+
+  const handleCantidadChange = (id, cantidad) => {
+    const parsedCantidad = parseNumericValue(cantidad);
+
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad =
+            parsedCantidad === ""
+              ? 1
+              : Math.max(1, Math.ceil(Number(parsedCantidad) || 1));
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
+            const base =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: altoM2,
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  });
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(p, base);
+            return { ...p, cantidad: nuevaCantidad, precio: precioRedondeado };
+          }
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      })
+    );
+  };
+  const handleIncrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = current + 1;
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
+            const base =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: altoM2,
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  });
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(p, base);
+            return { ...p, cantidad: nuevaCantidad, precio: precioRedondeado };
+          }
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      })
+    );
+  };
+  const handleDecrementarCantidad = (id) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id) {
+          const current = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+          const nuevaCantidad = Math.max(1, current - 1);
+          if (p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML")) {
+            const altoM2 = (Number(p.alto) || 0) > 0 ? Number(p.alto) : Number(p.ancho) || 0;
+            const base =
+              p.unidad === "M2"
+                ? calcularPrecioMachimbre({
+                    alto: altoM2,
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  })
+                : calcularPrecioMetroLineal({
+                    largo: Number(p.largo) || 0,
+                    cantidad: nuevaCantidad,
+                    precioPorPie: Number(p.precioPorPie) || 0,
+                  });
+            const precioRedondeado = calcularPrecioMaderaConTratamientos(p, base);
+            return { ...p, cantidad: nuevaCantidad, precio: precioRedondeado };
+          }
+          return { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      })
+    );
+  };
+  const handleDescuentoChange = (id, descuento) => {
+    const parsedDescuento = parseNumericValue(descuento);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, descuento: parsedDescuento === "" ? 0 : parsedDescuento } : p
+      )
+    );
+  };
+  const handleNombreChange = (id, nombre) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) =>
+        p.id === id ? { ...p, nombre: nombre } : p
+      )
+    );
+  };
+  const handlePrecioChange = (id, precio) => {
+    const parsedPrecio = parseNumericValue(precio);
+    
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id !== id) return p;
+        const precioNumerico = parsedPrecio === "" ? 0 : Number(parsedPrecio);
+        if (p.precioIncluyeCantidad) {
+          const cantidad = Number(p.cantidad) || 1;
+          return { ...p, precio: precioNumerico * cantidad };
+        }
+        return { ...p, precio: precioNumerico };
+      })
+    );
+  };
+
+  const handleUnidadMaderaChange = (id, nuevaUnidad) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id !== id || p.categoria !== "Maderas") return p;
+        const unidad = nuevaUnidad;
+        const cantidad = Number(p.cantidad) || 1;
+        const alto = Number(p.alto) || 0;
+        const ancho = Number(p.ancho) || 0;
+        const largo = Number(p.largo) || 0;
+        const precioPorPie = Number(p.precioPorPie) || 0;
+        const altoM2 = alto > 0 ? alto : ancho > 0 ? ancho : 0;
+        const precioIncluyeCantidad = unidad === "M2" || unidad === "ML";
+
+        const base =
+          unidad === "M2"
+            ? calcularPrecioMachimbre({
+                alto: altoM2,
+                largo,
+                cantidad,
+                precioPorPie,
+              })
+            : unidad === "ML"
+              ? calcularPrecioMetroLineal({
+                  largo,
+                  cantidad,
+                  precioPorPie,
+                })
+              : unidad === "Unidad"
+                ? Math.round(precioPorPie / 100) * 100
+                : calcularPrecioCorteMadera({
+                    alto,
+                    ancho,
+                    largo,
+                    precioPorPie,
+                  });
+
+        const precioFinal =
+          unidad === "Unidad" ? base : calcularPrecioMaderaConTratamientos(p, base);
+
+        return {
+          ...p,
+          unidad,
+          alto: unidad === "M2" && alto <= 0 && ancho > 0 ? ancho : p.alto,
+          precioIncluyeCantidad,
+          subcategoria: precioIncluyeCantidad ? p.subcategoria : "",
+          subCategoria: precioIncluyeCantidad ? p.subCategoria : "",
+          cepilladoAplicado: unidad === "Unidad" ? false : p.cepilladoAplicado,
+          calibradoAplicado: unidad === "Unidad" ? false : p.calibradoAplicado,
+          precio: precioFinal,
+        };
+      })
+    );
+  };
+
+  const handlePagoEnEfectivoChange = (checked) => {
+    setPagoEnEfectivo(checked);
+    
+    // Si se activa el pago en efectivo, bloquear forma de pago y setear a "efectivo"
+    if (checked) {
+      setValue("formaPago", "efectivo");
+    }
+  };
+
+  const recalcularTratamientosMadera = (id, cambios = {}) => {
+    setProductosSeleccionados(
+      productosSeleccionados.map((p) => {
+        if (p.id === id && p.categoria === "Maderas") {
+          const next = { ...p, ...cambios };
+          const unidadMadera = next.unidad;
+          const cantidad = Number(next.cantidad) || 1;
+          const alto = Number(next.alto) || 0;
+          const ancho = Number(next.ancho) || 0;
+          const largo = Number(next.largo) || 0;
+          const precioPorPie = Number(next.precioPorPie) || 0;
+
+          const base =
+            unidadMadera === "M2"
+              ? calcularPrecioMachimbre({
+                  alto,
+                  largo,
+                  cantidad,
+                  precioPorPie,
+                })
+              : unidadMadera === "ML"
+                ? calcularPrecioMetroLineal({
+                    largo,
+                    cantidad,
+                    precioPorPie,
+                  })
+                : unidadMadera === "Unidad"
+                  ? Math.round(precioPorPie / 100) * 100
+                  : calcularPrecioCorteMadera({
+                      alto,
+                      ancho,
+                      largo,
+                      precioPorPie,
+                    });
+
+          const precioFinal =
+            unidadMadera === "Unidad"
+              ? base
+              : calcularPrecioMaderaConTratamientos(next, base);
+
+          return {
+            ...next,
+            precio: precioFinal,
+            precioIncluyeCantidad: unidadMadera === "M2" || unidadMadera === "ML",
+            cepilladoAplicado: unidadMadera === "Unidad" ? false : next.cepilladoAplicado,
+            calibradoAplicado: unidadMadera === "Unidad" ? false : next.calibradoAplicado,
+            cepilladoPorcentaje: unidadMadera === "M2" ? 0 : normalizarCepilladoPorcentaje(next.cepilladoPorcentaje),
+            calibradoPorcentaje: normalizarCalibradoPorcentaje(next.calibradoPorcentaje),
+          };
+        }
+        return p;
+      })
+    );
+  };
+  const recalcularPreciosMadera = (id, aplicarCepillado) => {
+    recalcularTratamientosMadera(id, { cepilladoAplicado: aplicarCepillado });
+  };
+  const handleCalibradoAplicadoChange = (id, aplicarCalibrado) => {
+    recalcularTratamientosMadera(id, { calibradoAplicado: aplicarCalibrado });
+  };
+  const handleCepilladoPorcentajeChange = (id, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCepilladoPorcentaje(parsed);
+    recalcularTratamientosMadera(id, { cepilladoPorcentaje: porcentajeNormalizado });
+  };
+  const handleCalibradoPorcentajeChange = (id, porcentaje) => {
+    const parsed = parseNumericValue(porcentaje);
+    const porcentajeNormalizado =
+      parsed === "" ? 0 : normalizarCalibradoPorcentaje(parsed);
+    recalcularTratamientosMadera(id, { calibradoPorcentaje: porcentajeNormalizado });
+  };
+
+  const handlePrecioPorPieChange = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    
+    recalcularTratamientosMadera(id, {
+      precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
+    });
+  };
+
+  // Función para manejar cambios en alto para machimbre/deck
+  const handleAltoChange = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    recalcularTratamientosMadera(id, { alto: parsedAlto === "" ? 0 : parsedAlto });
+  };
+
+  // Función para manejar cambios en ancho para machimbre/deck
+  const handleAnchoChange = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    recalcularTratamientosMadera(id, { ancho: parsedAncho === "" ? 0 : parsedAncho });
+  };
+
+  // Función para manejar cambios en largo para machimbre/deck
+  const handleLargoChange = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    recalcularTratamientosMadera(id, { largo: parsedLargo === "" ? 0 : parsedLargo });
+  };
+
+  // Funciones para manejar cambios en dimensiones para maderas normales (no machimbres/deck)
+  const handleAltoChangeMadera = (id, nuevoAlto) => {
+    const parsedAlto = parseNumericValue(nuevoAlto);
+    recalcularTratamientosMadera(id, { alto: parsedAlto === "" ? 0 : parsedAlto });
+  };
+
+  const handleAnchoChangeMadera = (id, nuevoAncho) => {
+    const parsedAncho = parseNumericValue(nuevoAncho);
+    recalcularTratamientosMadera(id, { ancho: parsedAncho === "" ? 0 : parsedAncho });
+  };
+
+  const handleLargoChangeMadera = (id, nuevoLargo) => {
+    const parsedLargo = parseNumericValue(nuevoLargo);
+    recalcularTratamientosMadera(id, { largo: parsedLargo === "" ? 0 : parsedLargo });
+  };
+
+  const handlePrecioPorPieChangeMadera = (id, nuevoPrecioPorPie) => {
+    const parsedPrecioPorPie = parseNumericValue(nuevoPrecioPorPie);
+    recalcularTratamientosMadera(id, {
+      precioPorPie: parsedPrecioPorPie === "" ? 0 : parsedPrecioPorPie,
+    });
+  };
+
+  // Obtener tipos de madera únicos (memoizado)
+  const tiposMadera = useMemo(() => {
+    return [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Maderas" && p.tipoMadera)
+        .map((p) => p.tipoMadera)
+    ),
+  ].filter(Boolean);
+  }, [productosState]);
+
+  // Obtener subcategorías de ferretería únicas (memoizado)
+  const subCategoriasFerreteria = useMemo(() => {
+    return [
+    ...new Set(
+      productosState
+        .filter((p) => p.categoria === "Ferretería" && p.subCategoria)
+        .map((p) => p.subCategoria)
+    ),
+  ].filter(Boolean);
+  }, [productosState]);
+
+  const totalesCalculados = useMemo(
+    () => computeTotals(productosSeleccionados),
+    [productosSeleccionados]
+  );
+  const subtotal = totalesCalculados.subtotal;
+  const descuentoTotal = totalesCalculados.descuentoTotal;
+
+  useEffect(() => {
+    return () => {
+      Object.values(cloneTimersRef.current).forEach((timerId) => {
+        if (timerId) clearTimeout(timerId);
+      });
+    };
+  }, []);
+
+  // Calcular descuento por pago en efectivo (10% sobre el subtotal)
+  const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
+
+  const costoEnvioCalculado =
+    tipoEnvio &&
+    tipoEnvio !== "retiro_local" &&
+    costoEnvio !== undefined &&
+    costoEnvio !== "" &&
+    !isNaN(Number(costoEnvio))
+      ? Number(costoEnvio)
+      : 0;
+  const total = totalesCalculados.total - descuentoEfectivo + costoEnvioCalculado;
+
+  const advertenciasVenta = useMemo(() => {
+    if (tipo !== "venta") {
+      return {
+        stockInsuficiente: [],
+        stockNegativo: [],
+        productosSinPrecio: [],
+        productosSinCosto: [],
+        requiereRevision: false,
+      };
+    }
+
+    const productoById = new Map(
+      (Array.isArray(productosState) ? productosState : []).map((p) => [
+        String(p.id),
+        p,
+      ])
+    );
+    const productosSinPrecio = [];
+    const productosSinCosto = [];
+
+    const parseCosto = (prod) => {
+      const candidates = [
+        prod?.costo,
+        prod?.valorCompra,
+        prod?.costoCompra,
+        prod?.costoUnitario,
+        prod?.precioCosto,
+        prod?.costoPromedio,
+      ];
+      for (const c of candidates) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return NaN;
+    };
+
+    for (const p of Array.isArray(productosSeleccionados) ? productosSeleccionados : []) {
+      const pid = String(p?.originalId || p?.id || "").trim();
+      if (!pid) continue;
+      const precio = Number(p?.precio);
+      if (!Number.isFinite(precio) || precio <= 0) {
+        productosSinPrecio.push({
+          productoId: pid,
+          productoNombre: String(p?.nombre || pid),
+          precio: Number.isFinite(precio) ? precio : null,
+        });
+      }
+
+      const prod = productoById.get(pid);
+      if (prod) {
+        const costo = parseCosto(prod);
+        if (!Number.isFinite(costo) || costo <= 0) {
+          productosSinCosto.push({
+            productoId: pid,
+            productoNombre: String(prod?.nombre || p?.nombre || pid),
+            costo: Number.isFinite(costo) ? costo : null,
+          });
+        }
+      }
+    }
+
+    const { requiredById, combosInvalidos } = collectInventoryRequirements({
+      lineItems: productosSeleccionados,
+      productoById,
+    });
+
+    const stockInsuficiente = [];
+    const stockNegativo = [];
+    for (const [pid, requerido] of requiredById) {
+      const prod = productoById.get(pid);
+      const stock = Number(prod?.stock);
+      if (!Number.isFinite(stock)) continue;
+      const despues = stock - requerido;
+      if (stock < requerido) {
+        stockInsuficiente.push({
+          productoId: pid,
+          productoNombre: String(prod?.nombre || pid),
+          requerido,
+          stockAntes: stock,
+          stockDespues: despues,
+        });
+      }
+      if (despues < 0) {
+        stockNegativo.push({
+          productoId: pid,
+          productoNombre: String(prod?.nombre || pid),
+          stockAntes: stock,
+          stockDespues: despues,
+        });
+      }
+    }
+
+    const requiereRevision =
+      stockInsuficiente.length > 0 ||
+      stockNegativo.length > 0 ||
+      productosSinPrecio.length > 0 ||
+      productosSinCosto.length > 0 ||
+      combosInvalidos.length > 0;
+
+    return {
+      stockInsuficiente,
+      stockNegativo,
+      productosSinPrecio,
+      productosSinCosto,
+      combosInvalidos,
+      requiereRevision,
+    };
+  }, [tipo, productosSeleccionados, productosState]);
+
+  const handleClienteChange = (val) => {
+    if (val === "nuevo") {
+      setOpenNuevoCliente(true);
+    } else {
+      const nextId = val || DEFAULT_CLIENTE_ID;
+      setClienteId(nextId);
+      setValue("clienteId", nextId);
+      const clienteObj = clientesState.find((c) => c.id === nextId);
+      if (clienteObj) {
+        setValue("cliente", {
+          nombre: (clienteObj.nombre || "").toUpperCase(),
+          email: (clienteObj.email || "").toUpperCase(),
+          telefono: (clienteObj.telefono || "").toUpperCase(),
+          direccion: (clienteObj.direccion || "").toUpperCase(),
+          cuit: (clienteObj.cuit || "").toUpperCase(),
+        });
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    if (clienteSeleccionado) {
+      setValue("cliente", {
+        nombre: (clienteSeleccionado.nombre || "").toUpperCase(),
+        email: (clienteSeleccionado.email || "").toUpperCase(),
+        telefono: (clienteSeleccionado.telefono || "").toUpperCase(),
+        direccion: (clienteSeleccionado.direccion || "").toUpperCase(),
+        cuit: (clienteSeleccionado.cuit || "").toUpperCase(),
+      });
+    }
+  }, [clienteSeleccionado, setValue]);
+
+  React.useEffect(() => {
+    setValue(
+      "items",
+      productosSeleccionados.map((p) => ({
+        descripcion: p.nombre,
+        detalle: p.detalle || "",
+        cantidad: p.cantidad,
+        precio: p.precio,
+        unidad: p.unidad,
+        moneda: "$",
+        descuento: p.descuento || 0,
+        categoria: p.categoria,
+        esCombo: p.esCombo || false,
+        tipoProducto: p.tipoProducto || (p.esCombo ? "combo" : "simple"),
+        componentesCombo: normalizeComboComponents(p.componentesCombo),
+        // Agregar propiedades específicas de madera
+        ...(p.categoria === "Maderas" && {
+          alto: Number(p.alto) || 0,
+          ancho: Number(p.ancho) || 0,
+          largo: Number(p.largo) || 0,
+          precioPorPie: Number(p.precioPorPie) || 0,
+          cepilladoAplicado: p.cepilladoAplicado || false,
+          cepilladoPorcentaje: normalizarCepilladoPorcentaje(
+            p.cepilladoPorcentaje
+          ),
+          calibradoAplicado: p.calibradoAplicado || false,
+          calibradoPorcentaje: normalizarCalibradoPorcentaje(
+            p.calibradoPorcentaje
+          ),
+        }),
+        precioIncluyeCantidad:
+          p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML"),
+      }))
+    );
+  }, [productosSeleccionados, setValue]);
+
+  useEffect(() => {
+    const fetchClientes = async () => {
+      setClientesLoading(true);
+      let defaultCliente = { id: DEFAULT_CLIENTE_ID, ...DEFAULT_CLIENTE_DATA };
+      try {
+        const defaultRef = doc(db, "clientes", DEFAULT_CLIENTE_ID);
+        const defaultSnap = await getDoc(defaultRef);
+        if (!defaultSnap.exists()) {
+          await setDoc(defaultRef, {
+            ...DEFAULT_CLIENTE_DATA,
+            creadoEn: new Date().toISOString(),
+          });
+        } else {
+          defaultCliente = { id: defaultSnap.id, ...defaultSnap.data() };
+        }
+      } catch (e) {
+        console.warn("No se pudo asegurar el cliente por defecto:", e);
+      }
+
+      const snap = await getDocs(collection(db, "clientes"));
+      const list = snap.docs.map((doc) => mapFirestoreDoc(doc));
+      const tieneDefault = list.some((c) => c.id === DEFAULT_CLIENTE_ID);
+      const next = tieneDefault ? list : [defaultCliente, ...list];
+      setClientesState(next);
+      setClientesLoading(false);
+
+      setClienteId((prev) => {
+        const nextId = prev || DEFAULT_CLIENTE_ID;
+        setValue("clienteId", nextId);
+        return nextId;
+      });
+    };
+    fetchClientes();
+  }, [DEFAULT_CLIENTE_DATA, DEFAULT_CLIENTE_ID, setValue]);
+
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const handleFormSubmit = async (data) => {
+    setHasSubmitted(true);
+    setSubmitStatus(null);
+    setSubmitMessage("");
+
+    const finalClienteId = clienteId || data.clienteId || DEFAULT_CLIENTE_ID;
+    const finalClienteObj = (() => {
+      const fromForm = data?.cliente;
+      if (fromForm?.nombre) return fromForm;
+      const fromState = clientesState.find((c) => c.id === finalClienteId);
+      if (fromState) {
+        return {
+          nombre: (fromState.nombre || "").toUpperCase(),
+          email: (fromState.email || "").toUpperCase(),
+          telefono: (fromState.telefono || "").toUpperCase(),
+          direccion: (fromState.direccion || "").toUpperCase(),
+          cuit: (fromState.cuit || "").toUpperCase(),
+        };
+      }
+      return DEFAULT_CLIENTE_DATA;
+    })();
+
+    if (productosSeleccionados.length === 0) {
+      setSubmitStatus("error");
+      setSubmitMessage("Debe agregar al menos un producto");
+      return;
+    }
+    const productosInvalidos = productosSeleccionados.filter(
+      (p) => p.cantidad <= 0
+    );
+    if (productosInvalidos.length > 0) {
+      setSubmitStatus("error");
+      setSubmitMessage(
+        "Todos los productos deben tener una cantidad mayor a 0"
+      );
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const productosLimpios = productosSeleccionados.map((p) => {
+        const obj = {
+          id: p.id,
+          originalId: p.originalId || p.id,
+          codigo: p.codigo || "",
+          nombre: p.nombre,
+          detalle: p.detalle || "",
+          cantidad: p.cantidad,
+          precio: p.precio,
+          unidad: p.unidad,
+          descuento: p.descuento || 0,
+          categoria: p.categoria,
+          esCombo: p.esCombo || false,
+          tipoProducto: p.tipoProducto || (p.esCombo ? "combo" : "simple"),
+          componentesCombo: normalizeComboComponents(p.componentesCombo),
+          precioIncluyeCantidad:
+            p.categoria === "Maderas" && (p.unidad === "M2" || p.unidad === "ML"),
+        };
+        if (p.categoria === "Maderas") {
+          obj.alto = Number(p.alto) || 0;
+          obj.ancho = Number(p.ancho) || 0;
+          obj.largo = Number(p.largo) || 0;
+          obj.precioPorPie = Number(p.precioPorPie) || 0;
+          obj.cepilladoAplicado = p.cepilladoAplicado || false; // Agregar propiedad de cepillado
+          obj.cepilladoPorcentaje = normalizarCepilladoPorcentaje(
+            p.cepilladoPorcentaje
+          );
+          obj.calibradoAplicado = p.calibradoAplicado || false;
+          obj.calibradoPorcentaje = normalizarCalibradoPorcentaje(
+            p.calibradoPorcentaje
+          );
+        }
+        return obj;
+      });
+      let cleanData = { ...data };
+      if (cleanData.tipoEnvio === "retiro_local") {
+        cleanData.direccionEnvio = undefined;
+        cleanData.localidadEnvio = undefined;
+        cleanData.costoEnvio = undefined;
+      }
+      cleanData.clienteId = finalClienteId;
+      cleanData.cliente = finalClienteObj;
+
+      // Lógica para manejar montoAbonado y estado de pago
+      let montoAbonadoFinal = cleanData.montoAbonado || 0;
+      let estadoPagoFinal = "pendiente";
+
+      if (tipo === "venta") {
+        const esPagoParcial = cleanData.pagoParcial || false;
+        const esPagoPendiente = cleanData.pagoPendiente || false;
+
+        if (esPagoPendiente) {
+          // Forzar pendiente: no tomar montoAbonado y marcar 0
+          montoAbonadoFinal = 0;
+          estadoPagoFinal = "pendiente";
+        } else if (!esPagoParcial) {
+          // Si NO es pago parcial → montoAbonado = total y estado = "pagado"
+          montoAbonadoFinal = total;
+          estadoPagoFinal = "pagado";
+        } else {
+          // Si ES pago parcial → usar el valor del formulario
+          montoAbonadoFinal = cleanData.montoAbonado || 0;
+          if (montoAbonadoFinal >= total) {
+            estadoPagoFinal = "pagado";
+          } else if (montoAbonadoFinal > 0) {
+            estadoPagoFinal = "parcial";
+          } else {
+            estadoPagoFinal = "pendiente";
+          }
+        }
+      }
+
+      const formData =
+        tipo === "presupuesto"
+          ? {
+              fecha: cleanData.fecha,
+              clienteId: finalClienteId,
+              cliente: cleanData.cliente,
+              items: productosLimpios,
+              productos: productosLimpios,
+              subtotal: subtotal,
+              descuentoTotal: descuentoTotal,
+              descuentoEfectivo: descuentoEfectivo,
+              pagoEnEfectivo: pagoEnEfectivo,
+              total: total,
+              fechaCreacion: new Date().toISOString(),
+              tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
+              // Agregar campos de envío
+              tipoEnvio: cleanData.tipoEnvio || "",
+              costoEnvio:
+                cleanData.tipoEnvio && cleanData.tipoEnvio !== "retiro_local"
+                  ? cleanData.costoEnvio !== undefined &&
+                    cleanData.costoEnvio !== ""
+                    ? Number(cleanData.costoEnvio)
+                    : undefined
+                  : undefined,
+            }
+          : {
+              ...cleanData,
+              clienteId: finalClienteId,
+              productos: productosLimpios,
+              subtotal: subtotal,
+              descuentoTotal: descuentoTotal,
+              descuentoEfectivo: descuentoEfectivo,
+              pagoEnEfectivo: pagoEnEfectivo,
+              total: total,
+              montoAbonado: montoAbonadoFinal,
+              estadoPago: estadoPagoFinal,
+              fechaCreacion: new Date().toISOString(),
+              tipo: tipo,
+              vendedor: user?.email || "Usuario no identificado",
+            };
+      await onSubmit(formData);
+      // Dejar la navegación al onSubmit de la página caller; no cerrar aquí
+      setSubmitStatus("success");
+      setSubmitMessage(`${tipo === "presupuesto" ? "Presupuesto" : "Venta"} guardado exitosamente`);
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      setSubmitStatus("error");
+      setSubmitMessage(`Error al guardar: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isSubmitting && onClose) {
+      onClose();
+    }
+  };
+
+  // Función para normalizar texto (reutilizable)
+  const normalizarTexto = (texto) => {
+    return (texto || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // quitar acentos/diacríticos
+      .replace(/\s+/g, "");
+  };
+
+  // Función para filtrar productos optimizada con useMemo
+  const productosFiltrados = useMemo(() => {
+    let fuente;
+    const hayBusqueda = !!(busquedaDefer && busquedaDefer.trim() !== "");
+    if (hayBusqueda) {
+      if (categoriaId) {
+        const localCat = productosPorCategoria[categoriaId] || [];
+        fuente = localCat;
+      } else {
+        fuente = productosState;
+      }
+    } else if (categoriaId) {
+      fuente = productosPorCategoria[categoriaId];
+    }
+    if (!fuente) return [];
+
+    // Normalizar el término de búsqueda una sola vez
+    const busquedaNormalizada = normalizarTexto(busquedaDefer);
+
+    return fuente
+      .filter((prod) => {
+        // Normalizar campos buscables (nombre, código, descripción, unidad)
+        const nombreNormalizado = normalizarTexto(prod.nombre);
+        const codigoNormalizado = normalizarTexto(prod.codigo || "");
+        const descripcionNormalizada = normalizarTexto(prod.descripcion || "");
+        const unidadNormalizada = normalizarTexto(prod.unidadMedida || "");
+
+        // Filtro por búsqueda de texto: nombre, código, descripción y unidad
+        let cumpleBusqueda = busquedaNormalizada === "";
+
+        if (busquedaNormalizada !== "") {
+          const busq = busquedaNormalizada.endsWith(".")
+            ? busquedaNormalizada.slice(0, -1)
+            : busquedaNormalizada;
+          const isStrict = busquedaNormalizada.endsWith(".");
+
+          const matchCampo = (norm) =>
+            isStrict ? norm.startsWith(busq) : norm.includes(busq);
+
+          cumpleBusqueda =
+            matchCampo(nombreNormalizado) ||
+            matchCampo(codigoNormalizado) ||
+            matchCampo(descripcionNormalizada) ||
+            matchCampo(unidadNormalizada);
+        }
+
+        // Filtro por categoría seleccionada (si existe)
+        const cumpleCategoria = !categoriaId || prod.categoria === categoriaId;
+
+        // Filtro específico por tipo de madera
+        const cumpleTipoMadera =
+          categoriaId !== "Maderas" ||
+          filtroTipoMadera === "" ||
+          prod.tipoMadera === filtroTipoMadera;
+
+        // Filtro específico por subcategoría de ferretería
+        const cumpleSubCategoria =
+          categoriaId !== "Ferretería" ||
+          filtroSubCategoria === "" ||
+          prod.subCategoria === filtroSubCategoria;
+
+        return (
+          cumpleCategoria &&
+          cumpleBusqueda &&
+          cumpleTipoMadera &&
+          cumpleSubCategoria
+        );
+      })
+      .sort((a, b) => {
+        const stockA = Number(a.stock) || 0;
+        const stockB = Number(b.stock) || 0;
+        const tieneStockA = stockA > 0;
+        const tieneStockB = stockB > 0;
+
+        if (tieneStockA && !tieneStockB) return -1;
+        if (!tieneStockA && tieneStockB) return 1;
+
+        if (stockA !== stockB) {
+          return stockB - stockA;
+        }
+
+        const nombreA = (a.nombre || a.descripcion || "").toLowerCase();
+        const nombreB = (b.nombre || b.descripcion || "").toLowerCase();
+        if (nombreA !== nombreB) {
+          return nombreA.localeCompare(nombreB, "es", { sensitivity: "base" });
+        }
+
+        return 0;
+      });
+  }, [
+    productosPorCategoria,
+    productosState,
+    categoriaId,
+    busquedaDefer,
+    filtroTipoMadera,
+    filtroSubCategoria,
+  ]);
+
+  // Obtener productos filtrados y paginados optimizado
+  const totalProductos = productosFiltrados.length;
+  const totalPaginas = Math.ceil(totalProductos / productosPorPagina);
+
+  // Calcular productos para la página actual con useMemo
+  const productosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    return productosFiltrados.slice(inicio, fin);
+  }, [productosFiltrados, paginaActual, productosPorPagina]);
+
+  // Función para cambiar de página con transición no bloqueante
+  const cambiarPagina = useCallback(
+    (nuevaPagina) => {
+      startTransition(() => {
+      setPaginaActual(Math.max(1, Math.min(nuevaPagina, totalPaginas)));
+      });
+    },
+    [totalPaginas, startTransition]
+  );
+
+  // Resetear página cuando cambian los filtros (usar valor debounced/deferred para evitar saltos)
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaId, busquedaDefer, filtroTipoMadera, filtroSubCategoria]);
+
+  const [tipoEnvioSeleccionado, setTipoEnvioSeleccionado] = useState("");
+  const [esConFactura, setEsConFactura] = useState(false);
+  const vendedores = ["coco", "damian", "lauti", "jose"];
+
+  function calcularPrecioCorteMadera({
+    alto,
+    ancho,
+    largo,
+    precioPorPie,
+    factor = 0.2734,
+  }) {
+    if (
+      [alto, ancho, largo, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    const precio = factor * alto * ancho * largo * precioPorPie;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  }
+
+  // Función para calcular precio de machimbre (precio por pie × ancho × largo × cantidad)
+  function calcularPrecioMachimbre({ alto, largo, cantidad, precioPorPie }) {
+    if (
+      [alto, largo, cantidad, precioPorPie].some(
+        (v) => typeof v !== "number" || v <= 0
+      )
+    ) {
+      return 0;
+    }
+    // Nueva fórmula: (alto × largo) × precioPorPie × cantidad
+    const metrosCuadrados = alto * largo;
+    const precio = metrosCuadrados * precioPorPie * cantidad;
+    // Redondear a centenas (múltiplos de 100)
+    return Math.round(precio / 100) * 100;
+  }
+
+  // Formateador memoizado para números en formato argentino
+  const numberFormatter = React.useMemo(() => new Intl.NumberFormat("es-AR"), []);
+  const formatearNumeroArgentino = (numero) => {
+    if (numero === null || numero === undefined || isNaN(numero)) return "0";
+    return numberFormatter.format(Number(numero));
+  };
+
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  // Debounce para búsqueda de clientes (dropdown)
+  const [busquedaClienteDebounced, setBusquedaClienteDebounced] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setBusquedaClienteDebounced(busquedaCliente), 300);
+    return () => clearTimeout(id);
+  }, [busquedaCliente]);
+  const [dropdownClientesOpen, setDropdownClientesOpen] = useState(false);
+  const clientesFiltrados = clientesState.filter(
+    (c) =>
+      c.nombre.toLowerCase().includes(busquedaClienteDebounced.toLowerCase()) ||
+      (c.telefono || "").toLowerCase().includes(busquedaClienteDebounced.toLowerCase())
+  );
+
+  const generarId = (tipo) => {
+    const num = Math.floor(1000 + Math.random() * 9000);
+    return tipo === "presupuesto" ? `PRESU-${num}` : `VENTA-${num}`;
+  };
+  const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
+  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [rangoHorario, setRangoHorario] = useState("");
+  const [observaciones, setObservaciones] = useState("");
+
+  React.useEffect(() => {
+    if (!watch("pagoParcial") || watch("pagoPendiente")) {
+      setValue("montoAbonado", "");
+    }
+  }, [watch("pagoParcial"), watch("pagoPendiente")]);
+
+  React.useEffect(() => {
+    if (watch("tipoEnvio") === "retiro_local") {
+      setValue("costoEnvio", "");
+    }
+  }, [watch("tipoEnvio")]);
+
+  React.useEffect(() => {
+    if (watch("tipoEnvio") === "retiro_local") {
+      setValue("direccionEnvio", "");
+      setValue("localidadEnvio", "");
+      setValue("costoEnvio", "");
+    } else if (watch("tipoEnvio") && watch("tipoEnvio") !== "retiro_local") {
+      // Establecer fecha de entrega por defecto al día actual
+      setValue("fechaEntrega", new Date().toISOString().split("T")[0]);
+    }
+  }, [watch("tipoEnvio")]);
+
+  return (
+    <>
+      <div className="mb-2">
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+          <Icon
+            icon={
+              tipo === "presupuesto"
+                ? "heroicons:document-plus"
+                : "heroicons:shopping-cart"
+            }
+            className="w-6 h-6"
+          />
+          {tipo === "presupuesto" ? "Nuevo Presupuesto" : "Nueva Venta"}
+        </h2>
+        <p className="text-base text-default-600">
+          Complete todos los campos requeridos para crear un nuevo {""}
+          {tipo === "presupuesto" ? "presupuesto" : "venta"}.
+        </p>
+      </div>
+
+      {submitStatus && (
+        <div
+          className={`mb-4 p-4 rounded-lg flex items-center gap-3 text-base font-medium shadow border ${
+            submitStatus === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {submitStatus === "success" ? (
+            <CheckCircle className="w-5 h-5 text-green-600" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-red-600" />
+          )}
+          <span>{submitMessage}</span>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit(handleFormSubmit)}
+        className="flex flex-col gap-6"
+      >
+        <div className="px-1 pb-6">
+          <div className="flex flex-col gap-8">
+            <input
+              type="hidden"
+              {...register("fecha")}
+              value={new Date().toISOString().split("T")[0]}
+              readOnly
+            />
+
+            {/* Sección Cliente */}
+            <section className="bg-card rounded-xl p-6 border border-default-200 shadow flex flex-col gap-4 mb-2">
+              <label className="font-semibold text-lg flex items-center gap-2">
+                <Icon
+                  icon="heroicons:user"
+                  className="w-5 h-5 text-primary dark:text-primary-300"
+                />{" "}
+                Cliente
+              </label>
+              <div className="relative w-full">
+                <div
+                  className="w-full flex items-center cursor-pointer bg-card border border-default-300 rounded-lg h-10 px-3 text-sm justify-between items-center transition duration-300 focus-within:border-default-500/50 focus-within:outline-none disabled:bg-default-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setDropdownClientesOpen(true)}
+                  tabIndex={0}
+                  role="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={dropdownClientesOpen}
+                >
+                  <span className="flex-1 truncate">
+                    {clienteSeleccionado
+                      ? `${(
+                          clienteSeleccionado.nombre || ""
+                        ).toUpperCase()} - ${(
+                          clienteSeleccionado.cuit || ""
+                        ).toUpperCase()} - ${(
+                          clienteSeleccionado.localidad || ""
+                        ).toUpperCase()}`
+                      : "Seleccionar cliente..."}
+                  </span>
+                  <Icon
+                    icon="heroicons:chevron-down"
+                    className="w-5 h-5 ml-2 text-default-600"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary dark:text-primary-300 font-semibold ml-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenNuevoCliente(true);
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    <Icon icon="heroicons:user-plus" className="w-4 h-4 mr-1" />{" "}
+                    Nuevo
+                  </Button>
+                </div>
+                {dropdownClientesOpen && (
+                  <div className="absolute z-50 min-w-[8rem] overflow-hidden rounded-md border border-solid border-default-300 bg-card text-default-900 shadow-md mt-1 max-h-72 w-full animate-fade-in">
+                    <div className="p-2">
+                      <Input
+                        type="text"
+                        placeholder="Buscar por nombre o teléfono..."
+                        value={busquedaCliente}
+                        onChange={(e) => setBusquedaCliente(e.target.value)}
+                        className="w-full mb-2"
+                        autoFocus
+                        disabled={clientesLoading || isSubmitting}
+                      />
+                      <div className="divide-y divide-gray-100">
+                        {clientesFiltrados.length === 0 && (
+                          <div className="p-2 text-gray-400 dark:text-default-500 text-sm">
+                            No hay clientes
+                          </div>
+                        )}
+                        {clientesFiltrados.map((c) => (
+                          <div
+                            key={c.id}
+                            className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => {
+                              handleClienteChange(c.id);
+                              setDropdownClientesOpen(false);
+                            }}
+                            role="option"
+                            tabIndex={0}
+                          >
+                            {c.nombre.toUpperCase()} - {c.telefono || ""}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {errors.clienteId && (
+                <span className="text-red-500 dark:text-red-400 text-xs mt-1">
+                  {errors.clienteId.message}
+                </span>
+              )}
+              <div className="space-y-2 bg-card p-4 border border-default-100 shadow-sm">
+                <div className="text-base font-semibold pb-1 flex items-center gap-2">
+                  <Icon
+                    icon="heroicons:identification"
+                    className="w-4 h-4 text-primary dark:text-primary-300"
+                  />{" "}
+                  Datos del cliente
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      value={(clienteSeleccionado?.nombre || "").toUpperCase()}
+                      placeholder="Nombre del cliente"
+                      readOnly
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
+                    />
+                    {errors.cliente?.nombre && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.cliente?.nombre.message}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      value={(clienteSeleccionado?.cuit || "").toUpperCase()}
+                      placeholder="CUIT"
+                      readOnly
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
+                    />
+                    {errors.cliente?.cuit && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.cliente?.cuit.message}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      value={(
+                        clienteSeleccionado?.direccion || ""
+                      ).toUpperCase()}
+                      placeholder="Dirección"
+                      readOnly
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
+                    />
+                    {errors.cliente?.direccion && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.cliente?.direccion.message}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      value={(
+                        clienteSeleccionado?.telefono || ""
+                      ).toUpperCase()}
+                      placeholder="Teléfono"
+                      readOnly
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
+                    />
+                    {errors.cliente?.telefono && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.cliente?.telefono.message}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      value={(clienteSeleccionado?.email || "").toUpperCase()}
+                      placeholder="Email"
+                      readOnly
+                      className="w-full bg-gray-50 dark:bg-default-800 border border-default-200 rounded-md dark:text-default-100"
+                    />
+                    {errors.cliente?.email && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.cliente?.email.message}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Sección Productos - Diseño Mejorado */}
+            <section className="bg-card rounded-xl border border-default-200 shadow-sm overflow-hidden">
+              {/* Header con estadísticas */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Productos
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Selecciona los productos para tu venta
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                      const altoEjemplo = 0.2;
+                      const largoEjemplo = 3;
+                      const precioPorPieEjemplo = 25000;
+                      const productoEjemplo = {
+                        id: "ejemplo-" + Date.now(),
+                        nombre: "MACHIMBRE DE EJEMPLO",
+                        detalle: "",
+                        categoria: "Maderas",
+                        unidad: "M2",
+                        precioIncluyeCantidad: true,
+                        noInventariable: true,
+                        alto: altoEjemplo,
+                        ancho: 0,
+                        largo: largoEjemplo,
+                        precioPorPie: precioPorPieEjemplo,
+                        precio: calcularPrecioMachimbre({
+                          alto: altoEjemplo,
+                          largo: largoEjemplo,
+                          cantidad: 1,
+                          precioPorPie: precioPorPieEjemplo,
+                        }),
+                        stock: 100,
+                        cantidad: 1,
+                        descuento: 0,
+                        esEditable: true, // Marca que es un producto editable
+                        cepilladoAplicado: true,
+                        cepilladoPorcentaje: 0,
+                        calibradoAplicado: false,
+                        calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+                        tipoMadera: "",
+                        subcategoria: "machimbre",
+                      };
+                        setProductosSeleccionados([
+                          ...productosSeleccionados,
+                          productoEjemplo,
+                        ]);
+                      }}
+                      disabled={isSubmitting}
+                      className="text-xs px-3 py-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    >
+                      <Icon
+                        icon="heroicons:plus-circle"
+                        className="w-3 h-3 mr-1"
+                      />
+                      Agregar Ejemplo
+                    </Button>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {productosSeleccionados.length}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        productos agregados
+                      </div>
+                    </div>
+                    {/* Indicador de rendimiento */}
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {productosFiltrados.length} /{" "}
+                        {productosPorCategoria[categoriaId]?.length || 0}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        productos filtrados
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filtros mejorados */}
+                <div className="flex flex-col gap-3">
+                  {/* Filtro de categorías */}
+                  <div className="flex-1">
+                    <div className="flex bg-white dark:bg-gray-800 rounded-lg p-1 shadow-sm border border-gray-200 dark:border-gray-600">
+                      {categoriasState.map((categoria) => (
+                        <button
+                          key={categoria}
+                          type="button"
+                          className={`rounded-full px-4 py-1 text-sm flex items-center gap-2 transition-all ${
+                            categoriaId === categoria
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (categoriaId === categoria) {
+                              setCategoriaId("");
+                              setFiltroTipoMadera("");
+                              setFiltroSubCategoria("");
+                            } else {
+                              setCategoriaId(categoria);
+                              setFiltroTipoMadera("");
+                              setFiltroSubCategoria("");
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          {categoria}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Buscador mejorado - siempre visible */}
+                  <div className="w-full">
+                    <div className="relative flex items-center gap-2">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Buscar productos..."
+                        value={busquedaProducto}
+                        onChange={(e) => setBusquedaProducto(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-card"
+                      />
+                      {/* Búsqueda en memoria: no se necesita indicador remoto ni botón */}
+                    </div>
+                  </div>
+
+                  {/* Filtros específicos por categoría */}
+                  <div className="flex flex-col gap-3">
+                    {/* Filtro de tipo de madera */}
+                    {categoriaId === "Maderas" && tiposMadera.length > 0 && (
+                      <div className="w-full">
+                        <div className="flex flex-wrap gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                          <button
+                            type="button"
+                            className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                              filtroTipoMadera === ""
+                                ? "bg-orange-600 text-white"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                            onClick={() => setFiltroTipoMadera("")}
+                            disabled={isSubmitting}
+                          >
+                            Todos los tipos
+                          </button>
+                          {tiposMadera.map((tipo) => (
+                            <button
+                              key={tipo}
+                              type="button"
+                              className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all ${
+                                filtroTipoMadera === tipo
+                                  ? "bg-orange-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                              onClick={() => setFiltroTipoMadera(tipo)}
+                              disabled={isSubmitting}
+                            >
+                              {tipo}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Filtro de subcategoría de ferretería */}
+                    {categoriaId === "Ferretería" &&
+                      subCategoriasFerreteria.length > 0 && (
+                        <div className="w-full">
+                          <div className="flex flex-wrap gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-gray-600 overflow-x-auto">
+                            <button
+                              type="button"
+                              className={`rounded-full px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                filtroSubCategoria === ""
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                              onClick={() => setFiltroSubCategoria("")}
+                              disabled={isSubmitting}
+                            >
+                              Todas las subcategorías
+                            </button>
+                            {subCategoriasFerreteria.map((subCategoria) => (
+                              <button
+                                key={subCategoria}
+                                type="button"
+                                className={`rounded-md px-4 py-1.5 text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                                  filtroSubCategoria === subCategoria
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
+                                onClick={() =>
+                                  setFiltroSubCategoria(subCategoria)
+                                }
+                                disabled={isSubmitting}
+                              >
+                                {subCategoria}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de productos */}
+              <div className="max-h-150 overflow-y-auto">
+                {categoriasState.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      No hay categorías disponibles
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Agrega productos a las categorías para comenzar
+                    </p>
+                  </div>
+                ) : (!categoriaId && (!busquedaDefer || busquedaDefer.trim() === "")) ? (
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-8 h-8 text-blue-600 dark:text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      Selecciona una categoría
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Elige una categoría para ver los productos disponibles
+                    </p>
+                  </div>
+                ) : productosFiltrados.length === 0 ? (
+                  productosLoading ? (
+                    <div className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Array.from({ length: 12 }).map((_, idx) => (
+                          <Skeleton key={idx} className="h-[220px] rounded-lg" />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-8 h-8 text-yellow-600 dark:text-yellow-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      No se encontraron productos
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Intenta cambiar los filtros o la búsqueda
+                    </p>
+                  </div>
+                  )
+                ) : (
+                  <div className="space-y-4">
+                    {/* Grid de productos paginados */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 relative">
+                      {/* Overlay de carga durante la paginación */}
+                      {isPending && (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                          <div className="flex items-center gap-3 bg-white dark:bg-gray-700 px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Cargando productos...
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {productosPaginados.map((prod) => {
+                        const productosMismoOrigen = productosSeleccionados.filter(
+                          (p) => (p.originalId || p.id) === prod.id
+                        );
+                        const yaAgregado = productosMismoOrigen.length > 0;
+                        const itemAgregado = productosMismoOrigen[0];
+                        const cantidadActual = itemAgregado?.cantidad || 0;
+                        const precio = (() => {
+                          if (prod.categoria === "Maderas") {
+                            return prod.precioPorPie || 0;
+                          } else if (prod.categoria === "Ferretería") {
+                            return prod.valorVenta || 0;
+                          } else {
+                            return (
+                              prod.precioUnidad ||
+                              prod.precioUnidadVenta ||
+                              prod.precioUnidadHerraje ||
+                              prod.precioUnidadQuimico ||
+                              prod.precioUnidadHerramienta ||
+                              0
+                            );
+                          }
+                        })();
+
+                        return (
+                          <div
+                            key={prod.id}
+                            className={`group relative dark:bg-gray-800 rounded-lg border-2 transition-all duration-200 hover:shadow-md h-full flex flex-col ${
+                              yaAgregado
+                                ? "border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
+                                : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500"
+                            }`}
+                          >
+                            <div className="p-4 flex flex-col h-full">
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                        prod.categoria === "Maderas"
+                                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                      }`}
+                                    >
+                                      {prod.categoria === "Maderas"
+                                        ? "🌲"
+                                        : "🔧"}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                        {prod.nombre}
+                                      </h4>
+                                      {/* Información específica por categoría */}
+                                      {prod.categoria === "Maderas" &&
+                                        prod.tipoMadera && (
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                                              🌲 {prod.tipoMadera}
+                                            </span>
+                                          </div>
+                                        )}
+                                      {prod.categoria === "Ferretería" &&
+                                        prod.subCategoria && (
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                              🔧 {prod.subCategoria}
+                                            </span>
+                                          </div>
+                                        )}
+                                    </div>
+                                    {yaAgregado && (
+                                      <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clipRule="evenodd"
+                                          />
+                                        </svg>
+                                        <span className="text-xs font-medium">
+                                          Agregado
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Información del producto */}
+                              <div className="flex-1 space-y-2">
+                                {/* Precio */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    Precio:
+                                  </span>
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                    ${formatearNumeroArgentino(precio)}
+                                  </span>
+                                </div>
+
+                                {/* Unidad de medida */}
+                                {prod.unidadMedida && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      Unidad:
+                                    </span>
+                                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                                      {prod.unidadMedida}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Stock */}
+                                {prod.stock !== undefined && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      Stock:
+                                    </span>
+                                    <span
+                                      className={`text-xs font-medium ${
+                                        prod.stock > 10
+                                          ? "text-green-600 dark:text-green-400"
+                                          : prod.stock > 0
+                                          ? "text-yellow-600 dark:text-yellow-400"
+                                          : "text-red-600 dark:text-red-400"
+                                      }`}
+                                    >
+                                      {prod.stock} unidades
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Botón de agregar */}
+                              <div className="mt-4">
+                                {yaAgregado ? (
+                                  <div className="grid grid-cols-4 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (cantidadActual > 1) {
+                                          handleDecrementarCantidad(itemAgregado.id);
+                                        } else {
+                                          handleQuitarProductoDesdeCatalogo(prod.id);
+                                        }
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                                    >
+                                      −
+                                    </button>
+                                    <div className="flex-1 text-center">
+                                      <div className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 py-2 px-3 rounded-md text-sm font-bold">
+                                        {cantidadActual}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleIncrementarCantidad(itemAgregado.id);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-md text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleClonarProducto(itemAgregado.id);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className={`flex-1 py-2 px-3 rounded-md text-xs font-semibold transition-all duration-300 disabled:opacity-50 ${
+                                        cloneFeedbackById[itemAgregado.id]
+                                          ? "bg-emerald-600 text-white shadow-md scale-[1.03] animate-pulse"
+                                          : "bg-blue-500 text-white hover:bg-blue-600 hover:shadow-sm hover:-translate-y-0.5"
+                                      }`}
+                                      title="Clonar"
+                                    >
+                                      {cloneFeedbackById[itemAgregado.id]
+                                        ? "¡Clonado!"
+                                        : "Clonar"}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleAgregarProducto(prod);
+                                    }}
+                                    disabled={isSubmitting}
+                                    className="w-full py-2 px-3 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
+                                  >
+                                    Agregar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Controles de paginación */}
+                    {totalPaginas > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                        {/* Información de página */}
+                        <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                          {isPending && (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                          )}
+                          <span>
+                            Mostrando {paginaActual}-
+                            {Math.min(
+                              paginaActual + productosPorPagina - 1,
+                              totalProductos
+                            )}{" "}
+                            de {totalProductos} productos
+                          </span>
+                        </div>
+
+                        {/* Controles de navegación */}
+                        <div className="flex items-center gap-2">
+                          {/* Botón primera página */}
+                          <button
+                            onClick={() => cambiarPagina(1)}
+                            disabled={paginaActual === 1 || isPending}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isPending
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                            title="Primera página"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {/* Botón página anterior */}
+                          <button
+                            onClick={() => cambiarPagina(paginaActual - 1)}
+                            disabled={paginaActual === 1 || isPending}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isPending
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                            title="Página anterior"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {/* Números de página */}
+                          <div className="flex items-center gap-1">
+                            {Array.from(
+                              { length: Math.min(5, totalPaginas) },
+                              (_, i) => {
+                                let pageNum;
+                                if (totalPaginas <= 5) {
+                                  pageNum = i + 1;
+                                } else if (paginaActual <= 3) {
+                                  pageNum = i + 1;
+                                } else if (paginaActual >= totalPaginas - 2) {
+                                  pageNum = totalPaginas - 4 + i;
+                                } else {
+                                  pageNum = paginaActual - 2 + i;
+                                }
+
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => cambiarPagina(pageNum)}
+                                    disabled={isPending}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                      isPending
+                                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                        : paginaActual === pageNum
+                                        ? "bg-blue-600 text-white"
+                                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              }
+                            )}
+                          </div>
+
+                          {/* Botón página siguiente */}
+                          <button
+                            onClick={() => cambiarPagina(paginaActual + 1)}
+                            disabled={paginaActual === totalPaginas || isPending}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isPending
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                            title="Página siguiente"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+
+                          {/* Botón última página */}
+                          <button
+                            onClick={() => cambiarPagina(totalPaginas)}
+                            disabled={paginaActual === totalPaginas || isPending}
+                            className={`p-2 rounded-md transition-all duration-200 ${
+                              isPending
+                                ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            }`}
+                            title="Última página"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 5l7 7-7 7m-8 0l7-7-7-7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Tabla de productos seleccionados */}
+            {productosSeleccionados.length > 0 && (
+              <section className="bg-card/60 rounded-xl p-0 border border-default-200 shadow-lg overflow-hidden ring-1 ring-default-200/60">
+                <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-default-50 to-default-100">
+                  <h3 className="text-base md:text-lg font-semibold text-default-900">Productos Seleccionados</h3>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="pagoEnEfectivo"
+                        checked={pagoEnEfectivo}
+                        onChange={(e) => handlePagoEnEfectivoChange(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        disabled={isSubmitting}
+                      />
+                      <label htmlFor="pagoEnEfectivo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Pago en efectivo (-10%)
+                      </label>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-default-200/60 text-default-700 border border-default-300">
+                      {productosSeleccionados.length} producto{productosSeleccionados.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-[15px]">
+                    <thead className="sticky top-0 z-10 bg-default-50/80 backdrop-blur supports-[backdrop-filter]:bg-default-50/60">
+                      <tr className="border-b border-default-200">
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Categoría</th>
+                        <th className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Producto</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cant.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Cepillado</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Calibrado</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio unit.</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Desc.</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Precio en efectivo</th>
+                        <th className="h-12 px-4 text-right align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Subtotal</th>
+                        <th className="h-12 px-4 text-center align-middle text-xs font-semibold uppercase tracking-wide text-default-600">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-default-200">
+                      {productosSeleccionados.map((p, idx) => (
+                        <tr
+                          key={p.id}
+                          className={`border-b border-default-300 transition-all duration-300 data-[state=selected]:bg-muted ${
+                            cloneHighlightId === p.id
+                              ? "bg-emerald-50 ring-2 ring-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.25)] animate-pulse"
+                              : ""
+                          }`}
+                        >
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            {p.categoria && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
+                                {p.categoria}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-4 align-top text-sm text-default-600">
+                            <div className="font-semibold text-default-900">
+                              {p.esEditable ? (
+                                <input
+                                  type="text"
+                                  value={p.nombre}
+                                  onChange={(e) =>
+                                    handleNombreChange(p.id, e.target.value)
+                                  }
+                                  className="w-full px-2 py-1 border border-gray-300 uppercase rounded text-base font-bold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                                  disabled={isSubmitting}
+                                  placeholder="Nombre del producto"
+                                />
+                              ) : (
+                                <>
+                                  <div>
+                                    {p.nombre}
+                                    {p.categoria === "Maderas" &&
+                                      p.tipoMadera && (
+                                        <span className="font-semibold text-default-900">
+                                          {" "}
+                                          - {p.tipoMadera.toUpperCase()}
+                                        </span>
+                                      )}
+                                  </div>
+                                  {p.detalle && (
+                                    <div className="mt-1 text-xs text-default-500">
+                                      {p.detalle}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            {/* Información específica por categoría */}
+                            {p.categoria === "Ferretería" && p.subCategoria && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                  {p.subCategoria}
+                                </span>
+                              </div>
+                            )}
+
+                            {p.categoria === "Maderas" && (
+                              <div className="mt-2 flex flex-wrap items-start gap-3">
+                                {p.esEditable && (
+                                <div className="inline-block w-fit p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-700 align-top">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                      Unidad
+                                    </span>
+                                  </div>
+                                  <select
+                                    value={p.unidad || "Pie"}
+                                    onChange={(e) => handleUnidadMaderaChange(p.id, e.target.value)}
+                                    className="h-8 w-[140px] rounded-md border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-800 text-sm px-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 dark:focus:ring-blue-800"
+                                    disabled={isSubmitting}
+                                  >
+                                    <option value="Unidad">Unidad</option>
+                                    <option value="M2">M2</option>
+                                    <option value="ML">ML</option>
+                                    <option value="Pie">Fórmula pie</option>
+                                  </select>
+                                </div>
+                                )}
+
+                                {p.unidad !== "Unidad" && (
+                                  <div className="inline-block w-fit rounded-md border border-orange-200/60 dark:border-orange-700/60 bg-orange-50/60 dark:bg-orange-900/20 p-1.5 align-top">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/></svg>
+                                        Dimensiones
+                                      </span>
+                                      {p.unidad === "M2" ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                          Total {((((((p.alto || 0) > 0 ? p.alto : p.ancho || 0) || 0) * (p.largo || 0) * (p.cantidad || 1))).toFixed(2))} m²
+                                        </span>
+                                      ) : p.unidad === "ML" ? (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                          Total {(((p.largo || 0) * (p.cantidad || 1)).toFixed(2))} ml
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-800/40 dark:text-orange-300 text-sm font-semibold">
+                                          Volumen {(((p.alto || 0) * (p.ancho || 0) * (p.largo || 0) * (p.cantidad || 1)).toFixed(2))} m³
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {p.unidad === "M2" ? (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.alto === "" ? "" : p.alto || ""}
+                                            onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.largo === "" ? "" : p.largo || ""}
+                                            onChange={(e) => handleLargoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : p.unidad === "ML" ? (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.largo === "" ? "" : p.largo || ""}
+                                            onChange={(e) => handleLargoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-wrap items-end gap-2">
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Alto</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.alto === "" ? "" : p.alto || ""}
+                                            onChange={(e) => handleAltoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Ancho</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.ancho === "" ? "" : p.ancho || ""}
+                                            onChange={(e) => handleAnchoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5">
+                                          <label className="text-[11px] font-semibold text-orange-700">Largo</label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={p.largo === "" ? "" : p.largo || ""}
+                                            onChange={(e) => handleLargoChange(p.id, e.target.value)}
+                                            className="h-8 w-[68px] sm:w-[80px] rounded-sm border border-orange-300 dark:border-orange-600 bg-white dark:bg-gray-800 text-sm px-1.5 focus:border-orange-500 focus:ring-1 focus:ring-orange-200 dark:focus:ring-orange-800"
+                                            disabled={isSubmitting}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="inline-block w-fit p-1.5 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-700 align-top">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <svg
+                                      className="w-3 h-3 text-green-600 dark:text-green-400"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                    <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                                      Valor
+                                    </span>
+                                  </div>
+                                  <div className="inline-block w-fit">
+                                    <label className="block text-[11px] font-semibold text-green-700 dark:text-green-300 mb-0.5">
+                                      {p.unidad === "Unidad" ? "Precio unidad" : "Precio base"}
+                                    </label>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-green-600 dark:text-green-400 font-medium">$</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={p.precioPorPie === "" ? "" : p.precioPorPie || ""}
+                                        onChange={(e) => handlePrecioPorPieChange(p.id, e.target.value)}
+                                        className="h-8 w-[88px] pl-5 pr-2 text-sm border border-green-300 dark:border-green-600 rounded-md bg-white dark:bg-gray-800 focus:border-green-500 focus:ring-1 focus:ring-green-200 dark:focus:ring-green-800 focus:outline-none transition-colors tabular-nums"
+                                        disabled={isSubmitting}
+                                        placeholder="0.00"
+                                      />
+                                    </div>
+                                    {p.unidad === "Pie" &&
+                                    (Number(p.alto) || 0) > 0 &&
+                                    (Number(p.ancho) || 0) > 0 &&
+                                    (Number(p.largo) || 0) > 0 &&
+                                    (Number(p.precioPorPie) || 0) > 0 &&
+                                    (Number(p.precio) || 0) <= 0 ? (
+                                      <div className="mt-1 text-[11px] font-semibold text-red-600">
+                                        Revisá dimensiones/valor: el cálculo está dando $0
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            <div className="flex items-center justify-center">
+                              <QuantityMeasureControl
+                                product={p}
+                                cantidad={p.cantidad === "" ? "" : p.cantidad}
+                                disabled={isSubmitting}
+                                onCantidadChange={(next) => handleCantidadChange(p.id, next)}
+                                onIncrement={() => handleIncrementarCantidad(p.id)}
+                                onDecrement={() => handleDecrementarCantidad(p.id)}
+                              />
+                            </div>
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={p.cepilladoAplicado || false}
+                                  onChange={(e) => {
+                                    recalcularPreciosMadera(
+                                      p.id,
+                                      e.target.checked
+                                    );
+                                  }}
+                                  className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
+                                  disabled={isSubmitting}
+                                  title="Aplicar cepillado"
+                                />
+                                <div className="relative w-16">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={
+                                      p.unidad === "M2"
+                                        ? 0
+                                        : p.cepilladoPorcentaje === ""
+                                          ? ""
+                                          : p.cepilladoPorcentaje ?? DEFAULT_CEPILLADO_PORCENTAJE
+                                    }
+                                    onChange={(e) =>
+                                      handleCepilladoPorcentajeChange(
+                                        p.id,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                    disabled={isSubmitting || !p.cepilladoAplicado || p.unidad === "M2"}
+                                  />
+                                  <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            {p.categoria === "Maderas" && p.unidad !== "Unidad" ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={p.calibradoAplicado || false}
+                                  onChange={(e) => {
+                                    handleCalibradoAplicadoChange(
+                                      p.id,
+                                      e.target.checked
+                                    );
+                                  }}
+                                  className="w-4 h-4 text-blue-600 bg-white border-default-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
+                                  disabled={isSubmitting}
+                                  title="Aplicar calibrado"
+                                />
+                                <div className="relative w-16">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={
+                                      p.calibradoPorcentaje === ""
+                                        ? ""
+                                        : p.calibradoPorcentaje ?? DEFAULT_CALIBRADO_PORCENTAJE
+                                    }
+                                    onChange={(e) =>
+                                      handleCalibradoPorcentajeChange(
+                                        p.id,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-4 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                    disabled={isSubmitting || !p.calibradoAplicado}
+                                  />
+                                  <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            {p.esEditable ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="100"
+                                value={
+                                  p.precio === ""
+                                    ? ""
+                                    : p.precioIncluyeCantidad
+                                      ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                      : p.precio
+                                }
+                                onChange={(e) =>
+                                  handlePrecioChange(p.id, e.target.value)
+                                }
+                                className="w-24 ml-auto block text-right border border-default-300 rounded-md px-2 py-1 text-sm font-semibold bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200 tabular-nums"
+                                disabled={isSubmitting}
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span className="block text-right font-semibold text-default-900 tabular-nums">{`$${formatearNumeroArgentino(
+                                p.precioIncluyeCantidad
+                                  ? (Number(p.precio) || 0) / (Number(p.cantidad) || 1)
+                                  : p.precio
+                              )}`}</span>
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-sm text-default-600">
+                            <div className="relative w-20 md:w-24 mx-auto">
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={p.descuento === "" ? "" : p.descuento || ""}
+                                onChange={(e) =>
+                                  handleDescuentoChange(p.id, e.target.value)
+                                }
+                                className="w-full text-center border border-default-300 rounded-md px-2 py-1 pr-6 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                disabled={isSubmitting}
+                              />
+                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-default-500">%</span>
+                            </div>
+                          </td>
+                          <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                            ${formatearNumeroArgentino(
+                              (() => {
+                                const precioBase = computeLineBase(p);
+                                const precioConDescuento =
+                                  precioBase * (1 - Number(p.descuento || 0) / 100);
+                                const efectivo = pagoEnEfectivo
+                                  ? precioConDescuento * 0.9
+                                  : precioConDescuento;
+                                return Math.round(efectivo);
+                              })()
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-right text-sm text-default-900 font-bold tabular-nums">
+                            ${formatearNumeroArgentino(
+                              computeLineSubtotal(p)
+                            )}
+                          </td>
+                          <td className="p-4 align-middle text-center text-sm text-default-600">
+                            <div className="inline-flex items-center gap-2">
+                              <span className="group relative inline-flex">
+                                <button
+                                  type="button"
+                                  aria-label="Clonar línea"
+                                  onClick={() => handleClonarProducto(p.id)}
+                                  disabled={isSubmitting}
+                                  className={`inline-flex h-8 items-center gap-1 rounded-full border border-blue-200 text-blue-600 px-3 hover:text-white hover:bg-blue-600 hover:border-blue-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 ${
+                                    cloneFeedbackById[p.id] ? "bg-emerald-600 border-emerald-600 text-white animate-pulse" : ""
+                                  }`}
+                                  title={cloneFeedbackById[p.id] ? "Clonar" : "Clonar línea"}
+                                >
+                                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M7 7a2 2 0 012-2h6a2 2 0 012 2v8h-2V7H9v2H7V7z" />
+                                    <path d="M5 9a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9zm2 0h6v8H7V9z" />
+                                  </svg>
+                                  {cloneFeedbackById[p.id] ? "Clonado" : "Clonar"}
+                                </button>
+                                <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Clonar línea</span>
+                              </span>
+                              <span className="group relative inline-flex">
+                              <button
+                                type="button"
+                                aria-label="Eliminar producto"
+                                onClick={() => handleQuitarProducto(p.id)}
+                                disabled={isSubmitting}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                title="Eliminar"
+                              >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                  <path d="M9 3a1 1 0 00-1 1v1H5.5a1 1 0 100 2H6v12a2 2 0 002 2h8a2 2 0 002-2V7h.5a1 1 0 100-2H16V4a1 1 0 00-1-1H9zm2 2h4v1h-4V5zm-1 5a1 1 0 112 0v7a1 1 0 11-2 0v-7zm5 0a1 1 0 112 0v7a1 1 0 11-2 0v-7z" />
+                                </svg>
+                              </button>
+                              <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-default-900 text-white text-[10px] px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Eliminar</span>
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {/* Sección condiciones y envío */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {tipo === "venta" && (
+                <>
+                  <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold pb-1">
+                      Información de envío
+                    </div>
+                    <select
+                      {...register("tipoEnvio")}
+                      value={tipoEnvioSeleccionado}
+                      onChange={(e) => {
+                        setTipoEnvioSeleccionado(e.target.value);
+                        setValue("tipoEnvio", e.target.value, {
+                          shouldValidate: true,
+                        });
+                      }}
+                      className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                      disabled={isSubmitting}
+                    >
+                      <option value="">Tipo de envío...</option>
+                      <option value="retiro_local">Retiro en local</option>
+                      <option value="envio_domicilio">Envío a domicilio</option>
+                    </select>
+                    {errors.tipoEnvio && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.tipoEnvio.message}
+                      </span>
+                    )}
+                    {tipoEnvioSeleccionado && tipoEnvioSeleccionado !== "retiro_local" && (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={usarDireccionCliente}
+                            onChange={(e) =>
+                              setUsarDireccionCliente(e.target.checked)
+                            }
+                            id="usarDireccionCliente"
+                          />
+                          <label
+                            htmlFor="usarDireccionCliente"
+                            className="text-sm"
+                          >
+                            Usar dirección del cliente
+                          </label>
+                        </div>
+                        {!usarDireccionCliente && (
+                          <>
+                            <Input
+                              {...register("direccionEnvio")}
+                              placeholder="Dirección de envío"
+                              className="w-full"
+                              disabled={isSubmitting}
+                            />
+                            <Input
+                              {...register("localidadEnvio")}
+                              placeholder="Localidad/Ciudad"
+                              className="w-full"
+                              disabled={isSubmitting}
+                            />
+                            {errors.direccionEnvio && (
+                              <span className="text-red-500 dark:text-red-400 text-xs">
+                                {errors.direccionEnvio.message}
+                              </span>
+                            )}
+                            {errors.localidadEnvio && (
+                              <span className="text-red-500 dark:text-red-400 text-xs">
+                                {errors.localidadEnvio.message}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {usarDireccionCliente && clienteSeleccionado && (
+                          <>
+                            <Input
+                              value={clienteSeleccionado.direccion || ""}
+                              readOnly
+                              className="w-full"
+                            />
+                            <Input
+                              value={clienteSeleccionado.localidad || ""}
+                              readOnly
+                              className="w-full"
+                            />
+                          </>
+                        )}
+                        <Input
+                          {...register("costoEnvio")}
+                          placeholder={
+                            tipo === "presupuesto"
+                              ? "Costo estimado de envío"
+                              : "Costo de envío"
+                          }
+                          type="number"
+                          className="w-full"
+                          disabled={isSubmitting}
+                          min={0}
+                        />
+                        {errors.costoEnvio && (
+                          <span className="text-red-500 dark:text-red-400 text-xs">
+                            {errors.costoEnvio.message}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {tipoEnvioSeleccionado && (
+                      <>
+                        <input type="hidden" {...register("fechaEntrega")} />
+                        <DateInput
+                          value={
+                            watch("fechaEntrega")
+                              ? new Date(watch("fechaEntrega")).toISOString().split("T")[0]
+                              : ""
+                          }
+                          onChange={(v) =>
+                            setValue("fechaEntrega", v, {
+                              shouldDirty: true,
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          disabled={isSubmitting}
+                          buttonClassName="w-full"
+                        />
+                        {errors.fechaEntrega && (
+                          <span className="text-red-500 dark:text-red-400 text-xs">
+                            {errors.fechaEntrega.message}
+                          </span>
+                        )}
+                        <Input
+                          {...register("rangoHorario")}
+                          placeholder={
+                            tipoEnvioSeleccionado === "retiro_local"
+                              ? "Horario de retiro (opcional)"
+                              : "Rango horario (ej: 8-12, 14-18)"
+                          }
+                          className="w-full"
+                          disabled={isSubmitting}
+                        />
+                        {errors.rangoHorario && (
+                          <span className="text-red-500 dark:text-red-400 text-xs">
+                            {errors.rangoHorario.message}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                    <div className="text-base font-semibold pb-1">
+                      Información adicional
+                    </div>
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <strong>Vendedor:</strong>{" "}
+                      {user?.email || "Usuario no identificado"}
+                    </div>
+                    <Textarea
+                      {...register("observaciones")}
+                      placeholder="Observaciones adicionales"
+                      className="w-full"
+                      disabled={isSubmitting}
+                    />
+                    {errors.observaciones && (
+                      <span className="text-red-500 dark:text-red-400 text-xs">
+                        {errors.observaciones.message}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+              {tipo === "presupuesto" && (
+                <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                  <div className="text-base font-semibold pb-1">
+                    Información de envío
+                  </div>
+                  <select
+                    {...register("tipoEnvio")}
+                    className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Tipo de envío...</option>
+                    <option value="retiro_local">Retiro en local</option>
+                    <option value="envio_domicilio">Envío a domicilio</option>
+                  </select>
+                  {errors.tipoEnvio && (
+                    <span className="text-red-500 dark:text-red-400 text-xs">
+                      {errors.tipoEnvio.message}
+                    </span>
+                  )}
+                  {watch("tipoEnvio") &&
+                    watch("tipoEnvio") !== "retiro_local" && (
+                      <Input
+                        {...register("costoEnvio")}
+                        placeholder="Cotización del envío a domicilio"
+                        type="number"
+                        className="w-full"
+                        disabled={isSubmitting}
+                        min={0}
+                      />
+                    )}
+                  {errors.costoEnvio && (
+                    <span className="text-red-500 dark:text-red-400 text-xs">
+                      {errors.costoEnvio.message}
+                    </span>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Sección Condiciones de pago y entrega - ÚLTIMA */}
+            {tipo === "venta" && (
+              <section className="bg-card rounded-xl p-6 border border-default-200 dark:border-default-700 shadow flex flex-col gap-4 mb-2">
+                <label className="font-semibold text-base flex items-center gap-2">
+                  <Icon
+                    icon="heroicons:credit-card"
+                    className="w-5 h-5 text-primary dark:text-primary-300"
+                  />{" "}
+                  Condiciones de pago y entrega
+                </label>
+                <div className="space-y-2 bg-card rounded-lg p-4 border border-default-200 shadow-sm">
+                  <select
+                    {...register("formaPago")}
+                    className="w-full px-3 flex justify-between items-center read-only:bg-background disabled:cursor-not-allowed disabled:opacity-50 transition duration-300 border-default-300 text-default-500 focus:outline-hidden focus:border-default-500/50 disabled:bg-default-200 placeholder:text-accent-foreground/50 [&>svg]:stroke-default-600 border rounded-lg h-10 text-sm"
+                    disabled={isSubmitting || pagoEnEfectivo}
+                  >
+                    <option value="">Forma de pago...</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                  {errors.formaPago && (
+                    <span className="text-red-500 dark:text-red-400 text-xs">
+                      {errors.formaPago.message}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-4 mt-2">
+                    <label className="inline-flex items-center gap-2">
+                      <input type="checkbox" id="pagoPendiente" {...register("pagoPendiente")} />
+                      <span className="text-sm">¿Pago pendiente?</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="pagoParcial"
+                        {...register("pagoParcial")}
+                        disabled={watch("pagoPendiente")}
+                      />
+                      <span className="text-sm">¿Pago parcial?</span>
+                    </label>
+                  </div>
+                  {watch("pagoParcial") && !watch("pagoPendiente") && (
+                    <>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Monto abonado"
+                        {...register("montoAbonado")}
+                        className="w-full"
+                        disabled={isSubmitting}
+                      />
+                      <div className="text-sm text-gray-600">
+                        Resta: $
+                        {(total - (watch("montoAbonado") || 0)).toFixed(2)}
+                      </div>
+                      {errors.montoAbonado && (
+                        <span className="text-red-500 dark:text-red-400 text-xs">
+                          {errors.montoAbonado.message}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+
+        {/* Totales y acciones - bloque normal */}
+        <div className="bg-card space-y-4 rounded-b-xl border-t border-default-100 p-3 md:p-4">
+          {advertenciasVenta.requiereRevision && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-semibold">
+                <AlertTriangle className="h-4 w-4" />
+                Advertencias (la operación seguirá igual)
+              </div>
+              <div className="mt-2 grid gap-1">
+                {advertenciasVenta.stockInsuficiente.length > 0 && (
+                  <div>
+                    Stock insuficiente: {advertenciasVenta.stockInsuficiente.length} producto(s)
+                  </div>
+                )}
+                {advertenciasVenta.stockNegativo.length > 0 && (
+                  <div>
+                    Esta venta dejará stock negativo: {advertenciasVenta.stockNegativo.length} producto(s)
+                  </div>
+                )}
+                {advertenciasVenta.productosSinPrecio.length > 0 && (
+                  <div>
+                    Producto(s) sin precio definido: {advertenciasVenta.productosSinPrecio.length}
+                  </div>
+                )}
+                {advertenciasVenta.productosSinCosto.length > 0 && (
+                  <div>
+                    Producto(s) sin costo definido: {advertenciasVenta.productosSinCosto.length}
+                  </div>
+                )}
+                {advertenciasVenta.combosInvalidos?.length > 0 && (
+                  <div>
+                    Combo(s) sin componentes configurados: {advertenciasVenta.combosInvalidos.length}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+              <div>
+                Subtotal:{" "}
+                <span className="font-bold">
+                  ${formatearNumeroArgentino(subtotal)}
+                </span>
+              </div>
+              <div>
+                Descuento:{" "}
+                <span className="font-bold">
+                  ${formatearNumeroArgentino(descuentoTotal)}
+                </span>
+              </div>
+              {descuentoEfectivo > 0 && (
+                <div>
+                  Descuento (Efectivo 10%):{" "}
+                  <span className="font-bold text-green-600">
+                    ${formatearNumeroArgentino(descuentoEfectivo)}
+                  </span>
+                </div>
+              )}
+              {costoEnvioCalculado > 0 && (
+                <div>
+                  Costo de envío:{" "}
+                  <span className="font-bold">
+                    ${formatearNumeroArgentino(costoEnvioCalculado)}
+                  </span>
+                </div>
+              )}
+              <div>
+                Total:{" "}
+                <span className="font-bold text-primary">
+                  ${formatearNumeroArgentino(total)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4 bg-card">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="w-full sm:w-auto hover:bg-gray-100 dark:hover:bg-default-700 rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base"
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              className="w-full sm:w-auto shadow-md min-w-[160px] rounded-md px-4 sm:px-6 py-2 text-sm sm:text-base font-semibold"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                `Guardar ${tipo === "presupuesto" ? "Presupuesto" : "Venta"}`
+              )}
+            </Button>
+          </div>
+        </div>
+      </form>
+
+      <FormularioClienteObras
+        open={openNuevoCliente}
+        onClose={() => setOpenNuevoCliente(false)}
+        onClienteGuardado={(clienteIdNuevo, clienteData) => {
+          setClientesState((prev) => {
+            if (prev.some((c) => c.id === clienteIdNuevo)) return prev;
+            return [...prev, { id: clienteIdNuevo, ...clienteData }];
+          });
+          setClienteId(clienteIdNuevo);
+          setDropdownClientesOpen(false);
+          setOpenNuevoCliente(false);
+        }}
+        mode="general"
+        submitLabel="Guardar Cliente"
+      />
+    </>
+  );
+}
+
+export { FormularioVentaPresupuesto };

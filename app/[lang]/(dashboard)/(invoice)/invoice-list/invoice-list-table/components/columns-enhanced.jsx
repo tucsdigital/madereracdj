@@ -1,0 +1,490 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@iconify/react";
+import Link from "next/link";
+import { Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+
+// Función para formatear fecha
+const formatDate = (dateString) => {
+  if (!dateString) return "-";
+  try {
+    const fecha = new Date(dateString);
+    return (
+      fecha.toLocaleDateString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }) +
+      " " +
+      fecha.toLocaleTimeString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      })
+    );
+  } catch {
+    return dateString;
+  }
+};
+
+// Función para obtener el color del estado
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case "pagado":
+    case "paid":
+    case "confirmed":
+      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
+    case "pendiente":
+    case "pending":
+    case "closed":
+      return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20";
+    case "parcial":
+      return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20";
+    default:
+      return "bg-muted/50 text-muted-foreground border-border/60";
+  }
+};
+
+// Función para obtener el icono del estado
+const getStatusIcon = (status) => {
+  switch (status?.toLowerCase()) {
+    case "pagado":
+    case "paid":
+    case "confirmed":
+      return <CheckCircle className="w-4 h-4" />;
+    case "pendiente":
+    case "pending":
+    case "closed":
+      return <Clock className="w-4 h-4" />;
+    case "parcial":
+      return <AlertCircle className="w-4 h-4" />;
+    default:
+      return <XCircle className="w-4 h-4" />;
+  }
+};
+
+// Función para formatear moneda
+const formatCurrency = (amount) => {
+  if (!amount || isNaN(amount)) return "0";
+  return new Intl.NumberFormat("es-AR", {
+    style: "decimal",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const formatVendedorName = (value) => {
+  if (!value) return "-";
+  const raw = String(value).trim();
+  if (!raw) return "-";
+  if (!raw.includes("@")) return raw;
+  const local = raw.split("@")[0] || raw;
+  const parts = local
+    .split(/[._-]+/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const formatted = parts
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+  return formatted || local;
+};
+
+const isVentaAnulada = (venta) => {
+  if (!venta) return false;
+  return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
+};
+
+// Columnas para la tabla de presupuestos
+export const columnsPresupuestos = [
+  {
+    accessorKey: "numeroPedido",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <FileText className="w-4 h-4 text-blue-700 dark:text-blue-300" />
+        <span className="font-semibold">N° Pedido</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+          <FileText className="w-5 h-5 text-blue-700 dark:text-blue-300" />
+        </div>
+        <div className="flex flex-col">
+          <span className="font-mono text-sm font-semibold text-foreground">
+            {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
+          </span>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "cliente",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
+        <span className="font-semibold">Cliente</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
+          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+            {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+            {(row?.original?.cliente?.nombre || "-").toUpperCase()}
+          </span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+          </span>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "fechaCreacion",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        <span className="font-semibold">Fecha</span>
+      </div>
+    ),
+    cell: ({ row }) => {
+      const fecha = row.getValue("fechaCreacion");
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+          </div>
+          <span className="text-sm font-medium text-foreground">
+            {formatDate(fecha)}
+          </span>
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "total",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        <span className="font-semibold">Total</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1">
+        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        </div>
+        <span className="font-bold text-sm text-foreground">
+          {formatCurrency(row.getValue("total") || 0)}
+        </span>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "vendedor",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
+        <span className="font-semibold">Vendedor</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
+          </span>
+        </div>
+        <span className="text-sm font-medium text-foreground">
+          {formatVendedorName(row?.original?.vendedor)}
+        </span>
+      </div>
+    ),
+  },
+  {
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
+            title="Eliminar"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevenir que se active el click de la fila
+              window.dispatchEvent(
+                new CustomEvent("deletePresupuesto", {
+                  detail: { id: row.original.id },
+                })
+              );
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Eliminar
+          </Button>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+];
+
+// Columnas para la tabla de ventas
+export const columnsVentas = [
+  {
+    accessorKey: "numeroPedido",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <ShoppingCart className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        <span className="font-semibold">N° Pedido</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <ShoppingCart className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
+        </div>
+        <div className="flex flex-col">
+          <span className="font-mono text-sm font-semibold text-foreground">
+            {row.getValue("numeroPedido") || row.getValue("id")?.slice(-8)}
+          </span>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "cliente",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
+        <span className="font-semibold">Cliente</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-indigo-500/10 rounded-full flex items-center justify-center">
+          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+            {(row?.original?.cliente?.nombre || "C")[0].toUpperCase()}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+            {(row?.original?.cliente?.nombre || "-").toUpperCase()}
+          </span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+          </span>
+        </div>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "fechaCreacion",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        <span className="font-semibold">Fecha</span>
+      </div>
+    ),
+    cell: ({ row }) => {
+      const fecha = row.getValue("fechaCreacion");
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+          </div>
+          <span className="text-sm font-medium text-foreground">
+            {formatDate(fecha)}
+          </span>
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "total",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        <span className="font-semibold">Total</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+          <DollarSign className="w-4 h-4 text-emerald-700 dark:text-emerald-300" />
+        </div>
+        <span className="font-bold text-sm text-foreground">
+          {formatCurrency(row.getValue("total") || 0)}
+        </span>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "estadoPago",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <CheckCircle className="w-4 h-4 text-violet-700 dark:text-violet-300" />
+        <span className="font-semibold">Estado</span>
+      </div>
+    ),
+    cell: ({ row }) => {
+      if (isVentaAnulada(row.original)) {
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center text-red-700 dark:text-red-300">
+              <XCircle className="w-4 h-4" />
+            </div>
+            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              Anulada
+            </Badge>
+          </div>
+        );
+      }
+
+      const status = row.getValue("estadoPago") || row.getValue("status");
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center text-violet-700 dark:text-violet-300">
+            {getStatusIcon(status)}
+          </div>
+          <Badge
+            className={`rounded-full px-3 py-1 text-xs font-medium border ${getStatusColor(status)}`}
+          >
+            {status || "No especificado"}
+          </Badge>
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "montoAbonado",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-blue-600" />
+        <span className="font-semibold">Abonado</span>
+      </div>
+    ),
+    cell: ({ row }) => {
+      // Calcular monto abonado desde el array pagos
+      const pagos = row.original.pagos || [];
+      const montoAbonado = Array.isArray(pagos) && pagos.length > 0 
+        ? pagos.reduce((acc, pago) => acc + Number(pago.monto || 0), 0)
+        : Number(row.original.montoAbonado || 0); // Fallback al campo antiguo
+      
+      const total = row.getValue("total") || 0;
+      const porcentaje = total > 0 ? (montoAbonado / total) * 100 : 0;
+      
+      // Determinar el color basado en el estado de pago
+      const estadoPago = row.original.estadoPago;
+      let colorClase = "text-foreground";
+      let porcentajeColor = "text-muted-foreground";
+      
+      if (estadoPago === "pagado") {
+        colorClase = "text-emerald-700 dark:text-emerald-300";
+        porcentajeColor = "text-emerald-700/90 dark:text-emerald-300/90";
+      } else if (estadoPago === "parcial") {
+        colorClase = "text-sky-700 dark:text-sky-300";
+        porcentajeColor = "text-sky-700/90 dark:text-sky-300/90";
+      } else if (estadoPago === "pendiente") {
+        colorClase = "text-red-700 dark:text-red-300";
+        porcentajeColor = "text-red-700/90 dark:text-red-300/90";
+      }
+      
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-sky-500/10 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-4 h-4 text-sky-700 dark:text-sky-300" />
+          </div>
+          <div className="flex flex-col">
+            <span className={`font-semibold text-sm ${colorClase}`}>
+              {formatCurrency(montoAbonado)}
+            </span>
+            {/* <span className={`text-xs ${porcentajeColor}`}>
+              {porcentaje.toFixed(0)}% del total
+            </span> */}
+          </div>
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "vendedor",
+    header: ({ column }) => (
+      <div className="flex items-center gap-2">
+        <User className="w-4 h-4 text-violet-700 dark:text-violet-300" />
+        <span className="font-semibold">Vendedor</span>
+      </div>
+    ),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-violet-500/10 rounded-full flex items-center justify-center">
+          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+            {(formatVendedorName(row?.original?.vendedor) || "V")[0].toUpperCase()}
+          </span>
+        </div>
+        <span className="text-sm font-medium text-foreground">
+          {formatVendedorName(row?.original?.vendedor)}
+        </span>
+      </div>
+    ),
+    enableSorting: true,
+  },
+  {
+    id: "actions",
+    header: "Acciones",
+    cell: ({ row }) => {
+      if (isVentaAnulada(row.original)) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              Anulada
+            </Badge>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
+            title="Anular"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevenir que se active el click de la fila
+              window.dispatchEvent(
+                new CustomEvent("anularVenta", {
+                  detail: { id: row.original.id },
+                })
+              );
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Anular
+          </Button>
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+];

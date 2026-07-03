@@ -1,0 +1,247 @@
+import {
+  DashBoard,
+  Users,
+  Building,
+  Settings,
+} from "@/components/svg";
+import { Users2, Boxes, DollarSign, Briefcase, Receipt, Truck, PiggyBank, Wallet, ClipboardList, Building2, CalendarCheck, BadgeDollarSign, FileText, Ticket } from "lucide-react";
+
+export const menusConfig = {
+  mainNav: [
+    {
+      title: "Dashboard",
+      icon: DashBoard,
+      href: "/dashboard",
+    },
+    {
+      title: "Ventas / Presupuestos",
+      icon: Receipt,
+      href: "/ventas",
+    },
+    {
+      title: "Envíos",
+      icon: Truck,
+      href: "/envios",
+    },
+    {
+      title: "Productos",
+      icon: Building,
+      href: "/productos",
+    },
+    {
+      title: "Stock",
+      icon: Boxes,
+      href: "/stock-compras",
+    },
+    {
+      title: "Gastos",
+      icon: PiggyBank,
+      href: "/gastos",
+    },
+    {
+      title: "Dólares",
+      icon: BadgeDollarSign,
+      href: "/dolares",
+    },
+    {
+      title: "Proveedores",
+      icon: Building2,
+      href: "/proveedores",
+    },
+    {
+      title: "Obras",
+      icon: Briefcase,
+      href: "/obras",
+    },
+    {
+      title: "Documentación",
+      icon: FileText,
+      href: "/documentacion",
+    },
+    {
+      title: "Clientes",
+      icon: Users2,
+      href: "/clientes",
+    },
+    {
+      title: "Precios",
+      icon: DollarSign,
+      href: "/precios",
+    },
+    {
+      title: "Auditoría",
+      icon: ClipboardList,
+      href: "/auditoria",
+    },
+    {
+      title: "Tickets",
+      icon: Ticket,
+      href: "/tickets",
+    },
+    {
+      title: "Asistencia",
+      icon: CalendarCheck,
+      href: "/asistencia",
+    },
+  ],
+  sidebarNav: {
+    modern: [
+      {
+        title: "Dashboard",
+        icon: DashBoard,
+        href: "/dashboard",
+      },
+      {
+        title: "Ventas / Presupuestos",
+        icon: Receipt,
+        href: "/ventas",
+      },
+      {
+        title: "Envíos",
+        icon: Truck,
+        href: "/envios",
+      },
+      {
+        title: "Productos",
+        icon: Building,
+        href: "/productos",
+      },
+      {
+        title: "Stock",
+        icon: Boxes,
+        href: "/stock-compras",
+      },
+      {
+        title: "Gastos",
+        icon: PiggyBank,
+        href: "/gastos",
+      },
+      {
+        title: "Dólares",
+        icon: BadgeDollarSign,
+        href: "/dolares",
+      },
+      {
+        title: "Proveedores",
+        icon: Building2,
+        href: "/proveedores",
+      },
+      {
+        title: "Obras",
+        icon: Briefcase,
+        href: "/obras",
+      },
+      {
+        title: "Documentación",
+        icon: FileText,
+        href: "/documentacion",
+      },
+      {
+        title: "Clientes",
+        icon: Users2,
+        href: "/clientes",
+      },
+      {
+        title: "Precios",
+        icon: DollarSign,
+        href: "/precios",
+      },
+      {
+        title: "Auditoría",
+        icon: ClipboardList,
+        href: "/auditoria",
+      },
+      {
+        title: "Tickets",
+        icon: Ticket,
+        href: "/tickets",
+      },
+      {
+        title: "Asistencia",
+        icon: CalendarCheck,
+        href: "/asistencia",
+      },
+    ],
+    classic: [
+      {
+        isHeader: true,
+        title: "Menú Principal",
+      },
+      {
+        title: "Dashboard",
+        icon: DashBoard,
+        href: "/dashboard",
+      },
+      {
+        title: "Ventas / Presupuestos",
+        icon: Receipt,
+        href: "/ventas",
+      },
+      {
+        title: "Envíos",
+        icon: Truck,
+        href: "/envios",
+      },
+      {
+        title: "Productos",
+        icon: Building,
+        href: "/productos",
+      },
+      {
+        title: "Stock",
+        icon: Boxes,
+        href: "/stock-compras",
+      },
+      {
+        title: "Gastos",
+        icon: PiggyBank,
+        href: "/gastos",
+      },
+      {
+        title: "Dólares",
+        icon: BadgeDollarSign,
+        href: "/dolares",
+      },
+      {
+        title: "Proveedores",
+        icon: Building2,
+        href: "/proveedores",
+      },
+      {
+        title: "Obras",
+        icon: Briefcase,
+        href: "/obras",
+      },
+      {
+        title: "Documentación",
+        icon: FileText,
+        href: "/documentacion",
+      },
+      {
+        title: "Clientes",
+        icon: Users2,
+        href: "/clientes",
+      },
+      {
+        title: "Precios",
+        icon: DollarSign,
+        href: "/precios",
+      },
+      {
+        title: "Auditoría",
+        icon: ClipboardList,
+        href: "/auditoria",
+      },
+      {
+        title: "Tickets",
+        icon: Ticket,
+        href: "/tickets",
+      },
+      {
+        title: "Asistencia",
+        icon: CalendarCheck,
+        href: "/asistencia",
+      },
+    ],
+  },
+};
