@@ -3,8 +3,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { priorities, statuses } from "../data/data";
-
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import {
@@ -16,6 +14,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
+
+const statuses = [
+  { value: "backlog", label: "Backlog", color: "destructive" },
+  { value: "todo", label: "Todo", color: "info" },
+  { value: "in progress", label: "In Progress", color: "default" },
+  { value: "completed", label: "Completed", color: "success" },
+  { value: "review", label: "Review", color: "warning" },
+];
+
+const priorities = [
+  { label: "Low", value: "low", color: "info" },
+  { label: "Medium", value: "medium", color: "warning" },
+  { label: "High", value: "high", color: "destructive" },
+];
 
 export const columns = [
   {
