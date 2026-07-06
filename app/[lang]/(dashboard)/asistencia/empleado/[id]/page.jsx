@@ -10,7 +10,13 @@ import { toast } from "@/components/ui/use-toast";
 import { auth, db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
-import { buildLiquidacionAsistenciaHtml, calcularPremioAsistenciaMensual, formatMonthLabel } from "@/lib/asistencia-utils";
+import {
+  buildLiquidacionAsistenciaHtml,
+  calcularPremioAsistenciaMensual,
+  calcularTotalLiquidacion,
+  calcularTotalTrabajadoMensual,
+  formatMonthLabel,
+} from "@/lib/asistencia-utils";
 import { cn } from "@/lib/utils";
 
 function calcTotalSemanaLaboral(days) {
@@ -43,6 +49,33 @@ const formatDateTimeAR = (value) => {
   return date.toLocaleString("es-AR");
 };
 
+const formatDateKey = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const normalizarAdelantoDetalle = (item) => ({
+  id: String(item?.id || ""),
+  fecha: item?.fecha || "",
+  monto: Number(item?.monto || 0),
+  nota: String(item?.nota || ""),
+});
+
+const normalizarAusentismoAdjunto = (item) => ({
+  id: String(item?.id || ""),
+  nombreArchivo: String(item?.nombreArchivo || "Adjunto"),
+  mimeType: String(item?.mimeType || ""),
+  size: Number(item?.size || 0),
+  storagePath: String(item?.storagePath || ""),
+  url: String(item?.url || ""),
+  uploadedAt: item?.uploadedAt || null,
+});
+
 const addDays = (dateInput, days) => {
   const date = new Date(dateInput);
   date.setDate(date.getDate() + Number(days || 0));
@@ -64,11 +97,125 @@ const MONTHS_ES = [
   "Diciembre",
 ];
 
+const DAY_LABELS = {
+  lun: "Lunes",
+  mar: "Martes",
+  mie: "Miércoles",
+  jue: "Jueves",
+  vie: "Viernes",
+};
+
 const ACTION_OUTLINE_BUTTON_CLASS =
   "rounded-xl border-violet-200 bg-white text-violet-600 shadow-sm transition-all hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-200 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none disabled:opacity-100";
 
 const MONTH_PICKER_TRIGGER_CLASS =
   "h-12 min-w-[220px] justify-between rounded-2xl border-slate-200 bg-white px-4 text-left text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-violet-300 hover:bg-slate-50 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-violet-200";
+
+const FALLBACK_EMPLOYEE_NAME = "Empleado sin nombre";
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildAdelantoComprobanteHtml({ empleado, adelanto, comprobante }) {
+  const nombre = escapeHtml(empleado?.nombre || "Empleado");
+  const sector = escapeHtml(empleado?.sector || "-");
+  const fecha = escapeHtml(formatDateAR(adelanto?.fecha));
+  const emitido = escapeHtml(formatDateTimeAR(comprobante?.emittedAt));
+  const version = Number(comprobante?.version || 1);
+  const monto = formatCurrencyAR(adelanto?.monto || 0);
+  const nota = escapeHtml(adelanto?.nota || "-");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Comprobante de adelanto</title>
+    <style>
+      * { box-sizing: border-box; }
+      @page { size: A4; margin: 12mm; }
+      body { font-family: Arial, Helvetica, sans-serif; background: #f8fafc; color: #0f172a; padding: 24px; margin: 0; overflow-wrap: anywhere; word-break: break-word; }
+      .sheet { max-width: 780px; margin: 0 auto; background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 28px; }
+      .header { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; margin-bottom: 22px; break-inside: avoid; page-break-inside: avoid; }
+      .eyebrow { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #ddd6fe; background: #f5f3ff; color: #7c3aed; border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+      .title { font-size: 26px; font-weight: 700; margin: 10px 0 6px; }
+      .muted { color: #64748b; font-size: 13px; }
+      .meta { text-align: right; color: #64748b; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
+      .box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; }
+      .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px; }
+      .value { font-size: 21px; font-weight: 700; }
+      .formula-card { margin-top: 18px; border: 1px solid #ddd6fe; background: linear-gradient(135deg, rgba(245,243,255,0.95), rgba(238,242,255,0.88)); border-radius: 16px; padding: 16px; }
+      .formula-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(255,255,255,0.88); border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
+      .formula-total { margin-top: 12px; background: #111827; color: white; border-radius: 16px; padding: 14px 16px; }
+      .formula-total-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .formula-total-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; color: rgba(255,255,255,0.72); }
+      .formula-total-value { font-size: 30px; font-weight: 700; }
+      .formula-caption { margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.72); }
+      .note { margin-top: 18px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #fafafa; break-inside: auto; page-break-inside: auto; }
+      .note-body { font-size: 14px; line-height: 1.55; color: #0f172a; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; white-space: pre-wrap; }
+      .legal { margin-top: 18px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #f8fafc; padding: 14px 16px; color: #475569; font-size: 12px; line-height: 1.55; break-inside: avoid; page-break-inside: avoid; }
+      .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 36px; break-inside: avoid; page-break-inside: avoid; }
+      .sign { border-top: 1px solid #cbd5e1; padding-top: 12px; height: 72px; display: flex; align-items: flex-end; justify-content: center; color: #64748b; font-size: 13px; }
+      @media print {
+        body { background: white; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .sheet { border: none; padding: 0; border-radius: 0; max-width: none; }
+      }
+      @media (max-width: 720px) {
+        .header { flex-direction: column; align-items: flex-start; }
+        .meta { text-align: left; }
+        .grid, .signatures { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="header">
+        <div>
+          <div class="eyebrow">Resguardo interno</div>
+          <div class="title">Comprobante de adelanto</div>
+          <div class="muted">Entrega registrada para control interno y firma de conformidad.</div>
+        </div>
+        <div class="meta">
+          <div><strong>Emitido:</strong> ${emitido}</div>
+          <div><strong>Versión:</strong> ${version}</div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="box">
+          <div class="label">Empleado</div>
+          <div class="value">${nombre}</div>
+          <div class="muted">Sector: ${sector}</div>
+        </div>
+        <div class="box">
+          <div class="label">Monto entregado</div>
+          <div class="value">${monto}</div>
+          <div class="muted">Fecha registrada: ${fecha}</div>
+        </div>
+      </div>
+
+      
+
+      <div class="note">
+        <div class="label">Detalle</div>
+        <div class="note-body">${nota}</div>
+      </div>
+      <div class="legal">
+        La firma del presente acredita la entrega del adelanto indicado en este comprobante, quedando sujeto a su correspondiente imputación dentro de la liquidación mensual del empleado.
+      </div>
+      <div class="signatures">
+        <div class="sign">Firma empresa</div>
+        <div class="sign">Firma empleado</div>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
 
 function ProgressRing({ value }) {
   const safeValue = Math.max(0, Math.min(Number(value || 0), 100));
@@ -113,6 +260,10 @@ export default function EmpleadoDetallePage() {
   const [publicUrl, setPublicUrl] = useState("");
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
+  const [guardandoAusentismoKey, setGuardandoAusentismoKey] = useState("");
+  const [subiendoAusentismoKey, setSubiendoAusentismoKey] = useState("");
+  const [imprimiendoAdelantoId, setImprimiendoAdelantoId] = useState("");
+  const [ausentismoDrafts, setAusentismoDrafts] = useState({});
 
   useEffect(() => {
     const load = async () => {
@@ -159,24 +310,29 @@ export default function EmpleadoDetallePage() {
   const resumenMes = useMemo(() => {
     const [y,m] = filtroMes.split("-").map(Number);
     const fechaMes = new Date(y, (m || 1) - 1, 1);
-    const totSemana = asistencias
-      .filter(a => {
-        const d = new Date(a.weekStart);
-        return d.getFullYear()===y && d.getMonth()+1===m;
-      })
-      .reduce((acc,a)=>acc+calcTotalSemanaLaboral(a?.days),0);
-    const totAdv = adelantos
-      .filter(a=>{
+    const adelantosDetalle = adelantos
+      .filter((a) => {
         const d = new Date(a.fecha);
-        return d.getFullYear()===y && d.getMonth()+1===m;
+        return d.getFullYear() === y && d.getMonth() + 1 === m;
       })
-      .reduce((acc,a)=>acc+Number(a.monto||0),0);
+      .sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())
+      .map(normalizarAdelantoDetalle);
+    const totSemana = calcularTotalTrabajadoMensual({
+      employeeId: id,
+      asistencias,
+      monthInput: fechaMes,
+    });
+    const totAdv = adelantosDetalle.reduce((acc, item) => acc + Number(item.monto || 0), 0);
     const premioAsistencia = calcularPremioAsistenciaMensual({
       empleado,
       asistencias,
       monthInput: fechaMes,
     });
-    const totPagar = Math.max(totSemana + Number(premioAsistencia.premio || 0) - totAdv, 0);
+    const totPagar = calcularTotalLiquidacion({
+      totSemana,
+      totAdv,
+      premio: premioAsistencia.premio,
+    });
     const cierreEmpleado = Array.isArray(cierreMensual?.empleados)
       ? cierreMensual.empleados.find((item) => String(item.id || item.employeeId || "") === String(id))
       : null;
@@ -184,6 +340,7 @@ export default function EmpleadoDetallePage() {
       return {
         totSemana: Number(cierreEmpleado.cobrado || 0),
         totAdv: Number(cierreEmpleado.adelanto || 0),
+        adelantosDetalle,
         premioAsistencia: cierreEmpleado.premioAsistencia || premioAsistencia,
         totPagar: Number(cierreEmpleado.saldoConPremio || 0),
         closedAt: cierreMensual?.closedAt || null,
@@ -194,6 +351,7 @@ export default function EmpleadoDetallePage() {
     return {
       totSemana,
       totAdv,
+      adelantosDetalle,
       premioAsistencia,
       totPagar,
       closedAt: null,
@@ -201,6 +359,29 @@ export default function EmpleadoDetallePage() {
       labelMes: formatMonthLabel(fechaMes),
     };
   }, [filtroMes, asistencias, adelantos, empleado, cierreMensual, id]);
+
+  const comprobanteMensualNormalizado = useMemo(() => {
+    if (!comprobanteMensual) return null;
+    const premio = Number(comprobanteMensual?.premioAsistencia?.premio || 0);
+    return {
+      ...comprobanteMensual,
+      totSemana: Number(comprobanteMensual?.totSemana || 0),
+      totAdv: Number(comprobanteMensual?.totAdv || 0),
+      adelantosDetalle: Array.isArray(comprobanteMensual?.adelantosDetalle)
+        ? comprobanteMensual.adelantosDetalle.map(normalizarAdelantoDetalle)
+        : [],
+      totPagar: calcularTotalLiquidacion({
+        totSemana: comprobanteMensual?.totSemana,
+        totAdv: comprobanteMensual?.totAdv,
+        premio,
+      }),
+      premioAsistencia: {
+        ...(comprobanteMensual?.premioAsistencia || {}),
+        premio,
+        justificadas: Number(comprobanteMensual?.premioAsistencia?.justificadas || 0),
+      },
+    };
+  }, [comprobanteMensual]);
 
   const semanasOrdenadas = useMemo(() => {
     return [...asistencias].sort((a, b) => {
@@ -255,6 +436,68 @@ export default function EmpleadoDetallePage() {
     return adelantosOrdenados.reduce((acc, item) => acc + Number(item.monto || 0), 0);
   }, [adelantosOrdenados]);
 
+  const ausenciasMes = useMemo(() => {
+    const [year, month] = String(filtroMes || "").split("-").map(Number);
+    if (!year || !month) return [];
+
+    const rowsByWeek = Object.fromEntries(
+      asistencias.map((item) => [String(item.weekStart || ""), item])
+    );
+    const endOfMonth = new Date(year, month, 0).getDate();
+    const results = [];
+
+    for (let day = 1; day <= endOfMonth; day += 1) {
+      const current = new Date(year, month - 1, day);
+      const dow = current.getDay();
+      if (dow === 0 || dow === 6) continue;
+
+      const currentDayKey = ["lun", "mar", "mie", "jue", "vie"][dow - 1];
+      const currentWeekStart = new Date(current);
+      const diff = (dow === 0 ? -6 : 1) - dow;
+      currentWeekStart.setDate(current.getDate() + diff);
+      currentWeekStart.setHours(0, 0, 0, 0);
+      const weekStartKey = formatDateKey(currentWeekStart);
+      const row = rowsByWeek[weekStartKey];
+      const dayData = row?.days?.[currentDayKey];
+
+      if (!dayData || String(dayData.estado || "") !== "ausente") continue;
+
+      results.push({
+        id: `${weekStartKey}_${currentDayKey}`,
+        dateIso: formatDateKey(current),
+        weekStart: weekStartKey,
+        dayKey: currentDayKey,
+        dayLabel: DAY_LABELS[currentDayKey] || currentDayKey,
+        rowId: row?.id || "",
+        data: {
+          ...dayData,
+          ausentismoNota: String(dayData?.ausentismoNota || ""),
+          ausentismoAdjuntos: Array.isArray(dayData?.ausentismoAdjuntos)
+            ? dayData.ausentismoAdjuntos.map(normalizarAusentismoAdjunto)
+            : [],
+        },
+      });
+    }
+
+    return results.sort((a, b) => String(b.dateIso).localeCompare(String(a.dateIso)));
+  }, [asistencias, filtroMes]);
+
+  const resumenFormula = useMemo(() => {
+    const trabajado = Number(resumenMes?.totSemana || 0);
+    const adelantosMes = Number(resumenMes?.totAdv || 0);
+    const premio = Number(resumenMes?.premioAsistencia?.premio || 0);
+    const total = Number(resumenMes?.totPagar || 0);
+    const cantidadAdelantos = Array.isArray(resumenMes?.adelantosDetalle) ? resumenMes.adelantosDetalle.length : 0;
+
+    return {
+      trabajado,
+      adelantosMes,
+      premio,
+      total,
+      cantidadAdelantos,
+    };
+  }, [resumenMes]);
+
   const monthInputLabel = useMemo(() => {
     const [year, month] = String(filtroMes || "").split("-");
     if (!year || !month) return "";
@@ -270,6 +513,8 @@ export default function EmpleadoDetallePage() {
 
   const selectedMonthIndex = selectedMonthDate.getMonth();
   const selectedMonthYear = selectedMonthDate.getFullYear();
+  const employeeName = empleado?.nombre?.trim() || FALLBACK_EMPLOYEE_NAME;
+  const employeeSector = empleado?.sector?.trim() || "";
 
   useEffect(() => {
     setMonthPickerYear(selectedMonthYear);
@@ -281,18 +526,254 @@ export default function EmpleadoDetallePage() {
     setMonthPickerOpen(false);
   }, []);
 
+  const updateAsistenciaDayLocal = useCallback((rowId, dayKeyName, updater) => {
+    setAsistencias((prev) =>
+      prev.map((item) => {
+        if (String(item.id || "") !== String(rowId || "")) return item;
+        const prevDay = item?.days?.[dayKeyName] || {};
+        const nextDay = typeof updater === "function" ? updater(prevDay) : updater;
+        return {
+          ...item,
+          days: {
+            ...(item.days || {}),
+            [dayKeyName]: nextDay,
+          },
+        };
+      })
+    );
+  }, []);
+
+  const setAusentismoDraft = useCallback((entryId, patch) => {
+    setAusentismoDrafts((prev) => ({
+      ...prev,
+      [entryId]: {
+        ...(prev[entryId] || {}),
+        ...patch,
+      },
+    }));
+  }, []);
+
+  const imprimirHtmlInvisible = useCallback((html) => {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+
+    const cleanup = () => {
+      try {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+      } catch {}
+    };
+
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (error) {
+        console.error("Error al imprimir:", error);
+        cleanup();
+      }
+      window.setTimeout(cleanup, 60000);
+    };
+
+    document.body.appendChild(iframe);
+    iframe.srcdoc = html;
+  }, []);
+
   const abrirComprobanteImprimible = (comprobanteData) => {
     const html = buildLiquidacionAsistenciaHtml({
       empleado,
       resumenMes,
       comprobante: comprobanteData,
     });
-    const printWindow = window.open("", "_blank", "width=980,height=900");
-    if (!printWindow) return;
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+
+    imprimirHtmlInvisible(html);
   };
+
+  const emitirComprobanteAdelanto = useCallback(async (adelantoItem) => {
+    if (!adelantoItem?.id) return;
+    try {
+      setImprimiendoAdelantoId(String(adelantoItem.id));
+      const currentVersion = Number(adelantoItem?.comprobante?.version || 0);
+      const nextComprobante = {
+        version: currentVersion + 1,
+        emittedAt: new Date().toISOString(),
+      };
+      await setDoc(
+        doc(db, "adelantos", String(adelantoItem.id)),
+        { comprobante: nextComprobante },
+        { merge: true }
+      );
+      setAdelantos((prev) =>
+        prev.map((item) =>
+          String(item.id || "") === String(adelantoItem.id)
+            ? { ...item, comprobante: nextComprobante }
+            : item
+        )
+      );
+
+      const html = buildAdelantoComprobanteHtml({
+        empleado,
+        adelanto: { ...adelantoItem, comprobante: nextComprobante },
+        comprobante: nextComprobante,
+      });
+      imprimirHtmlInvisible(html);
+      toast({ title: "Comprobante de adelanto listo para imprimir" });
+    } catch (error) {
+      toast({
+        title: "No se pudo emitir el comprobante",
+        description: error?.message || "Error",
+        variant: "destructive",
+      });
+    } finally {
+      setImprimiendoAdelantoId("");
+    }
+  }, [empleado, imprimirHtmlInvisible]);
+
+  const guardarJustificacionAusencia = useCallback(async (entry) => {
+    if (!entry?.rowId) return;
+    const draft = ausentismoDrafts[entry.id] || {};
+    const note = String((draft.note ?? entry.data?.ausentismoNota) || "").trim();
+    const files = Array.from(draft.files || []);
+    const currentAttachments = Array.isArray(entry.data?.ausentismoAdjuntos)
+      ? entry.data.ausentismoAdjuntos.map(normalizarAusentismoAdjunto)
+      : [];
+
+    if (!note && files.length === 0 && currentAttachments.length === 0) {
+      toast({
+        title: "Falta respaldo",
+        description: "Agregá una nota o al menos un adjunto para justificar la ausencia.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSubiendoAusentismoKey(entry.id);
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Iniciá sesión para adjuntar comprobantes.");
+      const idToken = await currentUser.getIdToken();
+      const uploaded = [];
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("employeeId", String(id));
+        formData.append("weekStart", String(entry.weekStart));
+        formData.append("dayKey", String(entry.dayKey));
+
+        const res = await fetch("/api/asistencia/ausentismo/adjunto", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${idToken}`,
+          },
+          body: formData,
+        });
+        const data = await safeJson(res);
+        if (!data?.ok) throw new Error(data?.error || "No se pudo subir el adjunto.");
+        uploaded.push(normalizarAusentismoAdjunto(data.adjunto));
+      }
+
+      setGuardandoAusentismoKey(entry.id);
+      const nextDay = {
+        ...(entry.data || {}),
+        estado: "ausente",
+        monto: Number(entry.data?.monto || 0),
+        ausentismoJustificado: true,
+        ausentismoNota: note,
+        ausentismoJustificadoAt: new Date().toISOString(),
+        ausentismoAdjuntos: [...currentAttachments, ...uploaded],
+      };
+
+      await setDoc(
+        doc(db, "asistencias", String(entry.rowId)),
+        {
+          days: {
+            [entry.dayKey]: nextDay,
+          },
+        },
+        { merge: true }
+      );
+
+      updateAsistenciaDayLocal(entry.rowId, entry.dayKey, nextDay);
+      setAusentismoDrafts((prev) => ({
+        ...prev,
+        [entry.id]: {
+          ...(prev[entry.id] || {}),
+          note,
+          files: [],
+        },
+      }));
+      toast({ title: "Ausencia justificada correctamente" });
+    } catch (error) {
+      toast({
+        title: "No se pudo guardar la justificación",
+        description: error?.message || "Error",
+        variant: "destructive",
+      });
+    } finally {
+      setSubiendoAusentismoKey("");
+      setGuardandoAusentismoKey("");
+    }
+  }, [ausentismoDrafts, id, updateAsistenciaDayLocal]);
+
+  const eliminarAdjuntoAusentismo = useCallback(async (entry, adjunto) => {
+    if (!entry?.rowId || !adjunto?.id) return;
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Iniciá sesión para gestionar adjuntos.");
+      const idToken = await currentUser.getIdToken();
+
+      if (adjunto.storagePath) {
+        const res = await fetch("/api/asistencia/ausentismo/adjunto", {
+          method: "DELETE",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ storagePath: adjunto.storagePath }),
+        });
+        const data = await safeJson(res);
+        if (!data?.ok) throw new Error(data?.error || "No se pudo eliminar el archivo.");
+      }
+
+      const remaining = (entry.data?.ausentismoAdjuntos || [])
+        .map(normalizarAusentismoAdjunto)
+        .filter((item) => String(item.id) !== String(adjunto.id));
+      const note = String(entry.data?.ausentismoNota || "");
+      const nextDay = {
+        ...(entry.data || {}),
+        ausentismoAdjuntos: remaining,
+        ausentismoJustificado: Boolean(note || remaining.length > 0),
+      };
+
+      await setDoc(
+        doc(db, "asistencias", String(entry.rowId)),
+        {
+          days: {
+            [entry.dayKey]: nextDay,
+          },
+        },
+        { merge: true }
+      );
+
+      updateAsistenciaDayLocal(entry.rowId, entry.dayKey, nextDay);
+      toast({ title: "Adjunto eliminado" });
+    } catch (error) {
+      toast({
+        title: "No se pudo eliminar el adjunto",
+        description: error?.message || "Error",
+        variant: "destructive",
+      });
+    }
+  }, [updateAsistenciaDayLocal]);
 
   const generarLinkPublico = useCallback(async (liquidacionId, { rotate = true } = {}) => {
     const currentUser = auth.currentUser;
@@ -340,8 +821,8 @@ export default function EmpleadoDetallePage() {
   }, [buildPublicUrl]);
 
   useEffect(() => {
-    const tokenPlain = String(comprobanteMensual?.public?.token || "").trim();
-    const tokenHash = String(comprobanteMensual?.public?.tokenHash || "").trim();
+    const tokenPlain = String(comprobanteMensualNormalizado?.public?.token || "").trim();
+    const liquidacionId = String(comprobanteMensualNormalizado?.id || "").trim();
 
     if (tokenPlain) {
       const nextUrl = buildPublicUrl(tokenPlain);
@@ -349,11 +830,11 @@ export default function EmpleadoDetallePage() {
       return;
     }
 
-    if (!tokenHash || !comprobanteMensual?.id || publicUrl) return;
+    if (!liquidacionId || publicUrl) return;
 
     let cancelled = false;
     const recover = async () => {
-      const nextUrl = await generarLinkPublico(comprobanteMensual.id, { rotate: false });
+      const nextUrl = await generarLinkPublico(liquidacionId, { rotate: false });
       if (!cancelled && nextUrl) {
         setPublicUrl(nextUrl);
       }
@@ -363,40 +844,18 @@ export default function EmpleadoDetallePage() {
     return () => {
       cancelled = true;
     };
-  }, [buildPublicUrl, comprobanteMensual?.id, comprobanteMensual?.public?.token, comprobanteMensual?.public?.tokenHash, generarLinkPublico, publicUrl]);
-
-  const copiarLinkPublico = useCallback(async () => {
-    if (!publicUrl) return;
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      toast({ title: "Link copiado" });
-    } catch {
-      toast({
-        title: "No se pudo copiar el link",
-        variant: "destructive",
-      });
-    }
-  }, [publicUrl]);
+  }, [buildPublicUrl, comprobanteMensualNormalizado?.id, comprobanteMensualNormalizado?.public?.token, generarLinkPublico, publicUrl]);
 
   const abrirLinkPublico = useCallback(() => {
     if (!publicUrl) return;
     window.open(publicUrl, "_blank", "noopener,noreferrer");
   }, [publicUrl]);
 
-  const handleGenerarLinkPublico = useCallback(async () => {
-    const liquidacionId = comprobanteMensual?.id || `${filtroMes}_${id}`;
-    if (!liquidacionId || !comprobanteMensual) return;
-    const nextUrl = await generarLinkPublico(liquidacionId);
-    if (nextUrl) {
-      toast({ title: "Link público listo para compartir" });
-    }
-  }, [comprobanteMensual, filtroMes, generarLinkPublico, id]);
-
   const emitirComprobante = async () => {
-    if (!resumenMes.isClosed || !empleado?.id) return;
+    if (!empleado?.id) return;
     try {
       setEmitiendoComprobante(true);
-      const nextVersion = Number(comprobanteMensual?.version || 0) + 1;
+      const nextVersion = Number(comprobanteMensualNormalizado?.version || 0) + 1;
       const payload = {
         employeeId: empleado.id,
         employeeNombre: empleado.nombre || "",
@@ -408,6 +867,9 @@ export default function EmpleadoDetallePage() {
         version: nextVersion,
         totSemana: Number(resumenMes.totSemana || 0),
         totAdv: Number(resumenMes.totAdv || 0),
+        adelantosDetalle: Array.isArray(resumenMes.adelantosDetalle)
+          ? resumenMes.adelantosDetalle.map(normalizarAdelantoDetalle)
+          : [],
         totPagar: Number(resumenMes.totPagar || 0),
         premioAsistencia: {
           ...(resumenMes.premioAsistencia || {}),
@@ -416,6 +878,7 @@ export default function EmpleadoDetallePage() {
           presentes: Number(resumenMes.premioAsistencia?.presentes || 0),
           medias: Number(resumenMes.premioAsistencia?.medias || 0),
           ausentes: Number(resumenMes.premioAsistencia?.ausentes || 0),
+          justificadas: Number(resumenMes.premioAsistencia?.justificadas || 0),
           diasEsperados: Number(resumenMes.premioAsistencia?.diasEsperados || 0),
         },
       };
@@ -465,10 +928,22 @@ export default function EmpleadoDetallePage() {
                   {resumenMes.isClosed ? "Cerrada" : "En cálculo"}
                 </span>
               </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-500">Empleado</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900">{employeeName}</div>
+                </div>
+                {employeeSector ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Sector</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-700">{employeeSector}</div>
+                  </div>
+                ) : null}
+              </div>
               <div className="text-sm text-slate-500">
                 {resumenMes.isClosed
                   ? `Cerrado el ${formatDateTimeAR(resumenMes.closedAt)}`
-                  : `Liquidación en cálculo vivo para ${resumenMes.labelMes}.`}
+                  : `Liquidación en cálculo vivo para ${resumenMes.labelMes}. Podés emitir el comprobante aunque el mes siga abierto.`}
               </div>
             </div>
 
@@ -572,83 +1047,54 @@ export default function EmpleadoDetallePage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={emitirComprobante}
-                disabled={!resumenMes.isClosed || emitiendoComprobante || generandoLink}
+                disabled={!empleado?.id || emitiendoComprobante || generandoLink}
                 className="rounded-xl bg-violet-600 text-white shadow-sm transition-all hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-200 disabled:bg-violet-300 disabled:text-white disabled:shadow-none disabled:opacity-100"
               >
                 {emitiendoComprobante
                   ? "Emitiendo..."
-                  : comprobanteMensual
+                  : comprobanteMensualNormalizado
                     ? "Reemitir comprobante"
                     : "Emitir comprobante"}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => abrirComprobanteImprimible(comprobanteMensual)}
-                disabled={!comprobanteMensual}
+                onClick={() => abrirComprobanteImprimible(comprobanteMensualNormalizado)}
+                disabled={!comprobanteMensualNormalizado}
                 className={ACTION_OUTLINE_BUTTON_CLASS}
               >
                 Ver / imprimir
               </Button>
               <Button
                 variant="outline"
-                onClick={handleGenerarLinkPublico}
-                disabled={!comprobanteMensual || generandoLink}
-                className={ACTION_OUTLINE_BUTTON_CLASS}
-              >
-                {generandoLink ? "Generando link..." : publicUrl ? "Regenerar link público" : "Generar link público"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={copiarLinkPublico}
-                disabled={!publicUrl}
-                className={ACTION_OUTLINE_BUTTON_CLASS}
-              >
-                Copiar link
-              </Button>
-              <Button
-                variant="outline"
                 onClick={abrirLinkPublico}
-                disabled={!publicUrl}
+                disabled={!comprobanteMensualNormalizado || !publicUrl || generandoLink}
                 className={ACTION_OUTLINE_BUTTON_CLASS}
               >
-                Abrir link
+                {generandoLink ? "Preparando link..." : "Abrir link"}
               </Button>
             </div>
 
-            {comprobanteMensual ? (
+            {comprobanteMensualNormalizado ? (
               <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-5">
                 <div className="grid gap-4 md:grid-cols-[1fr_1fr_220px]">
                   <div>
                     <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Emitido</div>
-                    <div className="mt-2 text-sm font-semibold text-slate-900">{formatDateTimeAR(comprobanteMensual.generatedAt)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Versión</div>
-                    <div className="mt-2 text-sm font-semibold text-slate-900">{Number(comprobanteMensual.version || 1)}</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">{formatDateTimeAR(comprobanteMensualNormalizado.generatedAt)}</div>
                   </div>
                   <div className="md:text-right">
                     <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Total a pagar</div>
                     <div className="mt-2 text-[28px] font-extrabold tracking-tight text-violet-600">
-                      {formatCurrencyAR(comprobanteMensual.totPagar || 0)}
+                      {formatCurrencyAR(comprobanteMensualNormalizado.totPagar || 0)}
                     </div>
                   </div>
                 </div>
-                {publicUrl ? (
-                  <div className="mt-4 space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Link compartible</div>
-                    <Input value={publicUrl} readOnly className="h-11 rounded-xl border-slate-200 bg-white" />
-                  </div>
-                ) : comprobanteMensual?.public?.tokenHash ? (
-                  <div className="mt-4 text-sm text-slate-500">
-                    Ya existe un link público generado. Si necesitás compartirlo de nuevo, generá uno nuevo.
-                  </div>
-                ) : null}
+
               </div>
             ) : (
               <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 p-5 text-sm text-slate-500">
-                {!resumenMes.isClosed
-                  ? "Para emitir el comprobante primero tenés que cerrar el mes desde Asistencia."
-                  : "Todavía no hay comprobante emitido para este mes."}
+                {resumenMes.isClosed
+                  ? "Todavía no hay comprobante emitido para este mes."
+                  : "Todavía no hay comprobante emitido para este mes. Podés generarlo ahora mismo con los datos actuales, sin cerrar el mes."}
               </div>
             )}
           </CardContent>
@@ -660,26 +1106,36 @@ export default function EmpleadoDetallePage() {
               <CardTitle className="text-sm font-semibold text-slate-900">Resumen general</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Total semana</span>
-                <span className="font-semibold text-slate-900">{formatCurrencyAR(resumenMes.totSemana)}</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Adelantos</span>
-                <span className="font-semibold text-orange-500">{formatCurrencyAR(resumenMes.totAdv)}</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-600">
-                <span>Premio asistencia</span>
-                <span className="font-semibold text-orange-500">{formatCurrencyAR(Number(resumenMes.premioAsistencia?.premio || 0))}</span>
-              </div>
-              <div className="border-t border-slate-100 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold text-slate-900">Total a pagar</span>
-                  <span className="text-[28px] font-extrabold tracking-tight text-slate-900">
-                    {formatCurrencyAR(resumenMes.totPagar)}
-                  </span>
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Total trabajado</span>
+                  <span className="font-semibold text-slate-900">{formatCurrencyAR(resumenFormula.trabajado)}</span>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Suma exacta de los jornales del mes seleccionado.
                 </div>
               </div>
+
+              <div className="rounded-[20px] border border-orange-200 bg-orange-50/70 p-4">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Adelantos del mes</span>
+                  <span className="font-semibold text-orange-600">{formatCurrencyAR(resumenFormula.adelantosMes)}</span>
+                </div>
+                <div className="mt-1 text-xs text-orange-700/80">
+                  Subtotal del mes: {resumenFormula.cantidadAdelantos.toLocaleString("es-AR")} movimiento{resumenFormula.cantidadAdelantos === 1 ? "" : "s"} cargado{resumenFormula.cantidadAdelantos === 1 ? "" : "s"}.
+                </div>
+              </div>
+
+              <div className="rounded-[20px] border border-emerald-200 bg-emerald-50/70 p-4">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Reconocimiento por asistencia</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrencyAR(resumenFormula.premio)}</span>
+                </div>
+                <div className="mt-1 text-xs text-emerald-700/80">
+                  Se suma al total del mes si el empleado cumple las condiciones definidas.
+                </div>
+              </div>
+
             </CardContent>
           </Card>
 
@@ -712,6 +1168,13 @@ export default function EmpleadoDetallePage() {
                     </div>
                     <span className="font-semibold text-slate-900">{resumenMes.premioAsistencia?.medias || 0}</span>
                   </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+                      <span>Justificadas</span>
+                    </div>
+                    <span className="font-semibold text-slate-900">{resumenMes.premioAsistencia?.justificadas || 0}</span>
+                  </div>
                 </div>
               </div>
               {/* <div className="text-sm font-medium text-violet-600">
@@ -725,17 +1188,17 @@ export default function EmpleadoDetallePage() {
 
           <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-900">Regla de premio</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-900">Condiciones del reconocimiento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-600">Estado</span>
+                <span className="text-slate-600">Resultado</span>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
                   {resumenMes.premioAsistencia?.estadoLabel || "Sin premio"}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-600">Mínimo</span>
+                <span className="text-slate-600">Asistencia minima</span>
                 <span className="font-semibold text-slate-900">
                   {Number(resumenMes.premioAsistencia?.config?.minPorcentaje || 0).toLocaleString("es-AR")}%
                 </span>
@@ -829,7 +1292,8 @@ export default function EmpleadoDetallePage() {
                       <th className="px-4 py-3 text-left font-semibold">Fecha</th>
                       <th className="px-4 py-3 text-right font-semibold">Monto</th>
                       <th className="px-4 py-3 text-left font-semibold">Nota</th>
-                      <th className="px-4 py-3 text-right font-semibold">Acción</th>
+                      <th className="px-4 py-3 text-left font-semibold">Comprobante</th>
+                      <th className="px-4 py-3 text-right font-semibold">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -840,21 +1304,44 @@ export default function EmpleadoDetallePage() {
                           {formatCurrencyAR(item.monto)}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{item.nota || "-"}</td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {item?.comprobante?.emittedAt ? (
+                            <div className="space-y-1">
+                              <div className="text-sm font-semibold text-slate-900">
+                                Versión {Number(item?.comprobante?.version || 1)}
+                              </div>
+                              <div className="text-xs text-slate-500">{formatDateTimeAR(item?.comprobante?.emittedAt)}</div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-slate-400">Sin emitir</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => deleteDoc(doc(db, "adelantos", item.id))}
-                          >
-                            Eliminar
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg border-violet-200 text-violet-700 hover:bg-violet-50"
+                              onClick={() => emitirComprobanteAdelanto(item)}
+                              disabled={imprimiendoAdelantoId === String(item.id)}
+                            >
+                              {imprimiendoAdelantoId === String(item.id) ? "Emitiendo..." : "Comprobante"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => deleteDoc(doc(db, "adelantos", item.id))}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                     {adelantosOrdenados.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                        <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
                           No hay adelantos registrados.
                         </td>
                       </tr>
@@ -868,6 +1355,7 @@ export default function EmpleadoDetallePage() {
                       </td>
                       <td className="px-4 py-3" />
                       <td className="px-4 py-3" />
+                      <td className="px-4 py-3" />
                     </tr>
                   </tfoot>
                 </table>
@@ -875,6 +1363,130 @@ export default function EmpleadoDetallePage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">Ausentismo justificado</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {ausenciasMes.length > 0 ? (
+              <div className="space-y-4">
+                {ausenciasMes.map((entry) => {
+                  const draft = ausentismoDrafts[entry.id] || {};
+                  const isBusy = guardandoAusentismoKey === entry.id || subiendoAusentismoKey === entry.id;
+                  const currentNote = String((draft.note ?? entry.data?.ausentismoNota) || "");
+                  const pendingFiles = Array.from(draft.files || []);
+                  const currentAttachments = Array.isArray(entry.data?.ausentismoAdjuntos)
+                    ? entry.data.ausentismoAdjuntos.map(normalizarAusentismoAdjunto)
+                    : [];
+
+                  return (
+                    <div key={entry.id} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-sm font-semibold text-slate-900">
+                              {entry.dayLabel} {formatDateAR(entry.dateIso)}
+                            </div>
+                            <span className={cn(
+                              "rounded-full px-2.5 py-1 text-xs font-semibold",
+                              entry.data?.ausentismoJustificado ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                            )}>
+                              {entry.data?.ausentismoJustificado ? "Justificada" : "Sin justificar"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            La falta no paga el día, pero si la justificás no penaliza el presentismo.
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500">
+                          Impacto en jornal: {formatCurrencyAR(entry.data?.monto || 0)}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                        <div className="space-y-3">
+                          <div>
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Motivo / nota</div>
+                            <Input
+                              value={currentNote}
+                              onChange={(e) => setAusentismoDraft(entry.id, { note: e.target.value })}
+                              placeholder="Ej: certificado médico, reposo indicado, estudio, etc."
+                              className="h-11 rounded-xl border-slate-200 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Adjuntar comprobantes</div>
+                            <Input
+                              type="file"
+                              accept=".pdf,image/png,image/jpeg,image/webp"
+                              multiple
+                              onChange={(e) => setAusentismoDraft(entry.id, { files: e.target.files ? Array.from(e.target.files) : [] })}
+                              className="h-11 rounded-xl border-slate-200 bg-white file:mr-3 file:rounded-lg file:border-0 file:bg-violet-50 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-violet-700"
+                            />
+                            {pendingFiles.length > 0 ? (
+                              <div className="mt-2 text-xs text-slate-500">
+                                Pendientes para subir: {pendingFiles.map((file) => file.name).join(" · ")}
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              onClick={() => guardarJustificacionAusencia(entry)}
+                              disabled={isBusy}
+                              className="rounded-xl bg-violet-600 text-white hover:bg-violet-700"
+                            >
+                              {isBusy ? "Guardando..." : entry.data?.ausentismoJustificado ? "Actualizar justificación" : "Justificar falta"}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Resguardos cargados</div>
+                          <div className="space-y-2">
+                            {currentAttachments.length > 0 ? currentAttachments.map((adjunto) => (
+                              <div key={adjunto.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                                <div className="min-w-0">
+                                  <a
+                                    href={adjunto.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block truncate text-sm font-semibold text-violet-700 hover:text-violet-800"
+                                  >
+                                    {adjunto.nombreArchivo}
+                                  </a>
+                                  <div className="text-xs text-slate-500">
+                                    {formatDateTimeAR(adjunto.uploadedAt)} · {Math.max(Math.round((adjunto.size || 0) / 1024), 1)} KB
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => eliminarAdjuntoAusentismo(entry, adjunto)}
+                                >
+                                  Quitar
+                                </Button>
+                              </div>
+                            )) : (
+                              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                                Todavía no hay comprobantes adjuntos para esta falta.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-sm text-slate-500">
+                No hay faltas ausentes registradas en el mes seleccionado.
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {resumenMes.premioAsistencia?.motivos?.length > 0 ? (
           <Card className="rounded-[24px] border border-amber-200 bg-amber-50/80 shadow-sm">

@@ -327,7 +327,6 @@ export default function DocumentacionTemplatesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Versión</TableHead>
                 <TableHead>Actualización</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -360,11 +359,6 @@ export default function DocumentacionTemplatesPage() {
                 items.map((it) => (
                   <TableRow key={it.id}>
                     <TableCell className="font-medium">{it.nombre}</TableCell>
-                    <TableCell>
-                      <Badge color="secondary" variant="outline">
-                        v{it.version || 1}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="text-sm text-default-600">{it.updatedAt || "-"}</TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button size="sm" variant="outline" onClick={() => onEdit(it)}>

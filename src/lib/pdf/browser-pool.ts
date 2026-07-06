@@ -3,12 +3,26 @@
  * Evita el "cold start" al mantener una instancia del navegador en memoria
  */
 
+import { existsSync } from "fs";
+
 let browserInstance: any = null;
 let browserPromise: Promise<any> | null = null;
 let isInitializing = false;
 
 const BROWSER_TIMEOUT = 30000; // 30 segundos de inactividad antes de cerrar
 let browserTimeoutId: NodeJS.Timeout | null = null;
+
+function resolveLocalChromeExecutablePath(): string {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  ].filter(Boolean) as string[];
+
+  return candidates.find((path) => existsSync(path)) || "";
+}
 
 /**
  * Obtiene o crea una instancia del navegador
@@ -70,8 +84,21 @@ async function createBrowser(): Promise<any> {
       chromium.setGraphicsMode(false);
     }
     
-    // executablePath es una función async en @sparticuz/chromium
-    const executablePath = await chromium.executablePath();
+    let executablePath = "";
+    try {
+      // executablePath es una función async en @sparticuz/chromium
+      executablePath = await chromium.executablePath();
+    } catch (error) {
+      executablePath = "";
+    }
+
+    if (!executablePath || !existsSync(executablePath)) {
+      executablePath = resolveLocalChromeExecutablePath();
+    }
+
+    if (!executablePath) {
+      throw new Error("No se encontro un ejecutable de Chromium/Chrome para generar el PDF.");
+    }
     
     return await puppeteerCore.launch({
       args: [
@@ -112,7 +139,7 @@ async function createBrowser(): Promise<any> {
         width: 794, // A4 width in pixels at 96 DPI
       },
       executablePath: executablePath,
-      headless: chromium.headless || "shell",
+      headless: chromium.headless || true,
     });
   } else {
     // Desarrollo: usar puppeteer normal

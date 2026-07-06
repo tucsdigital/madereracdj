@@ -74,6 +74,7 @@ export default function CrearObraPage() {
   const [showFormularioCliente, setShowFormularioCliente] = useState(false);
 
   // Ubicación
+  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split("T")[0]);
   const [usarDireccionCliente, setUsarDireccionCliente] = useState(true);
   const [direccion, setDireccion] = useState("");
   const [localidad, setLocalidad] = useState("");
@@ -494,6 +495,10 @@ export default function CrearObraPage() {
   const handleGuardarObra = async () => {
     const finalClienteId = clienteId || DEFAULT_CLIENTE_ID;
     const clienteSel = clientes.find((c) => c.id === finalClienteId) || null;
+    if (!fechaInicio) {
+      alert("Selecciona la fecha de inicio de la obra.");
+      return;
+    }
     setGuardando(true);
     try {
       const numeroPedido = await getNextObraNumber();
@@ -571,9 +576,14 @@ export default function CrearObraPage() {
         tipo: "obra",
         numeroPedido,
         estado: "pendiente_inicio",
+        fecha: fechaInicio,
         clienteId: finalClienteId,
         cliente: clienteObj,
         ubicacion: ubicacionObra,
+        fechas: {
+          inicio: fechaInicio,
+          fin: null,
+        },
         materialesCatalogo: materialesSanitizados,
         presupuestoInicialId: presupuestoInicialId || null,
         montoEstimado: presupuestoInicialId ? null : (Number(montoEstimado) || 0),
@@ -609,6 +619,15 @@ export default function CrearObraPage() {
           <CardTitle>Datos Generales</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm text-gray-600">Fecha de inicio</label>
+            <DateInput
+              value={fechaInicio}
+              onChange={setFechaInicio}
+              buttonClassName="mt-1 w-full justify-start"
+            />
+          </div>
+
           {/* Cliente */}
           <div>
             <label className="text-sm text-gray-600">Cliente</label>

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
+import { getObraReferenceDate } from "@/lib/obras-fechas";
 import { collection, getDocs } from "firebase/firestore";
 import { useDateRange } from "./date-range-context";
 
@@ -50,7 +51,7 @@ export const DashboardDataProvider = ({ children }) => {
         .filter((p) => isInRange(p.fechaCreacion || p.fecha));
       const obras = raw.obrasSnap.docs
         .map((doc) => ({ ...doc.data(), id: doc.id }))
-        .filter((o) => isInRange(o.fechaCreacion));
+        .filter((o) => isInRange(getObraReferenceDate(o)));
       const productos = raw.productosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
       const clientesMap = {};
       raw.clientesSnap.docs.forEach((d) => {

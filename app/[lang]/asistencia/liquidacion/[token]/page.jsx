@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrencyAR } from "@/lib/asistencia-utils";
 
+const formatDateAR = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("es-AR");
+};
+
 const safeJson = async (res) => {
   try {
     return await res.json();
@@ -13,6 +20,17 @@ const safeJson = async (res) => {
     return null;
   }
 };
+
+const PUBLIC_TABLE_WRAP_CLASS =
+  "overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_20px_45px_-35px_rgba(15,23,42,0.35)]";
+
+const PUBLIC_TABLE_HEAD_CLASS =
+  "bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.92))] text-[11px] uppercase tracking-[0.18em] text-slate-500";
+
+const PUBLIC_TH_LEFT_CLASS = "px-5 py-4 text-left font-semibold";
+const PUBLIC_TH_RIGHT_CLASS = "px-5 py-4 text-right font-semibold";
+const PUBLIC_TD_BASE_CLASS = "px-5 py-4 align-middle";
+const PUBLIC_ROW_CLASS = "border-t border-slate-100 even:bg-slate-50/55";
 
 function PublicLiquidacionSkeleton() {
   return (
@@ -57,11 +75,11 @@ export default function PublicLiquidacionAsistenciaPage() {
       const res = await fetch(`/api/asistencia/liquidaciones/public/${token}`);
       const data = await safeJson(res);
       if (!data?.ok) {
-        throw new Error(data?.error || "No se pudo abrir la liquidacion");
+        throw new Error(data?.error || "No se pudo abrir el resumen");
       }
       setLiquidacion(data.liquidacion || null);
     } catch (e) {
-      setError(e?.message || "No se pudo abrir la liquidacion");
+      setError(e?.message || "No se pudo abrir el resumen");
     } finally {
       setLoading(false);
     }
@@ -81,6 +99,20 @@ export default function PublicLiquidacionAsistenciaPage() {
     };
   }, [liquidacion]);
 
+  const adelantosDetalle = useMemo(() => {
+    return Array.isArray(liquidacion?.adelantosDetalle) ? liquidacion.adelantosDetalle : [];
+  }, [liquidacion]);
+
+  const resumenFormula = useMemo(() => {
+    return {
+      trabajado: Number(resumen.totSemana || 0),
+      adelantos: Number(resumen.totAdv || 0),
+      premio: Number(resumen.premio || 0),
+      total: Number(resumen.totPagar || 0),
+      cantidadAdelantos: Array.isArray(adelantosDetalle) ? adelantosDetalle.length : 0,
+    };
+  }, [adelantosDetalle, resumen]);
+
   const copyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -97,10 +129,10 @@ export default function PublicLiquidacionAsistenciaPage() {
         <div className="mx-auto max-w-3xl">
           <Card className="rounded-[28px] border-slate-200 shadow-sm">
             <CardHeader>
-              <CardTitle>Liquidacion no disponible</CardTitle>
+              <CardTitle>Resumen no disponible</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-600">
-              {error || "No se encontro la liquidacion solicitada."}
+              {error || "No se encontro el resumen solicitado."}
             </CardContent>
           </Card>
         </div>
@@ -116,7 +148,7 @@ export default function PublicLiquidacionAsistenciaPage() {
             <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">
-                  Liquidacion mensual
+                  Resumen mensual
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
                   {liquidacion.employeeNombre || "Empleado"}
@@ -139,53 +171,57 @@ export default function PublicLiquidacionAsistenciaPage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Total mes</div>
-            <div className="mt-3 text-2xl font-bold">{formatCurrencyAR(resumen.totSemana)}</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Total trabajado</div>
+            <div className="mt-3 text-2xl font-bold">{formatCurrencyAR(resumenFormula.trabajado)}</div>
           </div>
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Adelantos</div>
-            <div className="mt-3 text-2xl font-bold">{formatCurrencyAR(resumen.totAdv)}</div>
+            <div className="mt-3 text-2xl font-bold">{formatCurrencyAR(resumenFormula.adelantos)}</div>
+            <div className="mt-2 text-xs text-slate-500">
+              {resumenFormula.cantidadAdelantos.toLocaleString("es-AR")} movimiento{resumenFormula.cantidadAdelantos === 1 ? "" : "s"} en el mes
+            </div>
           </div>
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Premio</div>
-            <div className="mt-3 text-2xl font-bold text-amber-600">{formatCurrencyAR(resumen.premio)}</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Reconocimiento</div>
+            <div className="mt-3 text-2xl font-bold text-amber-600">{formatCurrencyAR(resumenFormula.premio)}</div>
           </div>
           <div className="rounded-[24px] border border-blue-200 bg-blue-50 p-5 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">Total a pagar</div>
-            <div className="mt-3 text-2xl font-bold text-blue-700">{formatCurrencyAR(resumen.totPagar)}</div>
+            <div className="mt-3 text-2xl font-bold text-blue-700">{formatCurrencyAR(resumenFormula.total)}</div>
           </div>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <Card className="rounded-[28px] border-slate-200 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle>Detalle de liquidacion</CardTitle>
+              <CardTitle>Resumen de importes</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-hidden rounded-[22px] border border-slate-200">
+            <CardContent className="space-y-4">
+
+              <div className={PUBLIC_TABLE_WRAP_CLASS}>
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500">
+                  <thead className={PUBLIC_TABLE_HEAD_CLASS}>
                     <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Concepto</th>
-                      <th className="px-4 py-3 text-right font-semibold">Importe</th>
+                      <th className={PUBLIC_TH_LEFT_CLASS}>Concepto</th>
+                      <th className={PUBLIC_TH_RIGHT_CLASS}>Importe</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t border-slate-200">
-                      <td className="px-4 py-3">Total trabajado del mes</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrencyAR(resumen.totSemana)}</td>
+                    <tr className={PUBLIC_ROW_CLASS}>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Total trabajado del mes</td>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-slate-900`}>{formatCurrencyAR(resumenFormula.trabajado)}</td>
                     </tr>
-                    <tr className="border-t border-slate-200">
-                      <td className="px-4 py-3">Adelantos descontados</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrencyAR(resumen.totAdv)}</td>
+                    <tr className={PUBLIC_ROW_CLASS}>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Adelantos del mes</td>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-orange-600`}>{formatCurrencyAR(resumenFormula.adelantos)}</td>
                     </tr>
-                    <tr className="border-t border-slate-200">
-                      <td className="px-4 py-3">Premio por asistencia</td>
-                      <td className="px-4 py-3 text-right font-medium text-amber-600">{formatCurrencyAR(resumen.premio)}</td>
+                    <tr className={PUBLIC_ROW_CLASS}>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Reconocimiento por asistencia</td>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-amber-600`}>{formatCurrencyAR(resumenFormula.premio)}</td>
                     </tr>
-                    <tr className="border-t border-slate-200 bg-blue-50/70">
-                      <td className="px-4 py-3 font-semibold text-blue-700">Total a pagar</td>
-                      <td className="px-4 py-3 text-right font-semibold text-blue-700">{formatCurrencyAR(resumen.totPagar)}</td>
+                    <tr className="border-t border-blue-100 bg-[linear-gradient(135deg,rgba(239,246,255,0.95),rgba(224,231,255,0.85))]">
+                      <td className={`${PUBLIC_TD_BASE_CLASS} font-semibold text-blue-700`}>Total a pagar</td>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-blue-700`}>{formatCurrencyAR(resumenFormula.total)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -215,8 +251,12 @@ export default function PublicLiquidacionAsistenciaPage() {
                   <span className="text-slate-500">Ausencias</span>
                   <span className="font-semibold">{Number(liquidacion.premioAsistencia?.ausentes || 0)}</span>
                 </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Justificadas</span>
+                  <span className="font-semibold">{Number(liquidacion.premioAsistencia?.justificadas || 0)}</span>
+                </div>
                 <div className="flex items-center justify-between rounded-[18px] bg-emerald-50 px-4 py-3">
-                  <span className="text-emerald-700">Estado del premio</span>
+                  <span className="text-emerald-700">Resultado del reconocimiento</span>
                   <span className="font-semibold text-emerald-700">
                     {liquidacion.premioAsistencia?.estadoLabel || "-"}
                   </span>
@@ -226,7 +266,7 @@ export default function PublicLiquidacionAsistenciaPage() {
 
             <Card className="rounded-[28px] border-slate-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle>Emision</CardTitle>
+              <CardTitle>Emision del resumen</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-slate-600">
                 <div className="flex items-center justify-between">
@@ -239,6 +279,48 @@ export default function PublicLiquidacionAsistenciaPage() {
             </Card>
           </div>
         </section>
+
+        <Card className="rounded-[28px] border-slate-200 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle>Adelantos del mes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={PUBLIC_TABLE_WRAP_CLASS}>
+              <table className="min-w-full text-sm">
+                <thead className={PUBLIC_TABLE_HEAD_CLASS}>
+                  <tr>
+                    <th className={PUBLIC_TH_LEFT_CLASS}>Fecha</th>
+                    <th className={PUBLIC_TH_LEFT_CLASS}>Detalle</th>
+                    <th className={PUBLIC_TH_RIGHT_CLASS}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adelantosDetalle.length > 0 ? (
+                    <>
+                      {adelantosDetalle.map((item) => (
+                        <tr key={item.id || `${item.fecha}-${item.monto}`} className={PUBLIC_ROW_CLASS}>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} font-semibold text-slate-900`}>{formatDateAR(item.fecha)}</td>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-600`}>{item.nota || "Sin detalle"}</td>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-slate-900`}>{formatCurrencyAR(item.monto)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-slate-200 bg-slate-950/[0.03]">
+                        <td colSpan={2} className={`${PUBLIC_TD_BASE_CLASS} font-semibold text-slate-900`}>Subtotal adelantos</td>
+                        <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-extrabold text-slate-900`}>{formatCurrencyAR(resumenFormula.adelantos)}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr className="border-t border-slate-100">
+                      <td colSpan={3} className="px-5 py-8 text-center text-sm text-slate-500">
+                        No hay adelantos registrados en este mes.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         {Array.isArray(liquidacion.premioAsistencia?.motivos) && liquidacion.premioAsistencia.motivos.length > 0 ? (
           <Card className="rounded-[28px] border-amber-200 bg-amber-50 shadow-sm">

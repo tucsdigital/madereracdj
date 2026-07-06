@@ -1,13 +1,26 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAdminDb, verifyFirebaseToken } from "@/lib/firebase-admin";
+import { getObraReferenceDate } from "@/lib/obras-fechas";
 import { nowIso } from "@/lib/documentacion-server";
 import { Resend } from "resend";
 import { generatePdfFromHtml } from "@/src/lib/pdf/generate-documento-firmado";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
-const REPORT_RECIPIENTS = ["mazalautaro.dev@gmail.com", "tucsdigital@gmail.com", "joantgord@gmail.com", "maderascaballero1@gmail.com"];
+const DEFAULT_REPORT_RECIPIENTS = ["mazalautaro.dev@gmail.com", "tucsdigital@gmail.com", "joantgord@gmail.com", "maderascaballero1@gmail.com"];
+
+const parseRecipientsParam = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((item, index, arr) => arr.indexOf(item) === index)
+    .filter((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item));
+};
 
 
 
@@ -224,7 +237,7 @@ const buildPdfHtml = ({ monthKey, period, kpis, pendientesParciales, obrasPendie
         <tr>
           <td class="td-muted">${idx + 1}</td>
           <td>${escapeHtml(o?.numero || o?.id || "")}</td>
-          <td class="td-muted">${escapeHtml(formatDateAr(o?.fechaCreacion, { withSeconds: false }))}</td>
+          <td class="td-muted">${escapeHtml(formatDateAr(o?.fechaReferencia, { withSeconds: false }))}</td>
           <td>${escapeHtml(o?.clienteNombre || "")}</td>
           <td>${escapeHtml(String(o?.estado || "")).replaceAll("_", " ")}</td>
           <td class="right">${formatArs(o?.total)}</td>
@@ -604,6 +617,8 @@ export async function POST(request) {
 
     const url = new URL(request.url);
     const monthKeyParam = url.searchParams.get("month");
+    const recipientsOverride = parseRecipientsParam(url.searchParams.get("to"));
+    const reportRecipients = recipientsOverride.length > 0 ? recipientsOverride : DEFAULT_REPORT_RECIPIENTS;
     const sendEmailRequested = url.searchParams.get("email") !== "0";
     const pausedEnv = String(process.env.REPORTE_MENSUAL_PAUSED || "").trim().toLowerCase();
     const sendEmail = sendEmailRequested && pausedEnv !== "1" && pausedEnv !== "true" && pausedEnv !== "yes";
@@ -632,6 +647,7 @@ export async function POST(request) {
           pendingCount,
           generated: false,
           emailed: emailAlreadySent,
+          to: reportRecipients,
           skipped: true,
         });
       }
@@ -650,7 +666,7 @@ export async function POST(request) {
       const obrasAll = obrasSnap.docs.map((d) => ({ id: d.id, ...(d.data() || {}) }));
 
       const ventasPeriodo = ventasAll.filter((v) => isInRange(v.fechaCreacion || v.fecha, startMs, endMs));
-      const obrasPeriodo = obrasAll.filter((o) => isInRange(o.fechaCreacion, startMs, endMs));
+      const obrasPeriodo = obrasAll.filter((o) => isInRange(getObraReferenceDate(o), startMs, endMs));
 
       const obrasPendientes = obrasPeriodo
         .filter((o) => String(o?.tipo || "").toLowerCase() === "obra")
@@ -661,12 +677,12 @@ export async function POST(request) {
         .map((o) => ({
           id: String(o?.id || ""),
           numero: String(o?.numero || o?.numeroPedido || (o?.id ? String(o.id).slice(-8) : "")),
-          fechaCreacion: String(o?.fechaCreacion || ""),
+          fechaReferencia: String(getObraReferenceDate(o) || ""),
           clienteNombre: String(o?.cliente?.nombre || ""),
           estado: String(o?.estado || ""),
           total: Number(calcObraTotal(o)) || 0,
         }))
-        .sort((a, b) => toMs(a.fechaCreacion) - toMs(b.fechaCreacion));
+        .sort((a, b) => toMs(a.fechaReferencia) - toMs(b.fechaReferencia));
 
       const pendientesParciales = ventasPeriodo
         .map((v) => {
@@ -709,7 +725,7 @@ export async function POST(request) {
         email: {
           sentAt: null,
           resendId: null,
-          to: REPORT_RECIPIENTS,
+          to: reportRecipients,
           sendingAt: null,
           sendingError: null,
         },
@@ -754,7 +770,7 @@ export async function POST(request) {
     const replyTo = String(process.env.RESEND_REPLY_TO || "").trim();
     if (!apiKey || !from) {
       await reportRef.set(
-        { email: { sendingError: "Falta RESEND_API_KEY o RESEND_FROM", sendingAt: null, to: REPORT_RECIPIENTS }, updatedAt: nowIso() },
+        { email: { sendingError: "Falta RESEND_API_KEY o RESEND_FROM", sendingAt: null, to: reportRecipients }, updatedAt: nowIso() },
         { merge: true }
       );
       return NextResponse.json({ ok: false, error: "Falta configuración de Resend (RESEND_API_KEY / RESEND_FROM)" }, { status: 500 });
@@ -765,7 +781,7 @@ export async function POST(request) {
     const logoDataUrl = readLogoDataUrl();
 
     const emailSendingAt = nowIso();
-    await reportRef.set({ email: { ...(latest.email || {}), sendingAt: emailSendingAt, sendingError: null, to: REPORT_RECIPIENTS } }, { merge: true });
+    await reportRef.set({ email: { ...(latest.email || {}), sendingAt: emailSendingAt, sendingError: null, to: reportRecipients } }, { merge: true });
 
     try {
       const pdfHtml = buildPdfHtml({
@@ -792,7 +808,7 @@ export async function POST(request) {
 
       const { data, error } = await resend.emails.send({
         from,
-        to: REPORT_RECIPIENTS,
+        to: reportRecipients,
         subject,
         text,
         html,
@@ -819,7 +835,7 @@ export async function POST(request) {
             resendId: data?.id || null,
             sendingAt: null,
             sendingError: null,
-            to: REPORT_RECIPIENTS,
+            to: reportRecipients,
           },
           updatedAt: sentAt,
         },
@@ -839,7 +855,7 @@ export async function POST(request) {
       const errMsg = String(e?.message || "Error enviando email");
       const errAt = nowIso();
       await reportRef.set(
-        { email: { ...(latest.email || {}), sendingAt: null, sendingError: errMsg, errorAt: errAt, to: REPORT_RECIPIENTS }, updatedAt: errAt },
+        { email: { ...(latest.email || {}), sendingAt: null, sendingError: errMsg, errorAt: errAt, to: reportRecipients }, updatedAt: errAt },
         { merge: true }
       );
       return NextResponse.json({ ok: false, error: errMsg, month: parsed.key, reportId: parsed.key }, { status: 502 });

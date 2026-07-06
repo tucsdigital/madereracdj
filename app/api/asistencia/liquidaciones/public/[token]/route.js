@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 import { nowIso, sha256 } from "@/lib/documentacion-server";
-import { buildPublicLiquidacionView, findLiquidacionAsistenciaByPublicTokenHash } from "@/lib/asistencia-liquidaciones-server";
+import {
+  buildPublicLiquidacionView,
+  findAdelantosDetalleByEmployeeAndMonth,
+  findLiquidacionAsistenciaByPublicTokenHash,
+  resolvePublicLiquidacionData,
+} from "@/lib/asistencia-liquidaciones-server";
 
 export async function GET(_request, { params }) {
   try {
@@ -20,6 +25,18 @@ export async function GET(_request, { params }) {
     const data = snap.data() || {};
     const openCount = Number(data?.public?.openCount || 0) + 1;
     const now = nowIso();
+    const adelantosDetalle = await findAdelantosDetalleByEmployeeAndMonth(data?.employeeId, data?.monthKey);
+    const resolvedData = await resolvePublicLiquidacionData(
+      {
+        ...data,
+        public: {
+          ...(data.public || {}),
+          lastOpenedAt: now,
+          openCount,
+        },
+      },
+      adelantosDetalle
+    );
 
     await snap.ref.set(
       {
@@ -34,17 +51,7 @@ export async function GET(_request, { params }) {
 
     return NextResponse.json({
       ok: true,
-      liquidacion: buildPublicLiquidacionView(
-        {
-          ...data,
-          public: {
-            ...(data.public || {}),
-            lastOpenedAt: now,
-            openCount,
-          },
-        },
-        snap.id
-      ),
+      liquidacion: buildPublicLiquidacionView(resolvedData, snap.id, adelantosDetalle),
     });
   } catch (e) {
     return NextResponse.json(
