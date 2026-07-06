@@ -554,13 +554,23 @@ export default function EmpleadoDetallePage() {
   }, []);
 
   const imprimirHtmlInvisible = useCallback((html) => {
+    const markup = String(html || "").trim();
+    if (!markup) {
+      toast({
+        title: "No se pudo preparar la impresión",
+        description: "El comprobante llegó vacío antes de abrir la vista previa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
     iframe.style.position = "fixed";
     iframe.style.right = "0";
     iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
+    iframe.style.width = "1px";
+    iframe.style.height = "1px";
     iframe.style.border = "0";
     iframe.style.opacity = "0";
     iframe.style.pointerEvents = "none";
@@ -571,20 +581,53 @@ export default function EmpleadoDetallePage() {
       } catch {}
     };
 
-    iframe.onload = () => {
+    const runPrint = () => {
       try {
-        iframe.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
+        const frameWindow = iframe.contentWindow;
+        if (!frameWindow) throw new Error("No se pudo acceder a la ventana de impresión.");
+        frameWindow.addEventListener("afterprint", cleanup, { once: true });
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(cleanup, 60000);
       } catch (error) {
         console.error("Error al imprimir:", error);
+        toast({
+          title: "No se pudo abrir la impresión",
+          description: "La vista previa no llegó a cargarse correctamente.",
+          variant: "destructive",
+        });
         cleanup();
       }
-      window.setTimeout(cleanup, 60000);
     };
 
     document.body.appendChild(iframe);
-    iframe.srcdoc = html;
+
+    const frameDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!frameDoc) {
+      cleanup();
+      toast({
+        title: "No se pudo preparar la impresión",
+        description: "El navegador no permitió inicializar el documento imprimible.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    frameDoc.open();
+    frameDoc.write(markup);
+    frameDoc.close();
+
+    const waitUntilReady = () => {
+      if (frameDoc.readyState !== "complete") {
+        window.setTimeout(waitUntilReady, 50);
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        window.setTimeout(runPrint, 180);
+      });
+    };
+
+    waitUntilReady();
   }, []);
 
   const abrirComprobanteImprimible = (comprobanteData) => {
