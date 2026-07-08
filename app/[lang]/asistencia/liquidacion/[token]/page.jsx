@@ -92,6 +92,7 @@ export default function PublicLiquidacionAsistenciaPage() {
   const resumen = useMemo(() => {
     return {
       totSemana: Number(liquidacion?.totSemana || 0),
+      totExtras: Number(liquidacion?.totExtras || 0),
       totAdv: Number(liquidacion?.totAdv || 0),
       premio: Number(liquidacion?.premioAsistencia?.premio || 0),
       totPagar: Number(liquidacion?.totPagar || 0),
@@ -103,15 +104,21 @@ export default function PublicLiquidacionAsistenciaPage() {
     return Array.isArray(liquidacion?.adelantosDetalle) ? liquidacion.adelantosDetalle : [];
   }, [liquidacion]);
 
+  const extrasDetalle = useMemo(() => {
+    return Array.isArray(liquidacion?.extrasDetalle) ? liquidacion.extrasDetalle : [];
+  }, [liquidacion]);
+
   const resumenFormula = useMemo(() => {
     return {
       trabajado: Number(resumen.totSemana || 0),
+      adicionales: Number(resumen.totExtras || 0),
       adelantos: Number(resumen.totAdv || 0),
       premio: Number(resumen.premio || 0),
       total: Number(resumen.totPagar || 0),
       cantidadAdelantos: Array.isArray(adelantosDetalle) ? adelantosDetalle.length : 0,
+      cantidadAdicionales: Array.isArray(extrasDetalle) ? extrasDetalle.length : 0,
     };
-  }, [adelantosDetalle, resumen]);
+  }, [adelantosDetalle, extrasDetalle, resumen]);
 
   const copyLink = useCallback(async () => {
     try {
@@ -169,10 +176,17 @@ export default function PublicLiquidacionAsistenciaPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-5">
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Total trabajado</div>
             <div className="mt-3 text-2xl font-bold">{formatCurrencyAR(resumenFormula.trabajado)}</div>
+          </div>
+          <div className="rounded-[24px] border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-700">Adicionales</div>
+            <div className="mt-3 text-2xl font-bold text-indigo-700">{formatCurrencyAR(resumenFormula.adicionales)}</div>
+            <div className="mt-2 text-xs text-indigo-700/80">
+              {resumenFormula.cantidadAdicionales.toLocaleString("es-AR")} registro{resumenFormula.cantidadAdicionales === 1 ? "" : "s"} en el mes
+            </div>
           </div>
           <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Adelantos</div>
@@ -210,6 +224,10 @@ export default function PublicLiquidacionAsistenciaPage() {
                     <tr className={PUBLIC_ROW_CLASS}>
                       <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Total trabajado del mes</td>
                       <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-slate-900`}>{formatCurrencyAR(resumenFormula.trabajado)}</td>
+                    </tr>
+                    <tr className={PUBLIC_ROW_CLASS}>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Adicionales del mes</td>
+                      <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-indigo-700`}>{formatCurrencyAR(resumenFormula.adicionales)}</td>
                     </tr>
                     <tr className={PUBLIC_ROW_CLASS}>
                       <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>Adelantos del mes</td>
@@ -279,6 +297,50 @@ export default function PublicLiquidacionAsistenciaPage() {
             </Card>
           </div>
         </section>
+
+        <Card className="rounded-[28px] border-slate-200 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle>Adicionales del mes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={PUBLIC_TABLE_WRAP_CLASS}>
+              <table className="min-w-full text-sm">
+                <thead className={PUBLIC_TABLE_HEAD_CLASS}>
+                  <tr>
+                    <th className={PUBLIC_TH_LEFT_CLASS}>Fecha</th>
+                    <th className={PUBLIC_TH_LEFT_CLASS}>Concepto</th>
+                    <th className={PUBLIC_TH_LEFT_CLASS}>Detalle</th>
+                    <th className={PUBLIC_TH_RIGHT_CLASS}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {extrasDetalle.length > 0 ? (
+                    <>
+                      {extrasDetalle.map((item) => (
+                        <tr key={item.id || `${item.fecha}-${item.monto}`} className={PUBLIC_ROW_CLASS}>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} font-semibold text-slate-900`}>{formatDateAR(item.fecha)}</td>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-700`}>{item.concepto || "Adicional"}</td>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} text-slate-600`}>{item.detalle || item.nota || "Sin detalle"}</td>
+                          <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-semibold text-indigo-700`}>{formatCurrencyAR(item.monto)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-slate-200 bg-slate-950/[0.03]">
+                        <td colSpan={3} className={`${PUBLIC_TD_BASE_CLASS} font-semibold text-slate-900`}>Subtotal adicionales</td>
+                        <td className={`${PUBLIC_TD_BASE_CLASS} text-right font-extrabold text-slate-900`}>{formatCurrencyAR(resumenFormula.adicionales)}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr className="border-t border-slate-100">
+                      <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">
+                        No hay adicionales cargados en este mes.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="rounded-[28px] border-slate-200 shadow-sm">
           <CardHeader className="pb-2">

@@ -34,11 +34,16 @@ import {
 } from "firebase/firestore";
 import { Icon } from "@iconify/react";
 import {
+  buildExtrasDetalleMensual,
+  calcMontoAdicional,
+  calcMontoJornada,
   calcularPremioAsistenciaMensual,
+  calcularTotalExtrasMensual,
   calcularTotalLiquidacion,
   calcularTotalTrabajadoMensual,
   formatMonthKey,
   formatMonthLabel,
+  getDayPaymentBreakdown,
 } from "@/lib/asistencia-utils";
 
 // --- Helper Functions ---
@@ -100,20 +105,12 @@ function toDateSafe(value) {
 }
 
 function dayKey(i) {
-  return ["lun", "mar", "mie", "jue", "vie", "sab"][i];
-}
-
-function calcMonto(estado, base, extra) {
-  if (estado === "ausente") return 0;
-  if (estado === "presente") return base;
-  if (estado === "media") return Math.round(base * 0.5);
-  if (estado === "extra") return base + (extra || 0);
-  return 0;
+  return ["lun", "mar", "mie", "jue", "vie", "sab", "dom"][i];
 }
 
 function calcTotalSemanaLaboral(days) {
   const d = days && typeof days === "object" ? days : {};
-  const keys = ["lun", "mar", "mie", "jue", "vie"];
+  const keys = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
   return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
 }
 
@@ -179,13 +176,30 @@ const estadoItems = [
     icon: "lucide:clock-2",
     cls: "bg-yellow-50 text-yellow-800 border-yellow-200",
   },
-  {
-    value: "extra",
-    label: "+",
-    icon: "lucide:plus-circle",
-    cls: "bg-blue-50 text-blue-700 border-blue-200",
-  },
 ];
+
+const adicionalItems = [
+  { value: "", label: "Sin importe extra" },
+  { value: "horas", label: "Sumar horas" },
+  { value: "jornada", label: "Sumar jornada" },
+  { value: "manual", label: "Cargar importe" },
+];
+
+function buildAdicionalDraft(dayData) {
+  return {
+    tipo: String(dayData?.extraTipo || ""),
+    cantidad:
+      Number(dayData?.extraCantidad || 0) > 0
+        ? String(dayData.extraCantidad)
+        : "",
+    monto:
+      String(dayData?.extraTipo || "") === "manual" &&
+      Number(dayData?.extraMonto || 0) > 0
+        ? String(dayData.extraMonto)
+        : "",
+    nota: String(dayData?.extraNota || ""),
+  };
+}
 
 const MONTHS_ES = [
   "Enero",
@@ -226,6 +240,7 @@ export default function AsistenciaPage() {
   });
   const [cerrada, setCerrada] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(null);
+  const [adicionalDrafts, setAdicionalDrafts] = useState({});
   const [asistenciasMensuales, setAsistenciasMensuales] = useState([]);
   const [adelantosMensuales, setAdelantosMensuales] = useState([]);
   const [mesResumen, setMesResumen] = useState(() =>
@@ -268,15 +283,17 @@ export default function AsistenciaPage() {
 
   const rangoSemana = useMemo(() => {
     const ini = formatDateDisplay(semanaInicio);
-    const fin = formatDateDisplay(addDays(semanaInicio, 5));
+    const fin = formatDateDisplay(addDays(semanaInicio, 6));
     return `${ini} – ${fin}`;
   }, [semanaInicio]);
 
   const encabezadosDias = useMemo(() => {
-    const nombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-    return [0, 1, 2, 3, 4, 5].map(
-      (i) => `${nombres[i]} ${fmtDM(addDays(semanaInicio, i))}`,
-    );
+    const nombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    return [0, 1, 2, 3, 4, 5, 6].map((i) => ({
+      nombre: nombres[i],
+      fecha: fmtDM(addDays(semanaInicio, i)),
+      esFinDeSemana: i >= 5,
+    }));
   }, [semanaInicio]);
 
   const empleadosFiltrados = useMemo(() => {
@@ -403,11 +420,19 @@ export default function AsistenciaPage() {
         Number(emp.objetivoMensual || 0) > 0
           ? Number(emp.objetivoMensual)
           : Math.round(Number(emp.valorDia || 0) * diasHabiles);
-      const cobrado = calcularTotalTrabajadoMensual({
+      const trabajado = calcularTotalTrabajadoMensual({
         employeeId: emp.id,
+        empleado: emp,
         asistencias: asistenciasMensuales,
         monthInput: fechaMesResumen,
       });
+      const adicionales = calcularTotalExtrasMensual({
+        employeeId: emp.id,
+        empleado: emp,
+        asistencias: asistenciasMensuales,
+        monthInput: fechaMesResumen,
+      });
+      const cobrado = trabajado + adicionales;
       const premioAsistencia = calcularPremioAsistenciaMensual({
         empleado: emp,
         asistencias: asistenciasMensuales,
@@ -424,21 +449,24 @@ export default function AsistenciaPage() {
           );
         })
         .reduce((acc, a) => acc + Number(a.monto || 0), 0);
-      const faltante = Math.max(objetivoCalculado - cobrado, 0);
+      const faltante = Math.max(objetivoCalculado - trabajado, 0);
       const saldoALiquidar = Math.max(cobrado - adelanto, 0);
       const saldoConPremio = calcularTotalLiquidacion({
-        totSemana: cobrado,
+        totSemana: trabajado,
+        totExtras: adicionales,
         totAdv: adelanto,
         premio: premioAsistencia.premio,
       });
       const progreso =
         objetivoCalculado > 0
-          ? Math.min((cobrado / objetivoCalculado) * 100, 100)
+          ? Math.min((trabajado / objetivoCalculado) * 100, 100)
           : 0;
       return {
         id: emp.id,
         nombre: emp.nombre || "",
         objetivo: objetivoCalculado,
+        trabajado,
+        adicionales,
         cobrado,
         adelanto,
         faltante,
@@ -449,9 +477,14 @@ export default function AsistenciaPage() {
       };
     });
     const totalObjetivo = porEmpleado.reduce((acc, i) => acc + i.objetivo, 0);
+    const totalTrabajado = porEmpleado.reduce((acc, i) => acc + i.trabajado, 0);
+    const totalAdicionales = porEmpleado.reduce(
+      (acc, i) => acc + i.adicionales,
+      0,
+    );
     const totalCobrado = porEmpleado.reduce((acc, i) => acc + i.cobrado, 0);
     const totalAdelantos = porEmpleado.reduce((acc, i) => acc + i.adelanto, 0);
-    const totalFaltante = Math.max(totalObjetivo - totalCobrado, 0);
+    const totalFaltante = Math.max(totalObjetivo - totalTrabajado, 0);
     const totalPremios = porEmpleado.reduce(
       (acc, i) => acc + Number(i.premioAsistencia?.premio || 0),
       0,
@@ -459,6 +492,8 @@ export default function AsistenciaPage() {
     return {
       porEmpleado: porEmpleado.sort((a, b) => b.cobrado - a.cobrado),
       totalObjetivo,
+      totalTrabajado,
+      totalAdicionales,
       totalCobrado,
       totalAdelantos,
       totalFaltante,
@@ -489,6 +524,14 @@ export default function AsistenciaPage() {
       porEmpleado,
       totalObjetivo: porEmpleado.reduce(
         (acc, item) => acc + Number(item.objetivo || 0),
+        0,
+      ),
+      totalTrabajado: porEmpleado.reduce(
+        (acc, item) => acc + Number(item.trabajado || item.cobrado || 0),
+        0,
+      ),
+      totalAdicionales: porEmpleado.reduce(
+        (acc, item) => acc + Number(item.adicionales || item.extras || 0),
         0,
       ),
       totalCobrado: porEmpleado.reduce(
@@ -638,19 +681,25 @@ export default function AsistenciaPage() {
     return doc?.days?.[k] || { estado: "ausente", monto: 0 };
   };
 
-  const setDay = async (emp, idx, estado, montoManual) => {
+  const getAdicionalDraftKey = (empId, idx) => `${empId}-${idx}`;
+
+  const setAdicionalDraft = (empId, idx, partial) => {
+    const key = getAdicionalDraftKey(empId, idx);
+    setAdicionalDrafts((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || {}),
+        ...partial,
+      },
+    }));
+  };
+
+  const persistDay = async (emp, idx, dayData) => {
     if (cerrada) return;
     if (!emp?.id) return;
-    const base = Number(emp.valorDia || 0);
-    const extra = Number(emp.valorExtra || 0);
-    const montoBase =
-      montoManual != null
-        ? Number(montoManual)
-        : calcMonto(estado, base, extra);
-    const monto = idx === 5 ? 0 : montoBase;
     const k = dayKey(idx);
     const prev = asistencias[emp.id];
-    const days = { ...(prev?.days || {}), [k]: { estado, monto } };
+    const days = { ...(prev?.days || {}), [k]: dayData };
     const totalSemana = calcTotalSemanaLaboral(days);
 
     const data = {
@@ -672,6 +721,71 @@ export default function AsistenciaPage() {
     } catch (err) {
       console.error("Error guardando asistencia:", err);
     }
+  };
+
+  const setDay = async (emp, idx, estado) => {
+    const prevDay = getDay(emp.id, idx);
+    const dateInput = addDays(semanaInicio, idx);
+    const breakdown = getDayPaymentBreakdown({
+      dayData: prevDay,
+      empleado: emp,
+      dateInput,
+    });
+    const montoJornada = calcMontoJornada({
+      estado,
+      valorDia: Number(emp.valorDia || 0),
+      isWeekend: idx >= 5,
+    });
+    const nextDay = {
+      ...prevDay,
+      estado,
+      montoJornada,
+      extraTipo: breakdown.extraTipo || "",
+      extraCantidad: breakdown.extraCantidad || 0,
+      extraNota: breakdown.extraNota || "",
+      extraMonto: breakdown.extraMonto || 0,
+      monto: Number((Number(montoJornada || 0) + Number(breakdown.extraMonto || 0)).toFixed(2)),
+    };
+    await persistDay(emp, idx, nextDay);
+  };
+
+  const guardarAdicional = async (emp, idx) => {
+    const prevDay = getDay(emp.id, idx);
+    const draft = adicionalDrafts[getAdicionalDraftKey(emp.id, idx)] || buildAdicionalDraft(prevDay);
+    const tipo = String(draft.tipo || "");
+    const cantidad = tipo === "horas" ? Number(draft.cantidad || 0) : 0;
+    const montoManual = tipo === "manual" ? Number(draft.monto || 0) : 0;
+    const extraMonto = calcMontoAdicional({
+      empleado: emp,
+      tipo,
+      cantidad,
+      montoManual,
+    });
+    const montoJornada = calcMontoJornada({
+      estado: String(prevDay.estado || "ausente"),
+      valorDia: Number(emp.valorDia || 0),
+      isWeekend: idx >= 5,
+    });
+    const nextDay = {
+      ...prevDay,
+      montoJornada,
+      extraTipo: tipo,
+      extraCantidad: tipo === "horas" ? cantidad : 0,
+      extraNota: String(draft.nota || ""),
+      extraMonto,
+      monto: Number((Number(montoJornada || 0) + Number(extraMonto || 0)).toFixed(2)),
+    };
+    await persistDay(emp, idx, nextDay);
+    setPickerOpen(null);
+  };
+
+  const cancelarAdicional = (empId, idx) => {
+    const savedDay = getDay(empId, idx);
+    setAdicionalDrafts((prev) => ({
+      ...prev,
+      [getAdicionalDraftKey(empId, idx)]: buildAdicionalDraft(savedDay),
+    }));
+    setPickerOpen(null);
   };
 
   const cerrarSemana = async () => {
@@ -759,6 +873,9 @@ export default function AsistenciaPage() {
           employeeId: item.id,
           nombre: item.nombre,
           objetivo: Number(item.objetivo || 0),
+          trabajado: Number(item.trabajado || 0),
+          adicionales: Number(item.adicionales || 0),
+          extras: Number(item.adicionales || 0),
           cobrado: Number(item.cobrado || 0),
           adelanto: Number(item.adelanto || 0),
           faltante: Number(item.faltante || 0),
@@ -911,9 +1028,6 @@ export default function AsistenciaPage() {
                   <h1 className="text-[30px] font-bold tracking-tight text-slate-950 md:text-[32px]">
                     Planilla mensual de asistencia
                   </h1>
-                  <p className="max-w-[760px] text-sm text-slate-500">
-                    Gestiona el mes activo y navega el tramo visible con una cabecera mas limpia.
-                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
@@ -1153,9 +1267,6 @@ export default function AsistenciaPage() {
                   <h1 className="text-[30px] font-bold tracking-tight text-slate-950 md:text-[32px]">
                     Gestión de empleados
                   </h1>
-                  <p className="max-w-[760px] text-sm text-slate-500">
-                    Organiza tu equipo y deja listo el resumen mensual desde una cabecera mas sobria.
-                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
@@ -1380,42 +1491,67 @@ export default function AsistenciaPage() {
       {/* Contenido Principal */}
       {vistaActiva === "asistencia" ? (
         <div className="space-y-4">
-          <div className="overflow-auto rounded-[24px] border border-slate-200 bg-slate-50/70 shadow-sm">
+          <div className="overflow-visible rounded-[24px] border border-slate-200 bg-slate-50/70 shadow-sm">
+            <div className="overflow-x-auto overflow-y-visible">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-950 text-white">
+              <thead className="border-b border-slate-200 bg-slate-50/90">
                 <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                  <th className="px-4 py-4 text-left align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Empleado
                   </th>
-                  {encabezadosDias.map((h, i) => (
+                  {encabezadosDias.map((item, i) => (
                     <th
                       key={i}
-                      className="px-2 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80"
+                      className={`px-2 py-3 text-center align-middle ${item.esFinDeSemana ? "bg-slate-100/80" : ""}`}
                     >
-                      {h}
+                      <div className="flex min-w-[64px] flex-col items-center gap-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {item.nombre}
+                        </span>
+                        <span className={`text-[11px] font-medium ${item.esFinDeSemana ? "text-slate-700" : "text-slate-600"}`}>
+                          {item.fecha}
+                        </span>
+                        <span className="h-1 w-1 rounded-full bg-emerald-400/80" />
+                      </div>
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                  <th className="px-4 py-4 text-right align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Total
                   </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                  <th className="px-4 py-4 text-right align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Extras
+                  </th>
+                  <th className="px-4 py-4 text-right align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Adelantos
                   </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                  <th className="px-4 py-4 text-right align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Neto
                   </th>
-                  <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-white/80">
-                    Detalle
+                  <th className="px-4 py-4 text-center align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Acciones
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
                 {empleadosFiltrados.map((emp, empIdx) => {
                   const a = asistencias[emp.id];
-                  const tSemana = calcTotalSemanaLaboral(a?.days);
+                  const breakdownsSemana = [0, 1, 2, 3, 4, 5, 6].map((idx) =>
+                    getDayPaymentBreakdown({
+                      dayData: a?.days?.[dayKey(idx)],
+                      empleado: emp,
+                      dateInput: addDays(semanaInicio, idx),
+                    }),
+                  );
+                  const tSemana = breakdownsSemana.reduce(
+                    (acc, item) => acc + Number(item.montoJornada || 0),
+                    0,
+                  );
+                  const tExtras = breakdownsSemana.reduce(
+                    (acc, item) => acc + Number(item.extraMonto || 0),
+                    0,
+                  );
                   const tAdv = totalAdelantosEmp(emp.id);
-                  const tPagar = tSemana - tAdv;
-                  const dropUp = empIdx === empleadosFiltrados.length - 1;
+                  const tPagar = tSemana + tExtras - tAdv;
                   return (
                     <tr
                       key={emp.id}
@@ -1441,83 +1577,210 @@ export default function AsistenciaPage() {
                           </div>
                         </div>
                       </td>
-                      {[0, 1, 2, 3, 4, 5].map((i) => {
+                      {[0, 1, 2, 3, 4, 5, 6].map((i) => {
                         const d = getDay(emp.id, i);
+                        const dayDate = addDays(semanaInicio, i);
+                        const isWeekendColumn = i >= 5;
+                        const breakdown = getDayPaymentBreakdown({
+                          dayData: d,
+                          empleado: emp,
+                          dateInput: dayDate,
+                        });
                         const estadoItem =
-                          estadoItems.find((it) => it.value === d.estado) ||
+                          estadoItems.find(
+                            (it) => it.value === breakdown.estado,
+                          ) ||
                           estadoItems[1];
                         const justified = isJustifiedAbsence(d);
                         const key = `${emp.id}-${i}`;
+                        const draft =
+                          adicionalDrafts[key] || buildAdicionalDraft(d);
                         return (
-                          <td key={i} className="px-2 py-2">
-                            <div
-                              className="relative flex flex-col items-start gap-1.5"
-                              onBlur={(e) => {
-                                if (!e.currentTarget.contains(e.relatedTarget))
-                                  setPickerOpen(null);
+                          <td
+                            key={i}
+                            className={`px-2 py-2 ${isWeekendColumn ? "bg-slate-50/60" : ""}`}
+                          >
+                            <Popover
+                              open={!cerrada && pickerOpen === key}
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  setAdicionalDrafts((prev) => ({
+                                    ...prev,
+                                    [key]: prev[key] || buildAdicionalDraft(d),
+                                  }));
+                                  setPickerOpen(key);
+                                  return;
+                                }
+                                cancelarAdicional(emp.id, i);
                               }}
-                              tabIndex={0}
                             >
-                              <button
-                                type="button"
-                                disabled={cerrada}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPickerOpen((p) =>
-                                    p === key ? null : key,
-                                  );
-                                }}
-                                className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors ${justified ? "border-sky-300 bg-sky-50 text-sky-700 shadow-[0_0_0_1px_rgba(125,211,252,0.35)]" : estadoItem.cls}`}
+                              <div className="flex flex-col items-start gap-1.5">
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={cerrada}
+                                    className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors ${justified ? "border-sky-300 bg-sky-50 text-sky-700 shadow-[0_0_0_1px_rgba(125,211,252,0.35)]" : estadoItem.cls}`}
+                                  >
+                                    <Icon
+                                      icon={
+                                        justified
+                                          ? "lucide:shield-check"
+                                          : estadoItem.icon
+                                      }
+                                      className="w-3.5 h-3.5"
+                                    />
+                                    <span>{estadoItem.label}</span>
+                                    <Icon
+                                      icon="lucide:chevron-down"
+                                      className="w-3 h-3 opacity-70"
+                                    />
+                                  </button>
+                                </PopoverTrigger>
+                                {justified ? (
+                                  <div className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700">
+                                    <Icon
+                                      icon="lucide:badge-check"
+                                      className="h-3 w-3"
+                                    />
+                                    Justificada
+                                  </div>
+                                ) : null}
+                                {breakdown.extraMonto > 0 ? (
+                                  <div className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                                    <Icon
+                                      icon="lucide:plus"
+                                      className="h-3 w-3"
+                                    />
+                                    {formatCurrencyAR(breakdown.extraMonto)}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <PopoverContent
+                                align="start"
+                                sideOffset={8}
+                                collisionPadding={16}
+                                className="z-[90] w-[260px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl"
+                                onOpenAutoFocus={(e) => e.preventDefault()}
                               >
-                                <Icon
-                                  icon={
-                                    justified
-                                      ? "lucide:shield-check"
-                                      : estadoItem.icon
-                                  }
-                                  className="w-3.5 h-3.5"
-                                />
-                                <span>{estadoItem.label}</span>
-                                <Icon
-                                  icon="lucide:chevron-down"
-                                  className="w-3 h-3 opacity-70"
-                                />
-                              </button>
-                              {justified ? (
-                                <div className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700">
-                                  <Icon
-                                    icon="lucide:badge-check"
-                                    className="h-3 w-3"
-                                  />
-                                  Justificada
-                                </div>
-                              ) : null}
-                              {pickerOpen === key && !cerrada && (
-                                <div
-                                  className={`absolute ${dropUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1 py-1 shadow-lg z-30`}
-                                >
-                                  {estadoItems.map((item) => (
-                                    <button
-                                      key={item.value}
-                                      type="button"
-                                      onMouseDown={(e) => e.preventDefault()}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDay(emp, i, item.value, null);
-                                        setPickerOpen(null);
-                                      }}
-                                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${item.cls}`}
-                                    >
-                                      <Icon
-                                        icon={item.icon}
-                                        className="w-3.5 h-3.5"
-                                      />
-                                      <span>{item.label}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                                  <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {estadoItems.map((item) => (
+                                        <button
+                                          key={item.value}
+                                          type="button"
+                                          onMouseDown={(e) =>
+                                            e.preventDefault()
+                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDay(emp, i, item.value);
+                                          }}
+                                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${item.cls}`}
+                                        >
+                                          <Icon
+                                            icon={item.icon}
+                                            className="w-3.5 h-3.5"
+                                          />
+                                          <span>{item.label}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+
+                                    <div className="border-t border-slate-100 pt-3">
+                                      <div className="mt-2 space-y-2">
+                                        <select
+                                          value={draft.tipo}
+                                          onChange={(e) =>
+                                            setAdicionalDraft(emp.id, i, {
+                                              tipo: e.target.value,
+                                            })
+                                          }
+                                          className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700"
+                                        >
+                                          {adicionalItems.map((item) => (
+                                            <option
+                                              key={item.value || "none"}
+                                              value={item.value}
+                                            >
+                                              {item.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        {draft.tipo === "horas" ? (
+                                          <Input
+                                            type="number"
+                                            min={0}
+                                            step="0.5"
+                                            value={draft.cantidad}
+                                            onChange={(e) =>
+                                              setAdicionalDraft(emp.id, i, {
+                                                cantidad: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Horas"
+                                            className="h-9 rounded-xl border-slate-200"
+                                          />
+                                        ) : null}
+                                        {draft.tipo === "manual" ? (
+                                          <Input
+                                            type="number"
+                                            min={0}
+                                            value={draft.monto}
+                                            onChange={(e) =>
+                                              setAdicionalDraft(emp.id, i, {
+                                                monto: e.target.value,
+                                              })
+                                            }
+                                            placeholder="Importe"
+                                            className="h-9 rounded-xl border-slate-200"
+                                          />
+                                        ) : null}
+                                        <Input
+                                          value={draft.nota}
+                                          onChange={(e) =>
+                                            setAdicionalDraft(emp.id, i, {
+                                              nota: e.target.value,
+                                            })
+                                          }
+                                          placeholder="Comentario"
+                                          className="h-9 rounded-xl border-slate-200"
+                                        />
+                                        <div className="flex items-center justify-between gap-2">
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 rounded-xl border-slate-200 px-3 text-xs"
+                                            onClick={() => cancelarAdicional(emp.id, i)}
+                                          >
+                                            Cancelar
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 rounded-xl bg-violet-600 px-3 text-xs text-white hover:bg-violet-700"
+                                            onClick={() =>
+                                              guardarAdicional(emp, i)
+                                            }
+                                          >
+                                            Guardar
+                                          </Button>
+                                        </div>
+                                        {breakdown.extraMonto > 0 ? (
+                                          <div className="text-[11px] text-slate-500">
+                                            Guardado:{" "}
+                                            <span className="font-semibold text-slate-900">
+                                              {formatCurrencyAR(
+                                                breakdown.extraMonto,
+                                              )}
+                                            </span>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  </div>
+                              </PopoverContent>
+                            </Popover>
                           </td>
                         );
                       })}
@@ -1525,15 +1788,17 @@ export default function AsistenciaPage() {
                         <div className="text-sm font-bold text-slate-900">
                           {formatCurrencyAR(tSemana)}
                         </div>
-                        <div className="mt-1 text-[11px] text-slate-400">
-                          Lun a vie del tramo
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="text-sm font-bold text-violet-700">
+                          {formatCurrencyAR(tExtras)}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-9 rounded-xl border-slate-200 px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                          className="h-9 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-none hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:ring-0 focus-visible:ring-offset-0"
                           onClick={() => abrirPopoverAdelantos(emp)}
                         >
                           {formatCurrencyAR(tAdv)}
@@ -1551,7 +1816,7 @@ export default function AsistenciaPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-10 w-10 rounded-xl border border-slate-200 bg-white p-0 shadow-sm hover:bg-slate-50"
+                          className="h-10 w-10 rounded-xl border border-slate-200 bg-white p-0 text-slate-600 shadow-none hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 focus-visible:ring-0 focus-visible:ring-offset-0"
                           onClick={() =>
                             router.push(
                               `/${lang}/asistencia/empleado/${emp.id}`,
@@ -1566,6 +1831,7 @@ export default function AsistenciaPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       ) : (
@@ -1603,7 +1869,35 @@ export default function AsistenciaPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-600">
+                    Jornales del mes
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-slate-900">
+                    $
+                    {estadisticasMensuales.totalTrabajado.toLocaleString(
+                      "es-AR",
+                    )}
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-500">
+                    Suma de jornadas registradas
+                  </div>
+                </div>
+                <div className="rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-4">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-indigo-700/80">
+                    Adicionales cargados
+                  </div>
+                  <div className="mt-1 text-2xl font-bold text-indigo-700">
+                    $
+                    {estadisticasMensuales.totalAdicionales.toLocaleString(
+                      "es-AR",
+                    )}
+                  </div>
+                  <div className="mt-1 text-[11px] text-indigo-700/70">
+                    Horas y jornadas adicionales
+                  </div>
+                </div>
                 <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-4">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-emerald-700/80">
                     Cobrado acumulado
@@ -1674,10 +1968,16 @@ export default function AsistenciaPage() {
                         Valor día
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Valor extra
+                        Jornada adicional
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Total del mes
+                      </th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Jornales
+                      </th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Adicionales
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Cobrado
@@ -1707,6 +2007,8 @@ export default function AsistenciaPage() {
                         id: emp.id,
                         nombre: emp.nombre || "",
                         objetivo: 0,
+                        trabajado: 0,
+                        adicionales: 0,
                         cobrado: 0,
                         adelanto: 0,
                         saldoConPremio: 0,
@@ -1759,6 +2061,12 @@ export default function AsistenciaPage() {
                           </td>
                           <td className="px-3 py-3 text-right text-foreground font-medium">
                             ${item.objetivo.toLocaleString("es-AR")}
+                          </td>
+                          <td className="px-3 py-3 text-right text-slate-900 font-medium">
+                            ${Number(item.trabajado || 0).toLocaleString("es-AR")}
+                          </td>
+                          <td className="px-3 py-3 text-right text-indigo-700 font-semibold">
+                            ${Number(item.adicionales || 0).toLocaleString("es-AR")}
                           </td>
                           <td className="px-3 py-3 text-right text-emerald-700 font-semibold">
                             ${item.cobrado.toLocaleString("es-AR")}
@@ -1983,7 +2291,7 @@ export default function AsistenciaPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="empValorExtra">Valor Extra ($)</Label>
+                  <Label htmlFor="empValorExtra">Monto jornada adicional ($)</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                       $

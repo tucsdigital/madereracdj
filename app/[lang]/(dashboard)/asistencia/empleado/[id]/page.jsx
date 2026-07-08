@@ -11,8 +11,10 @@ import { auth, db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import {
+  buildExtrasDetalleMensual,
   buildLiquidacionAsistenciaHtml,
   calcularPremioAsistenciaMensual,
+  calcularTotalExtrasMensual,
   calcularTotalLiquidacion,
   calcularTotalTrabajadoMensual,
   formatMonthLabel,
@@ -21,9 +23,11 @@ import { cn } from "@/lib/utils";
 
 function calcTotalSemanaLaboral(days) {
   const d = days && typeof days === "object" ? days : {};
-  const keys = ["lun", "mar", "mie", "jue", "vie"];
+  const keys = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
   return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
 }
+
+const DAY_KEYS = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
 
 const safeJson = async (res) => {
   try {
@@ -66,6 +70,17 @@ const normalizarAdelantoDetalle = (item) => ({
   nota: String(item?.nota || ""),
 });
 
+const normalizarExtraDetalle = (item) => ({
+  id: String(item?.id || ""),
+  fecha: item?.fecha || "",
+  tipo: String(item?.tipo || ""),
+  concepto: String(item?.concepto || ""),
+  detalle: String(item?.detalle || ""),
+  cantidad: Number(item?.cantidad || 0),
+  monto: Number(item?.monto || 0),
+  nota: String(item?.nota || ""),
+});
+
 const normalizarAusentismoAdjunto = (item) => ({
   id: String(item?.id || ""),
   nombreArchivo: String(item?.nombreArchivo || "Adjunto"),
@@ -80,6 +95,24 @@ const addDays = (dateInput, days) => {
   const date = new Date(dateInput);
   date.setDate(date.getDate() + Number(days || 0));
   return date;
+};
+
+const calcTotalSemanaEnMes = (days, weekStartInput, filtroMes) => {
+  const d = days && typeof days === "object" ? days : {};
+  const weekStart = weekStartInput ? new Date(weekStartInput) : null;
+  const [year, month] = String(filtroMes || "").split("-").map(Number);
+
+  if (!weekStart || Number.isNaN(weekStart.getTime()) || !year || !month) {
+    return calcTotalSemanaLaboral(days);
+  }
+
+  return DAY_KEYS.reduce((acc, key, index) => {
+    const current = addDays(weekStart, index);
+    const sameMonth =
+      current.getFullYear() === year && current.getMonth() + 1 === month;
+    if (!sameMonth) return acc;
+    return acc + Number(d?.[key]?.monto || 0);
+  }, 0);
 };
 
 const MONTHS_ES = [
@@ -319,6 +352,19 @@ export default function EmpleadoDetallePage() {
       .map(normalizarAdelantoDetalle);
     const totSemana = calcularTotalTrabajadoMensual({
       employeeId: id,
+      empleado,
+      asistencias,
+      monthInput: fechaMes,
+    });
+    const totExtras = calcularTotalExtrasMensual({
+      employeeId: id,
+      empleado,
+      asistencias,
+      monthInput: fechaMes,
+    });
+    const extrasDetalle = buildExtrasDetalleMensual({
+      employeeId: id,
+      empleado,
       asistencias,
       monthInput: fechaMes,
     });
@@ -330,6 +376,7 @@ export default function EmpleadoDetallePage() {
     });
     const totPagar = calcularTotalLiquidacion({
       totSemana,
+      totExtras,
       totAdv,
       premio: premioAsistencia.premio,
     });
@@ -338,9 +385,11 @@ export default function EmpleadoDetallePage() {
       : null;
     if (cierreEmpleado) {
       return {
-        totSemana: Number(cierreEmpleado.cobrado || 0),
+        totSemana: Number(cierreEmpleado.trabajado || cierreEmpleado.cobrado || 0),
+        totExtras: Number(cierreEmpleado.adicionales || cierreEmpleado.extras || 0),
         totAdv: Number(cierreEmpleado.adelanto || 0),
         adelantosDetalle,
+        extrasDetalle,
         premioAsistencia: cierreEmpleado.premioAsistencia || premioAsistencia,
         totPagar: Number(cierreEmpleado.saldoConPremio || 0),
         closedAt: cierreMensual?.closedAt || null,
@@ -350,8 +399,10 @@ export default function EmpleadoDetallePage() {
     }
     return {
       totSemana,
+      totExtras,
       totAdv,
       adelantosDetalle,
+      extrasDetalle,
       premioAsistencia,
       totPagar,
       closedAt: null,
@@ -366,12 +417,17 @@ export default function EmpleadoDetallePage() {
     return {
       ...comprobanteMensual,
       totSemana: Number(comprobanteMensual?.totSemana || 0),
+      totExtras: Number(comprobanteMensual?.totExtras || 0),
       totAdv: Number(comprobanteMensual?.totAdv || 0),
       adelantosDetalle: Array.isArray(comprobanteMensual?.adelantosDetalle)
         ? comprobanteMensual.adelantosDetalle.map(normalizarAdelantoDetalle)
         : [],
+      extrasDetalle: Array.isArray(comprobanteMensual?.extrasDetalle)
+        ? comprobanteMensual.extrasDetalle.map(normalizarExtraDetalle)
+        : [],
       totPagar: calcularTotalLiquidacion({
         totSemana: comprobanteMensual?.totSemana,
+        totExtras: comprobanteMensual?.totExtras,
         totAdv: comprobanteMensual?.totAdv,
         premio,
       }),
@@ -384,12 +440,28 @@ export default function EmpleadoDetallePage() {
   }, [comprobanteMensual]);
 
   const semanasOrdenadas = useMemo(() => {
-    return [...asistencias].sort((a, b) => {
+    const [year, month] = String(filtroMes || "").split("-").map(Number);
+    if (!year || !month) return [];
+
+    return [...asistencias]
+      .filter((item) => {
+        const weekStart = item?.weekStart ? new Date(item.weekStart) : null;
+        if (!weekStart || Number.isNaN(weekStart.getTime())) return false;
+
+        return DAY_KEYS.some((_, index) => {
+          const current = addDays(weekStart, index);
+          return (
+            current.getFullYear() === year &&
+            current.getMonth() + 1 === month
+          );
+        });
+      })
+      .sort((a, b) => {
       const timeA = new Date(a.weekStart || 0).getTime();
       const timeB = new Date(b.weekStart || 0).getTime();
       return timeB - timeA;
     });
-  }, [asistencias]);
+  }, [asistencias, filtroMes]);
 
   const adelantosOrdenados = useMemo(() => {
     return [...adelantos].sort((a, b) => {
@@ -422,15 +494,18 @@ export default function EmpleadoDetallePage() {
     }
 
     const desde = fechas[0];
-    const hasta = addDays(fechas[fechas.length - 1], 5);
+    const hasta = addDays(fechas[fechas.length - 1], 6);
     const dias = Math.max(Math.round((hasta.getTime() - desde.getTime()) / 86400000) + 1, 0);
 
     return { desde, hasta, dias };
   }, [semanasOrdenadas]);
 
   const totalHistoricoSemanas = useMemo(() => {
-    return semanasOrdenadas.reduce((acc, item) => acc + calcTotalSemanaLaboral(item?.days), 0);
-  }, [semanasOrdenadas]);
+    return semanasOrdenadas.reduce(
+      (acc, item) => acc + calcTotalSemanaEnMes(item?.days, item?.weekStart, filtroMes),
+      0,
+    );
+  }, [filtroMes, semanasOrdenadas]);
 
   const totalHistoricoAdelantos = useMemo(() => {
     return adelantosOrdenados.reduce((acc, item) => acc + Number(item.monto || 0), 0);
@@ -484,17 +559,21 @@ export default function EmpleadoDetallePage() {
 
   const resumenFormula = useMemo(() => {
     const trabajado = Number(resumenMes?.totSemana || 0);
+    const adicionales = Number(resumenMes?.totExtras || 0);
     const adelantosMes = Number(resumenMes?.totAdv || 0);
     const premio = Number(resumenMes?.premioAsistencia?.premio || 0);
     const total = Number(resumenMes?.totPagar || 0);
     const cantidadAdelantos = Array.isArray(resumenMes?.adelantosDetalle) ? resumenMes.adelantosDetalle.length : 0;
+    const cantidadAdicionales = Array.isArray(resumenMes?.extrasDetalle) ? resumenMes.extrasDetalle.length : 0;
 
     return {
       trabajado,
+      adicionales,
       adelantosMes,
       premio,
       total,
       cantidadAdelantos,
+      cantidadAdicionales,
     };
   }, [resumenMes]);
 
@@ -909,9 +988,13 @@ export default function EmpleadoDetallePage() {
         closedAt: resumenMes.closedAt || null,
         version: nextVersion,
         totSemana: Number(resumenMes.totSemana || 0),
+        totExtras: Number(resumenMes.totExtras || 0),
         totAdv: Number(resumenMes.totAdv || 0),
         adelantosDetalle: Array.isArray(resumenMes.adelantosDetalle)
           ? resumenMes.adelantosDetalle.map(normalizarAdelantoDetalle)
+          : [],
+        extrasDetalle: Array.isArray(resumenMes.extrasDetalle)
+          ? resumenMes.extrasDetalle.map(normalizarExtraDetalle)
           : [],
         totPagar: Number(resumenMes.totPagar || 0),
         premioAsistencia: {
@@ -954,39 +1037,34 @@ export default function EmpleadoDetallePage() {
                   Asistencias
                 </Link>
                 <Icon icon="lucide:chevron-right" className="h-4 w-4" />
-                <span>Detalle de liquidación</span>
+                <span>Detalle Empleado</span>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="space-y-2">
                 <h1 className="text-[28px] font-bold tracking-tight text-slate-900 md:text-[34px]">
-                  Liquidación de {resumenMes.labelMes || monthInputLabel}
+                  {employeeName}
                 </h1>
-                <span
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-semibold",
-                    resumenMes.isClosed
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
-                  )}
-                >
-                  {resumenMes.isClosed ? "Cerrada" : "En cálculo"}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-500">Empleado</div>
-                  <div className="mt-1 text-lg font-bold text-slate-900">{employeeName}</div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                  {employeeSector ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-medium text-slate-600">
+                      <Icon icon="lucide:briefcase-business" className="h-4 w-4 text-slate-400" />
+                      {employeeSector}
+                    </span>
+                  ) : null}
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-medium",
+                      resumenMes.isClosed
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-amber-200 bg-amber-50 text-amber-700"
+                    )}
+                  >
+                    <Icon
+                      icon={resumenMes.isClosed ? "lucide:badge-check" : "lucide:clock-3"}
+                      className="h-4 w-4"
+                    />
+                    {resumenMes.isClosed ? "Resumen guardado" : "Mes abierto"}
+                  </span>
                 </div>
-                {employeeSector ? (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Sector</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-700">{employeeSector}</div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="text-sm text-slate-500">
-                {resumenMes.isClosed
-                  ? `Cerrado el ${formatDateTimeAR(resumenMes.closedAt)}`
-                  : `Liquidación en cálculo vivo para ${resumenMes.labelMes}. Podés emitir el comprobante aunque el mes siga abierto.`}
               </div>
             </div>
 
@@ -1159,6 +1237,16 @@ export default function EmpleadoDetallePage() {
                 </div>
               </div>
 
+              <div className="rounded-[20px] border border-indigo-200 bg-indigo-50/70 p-4">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Adicionales del mes</span>
+                  <span className="font-semibold text-indigo-700">{formatCurrencyAR(resumenFormula.adicionales)}</span>
+                </div>
+                <div className="mt-1 text-xs text-indigo-700/80">
+                  {resumenFormula.cantidadAdicionales.toLocaleString("es-AR")} registro{resumenFormula.cantidadAdicionales === 1 ? "" : "s"} de horas o jornadas adicionales.
+                </div>
+              </div>
+
               <div className="rounded-[20px] border border-orange-200 bg-orange-50/70 p-4">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Adelantos del mes</span>
@@ -1282,7 +1370,12 @@ export default function EmpleadoDetallePage() {
                   <tbody className="divide-y divide-slate-100">
                     {semanasOrdenadas.map((item) => {
                       const weekStart = item.weekStart ? new Date(item.weekStart) : null;
-                      const weekEnd = weekStart && !Number.isNaN(weekStart.getTime()) ? addDays(weekStart, 5) : null;
+                      const weekEnd = weekStart && !Number.isNaN(weekStart.getTime()) ? addDays(weekStart, 6) : null;
+                      const totalSemanaPeriodo = calcTotalSemanaEnMes(
+                        item?.days,
+                        item?.weekStart,
+                        filtroMes,
+                      );
                       return (
                         <tr key={item.id} className="bg-white">
                           <td className="px-4 py-3 text-slate-700">
@@ -1294,7 +1387,7 @@ export default function EmpleadoDetallePage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right font-medium text-slate-900">
-                            {formatCurrencyAR(calcTotalSemanaLaboral(item?.days))}
+                            {formatCurrencyAR(totalSemanaPeriodo)}
                           </td>
                         </tr>
                       );
@@ -1406,6 +1499,60 @@ export default function EmpleadoDetallePage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">Adicionales del mes</CardTitle>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-600">
+              Horas y jornadas adicionales
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-[18px] border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold">Fecha</th>
+                    <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                    <th className="px-4 py-3 text-left font-semibold">Detalle</th>
+                    <th className="px-4 py-3 text-right font-semibold">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Array.isArray(resumenMes.extrasDetalle) &&
+                  resumenMes.extrasDetalle.length > 0 ? (
+                    <>
+                      {resumenMes.extrasDetalle.map((item) => (
+                        <tr key={item.id || `${item.fecha}-${item.monto}`} className="bg-white">
+                          <td className="px-4 py-3 text-slate-700">{formatDateAR(item.fecha)}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900">{item.concepto || "Adicional"}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.detalle || item.nota || "-"}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-indigo-700">
+                            {formatCurrencyAR(item.monto)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-slate-50">
+                        <td colSpan={3} className="px-4 py-3 font-semibold text-slate-900">
+                          Total adicionales
+                        </td>
+                        <td className="px-4 py-3 text-right font-extrabold text-slate-900">
+                          {formatCurrencyAR(resumenFormula.adicionales)}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                        No hay adicionales cargados en el mes seleccionado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
           <CardHeader className="pb-3">
