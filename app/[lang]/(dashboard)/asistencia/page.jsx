@@ -44,6 +44,7 @@ import {
   formatMonthKey,
   formatMonthLabel,
   getDayPaymentBreakdown,
+  resolveEmployeeStartDate,
 } from "@/lib/asistencia-utils";
 
 // --- Helper Functions ---
@@ -114,15 +115,18 @@ function calcTotalSemanaLaboral(days) {
   return keys.reduce((acc, k) => acc + Number(d?.[k]?.monto || 0), 0);
 }
 
-function contarDiasHabilesDelMes(dateObj) {
+function contarDiasHabilesDelMes(dateObj, empleado = null) {
   const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
   const y = d.getFullYear();
   const m = d.getMonth();
   const lastDay = new Date(y, m + 1, 0).getDate();
+  const fechaIngreso = resolveEmployeeStartDate(empleado);
   let count = 0;
   for (let day = 1; day <= lastDay; day++) {
-    const dow = new Date(y, m, day).getDay();
+    const current = new Date(y, m, day);
+    const dow = current.getDay();
     if (dow === 0 || dow === 6) continue;
+    if (fechaIngreso && current < fechaIngreso) continue;
     count++;
   }
   return count;
@@ -269,6 +273,7 @@ export default function AsistenciaPage() {
     valorDia: "",
     valorExtra: "",
     sector: "",
+    fechaIngreso: fmt(new Date()),
     premioAsistenciaActivo: false,
     premioAsistenciaMonto: "",
     premioAsistenciaMinPorcentaje: "100",
@@ -415,7 +420,7 @@ export default function AsistenciaPage() {
 
   const estadisticasMensualesLive = useMemo(() => {
     const porEmpleado = empleadosGestionFiltrados.map((emp) => {
-      const diasHabiles = contarDiasHabilesDelMes(fechaMesResumen);
+      const diasHabiles = contarDiasHabilesDelMes(fechaMesResumen, emp);
       const objetivoCalculado =
         Number(emp.objetivoMensual || 0) > 0
           ? Number(emp.objetivoMensual)
@@ -934,6 +939,7 @@ export default function AsistenciaPage() {
       valorDia: "",
       valorExtra: "",
       sector: "",
+      fechaIngreso: fmt(new Date()),
       premioAsistenciaActivo: false,
       premioAsistenciaMonto: "",
       premioAsistenciaMinPorcentaje: "100",
@@ -952,6 +958,7 @@ export default function AsistenciaPage() {
       valorDia: emp.valorDia ?? "",
       valorExtra: emp.valorExtra ?? "",
       sector: emp.sector || "",
+      fechaIngreso: emp.fechaIngreso || "",
       premioAsistenciaActivo: Boolean(emp.premioAsistenciaActivo),
       premioAsistenciaMonto: emp.premioAsistenciaMonto ?? "",
       premioAsistenciaMinPorcentaje: emp.premioAsistenciaMinPorcentaje ?? 100,
@@ -969,6 +976,7 @@ export default function AsistenciaPage() {
       valorDia: Number(formEmp.valorDia || 0),
       valorExtra: Number(formEmp.valorExtra || 0),
       sector: formEmp.sector || "",
+      fechaIngreso: String(formEmp.fechaIngreso || "").trim() || null,
       premioAsistenciaActivo: Boolean(formEmp.premioAsistenciaActivo),
       premioAsistenciaMonto: Boolean(formEmp.premioAsistenciaActivo)
         ? Number(formEmp.premioAsistenciaMonto || 0)
@@ -2311,17 +2319,31 @@ export default function AsistenciaPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="empSector">Sector / Área</Label>
-                <Input
-                  id="empSector"
-                  placeholder="Ej: Producción"
-                  className="h-10"
-                  value={formEmp.sector}
-                  onChange={(e) =>
-                    setFormEmp({ ...formEmp, sector: e.target.value })
-                  }
-                />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="empSector">Sector / Área</Label>
+                  <Input
+                    id="empSector"
+                    placeholder="Ej: Producción"
+                    className="h-10"
+                    value={formEmp.sector}
+                    onChange={(e) =>
+                      setFormEmp({ ...formEmp, sector: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="empFechaIngreso">Fecha de ingreso</Label>
+                  <Input
+                    id="empFechaIngreso"
+                    type="date"
+                    className="h-10"
+                    value={formEmp.fechaIngreso}
+                    onChange={(e) =>
+                      setFormEmp({ ...formEmp, fechaIngreso: e.target.value })
+                    }
+                  />
+                </div>
               </div>
 
               <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-4">

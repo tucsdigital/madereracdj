@@ -18,6 +18,7 @@ import {
   calcularTotalLiquidacion,
   calcularTotalTrabajadoMensual,
   formatMonthLabel,
+  isDateBeforeEmployeeStart,
 } from "@/lib/asistencia-utils";
 import { cn } from "@/lib/utils";
 
@@ -525,6 +526,7 @@ export default function EmpleadoDetallePage() {
       const current = new Date(year, month - 1, day);
       const dow = current.getDay();
       if (dow === 0 || dow === 6) continue;
+      if (isDateBeforeEmployeeStart(current, employee)) continue;
 
       const currentDayKey = ["lun", "mar", "mie", "jue", "vie"][dow - 1];
       const currentWeekStart = new Date(current);
