@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/components/ui/use-toast";
 import { auth, db } from "@/lib/firebase";
-import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import {
   buildControlAsistenciaValeHtml,
@@ -302,21 +302,41 @@ export default function EmpleadoDetallePage() {
   const [subiendoAusentismoKey, setSubiendoAusentismoKey] = useState("");
   const [imprimiendoAdelantoId, setImprimiendoAdelantoId] = useState("");
   const [ausentismoDrafts, setAusentismoDrafts] = useState({});
-  const [filtroTardanzaDesde, setFiltroTardanzaDesde] = useState("");
-  const [filtroTardanzaHasta, setFiltroTardanzaHasta] = useState("");
   const [ordenTardanzas, setOrdenTardanzas] = useState("desc");
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+    const loadEmpleado = async () => {
       const empRef = doc(db, "empleados", String(id));
       const empSnap = await getDoc(empRef);
+      if (cancelled) return;
       setEmpleado(empSnap.exists() ? { ...empSnap.data(), id: empSnap.id } : null);
-      const asistSnap = await getDocs(query(collection(db, "asistencias"), where("employeeId", "==", id), orderBy("weekStart","desc")));
-      setAsistencias(asistSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      const adSnap = await getDocs(query(collection(db, "adelantos"), where("employeeId","==", id)));
-      setAdelantos(adSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
-    load();
+
+    loadEmpleado();
+
+    const asistQuery = query(
+      collection(db, "asistencias"),
+      where("employeeId", "==", id),
+      orderBy("weekStart", "desc"),
+    );
+    const adelantosQuery = query(
+      collection(db, "adelantos"),
+      where("employeeId", "==", id),
+    );
+
+    const unsubAsistencias = onSnapshot(asistQuery, (snap) => {
+      setAsistencias(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    const unsubAdelantos = onSnapshot(adelantosQuery, (snap) => {
+      setAdelantos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      cancelled = true;
+      unsubAsistencias();
+      unsubAdelantos();
+    };
   }, [id]);
 
   useEffect(() => {
@@ -342,8 +362,6 @@ export default function EmpleadoDetallePage() {
   }, [filtroMes, id]);
 
   useEffect(() => {
-    setFiltroTardanzaDesde("");
-    setFiltroTardanzaHasta("");
     setOrdenTardanzas("desc");
   }, [filtroMes]);
 
@@ -628,26 +646,18 @@ export default function EmpleadoDetallePage() {
     return results;
   }, [asistencias, empleado, filtroMes]);
 
-  const tardanzasMesFiltradas = useMemo(() => {
-    const desde = String(filtroTardanzaDesde || "").trim();
-    const hasta = String(filtroTardanzaHasta || "").trim();
-
-    const results = tardanzasMes.filter((item) => {
-      if (desde && String(item.dateIso || "") < desde) return false;
-      if (hasta && String(item.dateIso || "") > hasta) return false;
-      return true;
-    });
-
+  const tardanzasMesOrdenadas = useMemo(() => {
+    const results = [...tardanzasMes];
     results.sort((a, b) => {
       const compare = String(a.dateIso || "").localeCompare(String(b.dateIso || ""));
       return ordenTardanzas === "asc" ? compare : -compare;
     });
 
     return results;
-  }, [filtroTardanzaDesde, filtroTardanzaHasta, ordenTardanzas, tardanzasMes]);
+  }, [ordenTardanzas, tardanzasMes]);
 
   const resumenTardanzas = useMemo(() => {
-    return tardanzasMesFiltradas.reduce(
+    return tardanzasMesOrdenadas.reduce(
       (acc, item) => {
         acc.cantidad += 1;
         acc.minutos += Number(item.minutosTarde || 0);
@@ -655,7 +665,7 @@ export default function EmpleadoDetallePage() {
       },
       { cantidad: 0, minutos: 0 },
     );
-  }, [tardanzasMesFiltradas]);
+  }, [tardanzasMesOrdenadas]);
 
   const resumenFormula = useMemo(() => {
     const trabajado = Number(resumenMes?.totSemana || 0);
@@ -1524,30 +1534,7 @@ export default function EmpleadoDetallePage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[168px_168px_220px]">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Desde
-                  </label>
-                  <Input
-                    type="date"
-                    value={filtroTardanzaDesde}
-                    onChange={(e) => setFiltroTardanzaDesde(e.target.value)}
-                    className="h-11 rounded-xl border-slate-200 bg-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Hasta
-                  </label>
-                  <Input
-                    type="date"
-                    value={filtroTardanzaHasta}
-                    onChange={(e) => setFiltroTardanzaHasta(e.target.value)}
-                    className="h-11 rounded-xl border-slate-200 bg-white"
-                  />
-                </div>
-                <div className="space-y-2">
+              <div className="w-full max-w-[220px] space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                     Orden por fecha
                   </label>
@@ -1559,7 +1546,6 @@ export default function EmpleadoDetallePage() {
                     <option value="desc">Más recientes primero</option>
                     <option value="asc">Más antiguas primero</option>
                   </select>
-                </div>
               </div>
             </div>
 
@@ -1570,14 +1556,12 @@ export default function EmpleadoDetallePage() {
               <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
                 {Number(resumenTardanzas.minutos || 0).toLocaleString("es-AR")} min acumulados
               </div>
-              {(filtroTardanzaDesde || filtroTardanzaHasta || ordenTardanzas !== "desc") ? (
+              {ordenTardanzas !== "desc" ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setFiltroTardanzaDesde("");
-                    setFiltroTardanzaHasta("");
                     setOrdenTardanzas("desc");
                   }}
                   className="rounded-full border-slate-200 text-slate-600 hover:bg-slate-50"
@@ -1588,10 +1572,10 @@ export default function EmpleadoDetallePage() {
             </div>
           </CardHeader>
           <CardContent>
-            {tardanzasMesFiltradas.length > 0 ? (
+            {tardanzasMesOrdenadas.length > 0 ? (
               <>
                 <div className="space-y-3 md:hidden">
-                  {tardanzasMesFiltradas.map((item) => (
+                  {tardanzasMesOrdenadas.map((item) => (
                     <div
                       key={item.id}
                       className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4"
@@ -1643,7 +1627,7 @@ export default function EmpleadoDetallePage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {tardanzasMesFiltradas.map((item) => (
+                      {tardanzasMesOrdenadas.map((item) => (
                         <tr key={item.id} className="bg-white">
                           <td className="px-4 py-3 text-slate-700">
                             <div className="font-medium text-slate-900">
@@ -1671,9 +1655,7 @@ export default function EmpleadoDetallePage() {
               </>
             ) : (
               <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-sm text-slate-500">
-                {tardanzasMes.length > 0
-                  ? "No hay llegadas tarde dentro de los filtros elegidos."
-                  : "No hay llegadas tarde registradas en el mes seleccionado."}
+                No hay llegadas tarde registradas en el mes seleccionado.
               </div>
             )}
           </CardContent>
