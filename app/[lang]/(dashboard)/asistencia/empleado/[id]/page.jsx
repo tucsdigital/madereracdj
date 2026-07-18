@@ -84,6 +84,17 @@ const normalizarExtraDetalle = (item) => ({
   nota: String(item?.nota || ""),
 });
 
+const normalizarTardanzaDetalle = (item) => ({
+  id: String(item?.id || ""),
+  dateIso: String(item?.dateIso || item?.fecha || ""),
+  dayLabel: String(item?.dayLabel || item?.dia || ""),
+  horaLlegada: String(item?.horaLlegada || ""),
+  horaEsperada: String(item?.horaEsperada || item?.horaIngresoEsperada || ""),
+  minutosTarde: Number(item?.minutosTarde || 0),
+  minutosDemora: Number(item?.minutosDemora || item?.minutosTarde || 0),
+  justificacion: String(item?.justificacion || item?.notaTarde || item?.nota || ""),
+});
+
 const normalizarAusentismoAdjunto = (item) => ({
   id: String(item?.id || ""),
   nombreArchivo: String(item?.nombreArchivo || "Adjunto"),
@@ -457,6 +468,9 @@ export default function EmpleadoDetallePage() {
       extrasDetalle: Array.isArray(comprobanteMensual?.extrasDetalle)
         ? comprobanteMensual.extrasDetalle.map(normalizarExtraDetalle)
         : [],
+      tardanzasDetalle: Array.isArray(comprobanteMensual?.tardanzasDetalle)
+        ? comprobanteMensual.tardanzasDetalle.map(normalizarTardanzaDetalle)
+        : [],
       totPagar: calcularTotalLiquidacion({
         totSemana: comprobanteMensual?.totSemana,
         totExtras: comprobanteMensual?.totExtras,
@@ -656,6 +670,10 @@ export default function EmpleadoDetallePage() {
     return results;
   }, [ordenTardanzas, tardanzasMes]);
 
+  const tardanzasDetalleImpresion = useMemo(() => {
+    return tardanzasMesOrdenadas.map(normalizarTardanzaDetalle);
+  }, [tardanzasMesOrdenadas]);
+
   const resumenTardanzas = useMemo(() => {
     return tardanzasMesOrdenadas.reduce(
       (acc, item) => {
@@ -822,8 +840,20 @@ export default function EmpleadoDetallePage() {
   const abrirComprobanteImprimible = (comprobanteData) => {
     const html = buildLiquidacionAsistenciaHtml({
       empleado,
-      resumenMes,
-      comprobante: comprobanteData,
+      resumenMes: {
+        ...resumenMes,
+        tardanzasDetalle: tardanzasDetalleImpresion,
+      },
+      comprobante: comprobanteData
+        ? {
+            ...comprobanteData,
+            tardanzasDetalle:
+              Array.isArray(comprobanteData?.tardanzasDetalle) &&
+              comprobanteData.tardanzasDetalle.length > 0
+                ? comprobanteData.tardanzasDetalle.map(normalizarTardanzaDetalle)
+                : tardanzasDetalleImpresion,
+          }
+        : null,
     });
 
     imprimirHtmlInvisible(html);
@@ -832,12 +862,24 @@ export default function EmpleadoDetallePage() {
   const abrirValeImprimible = useCallback(() => {
     const html = buildControlAsistenciaValeHtml({
       empleado,
-      resumenMes,
-      comprobante: comprobanteMensualNormalizado,
+      resumenMes: {
+        ...resumenMes,
+        tardanzasDetalle: tardanzasDetalleImpresion,
+      },
+      comprobante: comprobanteMensualNormalizado
+        ? {
+            ...comprobanteMensualNormalizado,
+            tardanzasDetalle:
+              Array.isArray(comprobanteMensualNormalizado?.tardanzasDetalle) &&
+              comprobanteMensualNormalizado.tardanzasDetalle.length > 0
+                ? comprobanteMensualNormalizado.tardanzasDetalle.map(normalizarTardanzaDetalle)
+                : tardanzasDetalleImpresion,
+          }
+        : null,
     });
 
     imprimirHtmlInvisible(html);
-  }, [comprobanteMensualNormalizado, empleado, imprimirHtmlInvisible, resumenMes]);
+  }, [comprobanteMensualNormalizado, empleado, imprimirHtmlInvisible, resumenMes, tardanzasDetalleImpresion]);
 
   const emitirComprobanteAdelanto = useCallback(async (adelantoItem) => {
     if (!adelantoItem?.id) return;
@@ -1116,6 +1158,7 @@ export default function EmpleadoDetallePage() {
         extrasDetalle: Array.isArray(resumenMes.extrasDetalle)
           ? resumenMes.extrasDetalle.map(normalizarExtraDetalle)
           : [],
+        tardanzasDetalle: tardanzasDetalleImpresion,
         totPagar: Number(resumenMes.totPagar || 0),
         premioAsistencia: {
           ...(resumenMes.premioAsistencia || {}),
