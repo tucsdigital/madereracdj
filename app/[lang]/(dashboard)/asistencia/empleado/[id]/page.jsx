@@ -1265,7 +1265,7 @@ export default function EmpleadoDetallePage() {
                   <span className="font-semibold text-emerald-600">{formatCurrencyAR(resumenFormula.premio)}</span>
                 </div>
                 <div className="mt-1 text-xs text-emerald-700/80">
-                  Se suma al total del mes si el empleado cumple las condiciones definidas.
+                  Se ajusta según asistencia, medias y llegadas tarde del mes.
                 </div>
               </div>
 
@@ -1308,6 +1308,13 @@ export default function EmpleadoDetallePage() {
                     </div>
                     <span className="font-semibold text-slate-900">{resumenMes.premioAsistencia?.justificadas || 0}</span>
                   </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                      <span>Llegadas tarde</span>
+                    </div>
+                    <span className="font-semibold text-slate-900">{resumenMes.premioAsistencia?.tardanzas || 0}</span>
+                  </div>
                 </div>
               </div>
               {/* <div className="text-sm font-medium text-violet-600">
@@ -1327,7 +1334,7 @@ export default function EmpleadoDetallePage() {
               <div className="flex items-center justify-between gap-4">
                 <span className="text-slate-600">Resultado</span>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                  {resumenMes.premioAsistencia?.estadoLabel || "Sin premio"}
+                  {resumenMes.premioAsistencia?.estadoLabel || "Sin reconocimiento"}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -1343,6 +1350,26 @@ export default function EmpleadoDetallePage() {
               <div className="flex items-center justify-between gap-4">
                 <span className="text-slate-600">Máx. medias</span>
                 <span className="font-semibold text-slate-900">{resumenMes.premioAsistencia?.config?.maxMedias ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-600">Límite de llegadas tarde</span>
+                <span className="font-semibold text-slate-900">
+                  {Number(resumenMes.premioAsistencia?.config?.maxTardanzas || 0) > 0
+                    ? resumenMes.premioAsistencia?.config?.maxTardanzas
+                    : "Sin tope"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-600">Reconocimiento base</span>
+                <span className="font-semibold text-slate-900">
+                  {formatCurrencyAR(resumenMes.premioAsistencia?.premioBase || resumenMes.premioAsistencia?.premio || 0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-600">Ajuste por llegadas tarde</span>
+                <span className="font-semibold text-slate-900">
+                  {formatCurrencyAR(resumenMes.premioAsistencia?.descuentoTardanzas || 0)}
+                </span>
               </div>
               {/* <div className="text-sm font-medium text-violet-600">
                 Ver configuración de regla

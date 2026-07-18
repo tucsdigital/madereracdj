@@ -273,6 +273,28 @@ export default function PublicLiquidacionAsistenciaPage() {
                   <span className="text-slate-500">Justificadas</span>
                   <span className="font-semibold">{Number(liquidacion.premioAsistencia?.justificadas || 0)}</span>
                 </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Llegadas tarde</span>
+                  <span className="font-semibold">{Number(liquidacion.premioAsistencia?.tardanzas || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Reconocimiento base</span>
+                  <span className="font-semibold">
+                    {formatCurrencyAR(
+                      liquidacion.premioAsistencia?.premioBase ||
+                        liquidacion.premioAsistencia?.premio ||
+                        0,
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Ajuste por llegadas tarde</span>
+                  <span className="font-semibold">
+                    {formatCurrencyAR(
+                      liquidacion.premioAsistencia?.descuentoTardanzas || 0,
+                    )}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between rounded-[18px] bg-emerald-50 px-4 py-3">
                   <span className="text-emerald-700">Resultado del reconocimiento</span>
                   <span className="font-semibold text-emerald-700">

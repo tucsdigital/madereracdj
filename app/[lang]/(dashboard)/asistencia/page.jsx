@@ -202,6 +202,12 @@ function buildAdicionalDraft(dayData) {
         ? String(dayData.extraMonto)
         : "",
     nota: String(dayData?.extraNota || ""),
+    llegoTarde: Boolean(dayData?.llegoTarde ?? dayData?.llegadaTarde ?? false),
+    minutosTarde:
+      Number(dayData?.minutosTarde || 0) > 0
+        ? String(dayData.minutosTarde)
+        : "",
+    notaTarde: String(dayData?.notaTarde || ""),
   };
 }
 
@@ -279,6 +285,8 @@ export default function AsistenciaPage() {
     premioAsistenciaMinPorcentaje: "100",
     premioAsistenciaMaxAusencias: "0",
     premioAsistenciaMaxMedias: "0",
+    premioAsistenciaMaxTardanzas: "0",
+    premioAsistenciaDescuentoTardanza: "0",
     premioAsistenciaPesoMedia: "0.5",
   });
 
@@ -749,6 +757,9 @@ export default function AsistenciaPage() {
       extraCantidad: breakdown.extraCantidad || 0,
       extraNota: breakdown.extraNota || "",
       extraMonto: breakdown.extraMonto || 0,
+      llegoTarde: estado === "ausente" ? false : Boolean(prevDay?.llegoTarde),
+      minutosTarde: estado === "ausente" ? 0 : Number(prevDay?.minutosTarde || 0),
+      notaTarde: estado === "ausente" ? "" : String(prevDay?.notaTarde || ""),
       monto: Number((Number(montoJornada || 0) + Number(breakdown.extraMonto || 0)).toFixed(2)),
     };
     await persistDay(emp, idx, nextDay);
@@ -771,6 +782,9 @@ export default function AsistenciaPage() {
       valorDia: Number(emp.valorDia || 0),
       isWeekend: idx >= 5,
     });
+    const llegoTarde =
+      String(prevDay?.estado || "ausente") !== "ausente" && Boolean(draft.llegoTarde);
+    const minutosTarde = llegoTarde ? Math.max(Number(draft.minutosTarde || 0), 0) : 0;
     const nextDay = {
       ...prevDay,
       montoJornada,
@@ -778,6 +792,9 @@ export default function AsistenciaPage() {
       extraCantidad: tipo === "horas" ? cantidad : 0,
       extraNota: String(draft.nota || ""),
       extraMonto,
+      llegoTarde,
+      minutosTarde,
+      notaTarde: llegoTarde ? String(draft.notaTarde || "") : "",
       monto: Number((Number(montoJornada || 0) + Number(extraMonto || 0)).toFixed(2)),
     };
     await persistDay(emp, idx, nextDay);
@@ -890,11 +907,17 @@ export default function AsistenciaPage() {
           premioAsistencia: {
             ...(item.premioAsistencia || {}),
             premio: Number(item.premioAsistencia?.premio || 0),
+            premioBase: Number(item.premioAsistencia?.premioBase || 0),
+            descuentoTardanzas: Number(
+              item.premioAsistencia?.descuentoTardanzas || 0,
+            ),
             porcentaje: Number(item.premioAsistencia?.porcentaje || 0),
             presentes: Number(item.premioAsistencia?.presentes || 0),
             medias: Number(item.premioAsistencia?.medias || 0),
             ausentes: Number(item.premioAsistencia?.ausentes || 0),
             justificadas: Number(item.premioAsistencia?.justificadas || 0),
+            tardanzas: Number(item.premioAsistencia?.tardanzas || 0),
+            minutosTarde: Number(item.premioAsistencia?.minutosTarde || 0),
             diasEsperados: Number(item.premioAsistencia?.diasEsperados || 0),
           },
         })),
@@ -945,6 +968,8 @@ export default function AsistenciaPage() {
       premioAsistenciaMinPorcentaje: "100",
       premioAsistenciaMaxAusencias: "0",
       premioAsistenciaMaxMedias: "0",
+      premioAsistenciaMaxTardanzas: "0",
+      premioAsistenciaDescuentoTardanza: "0",
       premioAsistenciaPesoMedia: "0.5",
     });
     setOpenEmp(true);
@@ -964,6 +989,9 @@ export default function AsistenciaPage() {
       premioAsistenciaMinPorcentaje: emp.premioAsistenciaMinPorcentaje ?? 100,
       premioAsistenciaMaxAusencias: emp.premioAsistenciaMaxAusencias ?? 0,
       premioAsistenciaMaxMedias: emp.premioAsistenciaMaxMedias ?? 0,
+      premioAsistenciaMaxTardanzas: emp.premioAsistenciaMaxTardanzas ?? 0,
+      premioAsistenciaDescuentoTardanza:
+        emp.premioAsistenciaDescuentoTardanza ?? 0,
       premioAsistenciaPesoMedia: emp.premioAsistenciaPesoMedia ?? 0.5,
     });
     setOpenEmp(true);
@@ -989,6 +1017,12 @@ export default function AsistenciaPage() {
         : 0,
       premioAsistenciaMaxMedias: Boolean(formEmp.premioAsistenciaActivo)
         ? Number(formEmp.premioAsistenciaMaxMedias ?? 0)
+        : 0,
+      premioAsistenciaMaxTardanzas: Boolean(formEmp.premioAsistenciaActivo)
+        ? Number(formEmp.premioAsistenciaMaxTardanzas ?? 0)
+        : 0,
+      premioAsistenciaDescuentoTardanza: Boolean(formEmp.premioAsistenciaActivo)
+        ? Number(formEmp.premioAsistenciaDescuentoTardanza ?? 0)
         : 0,
       premioAsistenciaPesoMedia: Boolean(formEmp.premioAsistenciaActivo)
         ? Number(formEmp.premioAsistenciaPesoMedia ?? 0.5)
@@ -1662,6 +1696,19 @@ export default function AsistenciaPage() {
                                     {formatCurrencyAR(breakdown.extraMonto)}
                                   </div>
                                 ) : null}
+                                {breakdown.llegoTarde ? (
+                                  <div className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                    <Icon
+                                      icon="lucide:clock-3"
+                                      className="h-3 w-3"
+                                    />
+                                    {breakdown.minutosTarde > 0
+                                      ? `${Number(
+                                          breakdown.minutosTarde,
+                                        ).toLocaleString("es-AR")} min`
+                                      : "Llegada tarde"}
+                                  </div>
+                                ) : null}
                               </div>
                               <PopoverContent
                                 align="start"
@@ -1696,6 +1743,66 @@ export default function AsistenciaPage() {
 
                                     <div className="border-t border-slate-100 pt-3">
                                       <div className="mt-2 space-y-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setAdicionalDraft(emp.id, i, {
+                                              llegoTarde: !draft.llegoTarde,
+                                              minutosTarde: draft.llegoTarde
+                                                ? ""
+                                                : draft.minutosTarde,
+                                              notaTarde: draft.llegoTarde
+                                                ? ""
+                                                : draft.notaTarde,
+                                            })
+                                          }
+                                          className={`flex h-10 w-full items-center justify-between rounded-xl border px-3 text-sm transition-colors ${
+                                            draft.llegoTarde
+                                              ? "border-amber-300 bg-amber-50 text-amber-800"
+                                              : "border-slate-200 bg-white text-slate-600"
+                                          }`}
+                                        >
+                                          <span>Llegada tarde</span>
+                                          <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                                            <Icon
+                                              icon={
+                                                draft.llegoTarde
+                                                  ? "lucide:check-circle-2"
+                                                  : "lucide:circle"
+                                              }
+                                              className="h-4 w-4"
+                                            />
+                                            {draft.llegoTarde
+                                              ? "Marcada"
+                                              : "No marcada"}
+                                          </span>
+                                        </button>
+                                        {draft.llegoTarde ? (
+                                          <>
+                                            <Input
+                                              type="number"
+                                              min={0}
+                                              value={draft.minutosTarde}
+                                              onChange={(e) =>
+                                                setAdicionalDraft(emp.id, i, {
+                                                  minutosTarde: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Minutos de demora"
+                                              className="h-9 rounded-xl border-slate-200"
+                                            />
+                                            <Input
+                                              value={draft.notaTarde}
+                                              onChange={(e) =>
+                                                setAdicionalDraft(emp.id, i, {
+                                                  notaTarde: e.target.value,
+                                                })
+                                              }
+                                              placeholder="Comentario de la llegada"
+                                              className="h-9 rounded-xl border-slate-200"
+                                            />
+                                          </>
+                                        ) : null}
                                         <select
                                           value={draft.tipo}
                                           onChange={(e) =>
@@ -2441,6 +2548,44 @@ export default function AsistenciaPage() {
                           setFormEmp({
                             ...formEmp,
                             premioAsistenciaMaxMedias: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="empPremioMaxTardanzas">
+                        Llegadas tarde que mantienen el reconocimiento
+                      </Label>
+                      <Input
+                        id="empPremioMaxTardanzas"
+                        type="number"
+                        min={0}
+                        className="h-10"
+                        placeholder="0"
+                        value={formEmp.premioAsistenciaMaxTardanzas}
+                        onChange={(e) =>
+                          setFormEmp({
+                            ...formEmp,
+                            premioAsistenciaMaxTardanzas: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="empPremioDescuentoTardanza">
+                        Descuento por cada llegada tarde ($)
+                      </Label>
+                      <Input
+                        id="empPremioDescuentoTardanza"
+                        type="number"
+                        min={0}
+                        className="h-10"
+                        placeholder="0"
+                        value={formEmp.premioAsistenciaDescuentoTardanza}
+                        onChange={(e) =>
+                          setFormEmp({
+                            ...formEmp,
+                            premioAsistenciaDescuentoTardanza: e.target.value,
                           })
                         }
                       />
