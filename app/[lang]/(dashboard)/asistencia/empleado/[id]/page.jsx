@@ -19,6 +19,7 @@ import {
   calcularTotalLiquidacion,
   calcularTotalTrabajadoMensual,
   formatMonthLabel,
+  getDayPaymentBreakdown,
   isDateBeforeEmployeeStart,
 } from "@/lib/asistencia-utils";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,8 @@ const DAY_LABELS = {
   mie: "Miércoles",
   jue: "Jueves",
   vie: "Viernes",
+  sab: "Sábado",
+  dom: "Domingo",
 };
 
 const ACTION_OUTLINE_BUTTON_CLASS =
@@ -299,6 +302,9 @@ export default function EmpleadoDetallePage() {
   const [subiendoAusentismoKey, setSubiendoAusentismoKey] = useState("");
   const [imprimiendoAdelantoId, setImprimiendoAdelantoId] = useState("");
   const [ausentismoDrafts, setAusentismoDrafts] = useState({});
+  const [filtroTardanzaDesde, setFiltroTardanzaDesde] = useState("");
+  const [filtroTardanzaHasta, setFiltroTardanzaHasta] = useState("");
+  const [ordenTardanzas, setOrdenTardanzas] = useState("desc");
 
   useEffect(() => {
     const load = async () => {
@@ -334,6 +340,12 @@ export default function EmpleadoDetallePage() {
   useEffect(() => {
     setPublicUrl("");
   }, [filtroMes, id]);
+
+  useEffect(() => {
+    setFiltroTardanzaDesde("");
+    setFiltroTardanzaHasta("");
+    setOrdenTardanzas("desc");
+  }, [filtroMes]);
 
   const buildPublicUrl = useCallback((tokenPlain) => {
     const token = String(tokenPlain || "").trim();
@@ -558,7 +570,92 @@ export default function EmpleadoDetallePage() {
     }
 
     return results.sort((a, b) => String(b.dateIso).localeCompare(String(a.dateIso)));
-  }, [asistencias, filtroMes]);
+  }, [asistencias, empleado, filtroMes]);
+
+  const tardanzasMes = useMemo(() => {
+    const [year, month] = String(filtroMes || "").split("-").map(Number);
+    if (!year || !month) return [];
+
+    const rowsByWeek = asistencias.reduce((acc, item) => {
+      const key = formatDateKey(item?.weekStart) || String(item?.weekStart || "");
+      if (key) acc[key] = item;
+      return acc;
+    }, {});
+    const endOfMonth = new Date(year, month, 0).getDate();
+    const results = [];
+
+    for (let day = 1; day <= endOfMonth; day += 1) {
+      const current = new Date(year, month - 1, day);
+      if (isDateBeforeEmployeeStart(current, empleado)) continue;
+
+      const dow = current.getDay();
+      const dayIndex = dow === 0 ? 6 : dow - 1;
+      const currentDayKey = DAY_KEYS[dayIndex];
+      const currentWeekStart = new Date(current);
+      const diff = (dow === 0 ? -6 : 1) - dow;
+      currentWeekStart.setDate(current.getDate() + diff);
+      currentWeekStart.setHours(0, 0, 0, 0);
+      const weekStartKey = formatDateKey(currentWeekStart);
+      const row = rowsByWeek[weekStartKey];
+      const dayData = row?.days?.[currentDayKey];
+
+      if (!dayData) continue;
+
+      const breakdown = getDayPaymentBreakdown({
+        dayData,
+        empleado,
+        dateInput: current,
+      });
+
+      if (!breakdown.llegoTarde) continue;
+
+      results.push({
+        id: `${weekStartKey}_${currentDayKey}_tarde`,
+        dateIso: formatDateKey(current),
+        weekStart: weekStartKey,
+        dayKey: currentDayKey,
+        dayLabel: DAY_LABELS[currentDayKey] || currentDayKey,
+        horaLlegada: String(breakdown.horaLlegada || ""),
+        horaEsperada: String(breakdown.horaIngresoEsperada || ""),
+        minutosTarde: Number(breakdown.minutosTarde || 0),
+        minutosDemora: Number(breakdown.minutosDemora || 0),
+        justificacion: String(
+          dayData?.notaTarde ?? dayData?.demoraNota ?? dayData?.ausentismoNota ?? "",
+        ).trim(),
+      });
+    }
+
+    return results;
+  }, [asistencias, empleado, filtroMes]);
+
+  const tardanzasMesFiltradas = useMemo(() => {
+    const desde = String(filtroTardanzaDesde || "").trim();
+    const hasta = String(filtroTardanzaHasta || "").trim();
+
+    const results = tardanzasMes.filter((item) => {
+      if (desde && String(item.dateIso || "") < desde) return false;
+      if (hasta && String(item.dateIso || "") > hasta) return false;
+      return true;
+    });
+
+    results.sort((a, b) => {
+      const compare = String(a.dateIso || "").localeCompare(String(b.dateIso || ""));
+      return ordenTardanzas === "asc" ? compare : -compare;
+    });
+
+    return results;
+  }, [filtroTardanzaDesde, filtroTardanzaHasta, ordenTardanzas, tardanzasMes]);
+
+  const resumenTardanzas = useMemo(() => {
+    return tardanzasMesFiltradas.reduce(
+      (acc, item) => {
+        acc.cantidad += 1;
+        acc.minutos += Number(item.minutosTarde || 0);
+        return acc;
+      },
+      { cantidad: 0, minutos: 0 },
+    );
+  }, [tardanzasMesFiltradas]);
 
   const resumenFormula = useMemo(() => {
     const trabajado = Number(resumenMes?.totSemana || 0);
@@ -1414,6 +1511,173 @@ export default function EmpleadoDetallePage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="gap-4 pb-3">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-slate-900">
+                  Historial de llegadas tarde
+                </CardTitle>
+                <div className="text-sm text-slate-500">
+                  Fechas del período con ingreso fuera del horario esperado.
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[168px_168px_220px]">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Desde
+                  </label>
+                  <Input
+                    type="date"
+                    value={filtroTardanzaDesde}
+                    onChange={(e) => setFiltroTardanzaDesde(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 bg-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Hasta
+                  </label>
+                  <Input
+                    type="date"
+                    value={filtroTardanzaHasta}
+                    onChange={(e) => setFiltroTardanzaHasta(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 bg-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Orden por fecha
+                  </label>
+                  <select
+                    value={ordenTardanzas}
+                    onChange={(e) => setOrdenTardanzas(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
+                  >
+                    <option value="desc">Más recientes primero</option>
+                    <option value="asc">Más antiguas primero</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                {resumenTardanzas.cantidad.toLocaleString("es-AR")} llegada{resumenTardanzas.cantidad === 1 ? "" : "s"} tarde
+              </div>
+              <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                {Number(resumenTardanzas.minutos || 0).toLocaleString("es-AR")} min acumulados
+              </div>
+              {(filtroTardanzaDesde || filtroTardanzaHasta || ordenTardanzas !== "desc") ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFiltroTardanzaDesde("");
+                    setFiltroTardanzaHasta("");
+                    setOrdenTardanzas("desc");
+                  }}
+                  className="rounded-full border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Limpiar filtros
+                </Button>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {tardanzasMesFiltradas.length > 0 ? (
+              <>
+                <div className="space-y-3 md:hidden">
+                  {tardanzasMesFiltradas.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">
+                            {item.dayLabel} {formatDateAR(item.dateIso)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            Ingreso {item.horaLlegada || "-"} · Esperado {item.horaEsperada || "-"}
+                          </div>
+                        </div>
+                        <div className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                          +{Number(item.minutosTarde || 0).toLocaleString("es-AR")} min
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            Retraso total
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-slate-900">
+                            {Number(item.minutosDemora || item.minutosTarde || 0).toLocaleString("es-AR")} min
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            Justificación
+                          </div>
+                          <div className="mt-2 text-sm text-slate-700">
+                            {item.justificacion || "Sin detalle"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-hidden rounded-[18px] border border-slate-100 md:block">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold">Fecha</th>
+                        <th className="px-4 py-3 text-left font-semibold">Ingreso</th>
+                        <th className="px-4 py-3 text-left font-semibold">Horario esperado</th>
+                        <th className="px-4 py-3 text-right font-semibold">Minutos tarde</th>
+                        <th className="px-4 py-3 text-left font-semibold">Justificación</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {tardanzasMesFiltradas.map((item) => (
+                        <tr key={item.id} className="bg-white">
+                          <td className="px-4 py-3 text-slate-700">
+                            <div className="font-medium text-slate-900">
+                              {formatDateAR(item.dateIso)}
+                            </div>
+                            <div className="text-xs text-slate-500">{item.dayLabel}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {item.horaLlegada || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {item.horaEsperada || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-amber-700">
+                            +{Number(item.minutosTarde || 0).toLocaleString("es-AR")} min
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {item.justificacion || "Sin detalle"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-sm text-slate-500">
+                {tardanzasMes.length > 0
+                  ? "No hay llegadas tarde dentro de los filtros elegidos."
+                  : "No hay llegadas tarde registradas en el mes seleccionado."}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="rounded-[24px] border border-slate-200 bg-white shadow-sm">
