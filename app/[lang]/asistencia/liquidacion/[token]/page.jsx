@@ -278,6 +278,21 @@ export default function PublicLiquidacionAsistenciaPage() {
                   <span className="font-semibold">{Number(liquidacion.premioAsistencia?.tardanzas || 0)}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Hora de ingreso</span>
+                  <span className="font-semibold">
+                    {liquidacion.premioAsistencia?.config?.horaIngreso || "Sin horario"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
+                  <span className="text-slate-500">Margen permitido</span>
+                  <span className="font-semibold">
+                    {Number(
+                      liquidacion.premioAsistencia?.config?.toleranciaMinutos || 0,
+                    ).toLocaleString("es-AR")}{" "}
+                    min
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-[18px] bg-slate-50 px-4 py-3">
                   <span className="text-slate-500">Reconocimiento base</span>
                   <span className="font-semibold">
                     {formatCurrencyAR(

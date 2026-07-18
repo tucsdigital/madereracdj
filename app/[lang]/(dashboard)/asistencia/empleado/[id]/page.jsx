@@ -11,6 +11,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import {
+  buildControlAsistenciaValeHtml,
   buildExtrasDetalleMensual,
   buildLiquidacionAsistenciaHtml,
   calcularPremioAsistenciaMensual,
@@ -721,6 +722,16 @@ export default function EmpleadoDetallePage() {
     imprimirHtmlInvisible(html);
   };
 
+  const abrirValeImprimible = useCallback(() => {
+    const html = buildControlAsistenciaValeHtml({
+      empleado,
+      resumenMes,
+      comprobante: comprobanteMensualNormalizado,
+    });
+
+    imprimirHtmlInvisible(html);
+  }, [comprobanteMensualNormalizado, empleado, imprimirHtmlInvisible, resumenMes]);
+
   const emitirComprobanteAdelanto = useCallback(async (adelantoItem) => {
     if (!adelantoItem?.id) return;
     try {
@@ -1189,6 +1200,14 @@ export default function EmpleadoDetallePage() {
               </Button>
               <Button
                 variant="outline"
+                onClick={abrirValeImprimible}
+                disabled={!empleado?.id}
+                className={ACTION_OUTLINE_BUTTON_CLASS}
+              >
+                Imprimir Vale
+              </Button>
+              <Button
+                variant="outline"
                 onClick={abrirLinkPublico}
                 disabled={!comprobanteMensualNormalizado || !publicUrl || generandoLink}
                 className={ACTION_OUTLINE_BUTTON_CLASS}
@@ -1357,6 +1376,21 @@ export default function EmpleadoDetallePage() {
                   {Number(resumenMes.premioAsistencia?.config?.maxTardanzas || 0) > 0
                     ? resumenMes.premioAsistencia?.config?.maxTardanzas
                     : "Sin tope"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-600">Hora de ingreso</span>
+                <span className="font-semibold text-slate-900">
+                  {resumenMes.premioAsistencia?.config?.horaIngreso || "Sin horario"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-600">Margen permitido</span>
+                <span className="font-semibold text-slate-900">
+                  {Number(
+                    resumenMes.premioAsistencia?.config?.toleranciaMinutos || 0,
+                  ).toLocaleString("es-AR")}{" "}
+                  min
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">

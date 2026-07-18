@@ -202,11 +202,9 @@ function buildAdicionalDraft(dayData) {
         ? String(dayData.extraMonto)
         : "",
     nota: String(dayData?.extraNota || ""),
-    llegoTarde: Boolean(dayData?.llegoTarde ?? dayData?.llegadaTarde ?? false),
-    minutosTarde:
-      Number(dayData?.minutosTarde || 0) > 0
-        ? String(dayData.minutosTarde)
-        : "",
+    horaLlegada: String(
+      dayData?.horaLlegada ?? dayData?.horaIngresoReal ?? dayData?.ingresoReal ?? "",
+    ),
     notaTarde: String(dayData?.notaTarde || ""),
   };
 }
@@ -280,6 +278,8 @@ export default function AsistenciaPage() {
     valorExtra: "",
     sector: "",
     fechaIngreso: fmt(new Date()),
+    horaIngreso: "07:00",
+    toleranciaLlegadaMinutos: "15",
     premioAsistenciaActivo: false,
     premioAsistenciaMonto: "",
     premioAsistenciaMinPorcentaje: "100",
@@ -757,8 +757,11 @@ export default function AsistenciaPage() {
       extraCantidad: breakdown.extraCantidad || 0,
       extraNota: breakdown.extraNota || "",
       extraMonto: breakdown.extraMonto || 0,
-      llegoTarde: estado === "ausente" ? false : Boolean(prevDay?.llegoTarde),
-      minutosTarde: estado === "ausente" ? 0 : Number(prevDay?.minutosTarde || 0),
+      horaLlegada: estado === "ausente" ? "" : String(prevDay?.horaLlegada || ""),
+      llegoTarde:
+        estado === "ausente" ? false : Boolean(breakdown.llegoTarde),
+      minutosTarde:
+        estado === "ausente" ? 0 : Number(breakdown.minutosTarde || 0),
       notaTarde: estado === "ausente" ? "" : String(prevDay?.notaTarde || ""),
       monto: Number((Number(montoJornada || 0) + Number(breakdown.extraMonto || 0)).toFixed(2)),
     };
@@ -782,9 +785,6 @@ export default function AsistenciaPage() {
       valorDia: Number(emp.valorDia || 0),
       isWeekend: idx >= 5,
     });
-    const llegoTarde =
-      String(prevDay?.estado || "ausente") !== "ausente" && Boolean(draft.llegoTarde);
-    const minutosTarde = llegoTarde ? Math.max(Number(draft.minutosTarde || 0), 0) : 0;
     const nextDay = {
       ...prevDay,
       montoJornada,
@@ -792,11 +792,23 @@ export default function AsistenciaPage() {
       extraCantidad: tipo === "horas" ? cantidad : 0,
       extraNota: String(draft.nota || ""),
       extraMonto,
-      llegoTarde,
-      minutosTarde,
-      notaTarde: llegoTarde ? String(draft.notaTarde || "") : "",
+      horaLlegada:
+        String(prevDay?.estado || "ausente") !== "ausente"
+          ? String(draft.horaLlegada || "")
+          : "",
+      notaTarde:
+        String(prevDay?.estado || "ausente") !== "ausente"
+          ? String(draft.notaTarde || "")
+          : "",
       monto: Number((Number(montoJornada || 0) + Number(extraMonto || 0)).toFixed(2)),
     };
+    const nextBreakdown = getDayPaymentBreakdown({
+      dayData: nextDay,
+      empleado: emp,
+      dateInput: addDays(semanaInicio, idx),
+    });
+    nextDay.llegoTarde = Boolean(nextBreakdown.llegoTarde);
+    nextDay.minutosTarde = Number(nextBreakdown.minutosTarde || 0);
     await persistDay(emp, idx, nextDay);
     setPickerOpen(null);
   };
@@ -963,6 +975,8 @@ export default function AsistenciaPage() {
       valorExtra: "",
       sector: "",
       fechaIngreso: fmt(new Date()),
+      horaIngreso: "07:00",
+      toleranciaLlegadaMinutos: "15",
       premioAsistenciaActivo: false,
       premioAsistenciaMonto: "",
       premioAsistenciaMinPorcentaje: "100",
@@ -984,6 +998,12 @@ export default function AsistenciaPage() {
       valorExtra: emp.valorExtra ?? "",
       sector: emp.sector || "",
       fechaIngreso: emp.fechaIngreso || "",
+      horaIngreso: emp.horaIngreso || emp.horarioIngreso || "07:00",
+      toleranciaLlegadaMinutos:
+        emp.toleranciaLlegadaMinutos ??
+        emp.toleranciaTardanzaMinutos ??
+        emp.premioAsistenciaToleranciaMinutos ??
+        15,
       premioAsistenciaActivo: Boolean(emp.premioAsistenciaActivo),
       premioAsistenciaMonto: emp.premioAsistenciaMonto ?? "",
       premioAsistenciaMinPorcentaje: emp.premioAsistenciaMinPorcentaje ?? 100,
@@ -1005,6 +1025,11 @@ export default function AsistenciaPage() {
       valorExtra: Number(formEmp.valorExtra || 0),
       sector: formEmp.sector || "",
       fechaIngreso: String(formEmp.fechaIngreso || "").trim() || null,
+      horaIngreso: String(formEmp.horaIngreso || "").trim(),
+      toleranciaLlegadaMinutos: Math.max(
+        Number(formEmp.toleranciaLlegadaMinutos ?? 0),
+        0,
+      ),
       premioAsistenciaActivo: Boolean(formEmp.premioAsistenciaActivo),
       premioAsistenciaMonto: Boolean(formEmp.premioAsistenciaActivo)
         ? Number(formEmp.premioAsistenciaMonto || 0)
@@ -1637,6 +1662,33 @@ export default function AsistenciaPage() {
                         const key = `${emp.id}-${i}`;
                         const draft =
                           adicionalDrafts[key] || buildAdicionalDraft(d);
+                        const draftBreakdown = getDayPaymentBreakdown({
+                          dayData: {
+                            ...d,
+                            horaLlegada: draft.horaLlegada,
+                            notaTarde: draft.notaTarde,
+                            extraTipo: draft.tipo,
+                            extraCantidad:
+                              draft.tipo === "horas"
+                                ? Number(draft.cantidad || 0)
+                                : 0,
+                            extraNota: String(draft.nota || ""),
+                            extraMonto: calcMontoAdicional({
+                              empleado: emp,
+                              tipo: String(draft.tipo || ""),
+                              cantidad:
+                                String(draft.tipo || "") === "horas"
+                                  ? Number(draft.cantidad || 0)
+                                  : 0,
+                              montoManual:
+                                String(draft.tipo || "") === "manual"
+                                  ? Number(draft.monto || 0)
+                                  : 0,
+                            }),
+                          },
+                          empleado: emp,
+                          dateInput: dayDate,
+                        });
                         return (
                           <td
                             key={i}
@@ -1702,8 +1754,8 @@ export default function AsistenciaPage() {
                                       icon="lucide:clock-3"
                                       className="h-3 w-3"
                                     />
-                                    {breakdown.minutosTarde > 0
-                                      ? `${Number(
+                                    {breakdown.horaLlegada
+                                      ? `${breakdown.horaLlegada} · +${Number(
                                           breakdown.minutosTarde,
                                         ).toLocaleString("es-AR")} min`
                                       : "Llegada tarde"}
@@ -1743,52 +1795,33 @@ export default function AsistenciaPage() {
 
                                     <div className="border-t border-slate-100 pt-3">
                                       <div className="mt-2 space-y-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setAdicionalDraft(emp.id, i, {
-                                              llegoTarde: !draft.llegoTarde,
-                                              minutosTarde: draft.llegoTarde
-                                                ? ""
-                                                : draft.minutosTarde,
-                                              notaTarde: draft.llegoTarde
-                                                ? ""
-                                                : draft.notaTarde,
-                                            })
-                                          }
-                                          className={`flex h-10 w-full items-center justify-between rounded-xl border px-3 text-sm transition-colors ${
-                                            draft.llegoTarde
-                                              ? "border-amber-300 bg-amber-50 text-amber-800"
-                                              : "border-slate-200 bg-white text-slate-600"
-                                          }`}
-                                        >
-                                          <span>Llegada tarde</span>
-                                          <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                                            <Icon
-                                              icon={
-                                                draft.llegoTarde
-                                                  ? "lucide:check-circle-2"
-                                                  : "lucide:circle"
-                                              }
-                                              className="h-4 w-4"
-                                            />
-                                            {draft.llegoTarde
-                                              ? "Marcada"
-                                              : "No marcada"}
-                                          </span>
-                                        </button>
-                                        {draft.llegoTarde ? (
+                                        {String(
+                                          getDay(emp.id, i)?.estado || "ausente",
+                                        ) !== "ausente" ? (
                                           <>
+                                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                              <div className="font-medium text-slate-700">
+                                                Ingreso esperado{" "}
+                                                {draftBreakdown.horaIngresoEsperada ||
+                                                  "Sin horario"}
+                                              </div>
+                                              <div className="mt-1">
+                                                Tolerancia de{" "}
+                                                {Number(
+                                                  draftBreakdown.toleranciaMinutos || 0,
+                                                ).toLocaleString("es-AR")}{" "}
+                                                minutos
+                                              </div>
+                                            </div>
                                             <Input
-                                              type="number"
-                                              min={0}
-                                              value={draft.minutosTarde}
+                                              type="time"
+                                              value={draft.horaLlegada}
                                               onChange={(e) =>
                                                 setAdicionalDraft(emp.id, i, {
-                                                  minutosTarde: e.target.value,
+                                                  horaLlegada: e.target.value,
                                                 })
                                               }
-                                              placeholder="Minutos de demora"
+                                              placeholder="Hora de llegada"
                                               className="h-9 rounded-xl border-slate-200"
                                             />
                                             <Input
@@ -1801,6 +1834,25 @@ export default function AsistenciaPage() {
                                               placeholder="Comentario de la llegada"
                                               className="h-9 rounded-xl border-slate-200"
                                             />
+                                            {draft.horaLlegada &&
+                                            draftBreakdown.horaIngresoEsperada ? (
+                                              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                                                {draftBreakdown.llegoTarde ? (
+                                                  <span>
+                                                    Llega fuera del margen por{" "}
+                                                    {Number(
+                                                      draftBreakdown.minutosTarde || 0,
+                                                    ).toLocaleString("es-AR")}{" "}
+                                                    minutos.
+                                                  </span>
+                                                ) : (
+                                                  <span>
+                                                    La llegada queda dentro del
+                                                    margen permitido.
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : null}
                                           </>
                                         ) : null}
                                         <select
@@ -2448,6 +2500,36 @@ export default function AsistenciaPage() {
                     value={formEmp.fechaIngreso}
                     onChange={(e) =>
                       setFormEmp({ ...formEmp, fechaIngreso: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="empHoraIngreso">Hora de ingreso</Label>
+                  <Input
+                    id="empHoraIngreso"
+                    type="time"
+                    className="h-10"
+                    value={formEmp.horaIngreso}
+                    onChange={(e) =>
+                      setFormEmp({ ...formEmp, horaIngreso: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="empToleranciaLlegada">
+                    Tolerancia de llegada (min)
+                  </Label>
+                  <Input
+                    id="empToleranciaLlegada"
+                    type="number"
+                    min={0}
+                    className="h-10"
+                    value={formEmp.toleranciaLlegadaMinutos}
+                    onChange={(e) =>
+                      setFormEmp({
+                        ...formEmp,
+                        toleranciaLlegadaMinutos: e.target.value,
+                      })
                     }
                   />
                 </div>
