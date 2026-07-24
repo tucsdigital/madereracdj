@@ -44,6 +44,11 @@ const formatVendedorName = (value) => {
   return formatted || local;
 };
 
+const isPresupuestoAnulado = (presupuesto) => {
+  if (!presupuesto) return false;
+  return String(presupuesto.estado || "").toLowerCase() === "anulada" || presupuesto.anulada === true;
+};
+
 // Función para obtener el color del estado
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -284,6 +289,15 @@ export const columnsPresupuestos = [
     header: "Acciones",
     cell: ({ row }) => {
       const presupuesto = row.original;
+      if (isPresupuestoAnulado(presupuesto)) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge variant="soft" color="destructive" className="rounded-full whitespace-nowrap">
+              Anulado
+            </Badge>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
@@ -300,7 +314,7 @@ export const columnsPresupuestos = [
             variant="ghost" 
             size="sm"
             onClick={() => {
-              if (window.confirm('¿Estás seguro de que quieres eliminar este presupuesto? Esta acción no se puede deshacer.')) {
+              if (window.confirm('¿Estás seguro de que quieres anular este presupuesto? El registro seguirá guardado y solo cambiará su visibilidad.')) {
                 // La función de borrado se manejará en el componente padre
                 window.dispatchEvent(new CustomEvent('deletePresupuesto', { 
                   detail: { id: presupuesto.id, tipo: 'presupuesto' } 

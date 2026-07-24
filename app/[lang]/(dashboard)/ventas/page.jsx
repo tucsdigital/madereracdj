@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   columnsPresupuestos,
   columnsVentas,
@@ -58,6 +59,7 @@ const VentasPage = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   const [motivoAnulacion, setMotivoAnulacion] = useState("");
+  const [mostrarAnulados, setMostrarAnulados] = useState(false);
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
@@ -66,6 +68,21 @@ const VentasPage = () => {
     if (!v) return false;
     return String(v.estado || "").toLowerCase() === "anulada" || v.anulada === true;
   }, []);
+
+  const isPresupuestoAnulado = useCallback((p) => {
+    if (!p) return false;
+    return String(p.estado || "").toLowerCase() === "anulada" || p.anulada === true;
+  }, []);
+
+  const ventasFiltradas = useMemo(
+    () => ventasData.filter((venta) => (mostrarAnulados ? true : !isVentaAnulada(venta))),
+    [ventasData, mostrarAnulados, isVentaAnulada]
+  );
+
+  const presupuestosFiltrados = useMemo(
+    () => presupuestosData.filter((presupuesto) => (mostrarAnulados ? true : !isPresupuestoAnulado(presupuesto))),
+    [presupuestosData, mostrarAnulados, isPresupuestoAnulado]
+  );
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -141,30 +158,30 @@ const VentasPage = () => {
         return;
       }
 
-      const response = await fetch("/api/delete-document", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          documentId: itemToDelete.id,
-          collectionName: "presupuestos",
-          userId: user.uid,
-          userEmail: user.email,
-        }),
+      const presupuestoRef = doc(db, "presupuestos", itemToDelete.id);
+      await updateDoc(presupuestoRef, {
+        estado: "anulada",
+        anulada: true,
+        anuladoEn: serverTimestamp(),
+        anulacionMotivo: String(motivoAnulacion || "").trim(),
+        fechaActualizacion: serverTimestamp(),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `Error al eliminar ${deleteType}`);
-      }
+      setPresupuestosData((prev) =>
+        prev.map((p) =>
+          p.id === itemToDelete.id
+            ? {
+                ...p,
+                estado: "anulada",
+                anulada: true,
+                anuladoEn: new Date().toISOString(),
+                anulacionMotivo: String(motivoAnulacion || "").trim(),
+              }
+            : p
+        )
+      );
 
-      const result = await response.json();
-      
-      // Actualizar la lista local
-      setPresupuestosData(prev => prev.filter(p => p.id !== itemToDelete.id));
-      
-      setDeleteMessage(`✅ ${result.message}`);
+      setDeleteMessage("✅ Presupuesto anulado exitosamente");
       
       // Limpiar mensaje después de 3 segundos
       setTimeout(() => setDeleteMessage(""), 3000);
@@ -263,6 +280,20 @@ const VentasPage = () => {
         </div>
       </div>
 
+      <div className="flex items-center gap-3 px-2">
+        <Checkbox
+          id="mostrar-anulados-ventas-presupuestos"
+          checked={mostrarAnulados}
+          onCheckedChange={(checked) => setMostrarAnulados(Boolean(checked))}
+        />
+        <label
+          htmlFor="mostrar-anulados-ventas-presupuestos"
+          className="text-sm font-medium text-foreground cursor-pointer"
+        >
+          Mostrar ventas y presupuestos anulados
+        </label>
+      </div>
+
           {/* Tablas mejoradas */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
       {/* Tabla de Presupuestos - IZQUIERDA */}
@@ -288,18 +319,31 @@ const VentasPage = () => {
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Procesando...</span>
                 </div>
               )}
+              <div className="ml-auto text-sm font-medium text-muted-foreground">
+                {mostrarAnulados ? "Incluye anulados" : "Oculta anulados"}
+              </div>
             </CardTitle>
           </CardHeader>
         <CardContent className="pt-6 p-0">
           <div className="overflow-hidden rounded-b-2xl">
             <DataTableEnhanced 
-              data={presupuestosData} 
+              data={presupuestosFiltrados} 
               columns={columnsPresupuestos}
               searchPlaceholder="Buscar presupuestos..."
               className="border-0"
               defaultSorting={[{ id: "numeroPedido", desc: true }]}
               onRowClick={(presupuesto) => {
                 router.push(`/${lang}/presupuestos/${presupuesto.id}`);
+              }}
+              rowClassName={(row) =>
+                isPresupuestoAnulado(row)
+                  ? "bg-red-50/70 hover:bg-red-50/80"
+                  : ""
+              }
+              cellClassName={(row, columnId) => {
+                if (!isPresupuestoAnulado(row)) return "";
+                if (String(columnId) === "actions") return "text-red-700";
+                return "text-red-700 line-through";
               }}
               compact={true}
             />
@@ -330,12 +374,15 @@ const VentasPage = () => {
                 <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Procesando...</span>
                 </div>
               )}
+              <div className="ml-auto text-sm font-medium text-muted-foreground">
+                {mostrarAnulados ? "Incluye anulados" : "Oculta anulados"}
+              </div>
             </CardTitle>
           </CardHeader>
         <CardContent className="pt-6 p-0">
           <div className="overflow-hidden rounded-b-2xl">
             <DataTableEnhanced 
-              data={ventasData} 
+              data={ventasFiltradas} 
               columns={columnsVentas}
               searchPlaceholder="Buscar ventas..."
               className="border-0"
@@ -368,12 +415,12 @@ const VentasPage = () => {
               <AlertTriangle className="w-8 h-8 text-red-700 dark:text-red-300" />
             </div>
             <DialogTitle className="text-xl font-bold text-foreground">
-              {deleteType === "venta" ? "Confirmar Anulación" : "Confirmar Eliminación"}
+              {deleteType === "venta" ? "Confirmar Anulación" : "Confirmar Anulación"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground mt-2">
               {deleteType === "venta"
                 ? "La venta quedará anulada (no se elimina) y se repondrá el stock."
-                : "¿Estás seguro de que quieres eliminar este presupuesto?"}
+                : "El presupuesto quedará anulado y seguirá almacenado en la base de datos."}
             </DialogDescription>
           </DialogHeader>
 
@@ -389,14 +436,14 @@ const VentasPage = () => {
                 <div className="text-sm text-red-700 dark:text-red-300">
                   {deleteType === 'venta' 
                     ? 'Esta acción anulará la venta y restaurará el stock de productos.'
-                    : 'Esta acción eliminará el presupuesto permanentemente.'
+                    : 'Esta acción anulará el presupuesto sin borrarlo de la base de datos.'
                   }
                 </div>
               </div>
             </div>
           </div>
 
-          {deleteType === "venta" && (
+          {(deleteType === "venta" || deleteType === "presupuesto") && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-foreground mb-2">
                 Motivo de anulación
@@ -435,7 +482,7 @@ const VentasPage = () => {
               ) : (
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  {deleteType === "venta" ? "Anular" : "Eliminar"}
+                  Anular
                 </>
               )}
             </Button>

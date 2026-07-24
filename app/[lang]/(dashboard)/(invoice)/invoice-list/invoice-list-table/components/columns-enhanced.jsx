@@ -98,6 +98,11 @@ const isVentaAnulada = (venta) => {
   return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
 };
 
+const isPresupuestoAnulado = (presupuesto) => {
+  if (!presupuesto) return false;
+  return String(presupuesto.estado || "").toLowerCase() === "anulada" || presupuesto.anulada === true;
+};
+
 // Columnas para la tabla de presupuestos
 export const columnsPresupuestos = [
   {
@@ -217,6 +222,16 @@ export const columnsPresupuestos = [
     id: "actions",
     header: "Acciones",
     cell: ({ row }) => {
+      if (isPresupuestoAnulado(row.original)) {
+        return (
+          <div className="flex items-center gap-2">
+            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
+              Anulado
+            </Badge>
+          </div>
+        );
+      }
+
       return (
         <div className="flex items-center gap-2">
           <Button

@@ -1,7 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { columns } from "../(invoice)/invoice-list/invoice-list-table/components/columns";
 import { DataTable } from "../(invoice)/invoice-list/invoice-list-table/components/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -13,8 +14,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { Box, Layers, Settings, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
+import { useAuth } from "@/provider/auth.provider";
 
 // Categorías y productos ficticios
 const categorias = [
@@ -649,9 +651,26 @@ const PresupuestosPage = () => {
   const [open, setOpen] = useState(false);
   const [presupuestosData, setPresupuestosData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState("");
+  const [mostrarAnulados, setMostrarAnulados] = useState(false);
+  const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const { lang } = params;
+
+  const isPresupuestoAnulado = useCallback((presupuesto) => {
+    if (!presupuesto) return false;
+    return String(presupuesto.estado || "").toLowerCase() === "anulada" || presupuesto.anulada === true;
+  }, []);
+
+  const presupuestosFiltrados = useMemo(
+    () => presupuestosData.filter((presupuesto) => (mostrarAnulados ? true : !isPresupuestoAnulado(presupuesto))),
+    [presupuestosData, mostrarAnulados, isPresupuestoAnulado]
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -674,6 +693,67 @@ const PresupuestosPage = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const handleDeletePresupuestoEvent = (event) => {
+      const presupuesto = presupuestosData.find((p) => p.id === event.detail.id);
+      if (!presupuesto) return;
+      setItemToDelete({
+        id: presupuesto.id,
+        name: presupuesto.cliente?.nombre || presupuesto.nombre || "Presupuesto",
+      });
+      setMotivoAnulacion("");
+      setShowDeleteDialog(true);
+    };
+
+    window.addEventListener("deletePresupuesto", handleDeletePresupuestoEvent);
+    return () => window.removeEventListener("deletePresupuesto", handleDeletePresupuestoEvent);
+  }, [presupuestosData]);
+
+  const confirmDelete = async () => {
+    if (!itemToDelete || !user) {
+      setShowDeleteDialog(false);
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteMessage("");
+      const presupuestoRef = doc(db, "presupuestos", itemToDelete.id);
+      await updateDoc(presupuestoRef, {
+        estado: "anulada",
+        anulada: true,
+        anuladoEn: serverTimestamp(),
+        anulacionMotivo: String(motivoAnulacion || "").trim(),
+        fechaActualizacion: serverTimestamp(),
+      });
+
+      setPresupuestosData((prev) =>
+        prev.map((p) =>
+          p.id === itemToDelete.id
+            ? {
+                ...p,
+                estado: "anulada",
+                anulada: true,
+                anuladoEn: new Date().toISOString(),
+                anulacionMotivo: String(motivoAnulacion || "").trim(),
+              }
+            : p
+        )
+      );
+
+      setDeleteMessage("✅ Presupuesto anulado exitosamente");
+      setTimeout(() => setDeleteMessage(""), 3000);
+    } catch (error) {
+      console.error("Error al anular presupuesto:", error);
+      setDeleteMessage(`❌ Error: ${error.message}`);
+      setTimeout(() => setDeleteMessage(""), 5000);
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
+    }
+  };
 
   const handleClose = () => setOpen(false);
   
@@ -715,6 +795,17 @@ const PresupuestosPage = () => {
 
   return (
     <div className="flex flex-col gap-6 py-8">
+      {deleteMessage && (
+        <div className={`p-4 rounded-xl flex items-center gap-3 text-base font-medium shadow-lg border ${
+          deleteMessage.startsWith("✅")
+            ? "bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+            : "bg-gradient-to-r from-red-500/15 to-red-500/5 border-red-500/20 text-red-700 dark:text-red-300"
+        }`}>
+          {deleteMessage.startsWith("✅") ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          <span className="font-semibold">{deleteMessage}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Presupuestos</h1>
@@ -724,19 +815,89 @@ const PresupuestosPage = () => {
           Crear Presupuesto
         </Button>
       </div>
+
+      <div className="flex items-center gap-3">
+        <Checkbox
+          id="mostrar-anulados-presupuestos"
+          checked={mostrarAnulados}
+          onCheckedChange={(checked) => setMostrarAnulados(Boolean(checked))}
+        />
+        <label htmlFor="mostrar-anulados-presupuestos" className="text-sm font-medium text-foreground cursor-pointer">
+          Mostrar presupuestos anulados
+        </label>
+      </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Presupuestos</CardTitle>
+          <CardTitle className="flex items-center gap-3">
+            <span>Lista de Presupuestos</span>
+            {deleting && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+            <span className="ml-auto text-sm font-medium text-muted-foreground">
+              {mostrarAnulados ? "Incluye anulados" : "Oculta anulados"}
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable data={presupuestosData} columns={columns} />
+          <DataTable
+            data={presupuestosFiltrados}
+            columns={columns}
+            rowClassName={(row) =>
+              isPresupuestoAnulado(row)
+                ? "bg-red-50/70 hover:bg-red-50/80"
+                : ""
+            }
+            cellClassName={(row, columnId) => {
+              if (!isPresupuestoAnulado(row)) return "";
+              if (String(columnId) === "actions") return "text-red-700";
+              return "text-red-700 line-through";
+            }}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="w-[95vw] max-w-[1500px] h-[85vh] flex flex-col">
           <FormularioPresupuesto onClose={handleClose} onSubmit={handleSubmit} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl border border-border/60 shadow-2xl bg-card">
+          <DialogHeader>
+            <DialogTitle>Confirmar anulación</DialogTitle>
+            <DialogDescription>
+              El presupuesto quedará anulado y seguirá almacenado en la base de datos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+              <div className="font-semibold text-red-800 dark:text-red-200">{itemToDelete?.name || "Presupuesto"}</div>
+              <div className="text-sm text-red-700 dark:text-red-300">
+                Esta acción oculta el presupuesto del listado principal, pero no lo elimina físicamente.
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Motivo de anulación</label>
+              <Textarea
+                value={motivoAnulacion}
+                onChange={(e) => setMotivoAnulacion(e.target.value)}
+                placeholder="Ej: cliente desistió / error de carga / duplicado…"
+                className="min-h-[90px]"
+                disabled={deleting}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? "Procesando..." : "Anular"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

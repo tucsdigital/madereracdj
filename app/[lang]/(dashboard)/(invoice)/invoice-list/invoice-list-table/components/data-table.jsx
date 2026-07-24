@@ -26,7 +26,7 @@ import { DataTableToolbar } from "./data-table-toolbar";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 
-export function DataTable({ columns, data }) {
+export function DataTable({ columns, data, rowClassName, cellClassName }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState([]);
@@ -110,13 +110,21 @@ export function DataTable({ columns, data }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-border/50 cursor-pointer hover:bg-muted/30 bg-card transition-colors"
+                  className={`border-b border-border/50 cursor-pointer hover:bg-muted/30 bg-card transition-colors ${
+                    typeof rowClassName === "function"
+                      ? rowClassName(row.original) || ""
+                      : rowClassName || ""
+                  }`}
                   onClick={() => handleRowClick(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="px-4 py-2 text-foreground"
+                      className={`px-4 py-2 text-foreground ${
+                        typeof cellClassName === "function"
+                          ? cellClassName(row.original, cell.column.id) || ""
+                          : cellClassName || ""
+                      }`}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
