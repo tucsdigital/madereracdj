@@ -58,7 +58,15 @@ const formatDateTimeAR = (value) => {
 
 const formatDateKey = (value) => {
   if (!value) return "";
-  const date = new Date(value);
+  let date;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    date = new Date(year, month - 1, day);
+  } else if (value && typeof value === "object" && "seconds" in value) {
+    date = new Date(value.seconds * 1000);
+  } else {
+    date = new Date(value);
+  }
   if (Number.isNaN(date.getTime())) return "";
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -2029,17 +2037,6 @@ export default function EmpleadoDetallePage() {
             )}
           </CardContent>
         </Card>
-
-        {resumenMes.premioAsistencia?.motivos?.length > 0 ? (
-          <Card className="rounded-[24px] border border-amber-200 bg-amber-50/80 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-amber-900">Observaciones del premio</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-amber-900">
-              {resumenMes.premioAsistencia.motivos.join(" · ")}
-            </CardContent>
-          </Card>
-        ) : null}
 
         <div className="rounded-[24px] border border-violet-100 bg-[linear-gradient(135deg,rgba(122,90,248,0.08),rgba(122,90,248,0.03))] px-5 py-6 shadow-sm">
           <div className="grid gap-5 md:grid-cols-[96px_1fr_1fr] md:items-center">
