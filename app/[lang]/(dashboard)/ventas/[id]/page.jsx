@@ -3872,11 +3872,6 @@ const VentaDetalle = () => {
                         <div className="mt-1 text-lg font-medium text-green-700">Abonado ${formatearNumeroArgentino(abonado)}</div>
                       </div>
 
-                      <div className="mb-3 rounded-md border border-amber-500/30 bg-background px-3 py-2 text-sm text-foreground">
-                        <span className="font-medium">Estado automático:</span>{" "}
-                        {abonado >= total ? "Pagado" : abonado > 0 ? "Parcial" : "Pendiente"}
-                      </div>
-
                       {/* Línea de captura: monto + método + acción */}
                       <div className="flex flex-col md:flex-row md:items-center gap-2">
                         <input
