@@ -478,6 +478,7 @@ export default function AsistenciaPage() {
         id: emp.id,
         nombre: emp.nombre || "",
         objetivo: objetivoCalculado,
+        diasHabilesObjetivo: diasHabiles,
         trabajado,
         adicionales,
         cobrado,
@@ -907,6 +908,7 @@ export default function AsistenciaPage() {
           employeeId: item.id,
           nombre: item.nombre,
           objetivo: Number(item.objetivo || 0),
+          diasHabilesObjetivo: Number(item.diasHabilesObjetivo || 0),
           trabajado: Number(item.trabajado || 0),
           adicionales: Number(item.adicionales || 0),
           extras: Number(item.adicionales || 0),
@@ -2125,43 +2127,40 @@ export default function AsistenciaPage() {
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Empleado
                       </th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         Activo
                       </th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         Sector
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Valor día
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Jornal
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Jornada adicional
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Objetivo
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Total del mes
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Trabajado
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Jornales
-                      </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         Adicionales
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Cobrado
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Subtotal
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        % asistencia
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Asistencia
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         Adelantos
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Reconocimiento
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Premio
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Saldo final
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        A pagar
                       </th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         Acciones
                       </th>
                     </tr>
@@ -2174,6 +2173,7 @@ export default function AsistenciaPage() {
                         id: emp.id,
                         nombre: emp.nombre || "",
                         objetivo: 0,
+                        diasHabilesObjetivo: 0,
                         trabajado: 0,
                         adicionales: 0,
                         cobrado: 0,
@@ -2196,7 +2196,7 @@ export default function AsistenciaPage() {
                           key={emp.id}
                           className="hover:bg-muted/30 transition-colors"
                         >
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3 max-w-[260px]">
                             <div className="font-medium text-foreground">
                               {emp.nombre || item.nombre}
                             </div>
@@ -2220,14 +2220,14 @@ export default function AsistenciaPage() {
                           <td className="px-3 py-3 text-right">
                             ${Number(emp.valorDia || 0).toLocaleString("es-AR")}
                           </td>
-                          <td className="px-3 py-3 text-right">
-                            $
-                            {Number(emp.valorExtra || 0).toLocaleString(
-                              "es-AR",
-                            )}
-                          </td>
                           <td className="px-3 py-3 text-right text-foreground font-medium">
-                            ${item.objetivo.toLocaleString("es-AR")}
+                            <div>${item.objetivo.toLocaleString("es-AR")}</div>
+                            {Number(item.diasHabilesObjetivo || 0) > 0 ? (
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                {Number(item.diasHabilesObjetivo || 0)} dia
+                                {Number(item.diasHabilesObjetivo || 0) === 1 ? "" : "s"} habiles
+                              </div>
+                            ) : null}
                           </td>
                           <td className="px-3 py-3 text-right text-slate-900 font-medium">
                             ${Number(item.trabajado || 0).toLocaleString("es-AR")}
@@ -2236,7 +2236,10 @@ export default function AsistenciaPage() {
                             ${Number(item.adicionales || 0).toLocaleString("es-AR")}
                           </td>
                           <td className="px-3 py-3 text-right text-emerald-700 font-semibold">
-                            ${item.cobrado.toLocaleString("es-AR")}
+                            <div>${item.cobrado.toLocaleString("es-AR")}</div>
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              Trabajado + adicionales
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-right">
                             <div className="font-semibold text-foreground">
@@ -2262,7 +2265,10 @@ export default function AsistenciaPage() {
                             ).toLocaleString("es-AR")}
                           </td>
                           <td className="px-3 py-3 text-right text-blue-700 font-semibold">
-                            ${item.saldoConPremio.toLocaleString("es-AR")}
+                            <div>${item.saldoConPremio.toLocaleString("es-AR")}</div>
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              Subtotal + premio - adelantos
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-right">
                             <div className="flex items-center gap-2 justify-end">

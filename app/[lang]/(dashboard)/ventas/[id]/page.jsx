@@ -33,6 +33,10 @@ const ModalCambiarCliente = dynamic(
 );
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
+import {
+  buildVentaPaymentSnapshot,
+  normalizeVentaPaymentFields,
+} from "@/lib/ventas-pagos";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -47,28 +51,14 @@ function formatFechaLocal(dateString) {
   return dateObj.toLocaleDateString("es-AR");
 }
 
-const calcAbonado = (ventaLike) => {
-  const pagosArr = Array.isArray(ventaLike?.pagos) ? ventaLike.pagos : [];
-  if (pagosArr.length > 0) return pagosArr.reduce((acc, p) => acc + (Number(p?.monto) || 0), 0);
-  return Number(ventaLike?.montoAbonado || 0);
-};
-
-const deriveEstadoPago = ({ estadoPago, total, abonado }) => {
-  const e = String(estadoPago || "").toLowerCase();
-  if (e === "pagado" || e === "parcial" || e === "pendiente") return e;
-  const t = Number(total) || 0;
-  const a = Number(abonado) || 0;
-  if (t > 0 && a >= t) return "pagado";
-  if (a > 0) return "parcial";
-  return "pendiente";
-};
-
 const buildPagoSnapshot = (ventaLike) => {
-  const total = Number(ventaLike?.total) || 0;
-  const abonado = calcAbonado(ventaLike);
-  const estadoPago = deriveEstadoPago({ estadoPago: ventaLike?.estadoPago, total, abonado });
-  const saldo = Math.max(total - abonado, 0);
-  return { estadoPago, total, abonado, saldo };
+  const snapshot = buildVentaPaymentSnapshot(ventaLike);
+  return {
+    estadoPago: snapshot.estadoPago,
+    total: snapshot.total,
+    abonado: snapshot.abonado,
+    saldo: snapshot.saldoPendiente,
+  };
 };
 
 const mergeComprobantesPago = (a, b) => {
@@ -1592,63 +1582,6 @@ const VentaDetalle = () => {
     const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
 
     const total = totalSinEnvio + costoEnvioCalculado - descuentoEfectivo;
-    const totalAbonado = (ventaEdit.pagos || []).reduce(
-      (acc, p) => acc + Number(p.monto),
-      0
-    );
-    const estadoPagoSeleccionado = String(ventaEdit.estadoPago || "").toLowerCase();
-    const estadoPagoCalculado =
-      estadoPagoSeleccionado === "pagado" ||
-      estadoPagoSeleccionado === "parcial" ||
-      estadoPagoSeleccionado === "pendiente"
-        ? estadoPagoSeleccionado
-        : totalAbonado >= total
-          ? "pagado"
-          : totalAbonado > 0
-            ? "parcial"
-            : "pendiente";
-    ventaEdit.estadoPago = estadoPagoCalculado;
-    ventaEdit.pagoPendiente = estadoPagoCalculado === "pendiente";
-    ventaEdit.pagoParcial = estadoPagoCalculado === "parcial";
-    if (!Array.isArray(ventaEdit.pagos)) {
-      if (estadoPagoCalculado === "pendiente") {
-        ventaEdit.montoAbonado = 0;
-      } else if (estadoPagoCalculado === "pagado" && Number(ventaEdit.montoAbonado || 0) <= 0) {
-        ventaEdit.montoAbonado = total;
-      }
-    }
-
-    // Guardar correctamente los pagos del saldo pendiente
-    console.log("=== DEBUG MANEJO DE PAGOS ===");
-    console.log("ventaEdit.pagos:", ventaEdit.pagos);
-    console.log("Array.isArray(ventaEdit.pagos):", Array.isArray(ventaEdit.pagos));
-    console.log("pagosSimples:", pagosSimples);
-    console.log("ventaEdit.montoAbonado:", ventaEdit.montoAbonado);
-    
-    if (Array.isArray(ventaEdit.pagos) && ventaEdit.pagos.length > 0) {
-      console.log("✅ Usando array de pagos existente");
-      delete ventaEdit.montoAbonado;
-    } else if (!Array.isArray(ventaEdit.pagos) && pagosSimples.length > 0) {
-      console.log("✅ Convirtiendo pagosSimples a array de pagos");
-      ventaEdit.pagos = pagosSimples;
-      delete ventaEdit.montoAbonado;
-    } else if (!Array.isArray(ventaEdit.pagos) && ventaEdit.montoAbonado > 0) {
-      console.log("✅ Creando array de pagos desde montoAbonado");
-      ventaEdit.pagos = [
-        {
-          fecha: new Date().toISOString().split("T")[0],
-          monto: Number(ventaEdit.montoAbonado),
-          metodo: ventaEdit.formaPago || "-",
-          usuario: "-",
-        },
-      ];
-      delete ventaEdit.montoAbonado;
-    } else {
-      console.log("⚠️ No se encontraron pagos para procesar");
-    }
-    
-    console.log("Pagos finales:", ventaEdit.pagos);
-
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
       ventaEdit.cliente = venta.cliente;
@@ -1672,6 +1605,17 @@ const VentaDetalle = () => {
     console.log("Costo envío nuevo:", costoEnvioNuevo);
 
     // 5. Actualizar la venta con los nuevos totales calculados correctamente
+    const paymentFields = normalizeVentaPaymentFields({
+      venta: {
+        ...ventaEdit,
+        pagos: Array.isArray(ventaEdit.pagos) ? ventaEdit.pagos : pagosSimples,
+        total,
+      },
+      previousVenta: venta,
+      actorEmail: String(user?.email || ""),
+      defaultFecha: new Date().toISOString().split("T")[0],
+    });
+
     const ventaActualizada = {
       ...ventaEdit,
       subtotal,
@@ -1679,6 +1623,7 @@ const VentaDetalle = () => {
       total,
       productos: productosArr,
       items: productosArr,
+      ...paymentFields,
       version: venta?.version ?? ventaEdit?.version ?? 1,
       // Asegurar que el costo de envío se guarde correctamente
       costoEnvio: costoEnvioNuevo,
@@ -1918,30 +1863,11 @@ const VentaDetalle = () => {
     }
   };
 
-  const estadoPago = venta.estadoPago || "pendiente";
-  // Calcular monto abonado correctamente: priorizar array pagos, sino usar montoAbonado
-  const montoAbonado =
-    Array.isArray(venta.pagos) && venta.pagos.length > 0
-      ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-      : Number(venta.montoAbonado || 0);
-  const saldoPendiente = (venta.total || 0) - montoAbonado;
-
-  // Usar el estadoPago de la base de datos, no recalcular
-  // Solo recalcular si no existe estadoPago en la BD
-  const estadoPagoFinal =
-    venta.estadoPago ||
-    (() => {
-      const montoAbonadoReal =
-        Array.isArray(venta.pagos) && venta.pagos.length > 0
-          ? venta.pagos.reduce((acc, p) => acc + Number(p.monto), 0)
-          : Number(venta.montoAbonado || 0);
-
-      return montoAbonadoReal >= (venta.total || 0)
-        ? "pagado"
-        : montoAbonadoReal > 0
-        ? "parcial"
-        : "pendiente";
-    })();
+  const paymentSnapshot = buildVentaPaymentSnapshot(venta);
+  const estadoPago = paymentSnapshot.estadoPago;
+  const montoAbonado = paymentSnapshot.abonado;
+  const saldoPendiente = paymentSnapshot.saldoPendiente;
+  const estadoPagoFinal = paymentSnapshot.estadoPago;
 
   // Función para borrar pago del historial (solo para admin@admin.com)
   const handleBorrarPago = async (pagoIndex) => {
@@ -1960,17 +1886,23 @@ const VentaDetalle = () => {
       // Crear nueva lista de pagos sin el pago a borrar
       const nuevosPagos = venta.pagos.filter((_, index) => index !== pagoIndex);
 
+      const paymentFields = normalizeVentaPaymentFields({
+        venta: { ...venta, pagos: nuevosPagos },
+        previousVenta: venta,
+        actorEmail: String(user?.email || ""),
+      });
+
       // Actualizar la venta en el estado local
       const ventaActualizada = {
         ...venta,
-        pagos: nuevosPagos,
+        ...paymentFields,
       };
 
       // Actualizar en Firebase
       const before = buildPagoSnapshot(venta);
       const after = buildPagoSnapshot(ventaActualizada);
       const docRef = doc(db, "ventas", venta.id);
-      await updateDoc(docRef, { pagos: nuevosPagos, estadoPago: after.estadoPago });
+      await updateDoc(docRef, paymentFields);
 
       if (before.estadoPago !== after.estadoPago && user) {
         const numeroPedido = String(venta?.numeroPedido || venta?.numero || "");
@@ -2462,8 +2394,7 @@ const VentaDetalle = () => {
                   <div>
                     <span className="font-medium">Estado de la venta:</span>{" "}
                     {(() => {
-                      // Usar el estadoPago de la base de datos, no recalcular
-                      const estadoPago = venta.estadoPago || "pendiente";
+                      const estadoPago = estadoPagoFinal;
 
                       if (estadoPago === "pagado") {
                         return (
@@ -2502,16 +2433,16 @@ const VentaDetalle = () => {
               <span className="font-medium">Estado de pago:</span>
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  venta.estadoPago === "pagado"
+                  estadoPagoFinal === "pagado"
                     ? "bg-green-100 text-green-800"
-                    : venta.estadoPago === "parcial"
+                    : estadoPagoFinal === "parcial"
                     ? "bg-yellow-100 text-yellow-800"
                     : "bg-red-100 text-red-800"
                 }`}
               >
-                {venta.estadoPago === "pagado"
+                {estadoPagoFinal === "pagado"
                   ? "Pagado"
-                  : venta.estadoPago === "parcial"
+                  : estadoPagoFinal === "parcial"
                   ? "Pago Parcial"
                   : "Pendiente"}
               </span>
@@ -2545,7 +2476,7 @@ const VentaDetalle = () => {
           </div>
 
           {/* Historial de pagos */}
-          {((Array.isArray(venta.pagos) && venta.pagos.length > 0) || venta.estadoPago !== 'pagado') && (
+          {((Array.isArray(venta.pagos) && venta.pagos.length > 0) || estadoPagoFinal !== 'pagado') && (
             <div className="mt-4 historial-pagos-empleado">
               <h4 className="font-medium mb-2">Historial de pagos:</h4>
               {Array.isArray(venta.pagos) && venta.pagos.length > 0 ? (
@@ -3941,21 +3872,9 @@ const VentaDetalle = () => {
                         <div className="mt-1 text-lg font-medium text-green-700">Abonado ${formatearNumeroArgentino(abonado)}</div>
                       </div>
 
-                      <div className="mb-3">
-                        <select
-                          className="h-9 w-full border border-amber-500/30 rounded-md px-3 text-sm bg-background text-foreground"
-                          value={ventaEdit.estadoPago || (abonado >= total ? "pagado" : abonado > 0 ? "parcial" : "pendiente")}
-                          onChange={(e) =>
-                            setVentaEdit((prev) => ({
-                              ...prev,
-                              estadoPago: e.target.value,
-                            }))
-                          }
-                        >
-                          <option value="pendiente">Pendiente</option>
-                          <option value="parcial">Parcial</option>
-                          <option value="pagado">Pagado</option>
-                        </select>
+                      <div className="mb-3 rounded-md border border-amber-500/30 bg-background px-3 py-2 text-sm text-foreground">
+                        <span className="font-medium">Estado automático:</span>{" "}
+                        {abonado >= total ? "Pagado" : abonado > 0 ? "Parcial" : "Pendiente"}
                       </div>
 
                       {/* Línea de captura: monto + método + acción */}

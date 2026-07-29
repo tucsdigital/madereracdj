@@ -43,6 +43,7 @@ import { toast } from "@/components/ui/use-toast";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
 import { computeLineBase, computeLineSubtotal, computeTotals } from "@/lib/pricing";
+import { normalizeVentaPaymentFields } from "@/lib/ventas-pagos";
 import {
   applyDerivedComboStock,
   collectInventoryRequirements,
@@ -1227,34 +1228,37 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
       cleanData.clienteId = finalClienteId;
       cleanData.cliente = finalClienteObj;
 
-      // Lógica para manejar montoAbonado y estado de pago
-      let montoAbonadoFinal = cleanData.montoAbonado || 0;
-      let estadoPagoFinal = "pendiente";
+      const paymentIntentMonto =
+        tipo !== "venta"
+          ? 0
+          : cleanData.pagoPendiente
+            ? 0
+            : cleanData.pagoParcial
+              ? Number(cleanData.montoAbonado || 0)
+              : total;
 
-      if (tipo === "venta") {
-        const esPagoParcial = cleanData.pagoParcial || false;
-        const esPagoPendiente = cleanData.pagoPendiente || false;
-
-        if (esPagoPendiente) {
-          // Forzar pendiente: no tomar montoAbonado y marcar 0
-          montoAbonadoFinal = 0;
-          estadoPagoFinal = "pendiente";
-        } else if (!esPagoParcial) {
-          // Si NO es pago parcial → montoAbonado = total y estado = "pagado"
-          montoAbonadoFinal = total;
-          estadoPagoFinal = "pagado";
-        } else {
-          // Si ES pago parcial → usar el valor del formulario
-          montoAbonadoFinal = cleanData.montoAbonado || 0;
-          if (montoAbonadoFinal >= total) {
-            estadoPagoFinal = "pagado";
-          } else if (montoAbonadoFinal > 0) {
-            estadoPagoFinal = "parcial";
-          } else {
-            estadoPagoFinal = "pendiente";
-          }
-        }
-      }
+      const paymentFields =
+        tipo === "venta"
+          ? normalizeVentaPaymentFields({
+              venta: {
+                ...cleanData,
+                total,
+                montoAbonado: paymentIntentMonto,
+                pagos: paymentIntentMonto > 0
+                  ? [
+                      {
+                        fecha: cleanData.fecha || new Date().toISOString().split("T")[0],
+                        monto: paymentIntentMonto,
+                        metodo: cleanData.formaPago || "-",
+                        usuario: user?.email || "Usuario no identificado",
+                      },
+                    ]
+                  : [],
+              },
+              actorEmail: user?.email || "Usuario no identificado",
+              defaultFecha: cleanData.fecha || new Date().toISOString().split("T")[0],
+            })
+          : null;
 
       const formData =
         tipo === "presupuesto"
@@ -1291,8 +1295,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               descuentoEfectivo: descuentoEfectivo,
               pagoEnEfectivo: pagoEnEfectivo,
               total: total,
-              montoAbonado: montoAbonadoFinal,
-              estadoPago: estadoPagoFinal,
+              ...paymentFields,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
               vendedor: user?.email || "Usuario no identificado",
