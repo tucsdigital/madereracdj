@@ -1,9 +1,20 @@
 "use client";
 import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +23,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { generarContenidoImpresion, descargarPDFDesdeIframe } from "@/lib/obra-utils";
 import { repairObraPedidosByCreationDate } from "@/lib/obra-numbering";
 import {
   Building,
+  Building2,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -32,17 +45,19 @@ import {
   Eye,
   Pencil,
   ArrowRightCircle,
-  Edit,
+  FileText,
+  MousePointerClick,
+  Plus,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
-import { DataTableEnhanced } from "@/components/ui/data-table-enhanced";
 import { useAuth } from "@/provider/auth.provider";
 import { DateInput } from "@/components/ui/date-input";
 import ObrasHeader from "@/components/obras/ObrasHeader";
 import CalendarioObras from "@/components/obras/CalendarioObras";
 import ObraSidePanel from "@/components/obras/ObraSidePanel";
 import WizardConversion from "@/components/obras/WizardConversion";
+import { ObrasListTable } from "@/components/obras/ObrasListTable";
 
 const estadosObra = {
   pendiente_inicio: {
@@ -76,6 +91,174 @@ const estadosObra = {
     color: "bg-green-100 text-green-800 border-green-200",
     icon: CheckCircle,
   },
+};
+
+const PERIODOS_LISTA = [
+  { value: "7dias", label: "Fecha: Ultimos 7 dias" },
+  { value: "30dias", label: "Fecha: Ultimos 30 dias" },
+  { value: "90dias", label: "Fecha: Ultimos 90 dias" },
+  { value: "todos", label: "Fecha: Todo el periodo" },
+];
+
+const OPCIONES_CREACION = {
+  obra: {
+    value: "obra",
+    title: "Nueva obra",
+    detail: "Para cargar una obra en ejecucion.",
+    href: (lang) => `/${lang}/obras/create`,
+    icon: Building2,
+  },
+  presupuesto: {
+    value: "presupuesto",
+    title: "Nuevo presupuesto",
+    detail: "Para preparar un presupuesto previo.",
+    href: (lang) => `/${lang}/obras/presupuesto/create`,
+    icon: FileText,
+  },
+};
+
+const formatCurrency = (value) =>
+  `$${Number(value || 0).toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const normalizeSearch = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+const getClienteSearchFields = (cliente = {}) => [
+  cliente.nombre,
+  cliente.telefono,
+  cliente.celular,
+  cliente.whatsapp,
+  cliente.cuil,
+  cliente.dni,
+  cliente.cuit,
+  cliente.email,
+  cliente.direccion,
+  cliente.localidad,
+  cliente.provincia,
+];
+
+const getClienteSecondaryLabel = (cliente = {}) =>
+  cliente.telefono ||
+  cliente.celular ||
+  cliente.whatsapp ||
+  cliente.cuil ||
+  cliente.dni ||
+  cliente.cuit ||
+  cliente.email ||
+  "-";
+
+const parseMaybeDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  const normalized =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T12:00:00`
+      : value;
+
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateLabel = (value, { includeTime = true } = {}) => {
+  const parsed = parseMaybeDate(value);
+  if (!parsed) {
+    return {
+      date: "Sin fecha",
+      time: "",
+    };
+  }
+
+  return {
+    date: parsed.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires",
+    }),
+    time: includeTime
+      ? `${parsed.toLocaleTimeString("es-AR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "America/Argentina/Buenos_Aires",
+        })} hs`
+      : "",
+  };
+};
+
+const getObraPaymentMetrics = (obra) => {
+  const cobranzas = obra?.cobranzas || {};
+  const senia = Number(cobranzas.senia) || 0;
+  const monto = Number(cobranzas.monto) || 0;
+  const historialPagos = Array.isArray(cobranzas.historialPagos)
+    ? cobranzas.historialPagos
+    : [];
+  const totalHistorial = historialPagos.reduce(
+    (sum, pago) => sum + (Number(pago?.monto) || 0),
+    0
+  );
+  const totalAbonado = senia + monto + totalHistorial;
+  const total = Number(obra?.presupuestoTotal) || 0;
+  const debe = Math.max(total - totalAbonado, 0);
+
+  return {
+    total,
+    totalAbonado,
+    debe,
+  };
+};
+
+const getObraProgress = (obra) => {
+  if (obra?.estado === "completada") return 100;
+  if (obra?.estado === "cancelada" || obra?.estado === "pendiente_inicio") return 0;
+
+  const inicio = parseMaybeDate(obra?.fechas?.inicio);
+  const fin = parseMaybeDate(obra?.fechas?.fin);
+
+  if (!inicio || !fin) {
+    return obra?.estado === "en_ejecucion" ? 50 : 0;
+  }
+
+  const now = new Date();
+  const totalMs = Math.max(fin.getTime() - inicio.getTime(), 1);
+  const elapsedMs = now.getTime() - inicio.getTime();
+  const progress = Math.round((elapsedMs / totalMs) * 100);
+
+  return Math.max(0, Math.min(progress, 100));
+};
+
+const getListReferenceDate = (item, tipo) =>
+  tipo === "obra" ? item?.fechas?.inicio || item?.fechaCreacion || "" : item?.fechaCreacion || "";
+
+const matchesPeriodoLista = (referenceValue, periodo) => {
+  if (!referenceValue || periodo === "todos") return true;
+
+  const parsed = parseMaybeDate(referenceValue);
+  if (!parsed) return true;
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const from = new Date(today);
+
+  if (periodo === "7dias") {
+    from.setDate(today.getDate() - 7);
+  } else if (periodo === "30dias") {
+    from.setDate(today.getDate() - 30);
+  } else if (periodo === "90dias") {
+    from.setDate(today.getDate() - 90);
+  }
+
+  from.setHours(0, 0, 0, 0);
+  return parsed >= from && parsed <= today;
 };
 
 // Componente para la celda de total con desplegable (maneja su propio estado)
@@ -181,12 +364,16 @@ const ObrasPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createMode, setCreateMode] = useState("obra");
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState("");
   
   // Estados para el nuevo header (deben ir antes de los useMemo que los usan)
   const [vistaCalendario, setVistaCalendario] = useState("15dias");
   const [busquedaGlobal, setBusquedaGlobal] = useState("");
+  const [busquedaPresupuestos, setBusquedaPresupuestos] = useState("");
+  const [busquedaObras, setBusquedaObras] = useState("");
   const [filtros, setFiltros] = useState({
     estado: "",
     cliente: "",
@@ -194,6 +381,9 @@ const ObrasPage = () => {
     fechaDesde: "",
     fechaHasta: "",
   });
+  const [listaActiva, setListaActiva] = useState("presupuestos");
+  const [periodoLista, setPeriodoLista] = useState("30dias");
+  const [vistaPresupuestos, setVistaPresupuestos] = useState("todos");
   
   // Estados para el calendario
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -557,7 +747,7 @@ const ObrasPage = () => {
           <div>
             <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
             <div className="text-xs text-gray-500">
-              {cliente?.cuit || "Sin CUIT"}
+              {getClienteSecondaryLabel(cliente)}
             </div>
           </div>
         );
@@ -565,59 +755,18 @@ const ObrasPage = () => {
     },
     {
       accessorKey: "fechaCreacion",
-      header: ({ column }) => (
-        <div
-          className="flex items-center gap-2 cursor-pointer select-none"
-          onClick={() => column.toggleSorting()}
-        >
-          <span>Fecha</span>
-          <div className="flex flex-col">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M7 14l5-5 5 5z" />
-            </svg>
-            <svg
-              className="w-3 h-3 -mt-1"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M7 10l5 5 5-5z" />
-            </svg>
-          </div>
-        </div>
-      ),
+      header: "Fecha",
       enableSorting: true,
       cell: ({ row }) => {
-        const fechaCreacion = row.getValue("fechaCreacion");
-        if (!fechaCreacion)
-          return <span className="text-gray-400">Sin fecha</span>;
-
-        try {
-          const fecha = new Date(fechaCreacion);
-
-          return (
-            <div className="text-gray-600">
-              <div className="font-medium">
-                {fecha.toLocaleDateString("es-AR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  timeZone: "America/Argentina/Buenos_Aires",
-                })}
-              </div>
-              <div className="text-xs text-gray-500">
-                {fecha.toLocaleTimeString("es-AR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                  timeZone: "America/Argentina/Buenos_Aires",
-                })}{" "}
-                hs
-              </div>
-            </div>
-          );
-        } catch (error) {
-          return <span className="text-gray-400">Fecha inválida</span>;
-        }
+        const fecha = formatDateLabel(row.getValue("fechaCreacion"));
+        return (
+          <div>
+            <div className="font-medium text-foreground">{fecha.date}</div>
+            {fecha.time ? (
+              <div className="text-xs text-muted-foreground">{fecha.time}</div>
+            ) : null}
+          </div>
+        );
       },
     },
     {
@@ -629,6 +778,37 @@ const ObrasPage = () => {
       },
     },
     {
+      id: "bloques",
+      header: "Bloques",
+      cell: ({ row }) => {
+        const totalBloques = Array.isArray(row.original.bloques)
+          ? row.original.bloques.length
+          : 0;
+        const label = totalBloques === 1 ? "1 bloque" : `${totalBloques} bloques`;
+        return <div className="text-sm font-medium text-foreground">{label}</div>;
+      },
+    },
+    {
+      accessorKey: "estadoUI",
+      header: "Estado",
+      cell: ({ row }) => {
+        const estado = row.getValue("estadoUI");
+        const estadoInfo = estadosObra[estado] || estadosObra.activo;
+        const EstadoIcon = estadoInfo.icon;
+
+        return (
+          <Badge
+            variant="outline"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-0 p-0 ${estadoInfo.color}`}
+            title={estadoInfo.label}
+            aria-label={`Estado: ${estadoInfo.label}`}
+          >
+            <EstadoIcon className="h-4 w-4" aria-hidden="true" />
+          </Badge>
+        );
+      },
+    },
+    {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => {
@@ -636,8 +816,8 @@ const ObrasPage = () => {
           <div className="flex items-center gap-2">
             <Button
               size="icon"
-              variant="default"
-              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50 hover:text-blue-700"
               title="Convertir a Obra"
               onClick={(e) => {
                 e.stopPropagation();
@@ -649,8 +829,8 @@ const ObrasPage = () => {
             </Button>
             <Button
               size="icon"
-              variant="outline"
-              className="h-8 w-8 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               title="Editar"
               onClick={(e) => {
                 e.stopPropagation();
@@ -661,8 +841,8 @@ const ObrasPage = () => {
             </Button>
             <Button
               size="icon"
-              variant="outline"
-              className="h-8 w-8 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
               title="Eliminar"
               onClick={(e) => {
                 e.stopPropagation();
@@ -683,11 +863,11 @@ const ObrasPage = () => {
   ], [lang, router, setPresupuestoParaConvertir, setShowWizardConversion]);
 
   // Función para mostrar el diálogo de confirmación
-  const showDeleteConfirmation = (id, type, itemName) => {
+  const showDeleteConfirmation = useCallback((id, type, itemName) => {
     setItemToDelete({ id, name: itemName });
     setDeleteType(type);
     setShowDeleteDialog(true);
-  };
+  }, []);
 
   // Columnas para obras
   const obrasColumns = useMemo(() => [
@@ -751,67 +931,27 @@ const ObrasPage = () => {
           <div>
             <div className="font-medium">{cliente?.nombre || "Sin nombre"}</div>
             <div className="text-xs text-gray-500">
-              {cliente?.cuit || "Sin CUIT"}
+              {getClienteSecondaryLabel(cliente)}
             </div>
           </div>
         );
       },
     },
     {
-      accessorKey: "fechaCreacion",
-      header: ({ column }) => (
-        <div
-          className="flex items-center gap-2 cursor-pointer select-none"
-          onClick={() => column.toggleSorting()}
-        >
-          <span>Fecha</span>
-          <div className="flex flex-col">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M7 14l5-5 5 5z" />
-            </svg>
-            <svg
-              className="w-3 h-3 -mt-1"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M7 10l5 5 5-5z" />
-            </svg>
-          </div>
-        </div>
-      ),
+      accessorFn: (row) => row?.fechas?.inicio || row?.fechaCreacion || "",
+      id: "fechaInicio",
+      header: "Fecha Inicio",
       enableSorting: true,
       cell: ({ row }) => {
-        const fechaCreacion = row.getValue("fechaCreacion");
-        if (!fechaCreacion)
-          return <span className="text-gray-400">Sin fecha</span>;
-
-        try {
-          const fecha = new Date(fechaCreacion);
-
-          return (
-            <div className="text-gray-600">
-              <div className="font-medium">
-                {fecha.toLocaleDateString("es-AR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  timeZone: "America/Argentina/Buenos_Aires",
-                })}
-              </div>
-              <div className="text-xs text-gray-500">
-                {fecha.toLocaleTimeString("es-AR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                  timeZone: "America/Argentina/Buenos_Aires",
-                })}{" "}
-                hs
-              </div>
-            </div>
-          );
-        } catch (error) {
-          return <span className="text-gray-400">Fecha inválida</span>;
-        }
+        const fecha = formatDateLabel(row.getValue("fechaInicio"));
+        return (
+          <div>
+            <div className="font-medium text-foreground">{fecha.date}</div>
+            {fecha.time ? (
+              <div className="text-xs text-muted-foreground">{fecha.time}</div>
+            ) : null}
+          </div>
+        );
       },
     },
     {
@@ -819,31 +959,18 @@ const ObrasPage = () => {
       header: "Estado",
       cell: ({ row }) => {
         const estado = row.getValue("estado");
-        const estadoInfo = estadosObra[estado] || {
-          label: estado,
-          color: "bg-gray-100 text-gray-800 border-gray-200",
-          icon: Clock,
-        };
-        const IconCmp = estadoInfo.icon || Clock;
-
-        // Colores para los iconos según el estado
-        const iconColors = {
-          pendiente_inicio: "text-yellow-600",
-          en_ejecucion: "text-blue-600",
-          pausada: "text-orange-600",
-          completada: "text-green-600",
-          cancelada: "text-red-600",
-        };
+        const estadoInfo = estadosObra[estado] || estadosObra.pendiente_inicio;
+        const EstadoIcon = estadoInfo.icon;
 
         return (
-          <div
-            className="flex items-center justify-center"
+          <Badge
+            variant="outline"
+            className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-0 p-0 ${estadoInfo.color}`}
             title={estadoInfo.label}
+            aria-label={`Estado: ${estadoInfo.label}`}
           >
-            <IconCmp
-              className={`w-5 h-5 ${iconColors[estado] || "text-gray-600"}`}
-            />
-          </div>
+            <EstadoIcon className="h-4 w-4" aria-hidden="true" />
+          </Badge>
         );
       },
     },
@@ -851,82 +978,33 @@ const ObrasPage = () => {
       accessorKey: "presupuestoTotal",
       header: "Total",
       cell: ({ row }) => {
-        const total = row.getValue("presupuestoTotal");
-        return (
-          <div className="font-medium">
-            $
-            {total
-              ? Number(total).toLocaleString("es-AR", {
-                  minimumFractionDigits: 2,
-                })
-              : "0.00"}
-          </div>
-        );
+        return <div className="font-semibold text-foreground">{formatCurrency(row.getValue("presupuestoTotal"))}</div>;
       },
     },
     {
       id: "pago",
       header: "Pago",
       cell: ({ row }) => {
-        const cobranzas = row.original.cobranzas || {};
-        const senia = Number(cobranzas.senia) || 0;
-        const monto = Number(cobranzas.monto) || 0;
-        const historialPagos = cobranzas.historialPagos || [];
-        const totalHistorial = historialPagos.reduce(
-          (sum, pago) => sum + (Number(pago.monto) || 0),
-          0
-        );
-        const totalAbonado = senia + monto + totalHistorial;
-        const presupuestoTotal = row.original.presupuestoTotal || 0;
+        const { total, totalAbonado } = getObraPaymentMetrics(row.original);
+        const paidRatio = total > 0 ? Math.min((totalAbonado / total) * 100, 100) : 0;
 
-        // Determinar estado del pago
-        let estadoPago = "pendiente";
-        let icono = Clock;
-        let color = "text-yellow-600";
-        let titulo = "Pendiente de pago";
-
-        if (totalAbonado >= presupuestoTotal && presupuestoTotal > 0) {
-          estadoPago = "pagado";
-          icono = CheckCircle;
-          color = "text-green-600";
-          titulo = "Pagado completamente";
-        } else if (totalAbonado > 0) {
-          estadoPago = "parcial";
-          icono = AlertCircle;
-          color = "text-orange-600";
-          titulo = "Pago parcial";
-        }
-
-        const IconComponent = icono;
         return (
-          <div className="flex items-center justify-center" title={titulo}>
-            <IconComponent className={`w-5 h-5 ${color}`} />
+          <div>
+            <div className="font-semibold text-foreground">{formatCurrency(totalAbonado)}</div>
+            <div className="text-xs text-muted-foreground">{Math.round(paidRatio)}%</div>
           </div>
         );
       },
     },
     {
       id: "debe",
-      header: "DEBE",
+      header: "Debe",
       cell: ({ row }) => {
-        const cobranzas = row.original.cobranzas || {};
-        const senia = Number(cobranzas.senia) || 0;
-        const monto = Number(cobranzas.monto) || 0;
-        const historialPagos = cobranzas.historialPagos || [];
-        const totalHistorial = historialPagos.reduce(
-          (sum, pago) => sum + (Number(pago.monto) || 0),
-          0
-        );
-        const totalAbonado = senia + monto + totalHistorial;
-        const presupuestoTotal = row.original.presupuestoTotal || 0;
-        const debe = presupuestoTotal - totalAbonado;
+        const { debe } = getObraPaymentMetrics(row.original);
 
         return (
-          <div className="font-medium">
-            $
-            {debe > 0
-              ? debe.toLocaleString("es-AR", { minimumFractionDigits: 2 })
-              : "0.00"}
+          <div className={`font-semibold ${debe > 0 ? "text-foreground" : "text-emerald-600"}`}>
+            {formatCurrency(debe)}
           </div>
         );
       },
@@ -936,14 +1014,13 @@ const ObrasPage = () => {
       header: "Acciones",
       cell: ({ row }) => {
         const obra = row.original;
-        const estaImprimiendo = imprimiendoObraId === obra.id;
         
         return (
           <div className="flex items-center gap-2">
             <Button
               size="icon"
-              variant="default"
-              className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-blue-600 hover:bg-blue-50 hover:text-blue-700"
               title="Ver panel"
               onClick={(e) => {
                 e.stopPropagation();
@@ -955,8 +1032,8 @@ const ObrasPage = () => {
             </Button>
             <Button
               size="icon"
-              variant="outline"
-              className="h-8 w-8 bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               title="Editar"
               onClick={(e) => {
                 e.stopPropagation();
@@ -967,8 +1044,8 @@ const ObrasPage = () => {
             </Button>
             <Button
               size="icon"
-              variant="outline"
-              className="h-8 w-8 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
               title="Eliminar obra"
               onClick={(e) => {
                 e.stopPropagation();
@@ -982,7 +1059,7 @@ const ObrasPage = () => {
       },
       enableSorting: false,
     },
-  ], [notas, imprimiendoObraId, lang, router, setObraSeleccionada, setShowObraPanel, showDeleteConfirmation]);
+  ], [notas, lang, router, setObraSeleccionada, setShowObraPanel, showDeleteConfirmation]);
 
   // Función para confirmar la eliminación
   const confirmDelete = async () => {
@@ -1096,7 +1173,7 @@ const ObrasPage = () => {
       );
       window.removeEventListener("deleteObra", handleDeleteObraEvent);
     };
-  }, [obrasData]);
+  }, [obrasData, showDeleteConfirmation]);
 
   // Función para cargar datos (reutilizable)
   const fetchData = useCallback(async ({ showLoader = true } = {}) => {
@@ -1259,24 +1336,24 @@ const ObrasPage = () => {
     }
 
     // Búsqueda global
-    if (busquedaGlobal) {
-      const searchLower = busquedaGlobal.toLowerCase();
+    if (busquedaPresupuestos) {
+      const searchLower = normalizeSearch(busquedaPresupuestos);
       filtered = filtered.filter((p) => {
-        const numeroPedido = (p.numeroPedido || "").toLowerCase();
-        const clienteNombre = (p.cliente?.nombre || "").toLowerCase();
-        const clienteCuit = (p.cliente?.cuit || "").toLowerCase();
-        const clienteDireccion = (p.cliente?.direccion || "").toLowerCase();
-        return (
-          numeroPedido.includes(searchLower) ||
-          clienteNombre.includes(searchLower) ||
-          clienteCuit.includes(searchLower) ||
-          clienteDireccion.includes(searchLower)
+        const haystack = normalizeSearch(
+          [
+            p.numeroPedido,
+            p.id,
+            ...getClienteSearchFields(p.cliente),
+            p.vendedor,
+            p.ubicacion?.direccion,
+          ].join(" ")
         );
+        return haystack.includes(searchLower);
       });
     }
 
     return filtered;
-  }, [presupuestosBase, filtros, busquedaGlobal]);
+  }, [presupuestosBase, filtros, busquedaPresupuestos]);
 
   const obras = useMemo(() => {
     let filtered = [...obrasBase];
@@ -1314,26 +1391,24 @@ const ObrasPage = () => {
     }
 
     // Búsqueda global
-    if (busquedaGlobal) {
-      const searchLower = busquedaGlobal.toLowerCase();
+    if (busquedaObras) {
+      const searchLower = normalizeSearch(busquedaObras);
       filtered = filtered.filter((o) => {
-        const numeroPedido = (o.numeroPedido || "").toLowerCase();
-        const clienteNombre = (o.cliente?.nombre || "").toLowerCase();
-        const clienteCuit = (o.cliente?.cuit || "").toLowerCase();
-        const clienteDireccion = (o.cliente?.direccion || "").toLowerCase();
-        const ubicacionDireccion = (o.ubicacion?.direccion || "").toLowerCase();
-        return (
-          numeroPedido.includes(searchLower) ||
-          clienteNombre.includes(searchLower) ||
-          clienteCuit.includes(searchLower) ||
-          clienteDireccion.includes(searchLower) ||
-          ubicacionDireccion.includes(searchLower)
+        const haystack = normalizeSearch(
+          [
+            o.numeroPedido,
+            o.id,
+            ...getClienteSearchFields(o.cliente),
+            o.vendedor,
+            o.ubicacion?.direccion,
+          ].join(" ")
         );
+        return haystack.includes(searchLower);
       });
     }
 
     return filtered;
-  }, [obrasBase, filtros, busquedaGlobal]);
+  }, [obrasBase, filtros, busquedaObras]);
 
   // Filtrar obras que tienen fechas válidas para el calendario
   const obrasParaCalendario = useMemo(() => {
@@ -1344,6 +1419,285 @@ const ObrasPage = () => {
       return fechaInicio && fechaFin;
     });
   }, [obras]);
+
+  const presupuestosTabla = useMemo(() => {
+    let filtered = [...presupuestos];
+
+    if (vistaPresupuestos === "activos") {
+      filtered = filtered.filter((item) => item.estadoUI === "activo");
+    }
+
+    return filtered.filter((item) =>
+      matchesPeriodoLista(getListReferenceDate(item, "presupuesto"), periodoLista)
+    );
+  }, [presupuestos, vistaPresupuestos, periodoLista]);
+
+  const obrasTabla = useMemo(
+    () =>
+      obras.filter((item) =>
+        matchesPeriodoLista(getListReferenceDate(item, "obra"), periodoLista)
+      ),
+    [obras, periodoLista]
+  );
+
+  const filtrosAvanzadosActivos = useMemo(() => {
+    let count = 0;
+    if (filtros.cliente) count += 1;
+    if (filtros.fechaDesde || filtros.fechaHasta) count += 1;
+    if (listaActiva === "obras" && filtros.estado) count += 1;
+    if (listaActiva === "obras" && filtros.estadoPago) count += 1;
+    return count;
+  }, [filtros, listaActiva]);
+
+  const limpiarFiltrosTabla = () => {
+    setFiltros({
+      estado: "",
+      cliente: "",
+      estadoPago: "",
+      fechaDesde: "",
+      fechaHasta: "",
+    });
+  };
+
+  const handleOpenCreateDialog = useCallback(() => {
+    setCreateMode(listaActiva === "presupuestos" ? "presupuesto" : "obra");
+    setShowCreateDialog(true);
+  }, [listaActiva]);
+
+  const handleCreateSelect = useCallback(
+    (mode) => {
+      const option = OPCIONES_CREACION[mode] || OPCIONES_CREACION.obra;
+      setShowCreateDialog(false);
+      router.push(option.href(lang));
+    },
+    [lang, router]
+  );
+
+  const tabsTabla = [
+    {
+      value: "presupuestos",
+      label: "Presupuestos",
+      count: presupuestosTabla.length,
+    },
+    {
+      value: "obras",
+      label: "Obras",
+      count: obrasTabla.length,
+    },
+  ];
+
+  const toolbarLeft =
+    listaActiva === "presupuestos" ? (
+      <>
+        <Select value="todos-presupuestos" onValueChange={() => {}}>
+          <SelectTrigger className="h-10 w-[210px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos-presupuestos">Todos los presupuestos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={vistaPresupuestos} onValueChange={setVistaPresupuestos}>
+          <SelectTrigger className="h-10 w-[170px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Estado: Todos</SelectItem>
+            <SelectItem value="activos">Estado: Activos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={periodoLista} onValueChange={setPeriodoLista}>
+          <SelectTrigger className="h-10 w-[200px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIODOS_LISTA.map((periodo) => (
+              <SelectItem key={periodo.value} value={periodo.value}>
+                {periodo.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </>
+    ) : (
+      <>
+        <Select value="todas-obras" onValueChange={() => {}}>
+          <SelectTrigger className="h-10 w-[180px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas-obras">Todas las obras</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filtros.estado || "todos"}
+          onValueChange={(value) =>
+            setFiltros((prev) => ({
+              ...prev,
+              estado: value === "todos" ? "" : value,
+            }))
+          }
+        >
+          <SelectTrigger className="h-10 w-[170px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Estado: Todos</SelectItem>
+            <SelectItem value="pendiente_inicio">Pendiente de Inicio</SelectItem>
+            <SelectItem value="en_ejecucion">En Ejecucion</SelectItem>
+            <SelectItem value="pausada">Pausada</SelectItem>
+            <SelectItem value="completada">Completada</SelectItem>
+            <SelectItem value="cancelada">Cancelada</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={periodoLista} onValueChange={setPeriodoLista}>
+          <SelectTrigger className="h-10 w-[200px] rounded-xl border-border/60 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIODOS_LISTA.map((periodo) => (
+              <SelectItem key={periodo.value} value={periodo.value}>
+                {periodo.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </>
+    );
+
+  const toolbarRight = (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        onClick={handleOpenCreateDialog}
+        className="h-10 w-10 rounded-xl px-0"
+        title="Crear nuevo"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="h-10 rounded-xl border-border/60 bg-background px-4"
+          >
+            <Icon icon="heroicons:adjustments-horizontal" className="mr-2 h-4 w-4" />
+            Filtros
+            {filtrosAvanzadosActivos > 0 ? (
+              <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                {filtrosAvanzadosActivos}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[320px] rounded-2xl border-border/60 p-4">
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Cliente
+              </div>
+              <Select
+                value={filtros.cliente || "todos"}
+                onValueChange={(value) =>
+                  setFiltros((prev) => ({
+                    ...prev,
+                    cliente: value === "todos" ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los clientes</SelectItem>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nombre || "Sin nombre"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {listaActiva === "obras" ? (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Estado de pago
+                </div>
+                <Select
+                  value={filtros.estadoPago || "todos"}
+                  onValueChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      estadoPago: value === "todos" ? "" : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="pagado">Pagado</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
+                    <SelectItem value="pendiente">Pendiente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Desde
+                </div>
+                <DateInput
+                  value={filtros.fechaDesde || ""}
+                  onChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      fechaDesde: value,
+                    }))
+                  }
+                  buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Hasta
+                </div>
+                <DateInput
+                  value={filtros.fechaHasta || ""}
+                  min={filtros.fechaDesde || undefined}
+                  onChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      fechaHasta: value,
+                    }))
+                  }
+                  buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background"
+                />
+              </div>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-center rounded-xl"
+              onClick={limpiarFiltrosTabla}
+            >
+              Limpiar filtros avanzados
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -1394,13 +1748,6 @@ const ObrasPage = () => {
 
       {/* Header Funcional */}
       <ObrasHeader
-        onNuevaObra={() => {
-          // Por ahora navega a la página de creación, en etapa 4 abriremos el wizard
-          router.push(`/${lang}/obras/create`);
-        }}
-        onNuevoPresupuesto={() => {
-          router.push(`/${lang}/obras/presupuesto/create`);
-        }}
         vistaCalendario={vistaCalendario}
         onVistaCalendarioChange={setVistaCalendario}
         busquedaGlobal={busquedaGlobal}
@@ -1452,100 +1799,120 @@ const ObrasPage = () => {
         onDeleteNota={confirmDeleteNota}
       />
 
-      {/* Tablas mejoradas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
-        {/* Tabla de Presupuestos - IZQUIERDA */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:document-text"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">
-                  Presupuestos
-                </div>
-                <div className="text-sm font-medium text-gray-600">
-                  Gestión de cotizaciones
-                </div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-purple-600">
-                    Procesando...
-                  </span>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced
-                data={presupuestos}
-                columns={presupuestosColumns}
-                searchPlaceholder="Buscar presupuestos..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-                onRowClick={(presupuesto) => {
-                  router.push(`/${lang}/obras/presupuesto/${presupuesto.id}`);
-                }}
-                compact={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabla de Obras - DERECHA */}
-        <Card className="rounded-2xl shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50/50 overflow-hidden">
-          <CardHeader className="pb-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-teal-50 rounded-t-2xl">
-            <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Icon
-                  icon="heroicons:building-office"
-                  className="w-7 h-7 text-white"
-                />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">Obras</div>
-                <div className="text-sm font-medium text-gray-600">
-                  Proyectos en ejecución
-                </div>
-              </div>
-              {deleting && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-blue-600">
-                    Procesando...
-                  </span>
-                </div>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 p-0">
-            <div className="overflow-hidden rounded-b-2xl">
-              <DataTableEnhanced
-                data={obras}
-                columns={obrasColumns}
-                searchPlaceholder="Buscar obras..."
-                className="border-0"
-                defaultSorting={[{ id: "numeroPedido", desc: true }]}
-                onRowClick={(obra) => {
-                  router.push(`/${lang}/obras/${obra.id}`);
-                }}
-                compact={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 px-2 xl:grid-cols-2">
+        <ObrasListTable
+          tabs={[]}
+          activeTab="presupuestos"
+          data={presupuestosTabla}
+          columns={presupuestosColumns}
+          title="Presupuestos"
+          searchValue={busquedaPresupuestos}
+          onSearchChange={setBusquedaPresupuestos}
+          searchPlaceholder="Buscar cliente, teléfono o documento..."
+          toolbarRight={toolbarRight}
+          defaultSorting={[{ id: "numeroPedido", desc: true }]}
+          onRowClick={(item) => router.push(`/${lang}/obras/presupuesto/${item.id}`)}
+        />
+        <ObrasListTable
+          tabs={[]}
+          activeTab="obras"
+          data={obrasTabla}
+          columns={obrasColumns}
+          title="Obras"
+          searchValue={busquedaObras}
+          onSearchChange={setBusquedaObras}
+          searchPlaceholder="Buscar cliente, teléfono o documento..."
+          toolbarRight={toolbarRight}
+          defaultSorting={[{ id: "numeroPedido", desc: true }]}
+          onRowClick={(item) => router.push(`/${lang}/obras/${item.id}`)}
+        />
       </div>
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="w-[95vw] max-w-2xl rounded-[28px] border border-border/60 bg-white p-0 shadow-xl">
+          <div className="overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.05),_transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(250,250,252,0.94))] p-6 md:p-7">
+            <DialogHeader className="mb-5 gap-1 text-left">
+              <DialogTitle className="text-2xl font-semibold text-foreground">
+                Nuevo registro
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Elegi un modo y entra al formulario.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Tabs value={createMode} onValueChange={setCreateMode} className="space-y-5">
+              <TabsList className="h-auto rounded-2xl border border-border/60 bg-muted/40 p-1">
+                {Object.values(OPCIONES_CREACION).map((option) => (
+                  <TabsTrigger
+                    key={option.value}
+                    value={option.value}
+                    className="h-11 cursor-pointer select-none rounded-xl px-5 text-sm font-semibold transition-all duration-200 data-[state=active]:scale-[1.01]"
+                  >
+                    {option.value === "obra" ? "Obra" : "Presupuesto"}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {Object.values(OPCIONES_CREACION).map((option) => {
+                const Icono = option.icon;
+                const isActive = createMode === option.value;
+
+                return (
+                  <TabsContent key={option.value} value={option.value} className="mt-0">
+                    <button
+                      type="button"
+                      onClick={() => handleCreateSelect(option.value)}
+                      className={`group flex w-full cursor-pointer select-none flex-col rounded-[26px] border p-5 text-left transition-all duration-200 ${
+                        isActive
+                          ? "border-primary/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,245,255,0.92))]"
+                          : "border-border/60 bg-muted/20 hover:border-primary/20 hover:bg-background"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-200 ${
+                            isActive
+                              ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                              : "bg-background text-foreground group-hover:bg-primary/5 group-hover:text-primary"
+                          }`}
+                        >
+                          <Icono className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <div className="text-xl font-semibold text-foreground">{option.title}</div>
+                          <div className="mt-1 text-sm text-muted-foreground">{option.detail}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex items-center justify-end">
+                        <div
+                          className={`relative flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200 ${
+                            isActive
+                              ? "border-primary/20 bg-primary/5 text-primary"
+                              : "border-border/60 bg-background/70 text-muted-foreground"
+                          }`}
+                        >
+                          <span
+                            className={`absolute h-7 w-7 rounded-full border ${
+                              isActive ? "animate-ping border-primary/30" : "border-border/40"
+                            }`}
+                          />
+                          <span
+                            className={`absolute h-11 w-11 rounded-full ${
+                              isActive ? "animate-pulse bg-primary/5" : ""
+                            }`}
+                          />
+                          <MousePointerClick className="relative z-10 h-4 w-4" />
+                        </div>
+                      </div>
+                    </button>
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo de confirmación de eliminación mejorado */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

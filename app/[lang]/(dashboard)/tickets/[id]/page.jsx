@@ -202,6 +202,7 @@ const TicketsDetallePage = () => {
 
       const nextTicket = { ...ticket, ...patch, assignee: patch.assignee };
       setTicket(nextTicket);
+      router.push(`/${lang}/tickets`);
     } catch (e) {
       setError(e?.message || "Error al guardar cambios.");
     } finally {

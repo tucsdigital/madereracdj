@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
@@ -349,6 +350,8 @@ const PresupuestoDetalle = () => {
     if (editando && presupuesto) {
       console.log("Clonando presupuesto para edición");
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
+      presupuestoClonado.aplicaIva = presupuestoClonado.aplicaIva ?? false;
+      presupuestoClonado.ivaPorcentaje = Number(presupuestoClonado.ivaPorcentaje) || 21;
       // Asegurar que clienteId y cliente estén presentes
       if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
         presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
@@ -1582,7 +1585,10 @@ const PresupuestoDetalle = () => {
           ? Number(presupuestoEdit.costoEnvio)
           : 0;
       const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
-      const total = totalCalc + costoEnvioCalculado - descuentoEfectivo; 
+      const baseImponible = Math.max(0, totalCalc - descuentoEfectivo);
+      const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
+      const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+      const total = baseImponible + ivaMonto + costoEnvioCalculado;
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
@@ -1595,6 +1601,9 @@ const PresupuestoDetalle = () => {
         descuentoTotal,
         descuentoEfectivo,
         pagoEnEfectivo,
+        aplicaIva: presupuestoEdit?.aplicaIva !== false,
+        ivaPorcentaje,
+        ivaMonto,
         total,
         costoEnvio: costoEnvioCalculado,
         productos: productosArr,
@@ -2296,14 +2305,9 @@ const PresupuestoDetalle = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Dirección de envío
                             </label>
-                            <Input
+                            <GoogleAddressInput
                               value={presupuestoEdit.direccionEnvio || ""}
-                              onChange={(e) =>
-                                setPresupuestoEdit({
-                                  ...presupuestoEdit,
-                                  direccionEnvio: e.target.value,
-                                })
-                              }
+                              onChange={({ address, locality, lat, lng, mapsUrl }) => setPresupuestoEdit((prev) => ({ ...prev, direccionEnvio: address, localidadEnvio: locality || prev.localidadEnvio, direccionMapsUrl: mapsUrl, direccionLat: lat, direccionLng: lng }))}
                               placeholder="Dirección de envío"
                               className="w-full"
                             />
@@ -3812,10 +3816,18 @@ const PresupuestoDetalle = () => {
                   const { subtotal, descuentoTotal, total } = computeTotals(presupuestoEdit.productos);
                   const envio = Number(presupuestoEdit.costoEnvio) || 0;
                   const descuentoEfectivo = pagoEnEfectivo ? subtotal * 0.1 : 0;
-                  const totalFinal = total + envio - descuentoEfectivo;
+                  const baseImponible = Math.max(0, total - descuentoEfectivo);
+                  const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
+                  const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+                  const totalFinal = baseImponible + ivaMonto + envio;
                   return (
                     <div className="flex flex-col items-end gap-2 mt-4">
-                      <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                      <div className="flex w-fit max-w-full self-end flex-col gap-3">
+                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={presupuestoEdit?.aplicaIva !== false} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Aplicar IVA</label>
+                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.ivaPorcentaje ?? 21} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || presupuestoEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
+                        </div>
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
                           Subtotal: <span className="font-bold">$ {formatearNumeroArgentino(subtotal)}</span>
                         </div>
@@ -3832,8 +3844,10 @@ const PresupuestoDetalle = () => {
                             Costo de envío: <span className="font-bold">$ {formatearNumeroArgentino(envio)}</span>
                           </div>
                         )}
+                        {ivaMonto > 0 && <div>IVA ({ivaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaMonto)}</span></div>}
                         <div>
                           Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
+                        </div>
                         </div>
                       </div>
                     </div>
@@ -3841,7 +3855,7 @@ const PresupuestoDetalle = () => {
                 })()}
 
                 {/* Botones al final de todas las secciones editables */}
-                <div className="flex flex-wrap gap-2 mt-6">
+                <div className="flex flex-wrap justify-end gap-2 mt-6">
                   <Button
                     variant="default"
                     onClick={handleGuardarCambios}

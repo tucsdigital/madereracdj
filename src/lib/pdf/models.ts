@@ -37,6 +37,7 @@ export interface RemitoEnvioModel {
   fechaEntrega?: string;
   rangoHorario?: string;
   costoEnvio?: number;
+  mapsUrl?: string;
 }
 
 export interface RemitoPagoModel {
@@ -55,6 +56,8 @@ export interface RemitoTotalesModel {
   subtotal: number;
   descuentoTotal: number;
   descuentoEfectivo?: number;
+  ivaPorcentaje?: number;
+  ivaMonto?: number;
   costoEnvio: number;
   total: number;
 }

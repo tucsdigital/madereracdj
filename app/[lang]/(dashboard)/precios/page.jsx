@@ -55,9 +55,14 @@ const PreciosPage = () => {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [porcentajeAumento, setPorcentajeAumento] = useState("");
+  const [valorFijoGlobal, setValorFijoGlobal] = useState("");
+  const [metodoActualizacionGlobal, setMetodoActualizacionGlobal] = useState("porcentaje"); // "porcentaje" o "valor_fijo"
   const [tipoMaderaSeleccionado, setTipoMaderaSeleccionado] = useState("");
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
   const [tipoOperacion, setTipoOperacion] = useState("aumentar"); // "aumentar" o "disminuir"
+  const [filtroGlobalCategoria, setFiltroGlobalCategoria] = useState("");
+  const [filtroGlobalSubCategoria, setFiltroGlobalSubCategoria] = useState("");
+  const [filtroGlobalTipoMadera, setFiltroGlobalTipoMadera] = useState("");
   
   // Nuevos estados para selección múltiple
   const [productosSeleccionados, setProductosSeleccionados] = useState(new Set());
@@ -96,6 +101,53 @@ const PreciosPage = () => {
   const categorias = [...new Set(productos.map((p) => p.categoria))].filter(
     Boolean
   );
+
+  const tiposMaderaPorCategoria = useMemo(() => {
+    const cat = filtroGlobalCategoria;
+    const filtrados = productos.filter((p) => {
+      if (cat && p.categoria !== cat) return false;
+      return true;
+    });
+    return [...new Set(filtrados.map((p) => p.tipoMadera).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b, "es-AR")
+    );
+  }, [productos, filtroGlobalCategoria]);
+
+  const subCategoriasPorCategoria = useMemo(() => {
+    const map = new Map();
+    productos.forEach((p) => {
+      const cat = String(p.categoria || "").trim();
+      const sub = String(p.subcategoria ?? p.subCategoria ?? "").trim();
+      if (!cat || !sub) return;
+      if (!map.has(cat)) map.set(cat, new Set());
+      map.get(cat).add(sub);
+    });
+    const result = {};
+    map.forEach((set, key) => {
+      result[key] = [...set].sort((a, b) => a.localeCompare(b, "es-AR"));
+    });
+    return result;
+  }, [productos]);
+
+  const subCategoriasParaListado = useMemo(() => {
+    const cat = categoriaSeleccionada;
+    if (!cat) {
+      const set = new Set();
+      productos.forEach((p) => {
+        const sub = String(p.subcategoria ?? p.subCategoria ?? "").trim();
+        if (sub) set.add(sub);
+      });
+      return [...set].sort((a, b) => a.localeCompare(b, "es-AR"));
+    }
+    return subCategoriasPorCategoria[cat] || [];
+  }, [categoriaSeleccionada, productos, subCategoriasPorCategoria]);
+
+  const subCategoriasParaFiltro = useMemo(() => {
+    const cat = filtroGlobalCategoria;
+    if (!cat) return [];
+    return subCategoriasPorCategoria[cat] || [];
+  }, [filtroGlobalCategoria, subCategoriasPorCategoria]);
+
   const tiposMadera = [
     ...new Set(
       productos
@@ -104,7 +156,6 @@ const PreciosPage = () => {
     ),
   ].filter(Boolean);
   
-  // Obtener subcategorías de ferretería únicas
   const subCategoriasFerreteria = [
     ...new Set(
       productos
@@ -116,6 +167,36 @@ const PreciosPage = () => {
   const proveedores = [
     ...new Set(productos.filter((p) => p.proveedor).map((p) => p.proveedor)),
   ].filter(Boolean);
+
+  const obtenerProductosAfectadosGlobal = useCallback(() => {
+    if (modalTipo === "proveedor") {
+      if (!proveedorSeleccionado) return [];
+      return productos.filter((p) => p.proveedor === proveedorSeleccionado);
+    }
+    if (modalTipo === "maderas" && !filtroGlobalCategoria && !filtroGlobalSubCategoria && !filtroGlobalTipoMadera) {
+      return [];
+    }
+    const cat = filtroGlobalCategoria;
+    const sub = filtroGlobalSubCategoria;
+    const tipo = filtroGlobalTipoMadera;
+    if (!cat && !sub && !tipo) return [];
+    return productos.filter((p) => {
+      if (cat && p.categoria !== cat) return false;
+      if (sub) {
+        const subProd = String(p.subcategoria ?? p.subCategoria ?? "").trim();
+        if (subProd !== sub) return false;
+      }
+      if (tipo && p.tipoMadera !== tipo) return false;
+      return true;
+    });
+  }, [
+    modalTipo,
+    productos,
+    proveedorSeleccionado,
+    filtroGlobalCategoria,
+    filtroGlobalSubCategoria,
+    filtroGlobalTipoMadera,
+  ]);
 
   // Función para redondear a centenas (múltiplos de 100) - igual que en ventas
   const redondearDecimal = (numero) => {
@@ -303,9 +384,14 @@ const PreciosPage = () => {
     setEditProd(null);
     setEditForm({ costo: "", valorVenta: "" });
     setPorcentajeAumento("");
+    setValorFijoGlobal("");
+    setMetodoActualizacionGlobal("porcentaje");
     setTipoMaderaSeleccionado("");
     setProveedorSeleccionado("");
     setTipoOperacion("aumentar");
+    setFiltroGlobalCategoria("");
+    setFiltroGlobalSubCategoria("");
+    setFiltroGlobalTipoMadera("");
     setMsg("");
     setModalOpen(true);
   };
@@ -379,44 +465,43 @@ const PreciosPage = () => {
   };
 
   const handleGuardarGlobal = async () => {
-    if (!porcentajeAumento || (!tipoMaderaSeleccionado && !proveedorSeleccionado)) {
-      setMsg("Por favor completa todos los campos requeridos.");
+    const productosAActualizar = obtenerProductosAfectadosGlobal();
+    if (productosAActualizar.length === 0) {
+      setMsg("No se encontraron productos para actualizar.");
       return;
     }
 
-    // Validar que el porcentaje sea positivo (0-100)
-    const porcentajePositivo = validarNumero(porcentajeAumento);
-    if (porcentajePositivo === null || porcentajePositivo < 0 || porcentajePositivo > 100) {
-      setMsg("Por favor ingresa un porcentaje válido entre 0 y 100.");
-      return;
-    }
+    let factorAumento = 0;
+    let valorFijoNum = 0;
 
-    // Aplicar signo según el tipo de operación
-    const porcentaje = tipoOperacion === "disminuir" ? -porcentajePositivo : porcentajePositivo;
+    if (metodoActualizacionGlobal === "porcentaje") {
+      if (!porcentajeAumento) {
+        setMsg("Por favor ingresa un porcentaje válido.");
+        return;
+      }
+      const porcentajePositivo = validarNumero(porcentajeAumento);
+      if (porcentajePositivo === null || porcentajePositivo < 0 || porcentajePositivo > 100) {
+        setMsg("Por favor ingresa un porcentaje válido entre 0 y 100.");
+        return;
+      }
+      const porcentaje = tipoOperacion === "disminuir" ? -porcentajePositivo : porcentajePositivo;
+      factorAumento = porcentaje / 100;
+    } else {
+      if (!valorFijoGlobal) {
+        setMsg("Por favor ingresa un valor fijo válido.");
+        return;
+      }
+      valorFijoNum = validarNumero(valorFijoGlobal);
+      if (valorFijoNum === null || valorFijoNum <= 0) {
+        setMsg("Por favor ingresa un valor fijo mayor a 0.");
+        return;
+      }
+    }
 
     setSaving(true);
     setMsg("");
     
     try {
-      let productosAActualizar = [];
-
-      if (modalTipo === "maderas") {
-        productosAActualizar = productos.filter(
-          (p) => p.categoria === "Maderas" && p.tipoMadera === tipoMaderaSeleccionado
-        );
-      } else if (modalTipo === "proveedor") {
-        productosAActualizar = productos.filter(
-          (p) => p.proveedor === proveedorSeleccionado
-        );
-      }
-
-      if (productosAActualizar.length === 0) {
-        setMsg("No se encontraron productos para actualizar.");
-        setSaving(false);
-        return;
-      }
-
-      const factorAumento = porcentaje / 100;
       let actualizados = 0;
       let sinCambios = 0;
 
@@ -425,14 +510,24 @@ const PreciosPage = () => {
           const updates = {};
 
           if (producto.valorVenta) {
-            const nuevoPrecio = redondearDecimal(producto.valorVenta * (1 + factorAumento));
+            const nuevoPrecio =
+              metodoActualizacionGlobal === "porcentaje"
+                ? redondearDecimal(producto.valorVenta * (1 + factorAumento))
+                : tipoOperacion === "disminuir"
+                  ? Math.max(redondearDecimal(producto.valorVenta - valorFijoNum), 0)
+                  : redondearDecimal(producto.valorVenta + valorFijoNum);
             if (nuevoPrecio > 0) {
               updates.valorVenta = nuevoPrecio;
             }
           }
           
           if (producto.precioPorPie) {
-            const nuevoPrecio = redondearDecimal(producto.precioPorPie * (1 + factorAumento));
+            const nuevoPrecio =
+              metodoActualizacionGlobal === "porcentaje"
+                ? redondearDecimal(producto.precioPorPie * (1 + factorAumento))
+                : tipoOperacion === "disminuir"
+                  ? Math.max(redondearDecimal(producto.precioPorPie - valorFijoNum), 0)
+                  : redondearDecimal(producto.precioPorPie + valorFijoNum);
             if (nuevoPrecio > 0) {
               updates.precioPorPie = nuevoPrecio;
             }
@@ -449,7 +544,6 @@ const PreciosPage = () => {
         }
       }
 
-      // Mensaje detallado del resultado
       let mensaje = `${actualizados} productos actualizados correctamente.`;
       if (sinCambios > 0) {
         mensaje += ` ${sinCambios} sin cambios (sin precio válido).`;
@@ -526,11 +620,12 @@ const PreciosPage = () => {
       filtroTipoMadera === "" ||
       p.tipoMadera === filtroTipoMadera;
 
-    // Filtro específico por subcategoría de ferretería
-    const cumpleSubCategoria =
-      categoriaSeleccionada !== "Ferretería" ||
-      filtroSubCategoria === "" ||
-      p.subCategoria === filtroSubCategoria;
+    // Filtro específico por subcategoría (aplica a cualquier categoría, unifica lectura de field)
+    const cumpleSubCategoria = (() => {
+      if (!filtroSubCategoria) return true;
+      const subProd = String(p.subcategoria ?? p.subCategoria ?? "").trim();
+      return subProd === filtroSubCategoria;
+    })();
 
     return cumpleBusqueda && cumpleCategoria && cumpleTipoMadera && cumpleSubCategoria;
   });
@@ -710,6 +805,19 @@ const PreciosPage = () => {
                   {categorias.map((cat) => (
                     <option key={cat} value={cat}>
                       {getIconoCategoria(cat)} {cat}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={filtroSubCategoria}
+                  onChange={(e) => setFiltroSubCategoria(e.target.value)}
+                  disabled={subCategoriasParaListado.length === 0}
+                  className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+                >
+                  <option value="">Todas las subcategorías</option>
+                  {subCategoriasParaListado.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
                     </option>
                   ))}
                 </select>
@@ -1123,16 +1231,7 @@ const PreciosPage = () => {
               </div>
               <div className="text-sm text-gray-600">
                 Se actualizarán {productosSeleccionados.size} productos seleccionados.
-                {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria === "Maderas").length > 0 && (
-                  <div className="mt-2 text-purple-700">
-                    • Maderas: se actualizará precioPorPie
-                  </div>
-                )}
-                {productos.filter(p => productosSeleccionados.has(p.id) && p.categoria !== "Maderas").length > 0 && (
-                  <div className="mt-1 text-purple-700">
-                    • Otros: se actualizará valorVenta
-                  </div>
-                )}
+               
               </div>
             </div>
 
@@ -1178,7 +1277,7 @@ const PreciosPage = () => {
                   min={-100}
                   max={100}
                   step={0.1}
-                  placeholder="Porcentaje de aumento (ej: 15 para 15%)"
+                  placeholder="Ej: 15 para 15%"
                   value={porcentajeSeleccionMultiple}
                   onChange={(e) => {
                     const valor = e.target.value;
@@ -1188,13 +1287,6 @@ const PreciosPage = () => {
                     }
                   }}
                 />
-                <div className="text-xs text-gray-500">
-                  💡 Para calcular el porcentaje correcto: 
-                  <br />
-                  • De 825 a 1000 = 21.21% (no 45.45%)
-                  <br />
-                  • Fórmula: ((valor objetivo - valor actual) / valor actual) × 100
-                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1205,7 +1297,7 @@ const PreciosPage = () => {
                   type="number"
                   min={0}
                   step={0.01}
-                  placeholder="Valor específico (ej: 1000)"
+                  placeholder="1000"
                   value={valorEspecifico}
                   onChange={(e) => {
                     const valor = e.target.value;
@@ -1215,13 +1307,6 @@ const PreciosPage = () => {
                     }
                   }}
                 />
-                <div className="text-xs text-gray-500">
-                  💡 Todos los productos seleccionados tendrán este valor específico.
-                  <br />
-                  • Maderas: se actualizará precioPorPie
-                  <br />
-                  • Otros: se actualizará valorVenta
-                </div>
               </div>
             )}
 
@@ -1383,7 +1468,7 @@ const PreciosPage = () => {
 
       {(modalTipo === "maderas" || modalTipo === "proveedor") && (
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogContent className="w-[95vw] max-w-[520px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5" />
@@ -1391,24 +1476,13 @@ const PreciosPage = () => {
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-2">
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="font-bold text-lg mb-2">
-                  {modalTipo === "maderas"
-                    ? "🌲 Actualización por Tipo de Madera"
-                    : "📦 Actualización por Proveedor"}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {modalTipo === "maderas"
-                    ? "Elige la operación, el tipo de madera y el porcentaje para actualizar los precios."
-                    : "Elige la operación, el proveedor y el porcentaje para actualizar los precios."}
-                </div>
-              </div>
 
-              {/* Paso 1: Selector de tipo de operación */}
+
+              {/* 1. Operación */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Icon icon="mdi:numeric-1-circle" className="w-5 h-5 text-blue-600" />
-                  ¿Qué operación deseas realizar?
+                  Operación
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -1422,7 +1496,7 @@ const PreciosPage = () => {
                   >
                     <div className="flex items-center justify-center gap-2">
                       <TrendingUp className="w-5 h-5" />
-                      <span>Aumentar Precios</span>
+                      <span>Aumentar precios</span>
                     </div>
                   </button>
                   <button
@@ -1436,44 +1510,129 @@ const PreciosPage = () => {
                   >
                     <div className="flex items-center justify-center gap-2">
                       <Icon icon="mdi:trending-down" className="w-5 h-5" />
-                      <span>Disminuir Precios</span>
+                      <span>Disminuir precios</span>
                     </div>
                   </button>
                 </div>
               </div>
 
-              {/* Paso 2: Selector de tipo de madera o proveedor */}
-              {modalTipo === "maderas" && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Icon icon="mdi:numeric-2-circle" className="w-5 h-5 text-blue-600" />
-                    Selecciona el Tipo de Madera
-                  </label>
-                  <select
-                    value={tipoMaderaSeleccionado}
-                    onChange={(e) => setTipoMaderaSeleccionado(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              {/* 2. Método */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Icon icon="mdi:numeric-2-circle" className="w-5 h-5 text-blue-600" />
+                  Método
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMetodoActualizacionGlobal("porcentaje")}
+                    className={`flex-1 px-4 py-2.5 rounded-lg border transition-all font-medium ${
+                      metodoActualizacionGlobal === "porcentaje"
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
                   >
-                    <option value="">Seleccionar tipo de madera</option>
-                    {tiposMadera.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        🌲 {tipo}
-                      </option>
-                    ))}
-                  </select>
-                  {tipoMaderaSeleccionado && (
-                    <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded">
-                      📊 Se actualizarán {productos.filter(p => p.categoria === "Maderas" && p.tipoMadera === tipoMaderaSeleccionado).length} productos de tipo "{tipoMaderaSeleccionado}"
+                    Por porcentaje
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMetodoActualizacionGlobal("valor_fijo")}
+                    className={`flex-1 px-4 py-2.5 rounded-lg border transition-all font-medium ${
+                      metodoActualizacionGlobal === "valor_fijo"
+                        ? "bg-violet-600 text-white border-violet-600 shadow-sm"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Por valor fijo
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Filtros encadenados */}
+              {modalTipo === "maderas" && (
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Icon icon="mdi:numeric-3-circle" className="w-5 h-5 text-blue-600" />
+                    Filtros
+                  </label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-500">
+                      Categoría
+                    </label>
+                    <select
+                      value={filtroGlobalCategoria}
+                      onChange={(e) => {
+                        setFiltroGlobalCategoria(e.target.value);
+                        setFiltroGlobalTipoMadera("");
+                        setFiltroGlobalSubCategoria("");
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">Todas las categorías</option>
+                      {categorias.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {getIconoCategoria(cat)} {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {tiposMaderaPorCategoria.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-gray-500">
+                        Tipo de madera
+                      </label>
+                      <select
+                        disabled={!filtroGlobalCategoria}
+                        value={filtroGlobalTipoMadera}
+                        onChange={(e) => {
+                          setFiltroGlobalTipoMadera(e.target.value);
+                          setFiltroGlobalSubCategoria("");
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-50 disabled:text-gray-400"
+                      >
+                        <option value="">
+                          {filtroGlobalCategoria ? "Todos los tipos" : "Selecciona una categoría primero"}
+                        </option>
+                        {tiposMaderaPorCategoria.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            🌲 {tipo}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-500">
+                      Subcategoría
+                    </label>
+                    <select
+                      disabled={!filtroGlobalCategoria}
+                      value={filtroGlobalSubCategoria}
+                      onChange={(e) => setFiltroGlobalSubCategoria(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {filtroGlobalCategoria ? "Todas las subcategorías" : "Selecciona una categoría primero"}
+                      </option>
+                      {filtroGlobalCategoria &&
+                        subCategoriasParaFiltro.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
               {modalTipo === "proveedor" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Icon icon="mdi:numeric-2-circle" className="w-5 h-5 text-blue-600" />
-                    Selecciona el Proveedor
+                    <Icon icon="mdi:numeric-3-circle" className="w-5 h-5 text-blue-600" />
+                    Proveedor
                   </label>
                   <select
                     value={proveedorSeleccionado}
@@ -1487,19 +1646,16 @@ const PreciosPage = () => {
                       </option>
                     ))}
                   </select>
-                  {proveedorSeleccionado && (
-                    <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                      📊 Se actualizarán {productos.filter(p => p.proveedor === proveedorSeleccionado).length} productos del proveedor "{proveedorSeleccionado}"
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* Paso 3: Ingreso de porcentaje */}
+              {/* 4. Valor de actualización */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Icon icon="mdi:numeric-3-circle" className="w-5 h-5 text-blue-600" />
-                  Ingresa el Porcentaje {tipoOperacion === "aumentar" ? "de Aumento" : "de Disminución"}
+                  <Icon icon="mdi:numeric-4-circle" className="w-5 h-5 text-blue-600" />
+                  {metodoActualizacionGlobal === "porcentaje"
+                    ? `Porcentaje ${tipoOperacion === "aumentar" ? "de aumento" : "de disminución"}`
+                    : `Valor fijo a ${tipoOperacion === "aumentar" ? "sumar" : "restar"}`}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1512,17 +1668,24 @@ const PreciosPage = () => {
                       </TooltipTrigger>
                       <TooltipContent side="right" className="max-w-xs">
                         <div className="text-sm space-y-1">
-                          <p className="font-medium mb-2">💡 Información sobre porcentajes</p>
-                          <p>Ingresa un porcentaje entre 0 y 100.</p>
-                          {tipoOperacion === "aumentar" ? (
+                          <p className="font-medium mb-2">💡 Ayuda</p>
+                          {metodoActualizacionGlobal === "porcentaje" ? (
                             <>
-                              <p>• Ejemplo: 15% aumentará el precio en un 15%</p>
-                              <p>• De 1000 a 1150 = 15% de aumento</p>
+                              <p>Ingresa un porcentaje entre 0 y 100.</p>
+                              {tipoOperacion === "aumentar" ? (
+                                <p>• De 1000 a 1150 = 15% de aumento</p>
+                              ) : (
+                                <p>• De 1000 a 850 = 15% de disminución</p>
+                              )}
                             </>
                           ) : (
                             <>
-                              <p>• Ejemplo: 15% disminuirá el precio en un 15%</p>
-                              <p>• De 1000 a 850 = 15% de disminución</p>
+                              <p>Ingresa un monto para sumar o restar a cada precio.</p>
+                              {tipoOperacion === "aumentar" ? (
+                                <p>• +500 aumenta el precio en $500</p>
+                              ) : (
+                                <p>• -500 disminuye el precio en $500 (mínimo 0)</p>
+                              )}
                             </>
                           )}
                         </div>
@@ -1530,72 +1693,117 @@ const PreciosPage = () => {
                     </Tooltip>
                   </TooltipProvider>
                 </label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  placeholder={`Porcentaje ${tipoOperacion === "aumentar" ? "de aumento" : "de disminución"} (ej: 15 para 15%)`}
-                  value={porcentajeAumento}
-                  onChange={(e) => {
-                    const valor = e.target.value;
-                    // Solo permitir números positivos, punto decimal y backspace
-                    if (valor === "" || /^\d*\.?\d{0,1}$/.test(valor)) {
-                      const num = parseFloat(valor);
-                      if (valor === "" || (num >= 0 && num <= 100)) {
-                        setPorcentajeAumento(valor);
-                      }
+                {metodoActualizacionGlobal === "porcentaje" ? (
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    placeholder={
+                      tipoOperacion === "aumentar"
+                        ? "Porcentaje de aumento (ej: 15 para 15%)"
+                        : "Porcentaje de disminución (ej: 15 para 15%)"
                     }
-                  }}
-                />
+                    value={porcentajeAumento}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (valor === "" || /^\d*\.?\d{0,1}$/.test(valor)) {
+                        const num = parseFloat(valor);
+                        if (valor === "" || (num >= 0 && num <= 100)) {
+                          setPorcentajeAumento(valor);
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="Valor fijo (ej: 500)"
+                    value={valorFijoGlobal}
+                    onChange={(e) => {
+                      const valor = e.target.value;
+                      if (valor === "" || /^\d*$/.test(valor)) {
+                        setValorFijoGlobal(valor);
+                      }
+                    }}
+                  />
+                )}
               </div>
 
-              {porcentajeAumento &&
-                (tipoMaderaSeleccionado || proveedorSeleccionado) && (
-                  <div className={`p-4 rounded-lg ${
-                    tipoOperacion === "aumentar" 
-                      ? "bg-green-50 border border-green-200" 
-                      : "bg-red-50 border border-red-200"
-                  }`}>
-                    <div className={`font-medium mb-2 ${
-                      tipoOperacion === "aumentar" 
-                        ? "text-green-800" 
-                        : "text-red-800"
-                    }`}>
-                      Resumen de la operación:
-                    </div>
-                    <div className={`text-sm ${
-                      tipoOperacion === "aumentar" 
-                        ? "text-green-700" 
-                        : "text-red-700"
-                    }`}>
-                      <div>
-                        • Tipo:{" "}
-                        {modalTipo === "maderas"
-                          ? tipoMaderaSeleccionado
-                          : proveedorSeleccionado}
-                      </div>
-                      <div>
-                        • Operación: <span className="font-semibold">
-                          {tipoOperacion === "aumentar" ? "Aumentar" : "Disminuir"} {porcentajeAumento}%
-                        </span>
-                      </div>
-                      <div>
-                        • Productos afectados:{" "}
-                        <span className="font-semibold">
-                          {
-                            productos.filter((p) =>
-                              modalTipo === "maderas"
-                                ? p.categoria === "Maderas" &&
-                                  p.tipoMadera === tipoMaderaSeleccionado
-                                : p.proveedor === proveedorSeleccionado
-                            ).length
-                          }
-                        </span>
-                      </div>
-                    </div>
+              {/* Vista previa */}
+              {(modalTipo === "proveedor" ||
+                filtroGlobalCategoria ||
+                filtroGlobalSubCategoria ||
+                filtroGlobalTipoMadera) && (
+                <div
+                  className={`p-4 rounded-lg border ${
+                    obtenerProductosAfectadosGlobal().length === 0
+                      ? "bg-gray-50 border-gray-200"
+                      : tipoOperacion === "aumentar"
+                        ? "bg-green-50 border-green-200"
+                        : "bg-red-50 border-red-200"
+                  }`}
+                >
+                  <div
+                    className={`font-medium mb-2 ${
+                      obtenerProductosAfectadosGlobal().length === 0
+                        ? "text-gray-700"
+                        : tipoOperacion === "aumentar"
+                          ? "text-green-800"
+                          : "text-red-800"
+                    }`}
+                  >
+                    Se actualizarán:
                   </div>
-                )}
+                  <div
+                    className={`text-sm space-y-1 ${
+                      obtenerProductosAfectadosGlobal().length === 0
+                        ? "text-gray-600"
+                        : tipoOperacion === "aumentar"
+                          ? "text-green-700"
+                          : "text-red-700"
+                    }`}
+                  >
+                    {modalTipo === "proveedor" ? (
+                      <div>• Proveedor: <span className="font-semibold">{proveedorSeleccionado || "—"}</span></div>
+                    ) : (
+                      <>
+                        <div>• Categoría: <span className="font-semibold">{filtroGlobalCategoria || "—"}</span></div>
+                        {tiposMaderaPorCategoria.length > 0 && (
+                          <div>• Tipo de madera: <span className="font-semibold">{filtroGlobalTipoMadera || "—"}</span></div>
+                        )}
+                        <div>• Subcategoría: <span className="font-semibold">{filtroGlobalSubCategoria || "—"}</span></div>
+                      </>
+                    )}
+                    <div>
+                      • Productos afectados:{" "}
+                      <span className="font-semibold">
+                        {obtenerProductosAfectadosGlobal().length}
+                      </span>
+                    </div>
+                    {metodoActualizacionGlobal === "porcentaje"
+                      ? porcentajeAumento && (
+                          <div>
+                            • Operación:{" "}
+                            <span className="font-semibold">
+                              {tipoOperacion === "aumentar" ? "Aumentar" : "Disminuir"} {porcentajeAumento}%
+                            </span>
+                          </div>
+                        )
+                      : valorFijoGlobal && (
+                          <div>
+                            • Operación:{" "}
+                            <span className="font-semibold">
+                              {tipoOperacion === "aumentar" ? "+$" : "-$"}
+                              {valorFijoGlobal} por producto
+                            </span>
+                          </div>
+                        )}
+                  </div>
+                </div>
+              )}
 
               {msg && (
                 <div
@@ -1618,8 +1826,8 @@ const PreciosPage = () => {
                 onClick={handleGuardarGlobal}
                 disabled={
                   saving ||
-                  !porcentajeAumento ||
-                  (!tipoMaderaSeleccionado && !proveedorSeleccionado)
+                  obtenerProductosAfectadosGlobal().length === 0 ||
+                  (metodoActualizacionGlobal === "porcentaje" ? !porcentajeAumento : !valorFijoGlobal)
                 }
                 className={
                   tipoOperacion === "aumentar"
@@ -1637,12 +1845,12 @@ const PreciosPage = () => {
                     {tipoOperacion === "aumentar" ? (
                       <>
                         <TrendingUp className="w-4 h-4 mr-2" />
-                        Aplicar Aumento del {porcentajeAumento}%
+                        Aplicar aumento
                       </>
                     ) : (
                       <>
                         <Icon icon="mdi:trending-down" className="w-4 h-4 mr-2" />
-                        Aplicar Disminución del {porcentajeAumento}%
+                        Aplicar disminución
                       </>
                     )}
                   </>

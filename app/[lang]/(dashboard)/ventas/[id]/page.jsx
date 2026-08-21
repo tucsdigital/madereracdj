@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { DateInput } from "@/components/ui/date-input";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer, Truck, XCircle } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
@@ -529,6 +530,8 @@ const VentaDetalle = () => {
       ventaClonada.comprobantesPago = Array.isArray(ventaClonada.comprobantesPago) ? ventaClonada.comprobantesPago : [];
       ventaClonada.pagoEnDolares = ventaClonada.pagoEnDolares ?? false;
       ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
+      ventaClonada.aplicaIva = ventaClonada.aplicaIva ?? false;
+      ventaClonada.ivaPorcentaje = Number(ventaClonada.ivaPorcentaje) || 21;
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
           ? (() => {
@@ -1235,6 +1238,44 @@ const VentaDetalle = () => {
     }));
   };
 
+  const handleUnidadMaderaChange = (id, nuevaUnidad) => {
+    setVentaEdit((prev) => ({
+      ...prev,
+      productos: (prev.productos || []).map((p) => {
+        if (p.id !== id || p.categoria !== "Maderas") return p;
+
+        const unidad = nuevaUnidad;
+        const cantidad = Math.max(1, Math.ceil(Number(p.cantidad) || 1));
+        const alto = Number(p.alto) || 0;
+        const ancho = Number(p.ancho) || 0;
+        const largo = Number(p.largo) || 0;
+        const precioPorPie = Number(p.precioPorPie) || 0;
+        const altoM2 = alto > 0 ? alto : ancho;
+        const precioBase =
+          unidad === "M2"
+            ? calcularPrecioMachimbre({ alto: altoM2, largo, cantidad, precioPorPie })
+            : unidad === "ML"
+              ? calcularPrecioMetroLineal({ largo, cantidad, precioPorPie })
+              : unidad === "Unidad"
+                ? Math.round(precioPorPie / 100) * 100
+                : calcularPrecioCorteMadera({ alto, ancho, largo, precioPorPie });
+
+        return {
+          ...p,
+          unidad,
+          precio: unidad === "Unidad"
+            ? precioBase
+            : calcularPrecioMaderaConTratamientos(p, precioBase, { unidad }),
+          precioIncluyeCantidad: unidad === "M2" || unidad === "ML",
+          alto: unidad === "M2" && alto <= 0 && ancho > 0 ? ancho : p.alto,
+          cepilladoAplicado: unidad === "Unidad" ? false : p.cepilladoAplicado,
+          calibradoAplicado: unidad === "Unidad" ? false : p.calibradoAplicado,
+          cepilladoPorcentaje: unidad === "M2" ? 0 : p.cepilladoPorcentaje,
+        };
+      }),
+    }));
+  };
+
   // Permitir editar el nombre del producto cuando sea un producto manual/especial
   const handleNombreChange = (id, nombre) => {
     setVentaEdit((prev) => ({
@@ -1580,8 +1621,10 @@ const VentaDetalle = () => {
 
     // Calcular descuento de efectivo si aplica (10% sobre el subtotal)
     const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-
-    const total = totalSinEnvio + costoEnvioCalculado - descuentoEfectivo;
+    const baseImponible = Math.max(0, totalSinEnvio - descuentoEfectivo);
+    const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
+    const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+    const total = baseImponible + ivaMonto + costoEnvioCalculado;
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
       ventaEdit.cliente = venta.cliente;
@@ -1620,6 +1663,9 @@ const VentaDetalle = () => {
       ...ventaEdit,
       subtotal,
       descuentoTotal,
+      aplicaIva: ventaEdit?.aplicaIva !== false,
+      ivaPorcentaje,
+      ivaMonto,
       total,
       productos: productosArr,
       items: productosArr,
@@ -2756,15 +2802,10 @@ const VentaDetalle = () => {
                       </label>
                       {ventaEdit.usarDireccionCliente === false ? (
                         <>
-                          <input
+                          <GoogleAddressInput
                             className="w-full px-3 py-2 border border-border/60 bg-background text-foreground rounded-lg"
                             value={ventaEdit.direccionEnvio || ""}
-                            onChange={(e) =>
-                              setVentaEdit({
-                                ...ventaEdit,
-                                direccionEnvio: e.target.value,
-                              })
-                            }
+                            onChange={({ address, locality, lat, lng, mapsUrl }) => setVentaEdit((prev) => ({ ...prev, direccionEnvio: address, localidadEnvio: locality || prev.localidadEnvio, direccionMapsUrl: mapsUrl, direccionLat: lat, direccionLng: lng }))}
                             placeholder="Dirección de envío"
                           />
                           <input
@@ -3003,14 +3044,30 @@ const VentaDetalle = () => {
                         onClick={() => {
                           const productoEjemplo = {
                             id: "ejemplo-" + Date.now(),
-                            nombre: "Producto de Ejemplo",
-                            precio: 15000,
-                            unidad: "unidad",
+                            nombre: "MACHIMBRE DE EJEMPLO",
+                            precio: calcularPrecioMachimbre({
+                              alto: 0.2,
+                              largo: 3,
+                              cantidad: 1,
+                              precioPorPie: 25000,
+                            }),
+                            unidad: "M2",
                             stock: 100,
                             cantidad: 1,
                             descuento: 0,
-                            categoria: "Eventual",
+                            categoria: "Maderas",
+                            noInventariable: true,
                             esEditable: true, // Marca que es un producto editable
+                            precioIncluyeCantidad: true,
+                            alto: 0.2,
+                            ancho: 0,
+                            largo: 3,
+                            precioPorPie: 25000,
+                            cepilladoAplicado: true,
+                            cepilladoPorcentaje: 0,
+                            calibradoAplicado: false,
+                            calibradoPorcentaje: DEFAULT_CALIBRADO_PORCENTAJE,
+                            subcategoria: "machimbre",
                           };
                           setVentaEdit({
                             ...ventaEdit,
@@ -3574,6 +3631,26 @@ const VentaDetalle = () => {
                                   {p.detalle}
                                 </div>
                               )}
+                              {p.categoria === "Maderas" && p.esEditable && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <label htmlFor={`unidad-${p.id}`} className="text-xs font-semibold text-default-600">
+                                    Unidad
+                                  </label>
+                                  <select
+                                    id={`unidad-${p.id}`}
+                                    value={p.unidad || "Pie"}
+                                    onChange={(e) => handleUnidadMaderaChange(p.id, e.target.value)}
+                                    className="h-8 rounded-md border border-default-300 bg-background px-2 !text-[12px] !leading-none text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                                    style={{ fontSize: "15px", fontFamily: "inherit", fontWeight: 500 }}
+                                    disabled={loadingPrecios}
+                                  >
+                                    <option value="Unidad">Unidad</option>
+                                    <option value="M2">M2</option>
+                                    <option value="ML">ML</option>
+                                    <option value="Pie">Fórmula pie</option>
+                                  </select>
+                                </div>
+                              )}
                               {p.categoria === "Ferretería" && p.subCategoria && (
                                 <div className="flex items-center gap-1 mt-1">
                                   <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">{p.subCategoria}</span>
@@ -3805,9 +3882,24 @@ const VentaDetalle = () => {
                     const { subtotal, descuentoTotal, total } = computeTotals(ventaEdit.productos || []);
                     const envio = ventaEdit.tipoEnvio && ventaEdit.tipoEnvio !== "retiro_local" ? Number(ventaEdit.costoEnvio) || 0 : 0;
                     const descuentoEfectivo = ventaEdit?.pagoEnEfectivo ? subtotal * 0.1 : 0;
-                    const totalFinal = total + envio - descuentoEfectivo;
+                    const baseImponible = Math.max(0, total - descuentoEfectivo);
+                    const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
+                    const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
+                    const totalFinal = baseImponible + ivaMonto + envio;
                     return (
-                      <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
+                      <div className="flex w-fit max-w-full self-end flex-col gap-3">
+                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" checked={ventaEdit?.aplicaIva !== false} onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />
+                            Aplicar IVA
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Porcentaje:</span>
+                            <input type="number" min="0" step="0.01" value={ventaEdit?.ivaPorcentaje ?? 21} onChange={(e) => setVentaEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || ventaEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
+                            <span className="text-xs text-muted-foreground">%</span>
+                          </label>
+                        </div>
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
                           Subtotal: <span className="font-bold">${formatearNumeroArgentino(subtotal)}</span>
                         </div>
@@ -3824,8 +3916,14 @@ const VentaDetalle = () => {
                             Costo de envío: <span className="font-bold">${formatearNumeroArgentino(envio)}</span>
                           </div>
                         )}
+                        {ivaMonto > 0 && (
+                          <div>
+                            IVA ({ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(ivaMonto)}</span>
+                          </div>
+                        )}
                         <div>
                           Total: <span className="font-bold text-primary">${formatearNumeroArgentino(totalFinal)}</span>
+                        </div>
                         </div>
                       </div>
                     );
@@ -3987,7 +4085,7 @@ const VentaDetalle = () => {
                 }
                 return null;
               })()}
-              <div className="flex flex-wrap gap-2 mt-6">
+              <div className="flex flex-wrap justify-end gap-2 mt-6">
                 <Button
                   variant="default"
                   onClick={handleGuardarCambios}

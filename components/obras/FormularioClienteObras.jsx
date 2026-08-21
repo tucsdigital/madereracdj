@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, User, Phone, MapPin, Home, FileText } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, addDoc, updateDoc, collection, getDoc } from "firebase/firestore";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 
 const FormularioClienteObras = ({
   open,
@@ -33,6 +34,9 @@ const FormularioClienteObras = ({
     cuit: "",
     lote: "",
     barrio: "",
+    mapsUrl: "",
+    lat: null,
+    lng: null,
   });
 
   useEffect(() => {
@@ -48,6 +52,9 @@ const FormularioClienteObras = ({
             cuit: clienteExistente.cuit || "",
             lote: clienteExistente.lote || "",
             barrio: clienteExistente.barrio || "",
+              mapsUrl: clienteExistente.mapsUrl || "",
+              lat: clienteExistente.lat ?? null,
+              lng: clienteExistente.lng ?? null,
           });
         } else if (clienteExistente.id) {
           const cargarCliente = async () => {
@@ -64,6 +71,9 @@ const FormularioClienteObras = ({
                   cuit: data.cuit || "",
                   lote: data.lote || "",
                   barrio: data.barrio || "",
+                  mapsUrl: data.mapsUrl || "",
+                  lat: data.lat ?? null,
+                  lng: data.lng ?? null,
                 });
               }
             } catch (error) {
@@ -83,6 +93,9 @@ const FormularioClienteObras = ({
           cuit: "",
           lote: "",
           barrio: "",
+          mapsUrl: "",
+          lat: null,
+          lng: null,
         });
       }
       setError("");
@@ -138,6 +151,9 @@ const FormularioClienteObras = ({
           barrio: esModoGeneral
             ? datosActuales.barrio || ""
             : formData.barrio.trim() || "",
+          mapsUrl: formData.mapsUrl || datosActuales.mapsUrl || "",
+          lat: formData.lat ?? datosActuales.lat ?? null,
+          lng: formData.lng ?? datosActuales.lng ?? null,
           actualizadoEn: new Date().toISOString(),
         };
 
@@ -160,6 +176,9 @@ const FormularioClienteObras = ({
               esClienteViejo: false,
               codigoPostal: "",
               provincia: "",
+              mapsUrl: formData.mapsUrl || "",
+              lat: formData.lat ?? null,
+              lng: formData.lng ?? null,
               estado: "Activo",
               creadoEn: new Date().toISOString(),
               actualizadoEn: new Date().toISOString(),
@@ -179,6 +198,9 @@ const FormularioClienteObras = ({
               esClienteViejo: false,
               codigoPostal: "",
               provincia: "",
+              mapsUrl: formData.mapsUrl || "",
+              lat: formData.lat ?? null,
+              lng: formData.lng ?? null,
               creadoEn: new Date().toISOString(),
               actualizadoEn: new Date().toISOString(),
             };
@@ -271,10 +293,13 @@ const FormularioClienteObras = ({
                   <MapPin className="w-4 h-4 text-gray-500" />
                   Dirección
                 </Label>
-                <Input
+                <GoogleAddressInput
                   id="direccion"
                   value={formData.direccion}
-                  onChange={(e) => handleInputChange("direccion", e.target.value)}
+                  onChange={({ address, locality, lat, lng, mapsUrl }) => {
+                    setFormData((prev) => ({ ...prev, direccion: address, localidad: locality || prev.localidad, lat, lng, mapsUrl }));
+                    setError("");
+                  }}
                   placeholder="Dirección completa"
                   className="w-full"
                   disabled={guardando}
@@ -301,10 +326,21 @@ const FormularioClienteObras = ({
                 <MapPin className="w-4 h-4 text-gray-500" />
                 Lugar
               </Label>
-              <Input
+              <GoogleAddressInput
                 id="lugar"
                 value={formData.lugar}
-                onChange={(e) => handleInputChange("lugar", e.target.value)}
+                onChange={({ address, locality, lat, lng, mapsUrl }) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    lugar: address,
+                    direccion: address,
+                    localidad: locality || address,
+                    lat,
+                    lng,
+                    mapsUrl,
+                  }));
+                  setError("");
+                }}
                 placeholder="Dirección o localidad"
                 className="w-full"
                 disabled={guardando}

@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import QuantityMeasureControl from "@/components/ui/quantity-measure-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateInput } from "@/components/ui/date-input";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -225,6 +226,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [productosPorCategoria, setProductosPorCategoria] = useState({});
   const [categoriasState, setCategoriasState] = useState([]);
   const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
+  const [aplicarIva, setAplicarIva] = useState(false);
+  const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
   const [productosLoading, setProductosLoading] = useState(true);
   // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 
@@ -930,7 +933,10 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
     !isNaN(Number(costoEnvio))
       ? Number(costoEnvio)
       : 0;
-  const total = totalesCalculados.total - descuentoEfectivo + costoEnvioCalculado;
+  const baseImponible = Math.max(0, totalesCalculados.total - descuentoEfectivo);
+  const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
+  const ivaMonto = aplicarIva ? baseImponible * (ivaPorcentajeNumerico / 100) : 0;
+  const total = baseImponible + ivaMonto + costoEnvioCalculado;
 
   const advertenciasVenta = useMemo(() => {
     if (tipo !== "venta") {
@@ -1272,6 +1278,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               descuentoTotal: descuentoTotal,
               descuentoEfectivo: descuentoEfectivo,
               pagoEnEfectivo: pagoEnEfectivo,
+              aplicaIva: aplicarIva,
+              ivaPorcentaje: ivaPorcentajeNumerico,
+              ivaMonto: ivaMonto,
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
@@ -1294,6 +1303,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               descuentoTotal: descuentoTotal,
               descuentoEfectivo: descuentoEfectivo,
               pagoEnEfectivo: pagoEnEfectivo,
+              aplicaIva: aplicarIva,
+              ivaPorcentaje: ivaPorcentajeNumerico,
+              ivaMonto: ivaMonto,
               total: total,
               ...paymentFields,
               fechaCreacion: new Date().toISOString(),
@@ -3033,8 +3045,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                         </div>
                         {!usarDireccionCliente && (
                           <>
-                            <Input
-                              {...register("direccionEnvio")}
+                            <GoogleAddressInput
+                              value={watch("direccionEnvio") || ""}
+                              onChange={({ address, locality, lat, lng, mapsUrl }) => {
+                                setValue("direccionEnvio", address, { shouldValidate: true, shouldDirty: true });
+                                setValue("localidadEnvio", locality, { shouldValidate: true, shouldDirty: true });
+                                setValue("direccionMapsUrl", mapsUrl, { shouldDirty: true });
+                                setValue("direccionLat", lat, { shouldDirty: true });
+                                setValue("direccionLng", lng, { shouldDirty: true });
+                              }}
                               placeholder="Dirección de envío"
                               className="w-full"
                               disabled={isSubmitting}
@@ -3301,6 +3320,38 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </div>
           )}
+          <div className="flex w-fit max-w-full self-end flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
+              <input
+                type="checkbox"
+                checked={aplicarIva}
+                onChange={(e) => setAplicarIva(e.target.checked)}
+                disabled={isSubmitting}
+                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+              />
+              Aplicar IVA
+            </label>
+            <div className="flex items-center gap-2 text-sm">
+              <label htmlFor="ivaPorcentaje" className="text-muted-foreground">
+                Porcentaje:
+              </label>
+              <div className="relative w-24">
+                <input
+                  id="ivaPorcentaje"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={ivaPorcentaje}
+                  onChange={(e) => setIvaPorcentaje(e.target.value)}
+                  disabled={isSubmitting || !aplicarIva}
+                  className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-6 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  %
+                </span>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
@@ -3328,6 +3379,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   Costo de envío:{" "}
                   <span className="font-bold">
                     ${formatearNumeroArgentino(costoEnvioCalculado)}
+                  </span>
+                </div>
+              )}
+              {aplicarIva && ivaMonto > 0 && (
+                <div>
+                  IVA ({ivaPorcentajeNumerico}%):{" "}
+                  <span className="font-bold">
+                    ${formatearNumeroArgentino(ivaMonto)}
                   </span>
                 </div>
               )}

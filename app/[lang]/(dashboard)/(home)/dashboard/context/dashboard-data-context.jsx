@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { getObraReferenceDate } from "@/lib/obras-fechas";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useDateRange } from "./date-range-context";
 
 const DashboardDataContext = createContext({
@@ -31,37 +31,16 @@ export const DashboardDataProvider = ({ children }) => {
     clientes: {},
   });
   const [loading, setLoading] = useState(true);
-  const cacheRef = useRef({ key: null, raw: null, ts: 0 });
+  const cacheRef = useRef({ key: null, data: null, ts: 0 });
 
   useEffect(() => {
     const rangeKey = `${fechaDesde}_${fechaHasta}`;
     const cached = cacheRef.current;
     const now = Date.now();
-    const useCache = cached.key === rangeKey && cached.raw && (now - cached.ts) < CACHE_MAX_AGE_MS;
-
-    const applyFilter = (raw) => {
-      const isVentaAnulada = (v) =>
-        String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true;
-
-      const allVentasRaw = raw.ventasSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-      const allVentas = allVentasRaw.filter((v) => !isVentaAnulada(v));
-      const ventas = allVentas.filter((v) => isInRange(v.fechaCreacion || v.fecha));
-      const presupuestos = raw.presupuestosSnap.docs
-        .map((doc) => ({ ...doc.data(), id: doc.id }))
-        .filter((p) => isInRange(p.fechaCreacion || p.fecha));
-      const obras = raw.obrasSnap.docs
-        .map((doc) => ({ ...doc.data(), id: doc.id }))
-        .filter((o) => isInRange(getObraReferenceDate(o)));
-      const productos = raw.productosSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-      const clientesMap = {};
-      raw.clientesSnap.docs.forEach((d) => {
-        clientesMap[d.id] = { id: d.id, ...d.data() };
-      });
-      return { ventas, allVentas, presupuestos, obras, productos, clientes: clientesMap };
-    };
+    const useCache = cached.key === rangeKey && cached.data && (now - cached.ts) < CACHE_MAX_AGE_MS;
 
     if (useCache) {
-      setData(applyFilter(cached.raw));
+      setData(cached.data);
       setLoading(false);
       return;
     }
@@ -69,17 +48,59 @@ export const DashboardDataProvider = ({ children }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [ventasSnap, presupuestosSnap, obrasSnap, productosSnap, clientesSnap] = await Promise.all([
-          getDocs(collection(db, "ventas")),
-          getDocs(collection(db, "presupuestos")),
-          getDocs(collection(db, "obras")),
+        const rangeStart = fechaDesde || "0000-01-01";
+        const rangeEnd = fechaHasta
+          ? `${fechaHasta}T23:59:59.999Z`
+          : "9999-12-31T23:59:59.999Z";
+
+        const readRange = async (collectionName, dateFields) => {
+          const snapshots = await Promise.all(
+            dateFields.map((field) =>
+              getDocs(
+                query(
+                  collection(db, collectionName),
+                  where(field, ">=", rangeStart),
+                  where(field, "<=", rangeEnd)
+                )
+              )
+            )
+          );
+          const documentsById = new Map();
+          snapshots.forEach((snapshot) => {
+            snapshot.docs.forEach((document) => {
+              documentsById.set(document.id, {
+                ...document.data(),
+                id: document.id,
+              });
+            });
+          });
+          return Array.from(documentsById.values());
+        };
+
+        const [ventas, presupuestos, obras, productosSnap, clientesSnap] = await Promise.all([
+          readRange("ventas", ["fechaCreacion", "fecha"]),
+          readRange("presupuestos", ["fechaCreacion", "fecha"]),
+          readRange("obras", ["fechaCreacion", "fecha", "fechas.inicio"]),
           getDocs(collection(db, "productos")),
           getDocs(collection(db, "clientes")),
         ]);
 
-        const raw = { ventasSnap, presupuestosSnap, obrasSnap, productosSnap, clientesSnap };
-        cacheRef.current = { key: rangeKey, raw, ts: Date.now() };
-        setData(applyFilter(raw));
+        const isVentaAnulada = (v) =>
+          String(v?.estado || "").toLowerCase() === "anulada" || v?.anulada === true;
+        const allVentas = ventas.filter((v) => !isVentaAnulada(v));
+        const nextData = {
+          ventas: allVentas.filter((v) => isInRange(v.fechaCreacion || v.fecha)),
+          allVentas,
+          presupuestos: presupuestos.filter((p) => isInRange(p.fechaCreacion || p.fecha)),
+          obras: obras.filter((o) => isInRange(getObraReferenceDate(o))),
+          productos: productosSnap.docs.map((document) => ({ ...document.data(), id: document.id })),
+          clientes: clientesSnap.docs.reduce((acc, document) => {
+            acc[document.id] = { id: document.id, ...document.data() };
+            return acc;
+          }, {}),
+        };
+        cacheRef.current = { key: rangeKey, data: nextData, ts: Date.now() };
+        setData(nextData);
       } catch (error) {
         console.error("Error cargando datos del dashboard:", error);
       } finally {

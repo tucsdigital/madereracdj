@@ -123,6 +123,10 @@ export function mapVentaToRemito(venta: any): RemitoModel {
       ? Number(venta.costoEnvio)
       : 0;
   const totalCalculado = totalesCalculados.total + costoEnvio - descuentoEfectivo;
+  const ivaPorcentaje = Math.max(0, Number(venta?.ivaPorcentaje) || 21);
+  const ivaMonto = venta?.aplicaIva !== true
+    ? 0
+    : Number(venta?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
 
   // Total "oficial" de la venta: priorizar el guardado en la colección
   const totalVenta =
@@ -197,6 +201,7 @@ export function mapVentaToRemito(venta: any): RemitoModel {
           fechaEntrega: venta.fechaEntrega ? formatFechaLocalConDia(venta.fechaEntrega) : undefined,
           rangoHorario: venta.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
+          mapsUrl: venta.direccionMapsUrl || venta.cliente?.mapsUrl || undefined,
         }
       : undefined,
     items: mapItems(items),
@@ -205,6 +210,8 @@ export function mapVentaToRemito(venta: any): RemitoModel {
       descuentoTotal: totalesCalculados.descuentoTotal,
       descuentoEfectivo: descuentoEfectivo > 0 ? descuentoEfectivo : undefined,
       costoEnvio: costoEnvio > 0 ? costoEnvio : 0,
+      ivaPorcentaje: ivaMonto > 0 ? ivaPorcentaje : undefined,
+      ivaMonto: ivaMonto > 0 ? ivaMonto : undefined,
       total: totalVenta,
     },
     pagos: {
@@ -242,6 +249,10 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
       ? Number(presupuesto.costoEnvio)
       : 0;
   const totalFinal = totalesCalculados.total + costoEnvio - descuentoEfectivo;
+  const ivaPorcentaje = Math.max(0, Number(presupuesto?.ivaPorcentaje) || 21);
+  const ivaMonto = presupuesto?.aplicaIva !== true
+    ? 0
+    : Number(presupuesto?.ivaMonto) || Math.max(0, totalesCalculados.total - descuentoEfectivo) * (ivaPorcentaje / 100);
 
   // Determinar envío
   const tieneTipoEnvio = Boolean(presupuesto.tipoEnvio);
@@ -289,6 +300,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
           fechaEntrega: presupuesto.fechaEntrega ? formatFechaLocalConDia(presupuesto.fechaEntrega) : undefined,
           rangoHorario: presupuesto.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
+          mapsUrl: presupuesto.direccionMapsUrl || presupuesto.cliente?.mapsUrl || undefined,
         }
       : undefined,
     items: mapItems(items),
@@ -297,7 +309,9 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
       descuentoTotal: totalesCalculados.descuentoTotal,
       descuentoEfectivo: descuentoEfectivo > 0 ? descuentoEfectivo : undefined,
       costoEnvio: costoEnvio > 0 ? costoEnvio : 0,
-      total: totalFinal,
+      ivaPorcentaje: ivaMonto > 0 ? ivaPorcentaje : undefined,
+      ivaMonto: ivaMonto > 0 ? ivaMonto : undefined,
+      total: presupuesto?.total ?? (totalFinal + ivaMonto),
     },
     observaciones: presupuesto.observaciones,
     formaPago: presupuesto.formaPago,

@@ -159,6 +159,13 @@ export function buildRemitoHtml(
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
+      ${totales.ivaMonto > 0 ? `
+      <tr>
+        <td colspan="4" style="padding: 6px;"></td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.ivaMonto)}</td>
+      </tr>
+      ` : ""}
       <tr>
         <td colspan="4" style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 900; font-size: 14px; color: #000000;">TOTAL</td>
@@ -280,6 +287,10 @@ export function buildRemitoHtml(
         : formatCurrency(Number(envio.costoEnvio) || 0);
     const observacionesEmpleado =
       observaciones && observaciones.trim() ? escapeHtml(observaciones.trim()) : "";
+    const mapsUrl = String(envio?.mapsUrl || "").trim();
+    const qrUrl = mapsUrl
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrl)}`
+      : "";
 
     const leftItems = [
       `<div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoLabel}</span></div>`,
@@ -295,11 +306,16 @@ export function buildRemitoHtml(
 
     const right = esVenta && paymentStatusHtml ? `<div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div>` : "";
 
+    const qrHtml = qrUrl
+      ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:72px; height:72px;" /><span style="font-size:8px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
+      : "";
+
     return `
       <div class="envio-info">
         <div class="envio-info-left">
           ${leftItems}
         </div>
+        ${qrHtml}
         ${right}
       </div>
     `;

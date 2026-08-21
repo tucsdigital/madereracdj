@@ -121,11 +121,11 @@ export const useObra = (id) => {
               lote: u.lote || "",
             });
             
-            // Inicializar información del cliente
-            setClienteId(data.clienteId || "");
+            // Inicializar información del cliente para obras y presupuestos
+            setClienteId(data.clienteId || data.cliente?.id || "");
             setCliente(data.cliente || null);
             setUsarDireccionCliente(data.usarDireccionCliente !== false);
-            
+
             setItemsCatalogo(Array.isArray(data.materialesCatalogo) ? data.materialesCatalogo : []);
             setGastoObraManual(Number(data.gastoObraManual) || 0);
             setModoCosto(data.presupuestoInicialId ? "presupuesto" : "gasto");
@@ -133,6 +133,9 @@ export const useObra = (id) => {
             setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
           } else if (data.tipo === "presupuesto") {
             setEstadoObra(data.estado || "Activo");
+            setClienteId(data.clienteId || data.cliente?.id || "");
+            setCliente(data.cliente || null);
+            setUsarDireccionCliente(data.usarDireccionCliente !== false);
             setItemsPresupuesto(Array.isArray(data.productos) ? data.productos : []);
             setDescripcionGeneral(data.descripcionGeneral || "");
           }
@@ -197,6 +200,13 @@ export const useObra = (id) => {
       fetchObra();
     }
   }, [id]);
+
+  // Completar el cliente cuando el documento sólo guarda clienteId.
+  useEffect(() => {
+    if (!obra || cliente || !clienteId || clientes.length === 0) return;
+    const clienteEncontrado = clientes.find((item) => String(item.id) === String(clienteId));
+    if (clienteEncontrado) setCliente(clienteEncontrado);
+  }, [obra, cliente, clienteId, clientes]);
 
   // Inicializar edición de presupuesto cuando se carga
   // Importante: no sobrescribir itemsPresupuesto en páginas de OBRA

@@ -14,7 +14,7 @@ export const menusConfig = {
       href: "/dashboard",
     },
     {
-      title: "Ventas / Presupuestos",
+      title: "Ventas",
       icon: Receipt,
       href: "/ventas",
     },
@@ -92,7 +92,7 @@ export const menusConfig = {
         href: "/dashboard",
       },
       {
-        title: "Ventas / Presupuestos",
+        title: "Ventas",
         icon: Receipt,
         href: "/ventas",
       },
@@ -173,7 +173,7 @@ export const menusConfig = {
         href: "/dashboard",
       },
       {
-        title: "Ventas / Presupuestos",
+        title: "Ventas",
         icon: Receipt,
         href: "/ventas",
       },

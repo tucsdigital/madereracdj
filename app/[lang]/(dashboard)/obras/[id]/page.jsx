@@ -725,23 +725,66 @@ const ObraDetallePage = () => {
         {/* COLUMNA IZQUIERDA: Datos principales, Estado, Fechas */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Datos Generales</CardTitle>
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="text-lg">Datos Generales</CardTitle>
+              <p className="text-sm text-muted-foreground">Cliente, estado y planificación de la obra.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Selector de Cliente */}
-              <SelectorClienteObras
-                clienteSeleccionado={cliente}
-                onClienteSeleccionado={handleClienteSeleccionado}
-                editando={editando}
-              />
+              {/* Información y cambio de cliente */}
+              <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-3 flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</span>
+                    </div>
+                    <div className="text-lg font-semibold leading-tight text-foreground">
+                      {cliente?.nombre || obra?.cliente?.nombre || "Sin cliente asignado"}
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Teléfono</div>
+                        <div className="mt-0.5 truncate text-foreground">{cliente?.telefono || obra?.cliente?.telefono || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">CUIT</div>
+                        <div className="mt-0.5 truncate text-foreground">{cliente?.cuit || obra?.cliente?.cuit || "-"}</div>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Dirección</div>
+                        <div className="mt-0.5 truncate text-foreground">{cliente?.direccion || obra?.cliente?.direccion || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Localidad</div>
+                        <div className="mt-0.5 truncate text-foreground">{cliente?.localidad || obra?.cliente?.localidad || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Email</div>
+                        <div className="mt-0.5 truncate text-foreground">{cliente?.email || obra?.cliente?.email || "-"}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {editando && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 self-start"
+                      onClick={() => setShowFormularioCliente(true)}
+                    >
+                      <User className="mr-1.5 h-3.5 w-3.5" />
+                      Cambiar cliente
+                    </Button>
+                  )}
+                </div>
+              </section>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <section className="rounded-xl border border-border/60 p-4">
+                <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seguimiento</div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {/* Estado */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Estado de la Obra
-                  </label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado de la obra</label>
                   {editando ? (
                     <Select
                       value={estadoObra}
@@ -787,7 +830,7 @@ const ObraDetallePage = () => {
 
                 {/* Fecha Inicio */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     Fecha Inicio
                   </label>
@@ -808,8 +851,8 @@ const ObraDetallePage = () => {
 
                 {/* Fecha Fin (opcional) */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Fecha Fin <span className="text-gray-400 text-xs">(opcional)</span>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Fecha fin <span className="font-normal normal-case tracking-normal">(opcional)</span>
                   </label>
                   {editando ? (
                     <DateInput
@@ -828,7 +871,8 @@ const ObraDetallePage = () => {
                     </p>
                   )}
                 </div>
-              </div>
+                </div>
+              </section>
             </CardContent>
           </Card>
 

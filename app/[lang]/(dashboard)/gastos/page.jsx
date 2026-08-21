@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,25 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight, MoreHorizontal } from "lucide-react";
+import { Receipt, Plus, Edit, Trash2, Eye, Filter, Download, Calendar, TrendingUp, TrendingDown, BarChart3, X, Search, Building2, Wallet, DollarSign, AlertCircle, FileText, Settings, Loader2, ArrowLeftRight, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Switch } from "@/components/ui/switch";
 import ComprobantesPagoSection from "@/components/ventas/ComprobantesPagoSection";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -62,6 +73,51 @@ const estadosPago = {
   pendiente: { label: "Pendiente", color: "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20" },
   parcial: { label: "Pagado Parcial", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
   pagado: { label: "Pagado", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
+};
+
+const GastosPaginacion = ({ page, pageSize, total, onPageChange, onPageSizeChange }) => {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  return (
+    <div className="flex flex-col gap-2 border-t border-border/50 bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Mostrar:</span>
+        <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value) || 10)}>
+          <SelectTrigger className="h-7 w-[105px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[10, 20, 50, 100].map((size) => (
+              <SelectItem key={size} value={String(size)} className="text-xs">
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span>Total: {total}</span>
+      </div>
+      <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+        <span>Pág. {Math.min(page, pageCount)} de {pageCount}</span>
+        {Array.from({ length: Math.min(5, pageCount) }, (_, index) => (
+          <Button
+            key={index + 1}
+            type="button"
+            variant={page === index + 1 ? "default" : "outline"}
+            size="sm"
+            className="h-7 min-w-7 px-2 text-xs"
+            onClick={() => onPageChange(index + 1)}
+          >
+            {index + 1}
+          </Button>
+        ))}
+        <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => onPageChange(page + 1)} disabled={page >= pageCount}>
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 // Schema para gastos internos
@@ -152,6 +208,7 @@ const GastosPage = () => {
   const [proveedores, setProveedores] = useState([]);
   const [movimientosProveedor, setMovimientosProveedor] = useState([]);
   const [loading, setLoading] = useState(true);
+  const primeraCargaRef = useRef(true);
   
   // Estados para modales
   const [openInterno, setOpenInterno] = useState(false);
@@ -186,6 +243,12 @@ const GastosPage = () => {
   const [filtroProveedor, setFiltroProveedor] = useState("");
   const [filtroEstadoPago, setFiltroEstadoPago] = useState("");
   const [filtroProveedorId, setFiltroProveedorId] = useState("");
+  const [paginaInternos, setPaginaInternos] = useState(1);
+  const [filasInternos, setFilasInternos] = useState(10);
+  const [paginaMovimientos, setPaginaMovimientos] = useState(1);
+  const [filasMovimientos, setFilasMovimientos] = useState(10);
+  const [paginaCuentas, setPaginaCuentas] = useState(1);
+  const [filasCuentas, setFilasCuentas] = useState(10);
   
   // Selector de proveedor con búsqueda
   const [busquedaProveedor, setBusquedaProveedor] = useState("");
@@ -358,11 +421,23 @@ const GastosPage = () => {
   // Función para cargar datos desde Firebase (reutilizable)
   const cargarDatos = useCallback(async (opts = {}) => {
     const silent = Boolean(opts?.silent);
+    const desde = String(opts?.fechaDesde || fechaDesde || "0000-01-01");
+    const hasta = String(opts?.fechaHasta || fechaHasta || "9999-12-31");
     try {
       if (!silent) setLoading(true);
+      const gastosQuery = query(
+        collection(db, "gastos"),
+        where("fecha", ">=", desde),
+        where("fecha", "<=", hasta)
+      );
+      const pagosQuery = query(
+        collection(db, "pagosProveedores"),
+        where("fecha", ">=", desde),
+        where("fecha", "<=", hasta)
+      );
       const [proveedoresSnap, gastosSnap] = await Promise.all([
-        getDocs(collection(db, "proveedores")),
-        getDocs(collection(db, "gastos")),
+        getDocs(query(collection(db, "proveedores"), limit(500))),
+        getDocs(gastosQuery),
       ]);
       const proveedoresData = proveedoresSnap.docs.map(doc => ({
         id: doc.id,
@@ -383,7 +458,9 @@ const GastosPage = () => {
       setGastosInternos(internos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
       setCuentasPorPagar(proveedoresGastos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
       try {
-        const pagosProveedoresSnap = await getDocs(collection(db, "pagosProveedores"));
+        const pagosProveedoresSnap = await getDocs(
+          pagosQuery
+        );
         const pagosProveedoresData = pagosProveedoresSnap.docs
           .map((d) => {
             const data = d.data();
@@ -414,12 +491,16 @@ const GastosPage = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [fechaDesde, fechaHasta]);
 
   // Recargar solo gastos (sin proveedores) — útil al cerrar modal de categorías
   const recargarSoloGastos = useCallback(async () => {
     try {
-      const gastosSnap = await getDocs(collection(db, "gastos"));
+      const gastosSnap = await getDocs(query(
+        collection(db, "gastos"),
+        where("fecha", ">=", fechaDesde || "0000-01-01"),
+        where("fecha", "<=", fechaHasta || "9999-12-31")
+      ));
       const gastosData = gastosSnap.docs.map(doc => {
         const data = doc.data();
         return {
@@ -436,11 +517,13 @@ const GastosPage = () => {
     } catch (err) {
       console.error("Error al recargar gastos:", err);
     }
-  }, []);
+  }, [fechaDesde, fechaHasta]);
 
   // Cargar datos al montar el componente
   useEffect(() => {
-    cargarDatos();
+    const esPrimeraCarga = primeraCargaRef.current;
+    primeraCargaRef.current = false;
+    cargarDatos({ silent: !esPrimeraCarga });
   }, [cargarDatos]);
 
   // Recargar solo gastos cuando se cierra el modal de categorías (evita re-pedir proveedores)
@@ -1651,6 +1734,33 @@ const GastosPage = () => {
       .sort((a, b) => new Date(sortKey(b) || 0) - new Date(sortKey(a) || 0));
   }, [movimientosProveedorFiltradosPorFecha, filtroProveedor, filtroProveedorId, proveedores]);
 
+  useEffect(() => {
+    setPaginaInternos(1);
+  }, [filtroInterno, fechaDesde, fechaHasta, filasInternos]);
+
+  useEffect(() => {
+    setPaginaMovimientos(1);
+  }, [filtroProveedor, filtroProveedorId, fechaDesde, fechaHasta, filasMovimientos]);
+
+  useEffect(() => {
+    setPaginaCuentas(1);
+  }, [filtroProveedor, filtroEstadoPago, filtroProveedorId, fechaDesde, fechaHasta, filasCuentas]);
+
+  const gastosInternosPaginados = useMemo(() => {
+    const start = (paginaInternos - 1) * filasInternos;
+    return gastosInternosFiltrados.slice(start, start + filasInternos);
+  }, [gastosInternosFiltrados, paginaInternos, filasInternos]);
+
+  const movimientosProveedorPaginados = useMemo(() => {
+    const start = (paginaMovimientos - 1) * filasMovimientos;
+    return movimientosProveedorFiltrados.slice(start, start + filasMovimientos);
+  }, [movimientosProveedorFiltrados, paginaMovimientos, filasMovimientos]);
+
+  const cuentasPorPagarPaginadas = useMemo(() => {
+    const start = (paginaCuentas - 1) * filasCuentas;
+    return cuentasPorPagarFiltradas.slice(start, start + filasCuentas);
+  }, [cuentasPorPagarFiltradas, paginaCuentas, filasCuentas]);
+
   // Exportar reporte de cuentas por pagar
   const exportarReporteCuentas = () => {
     if (cuentasPorPagarFiltradas.length === 0) {
@@ -2359,7 +2469,7 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {gastosInternosFiltrados.map(g => (
+                  {gastosInternosPaginados.map(g => (
                     <TableRow key={g.id}>
                       <TableCell>{g.fecha}</TableCell>
                       <TableCell className="font-medium">{g.concepto}</TableCell>
@@ -2397,6 +2507,16 @@ const GastosPage = () => {
                   ))}
                 </TableBody>
               </Table>
+              <GastosPaginacion
+                page={paginaInternos}
+                pageSize={filasInternos}
+                total={gastosInternosFiltrados.length}
+                onPageChange={(page) => setPaginaInternos(Math.max(1, page))}
+                onPageSizeChange={(size) => {
+                  setFilasInternos(Math.min(100, Math.max(10, size)));
+                  setPaginaInternos(1);
+                }}
+              />
             </CardContent>
           </Card>
 
@@ -2421,7 +2541,7 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movimientosProveedorFiltrados.map((m) => {
+                  {movimientosProveedorPaginados.map((m) => {
                     const tipo = String(m?.tipo || "");
                     const provNombre =
                       m?.proveedor?.nombre || proveedores.find((p) => p.id === m?.proveedorId)?.nombre || "-";
@@ -2485,6 +2605,16 @@ const GastosPage = () => {
                   })}
                 </TableBody>
               </Table>
+              <GastosPaginacion
+                page={paginaMovimientos}
+                pageSize={filasMovimientos}
+                total={movimientosProveedorFiltrados.length}
+                onPageChange={(page) => setPaginaMovimientos(Math.max(1, page))}
+                onPageSizeChange={(size) => {
+                  setFilasMovimientos(Math.min(100, Math.max(10, size)));
+                  setPaginaMovimientos(1);
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -2738,7 +2868,7 @@ const GastosPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cuentasPorPagarFiltradas.map((c) => {
+                  {cuentasPorPagarPaginadas.map((c) => {
                     const saldo = calcularSaldoCuenta(c);
                     const estadoCalc = calcularEstadoCuenta(c);
                     const vencida = estadoCalc === "vencida";
@@ -2837,6 +2967,16 @@ const GastosPage = () => {
                   })}
                 </TableBody>
               </Table>
+              <GastosPaginacion
+                page={paginaCuentas}
+                pageSize={filasCuentas}
+                total={cuentasPorPagarFiltradas.length}
+                onPageChange={(page) => setPaginaCuentas(Math.max(1, page))}
+                onPageSizeChange={(size) => {
+                  setFilasCuentas(Math.min(100, Math.max(10, size)));
+                  setPaginaCuentas(1);
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>

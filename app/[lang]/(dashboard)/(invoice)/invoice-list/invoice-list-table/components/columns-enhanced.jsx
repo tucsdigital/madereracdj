@@ -3,8 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
-import Link from "next/link";
-import { Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Trash2, Calendar, User, DollarSign, FileText, ShoppingCart, Clock, CheckCircle, AlertCircle, XCircle, Pencil } from "lucide-react";
 
 // Función para formatear fecha
 const formatDate = (dateString) => {
@@ -93,6 +92,21 @@ const formatVendedorName = (value) => {
   return formatted || local;
 };
 
+const getClienteSecondaryLabel = (cliente) => {
+  if (!cliente) return "-";
+
+  return (
+    cliente.telefono ||
+    cliente.celular ||
+    cliente.whatsapp ||
+    cliente.cuil ||
+    cliente.dni ||
+    cliente.cuit ||
+    cliente.email ||
+    "-"
+  );
+};
+
 const isVentaAnulada = (venta) => {
   if (!venta) return false;
   return String(venta.estado || "").toLowerCase() === "anulada" || venta.anulada === true;
@@ -147,7 +161,7 @@ export const columnsPresupuestos = [
             {(row?.original?.cliente?.nombre || "-").toUpperCase()}
           </span>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+            {getClienteSecondaryLabel(row?.original?.cliente)}
           </span>
         </div>
       </div>
@@ -235,12 +249,28 @@ export const columnsPresupuestos = [
       return (
         <div className="flex items-center gap-2">
           <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="Editar"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(
+                new CustomEvent("editPresupuesto", {
+                  detail: { id: row.original.id },
+                })
+              );
+            }}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:text-red-800 dark:hover:text-red-200 transition-all duration-200"
             title="Eliminar"
             onClick={(e) => {
-              e.stopPropagation(); // Prevenir que se active el click de la fila
+              e.stopPropagation();
               window.dispatchEvent(
                 new CustomEvent("deletePresupuesto", {
                   detail: { id: row.original.id },
@@ -248,8 +278,7 @@ export const columnsPresupuestos = [
               );
             }}
           >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Eliminar
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       );
@@ -302,7 +331,7 @@ export const columnsVentas = [
             {(row?.original?.cliente?.nombre || "-").toUpperCase()}
           </span>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {row?.original?.cliente?.cuit || row?.original?.cliente?.email || "-"}
+            {getClienteSecondaryLabel(row?.original?.cliente)}
           </span>
         </div>
       </div>
@@ -363,28 +392,26 @@ export const columnsVentas = [
     cell: ({ row }) => {
       if (isVentaAnulada(row.original)) {
         return (
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center justify-center"
+            title="Anulada"
+          >
             <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center text-red-700 dark:text-red-300">
               <XCircle className="w-4 h-4" />
             </div>
-            <Badge className="rounded-full px-3 py-1 text-xs font-medium border bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20">
-              Anulada
-            </Badge>
           </div>
         );
       }
 
       const status = row.getValue("estadoPago") || row.getValue("status");
       return (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center text-violet-700 dark:text-violet-300">
+        <div
+          className="flex items-center justify-center"
+          title={status || "No especificado"}
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getStatusColor(status)}`}>
             {getStatusIcon(status)}
           </div>
-          <Badge
-            className={`rounded-full px-3 py-1 text-xs font-medium border ${getStatusColor(status)}`}
-          >
-            {status || "No especificado"}
-          </Badge>
         </div>
       );
     },
@@ -481,12 +508,28 @@ export const columnsVentas = [
       return (
         <div className="flex items-center gap-2">
           <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-3 bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-300 hover:bg-red-500/15 hover:border-red-500/30 transition-all duration-200"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="Editar"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.dispatchEvent(
+                new CustomEvent("editVenta", {
+                  detail: { id: row.original.id },
+                })
+              );
+            }}
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:text-red-800 dark:hover:text-red-200 transition-all duration-200"
             title="Anular"
             onClick={(e) => {
-              e.stopPropagation(); // Prevenir que se active el click de la fila
+              e.stopPropagation();
               window.dispatchEvent(
                 new CustomEvent("anularVenta", {
                   detail: { id: row.original.id },
@@ -494,8 +537,7 @@ export const columnsVentas = [
               );
             }}
           >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Anular
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       );

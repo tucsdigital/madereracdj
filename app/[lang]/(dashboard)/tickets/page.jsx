@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Plus, Trash2, Ticket as TicketIcon } from "lucide-react";
+import { Check, Edit3, Eye, Plus, Trash2, Ticket as TicketIcon } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, deleteDoc, doc, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc, where } from "firebase/firestore";
 import { useAuth } from "@/provider/auth.provider";
 import {
   formatDateAR,
@@ -18,6 +19,7 @@ import {
   TICKET_MODULES,
   TICKET_PRIORITIES,
   TICKET_STATUSES,
+  toIsoNow,
 } from "@/lib/tickets";
 
 const TicketsPage = () => {
@@ -34,6 +36,7 @@ const TicketsPage = () => {
   const [fStatus, setFStatus] = useState("");
   const [fPriority, setFPriority] = useState("");
   const [fModule, setFModule] = useState("");
+  const [finalizando, setFinalizando] = useState({});
 
   const isAdmin = isTicketsAdminUser(user);
 
@@ -97,6 +100,28 @@ const TicketsPage = () => {
 
   const hrefCreate = `/${lang}/tickets/create`;
 
+  const badgeClass = (type, value) => {
+    const palettes = {
+      status: {
+        open: "border-sky-200 bg-sky-50 text-sky-700",
+        triage: "border-violet-200 bg-violet-50 text-violet-700",
+        in_progress: "border-blue-200 bg-blue-50 text-blue-700",
+        blocked: "border-red-200 bg-red-50 text-red-700",
+        waiting_client: "border-amber-200 bg-amber-50 text-amber-700",
+        done: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        cancelled: "border-slate-200 bg-slate-50 text-slate-600",
+      },
+      priority: {
+        low: "border-slate-200 bg-slate-50 text-slate-600",
+        medium: "border-blue-200 bg-blue-50 text-blue-700",
+        high: "border-orange-200 bg-orange-50 text-orange-700",
+        urgent: "border-red-200 bg-red-50 text-red-700",
+      },
+      module: "border-default-200 bg-default-50 text-default-700",
+    };
+    return palettes[type]?.[value] || palettes[type] || "border-default-200 bg-default-50 text-default-700";
+  };
+
   const handleAbrirTicket = (ticketId) => {
     router.push(`/${lang}/tickets/${ticketId}`);
   };
@@ -106,6 +131,33 @@ const TicketsPage = () => {
     if (isAdmin) return true;
     const uid = String(user?.uid || "");
     return Boolean(uid) && String(t?.requester?.uid || "") === uid;
+  };
+
+  const handleFinalizarTicket = async (event, ticket) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!ticket?.id || ticket.status === "done" || !user) return;
+
+    setFinalizando((prev) => ({ ...prev, [ticket.id]: true }));
+    try {
+      const now = toIsoNow();
+      await updateDoc(doc(db, "tickets", String(ticket.id)), {
+        status: "done",
+        updatedAt: now,
+        lastActivityAt: now,
+      });
+      setTickets((prev) => prev.map((item) => (
+        item.id === ticket.id ? { ...item, status: "done", updatedAt: now, lastActivityAt: now } : item
+      )));
+    } catch (err) {
+      setError(err?.message || "No se pudo finalizar el ticket");
+    } finally {
+      setFinalizando((prev) => {
+        const next = { ...prev };
+        delete next[ticket.id];
+        return next;
+      });
+    }
   };
 
   const handleEliminarTicket = async (e, t) => {
@@ -129,8 +181,10 @@ const TicketsPage = () => {
         <TicketIcon className="w-10 h-10 text-primary" />
         <div className="flex-1">
           <h1 className="text-3xl font-bold mb-1">Tickets</h1>
-          <p className="text-lg text-muted-foreground">
-            Solicitudes y tareas entre usuarios del sistema y agencia.
+          <p className="text-sm text-muted-foreground">
+            {isAdmin
+              ? "Vista de administrador: todos los tickets del sistema."
+              : "Vista personal: tickets en los que participás."}
           </p>
         </div>
         <Button asChild>
@@ -146,7 +200,7 @@ const TicketsPage = () => {
           <CardTitle>Listado</CardTitle>
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             <Input
-              placeholder="Buscar por título, descripción, email, ID relacionado..."
+              placeholder="Buscar por título, descripción, email o referencia..."
               value={qText}
               onChange={(e) => setQText(e.target.value)}
               className="md:w-[360px]"
@@ -206,7 +260,6 @@ const TicketsPage = () => {
             <Table className="[&_th]:uppercase">
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Título</TableHead>
                   <TableHead>Módulo</TableHead>
                   <TableHead>Prioridad</TableHead>
@@ -224,9 +277,6 @@ const TicketsPage = () => {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleAbrirTicket(t.id)}
                   >
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {String(t.id).slice(0, 8)}
-                    </TableCell>
                     <TableCell className="font-semibold">
                       {t.title || "Sin título"}
                       {t.commentCount ? (
@@ -235,9 +285,21 @@ const TicketsPage = () => {
                         </span>
                       ) : null}
                     </TableCell>
-                    <TableCell>{labelFor(TICKET_MODULES, t.module)}</TableCell>
-                    <TableCell>{labelFor(TICKET_PRIORITIES, t.priority)}</TableCell>
-                    <TableCell>{labelFor(TICKET_STATUSES, t.status)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={badgeClass("module", t.module)}>
+                        {labelFor(TICKET_MODULES, t.module)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={badgeClass("priority", t.priority)}>
+                        {labelFor(TICKET_PRIORITIES, t.priority)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={badgeClass("status", t.status)}>
+                        {labelFor(TICKET_STATUSES, t.status)}
+                      </Badge>
+                    </TableCell>
                     {showDueDateColumn ? (
                       <TableCell>{t.dueDate ? formatDateAR(t.dueDate) : "-"}</TableCell>
                     ) : null}
@@ -247,6 +309,28 @@ const TicketsPage = () => {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={(event) => handleFinalizarTicket(event, t)}
+                          disabled={t.status === "done" || finalizando[t.id]}
+                          aria-label={t.status === "done" ? "Ticket finalizado" : "Finalizar ticket"}
+                          title={t.status === "done" ? "Finalizado" : "Finalizar"}
+                          className={t.status === "done" ? "text-emerald-600" : "text-emerald-600 hover:bg-emerald-50"}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleAbrirTicket(t.id)}
+                          aria-label="Editar ticket"
+                          title="Editar"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
                         <Button
                           type="button"
                           variant="outline"
