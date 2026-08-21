@@ -2553,8 +2553,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                     </thead>
                     <tbody className="divide-y divide-default-200">
                       {productosSeleccionados.map((p, idx) => (
+                        <React.Fragment key={p.id}>
                         <tr
-                          key={p.id}
                           className={`border-b border-default-300 transition-all duration-300 data-[state=selected]:bg-muted ${
                             cloneHighlightId === p.id
                               ? "bg-emerald-50 ring-2 ring-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.25)] animate-pulse"
@@ -2601,6 +2601,15 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                                 </>
                               )}
                             </div>
+                            {isComboProduct(p) && (
+                              <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                Number(p.stock) > 0
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>
+                                {Number(p.stock) > 0 ? `Stock disponible (${p.stock})` : "Stock bajo (puede continuar)"}
+                              </span>
+                            )}
                             {/* Información específica por categoría */}
                             {p.categoria === "Ferretería" && p.subCategoria && (
                               <div className="flex items-center gap-1 mt-1">
@@ -2989,6 +2998,44 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                             </div>
                           </td>
                         </tr>
+                        {isComboProduct(p) && normalizeComboComponents(p.componentesCombo).map((componente) => {
+                          const productoComponente = productosState.find(
+                            (producto) => String(producto.id) === String(componente.productoId)
+                          );
+                          const stock = Number(productoComponente?.stock);
+                          const requerido = (Number(componente.cantidad) || 0) * (Number(p.cantidad) || 1);
+                          const sinStock = !Number.isFinite(stock) || stock <= 0;
+                          const stockBajo = !sinStock && stock < requerido;
+                          const estadoStock = sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Disponible";
+                          const estadoClase = sinStock
+                            ? "bg-red-100 text-red-700"
+                            : stockBajo
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-700";
+
+                          return (
+                            <tr key={`${p.id}-componente-${componente.productoId}`} className="bg-muted/20">
+                              <td colSpan={2} className="p-3 pl-10 text-sm text-muted-foreground">
+                                <span className="mr-2 text-primary">↳</span>
+                                <span className="font-medium text-foreground">{componente.nombre || productoComponente?.nombre || componente.productoId}</span>
+                                <span className="ml-2 text-xs">{componente.codigo || productoComponente?.codigo || ""}</span>
+                              </td>
+                              <td className="p-3 text-center text-sm text-muted-foreground">
+                                {requerido}
+                              </td>
+                              <td colSpan={4} className="p-3 text-center text-xs text-muted-foreground">
+                                Componente del combo · {Number(componente.cantidad) || 0} por unidad
+                              </td>
+                              <td colSpan={2} className="p-3 text-center">
+                                <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${estadoClase}`}>
+                                  {estadoStock} {Number.isFinite(stock) ? `(${stock})` : ""}
+                                </span>
+                              </td>
+                              <td className="p-3" />
+                            </tr>
+                          );
+                        })}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

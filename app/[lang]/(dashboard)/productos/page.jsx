@@ -141,6 +141,8 @@ const ferreteriaSchema = yup.object().shape({
 
 const combosSchema = yup.object().shape({
   ...baseSchema,
+  codigo: yup.string().notRequired(),
+  costo: yup.number().nullable().notRequired(),
   valorVenta: yup.number().positive().required("El valor de venta es obligatorio"),
   stockMinimo: yup.number().min(0).required("El stock mínimo es obligatorio"),
   componentesCombo: yup
@@ -279,15 +281,26 @@ function FormularioProducto({ onClose, onSuccess }) {
   );
 
   const comboSuggestions = useMemo(() => {
-    const term = String(comboSearch || "").trim().toLowerCase();
+    const normalizarTexto = (texto) =>
+      String(texto || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "");
+    const term = normalizarTexto(comboSearch);
     const selectedIds = new Set(comboItems.map((item) => item.productoId));
     return comboCatalogo
       .filter((producto) => !selectedIds.has(String(producto.id)))
       .filter((producto) => {
         if (!term) return true;
-        return [producto.nombre, producto.codigo, producto.categoria]
-          .map((value) => String(value || "").toLowerCase())
-          .some((value) => value.includes(term));
+        const nombre = normalizarTexto(producto.nombre);
+        const codigo = normalizarTexto(producto.codigo);
+        const descripcion = normalizarTexto(producto.descripcion);
+        const unidad = normalizarTexto(producto.unidadMedida || producto.unidad);
+        const busqueda = term.endsWith(".") ? term.slice(0, -1) : term;
+        const matchCampo = (value) =>
+          term.endsWith(".") ? value.startsWith(busqueda) : value.includes(busqueda);
+        return [nombre, codigo, descripcion, unidad].some(matchCampo);
       })
       .slice(0, 8);
   }, [comboCatalogo, comboItems, comboSearch]);
@@ -452,14 +465,12 @@ function FormularioProducto({ onClose, onSuccess }) {
           ]
         : payload.categoria === "Combos"
           ? [
-              "codigo",
               "nombre",
               "descripcion",
               "categoria",
               "subcategoria",
               "estado",
               "estadoTienda",
-              "costo",
               "valorVenta",
               "componentesCombo",
             ]
@@ -638,10 +649,10 @@ function FormularioProducto({ onClose, onSuccess }) {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
+              <div className={`space-y-2 ${categoria === "Combos" ? "hidden" : ""}`}>
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
-                  Código del Producto
+                  {categoria === "Combos" ? "Código interno (opcional)" : "Código del Producto"}
                 </label>
                 <Input
                   {...register("codigo")}
@@ -808,7 +819,7 @@ function FormularioProducto({ onClose, onSuccess }) {
               )}
             </div>
               
-              <div className="space-y-2">
+              <div className={`space-y-2 ${categoria === "Combos" ? "hidden" : ""}`}>
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <span className="text-red-500">*</span>
                   Costo Unitario

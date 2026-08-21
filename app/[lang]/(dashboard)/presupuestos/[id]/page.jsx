@@ -43,6 +43,8 @@ import { Icon } from "@iconify/react";
 import { Edit } from "lucide-react";
 import ModalCambiarCliente from "@/components/clientes/ModalCambiarCliente";
 import { mapFirestoreDoc } from "@/lib/erp/producto-id";
+import ComboComponentRows from "@/components/ventas/ComboComponentRows";
+import { isComboProduct } from "@/lib/combos";
 
 // Agregar función utilitaria para fechas
 function formatFechaLocal(dateString) {
@@ -3269,8 +3271,8 @@ const PresupuestoDetalle = () => {
                         </thead>
                         <tbody className="divide-y divide-default-200">
                           {(presupuestoEdit.productos || []).map((p) => (
+                            <React.Fragment key={p.id}>
                             <tr
-                              key={p.id}
                               className="border-b border-default-300 transition-colors"
                             >
                               <td className="p-4 align-middle text-sm text-default-600">
@@ -3804,6 +3806,8 @@ const PresupuestoDetalle = () => {
                                 </button>
                               </td>
                             </tr>
+                            {isComboProduct(p) && <ComboComponentRows combo={p} productos={productos} />}
+                            </React.Fragment>
                           ))}
                         </tbody>
                       </table>

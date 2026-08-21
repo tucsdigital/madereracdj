@@ -27,6 +27,8 @@ import { ArrowLeft, Download, Trash2, User, Edit, Loader2, Printer, Truck, XCirc
 import { Icon } from "@iconify/react";
 import { useAuth } from "@/provider/auth.provider";
 import { DetalleVentaPresupuestoItemsTable } from "@/components/ventas/TablaProductosVentas";
+import ComboComponentRows from "@/components/ventas/ComboComponentRows";
+import { isComboProduct } from "@/lib/combos";
 
 const ModalCambiarCliente = dynamic(
   () => import("@/components/clientes/ModalCambiarCliente"),
@@ -3598,7 +3600,8 @@ const VentaDetalle = () => {
                       </thead>
                       <tbody className="divide-y divide-default-200">
                         {(ventaEdit.productos || []).map((p, idx) => (
-                          <tr key={p.id} className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
+                          <React.Fragment key={p.id}>
+                          <tr className="border-b border-default-300 transition-colors data-[state=selected]:bg-muted">
                             <td className="p-4 align-middle text-sm text-default-600">
                               {p.categoria && (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-default-100 text-default-700 border border-default-200 text-[11px] font-medium">
@@ -3868,6 +3871,8 @@ const VentaDetalle = () => {
                               </span>
                             </td>
                           </tr>
+                          {isComboProduct(p) && <ComboComponentRows combo={p} productos={productos} />}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
