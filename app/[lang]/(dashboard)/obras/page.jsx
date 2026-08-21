@@ -154,6 +154,17 @@ const getClienteSecondaryLabel = (cliente = {}) =>
   cliente.email ||
   "-";
 
+const buildSearchHaystack = (item = {}) =>
+  normalizeSearch(
+    [
+      item.numeroPedido,
+      item.id,
+      ...getClienteSearchFields(item.cliente),
+      item.vendedor,
+      item.ubicacion?.direccion,
+    ].join(" ")
+  );
+
 const parseMaybeDate = (value) => {
   if (!value) return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
@@ -374,6 +385,11 @@ const ObrasPage = () => {
   const [busquedaGlobal, setBusquedaGlobal] = useState("");
   const [busquedaPresupuestos, setBusquedaPresupuestos] = useState("");
   const [busquedaObras, setBusquedaObras] = useState("");
+  const [busquedaGlobalAplicada, setBusquedaGlobalAplicada] = useState("");
+  const [busquedaPresupuestosAplicada, setBusquedaPresupuestosAplicada] = useState("");
+  const [busquedaObrasAplicada, setBusquedaObrasAplicada] = useState("");
+  const [loadingBusquedaPresupuestos, setLoadingBusquedaPresupuestos] = useState(false);
+  const [loadingBusquedaObras, setLoadingBusquedaObras] = useState(false);
   const [filtros, setFiltros] = useState({
     estado: "",
     cliente: "",
@@ -513,6 +529,31 @@ const ObrasPage = () => {
   const params = useParams();
   const { lang } = params || {};
   const { user } = useAuth();
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setBusquedaGlobalAplicada(busquedaGlobal);
+    }, 180);
+    return () => clearTimeout(timeoutId);
+  }, [busquedaGlobal]);
+
+  useEffect(() => {
+    setLoadingBusquedaPresupuestos(true);
+    const timeoutId = setTimeout(() => {
+      setBusquedaPresupuestosAplicada(busquedaPresupuestos);
+      setLoadingBusquedaPresupuestos(false);
+    }, 180);
+    return () => clearTimeout(timeoutId);
+  }, [busquedaPresupuestos]);
+
+  useEffect(() => {
+    setLoadingBusquedaObras(true);
+    const timeoutId = setTimeout(() => {
+      setBusquedaObrasAplicada(busquedaObras);
+      setLoadingBusquedaObras(false);
+    }, 180);
+    return () => clearTimeout(timeoutId);
+  }, [busquedaObras]);
 
   const formatNombreEmpleado = useCallback((value) => {
     const s = String(value || "").trim();
@@ -1336,24 +1377,19 @@ const ObrasPage = () => {
     }
 
     // Búsqueda global
-    if (busquedaPresupuestos) {
-      const searchLower = normalizeSearch(busquedaPresupuestos);
+    const searchQueries = [busquedaGlobalAplicada, busquedaPresupuestosAplicada]
+      .map((q) => normalizeSearch(q))
+      .filter(Boolean);
+
+    if (searchQueries.length > 0) {
       filtered = filtered.filter((p) => {
-        const haystack = normalizeSearch(
-          [
-            p.numeroPedido,
-            p.id,
-            ...getClienteSearchFields(p.cliente),
-            p.vendedor,
-            p.ubicacion?.direccion,
-          ].join(" ")
-        );
-        return haystack.includes(searchLower);
+        const haystack = buildSearchHaystack(p);
+        return searchQueries.every((query) => haystack.includes(query));
       });
     }
 
     return filtered;
-  }, [presupuestosBase, filtros, busquedaPresupuestos]);
+  }, [presupuestosBase, filtros, busquedaGlobalAplicada, busquedaPresupuestosAplicada]);
 
   const obras = useMemo(() => {
     let filtered = [...obrasBase];
@@ -1391,24 +1427,19 @@ const ObrasPage = () => {
     }
 
     // Búsqueda global
-    if (busquedaObras) {
-      const searchLower = normalizeSearch(busquedaObras);
+    const searchQueries = [busquedaGlobalAplicada, busquedaObrasAplicada]
+      .map((q) => normalizeSearch(q))
+      .filter(Boolean);
+
+    if (searchQueries.length > 0) {
       filtered = filtered.filter((o) => {
-        const haystack = normalizeSearch(
-          [
-            o.numeroPedido,
-            o.id,
-            ...getClienteSearchFields(o.cliente),
-            o.vendedor,
-            o.ubicacion?.direccion,
-          ].join(" ")
-        );
-        return haystack.includes(searchLower);
+        const haystack = buildSearchHaystack(o);
+        return searchQueries.every((query) => haystack.includes(query));
       });
     }
 
     return filtered;
-  }, [obrasBase, filtros, busquedaObras]);
+  }, [obrasBase, filtros, busquedaGlobalAplicada, busquedaObrasAplicada]);
 
   // Filtrar obras que tienen fechas válidas para el calendario
   const obrasParaCalendario = useMemo(() => {
@@ -1810,6 +1841,7 @@ const ObrasPage = () => {
           onSearchChange={setBusquedaPresupuestos}
           searchPlaceholder="Buscar cliente, teléfono o documento..."
           toolbarRight={toolbarRight}
+          loading={loadingBusquedaPresupuestos}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/presupuesto/${item.id}`)}
         />
@@ -1823,6 +1855,7 @@ const ObrasPage = () => {
           onSearchChange={setBusquedaObras}
           searchPlaceholder="Buscar cliente, teléfono o documento..."
           toolbarRight={toolbarRight}
+          loading={loadingBusquedaObras}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/${item.id}`)}
         />
