@@ -1453,22 +1453,40 @@ const ObrasPage = () => {
 
   const presupuestosTabla = useMemo(() => {
     let filtered = [...presupuestos];
+    const hayBusquedaPresupuestos = Boolean(
+      normalizeSearch(busquedaGlobalAplicada) ||
+      normalizeSearch(busquedaPresupuestosAplicada)
+    );
 
     if (vistaPresupuestos === "activos") {
       filtered = filtered.filter((item) => item.estadoUI === "activo");
     }
 
+    if (hayBusquedaPresupuestos) {
+      return filtered;
+    }
+
     return filtered.filter((item) =>
       matchesPeriodoLista(getListReferenceDate(item, "presupuesto"), periodoLista)
     );
-  }, [presupuestos, vistaPresupuestos, periodoLista]);
+  }, [presupuestos, vistaPresupuestos, periodoLista, busquedaGlobalAplicada, busquedaPresupuestosAplicada]);
 
   const obrasTabla = useMemo(
-    () =>
-      obras.filter((item) =>
+    () => {
+      const hayBusquedaObras = Boolean(
+        normalizeSearch(busquedaGlobalAplicada) ||
+        normalizeSearch(busquedaObrasAplicada)
+      );
+
+      if (hayBusquedaObras) {
+        return obras;
+      }
+
+      return obras.filter((item) =>
         matchesPeriodoLista(getListReferenceDate(item, "obra"), periodoLista)
-      ),
-    [obras, periodoLista]
+      );
+    },
+    [obras, periodoLista, busquedaGlobalAplicada, busquedaObrasAplicada]
   );
 
   const filtrosAvanzadosActivos = useMemo(() => {
