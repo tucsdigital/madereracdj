@@ -247,7 +247,9 @@ const getObraProgress = (obra) => {
 };
 
 const getListReferenceDate = (item, tipo) =>
-  tipo === "obra" ? item?.fechas?.inicio || item?.fechaCreacion || "" : item?.fechaCreacion || "";
+  tipo === "obra"
+    ? item?.fechaCreacion || item?.fechas?.inicio || ""
+    : item?.fechaCreacion || "";
 
 const matchesPeriodoLista = (referenceValue, periodo) => {
   if (!referenceValue || periodo === "todos") return true;
@@ -1618,13 +1620,143 @@ const ObrasPage = () => {
       </>
     );
 
-  const toolbarRight = (
+  const toolbarRightPresupuestos = (
     <div className="flex items-center gap-2">
       <Button
         type="button"
-        onClick={handleOpenCreateDialog}
+        onClick={() => router.push(`/${lang}/obras/presupuesto/create`)}
         className="h-10 w-10 rounded-xl px-0"
-        title="Crear nuevo"
+        title="Nuevo presupuesto"
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="h-10 rounded-xl border-border/60 bg-background px-4"
+          >
+            <Icon icon="heroicons:adjustments-horizontal" className="mr-2 h-4 w-4" />
+            Filtros
+            {filtrosAvanzadosActivos > 0 ? (
+              <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                {filtrosAvanzadosActivos}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[320px] rounded-2xl border-border/60 p-4">
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Cliente
+              </div>
+              <Select
+                value={filtros.cliente || "todos"}
+                onValueChange={(value) =>
+                  setFiltros((prev) => ({
+                    ...prev,
+                    cliente: value === "todos" ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los clientes</SelectItem>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nombre || "Sin nombre"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {listaActiva === "obras" ? (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Estado de pago
+                </div>
+                <Select
+                  value={filtros.estadoPago || "todos"}
+                  onValueChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      estadoPago: value === "todos" ? "" : value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10 rounded-xl border-border/60 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="pagado">Pagado</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
+                    <SelectItem value="pendiente">Pendiente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Desde
+                </div>
+                <DateInput
+                  value={filtros.fechaDesde || ""}
+                  onChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      fechaDesde: value,
+                    }))
+                  }
+                  buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Hasta
+                </div>
+                <DateInput
+                  value={filtros.fechaHasta || ""}
+                  min={filtros.fechaDesde || undefined}
+                  onChange={(value) =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      fechaHasta: value,
+                    }))
+                  }
+                  buttonClassName="h-10 w-full justify-start rounded-xl border-border/60 bg-background"
+                />
+              </div>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-center rounded-xl"
+              onClick={limpiarFiltrosTabla}
+            >
+              Limpiar filtros avanzados
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+
+  const toolbarRightObras = (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        onClick={() => router.push(`/${lang}/obras/create`)}
+        className="h-10 w-10 rounded-xl px-0"
+        title="Nueva obra"
       >
         <Plus className="h-5 w-5" />
       </Button>
@@ -1858,7 +1990,7 @@ const ObrasPage = () => {
           searchValue={busquedaPresupuestos}
           onSearchChange={setBusquedaPresupuestos}
           searchPlaceholder="Buscar cliente, teléfono o documento..."
-          toolbarRight={toolbarRight}
+          toolbarRight={toolbarRightPresupuestos}
           loading={loadingBusquedaPresupuestos}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/presupuesto/${item.id}`)}
@@ -1872,7 +2004,7 @@ const ObrasPage = () => {
           searchValue={busquedaObras}
           onSearchChange={setBusquedaObras}
           searchPlaceholder="Buscar cliente, teléfono o documento..."
-          toolbarRight={toolbarRight}
+          toolbarRight={toolbarRightObras}
           loading={loadingBusquedaObras}
           defaultSorting={[{ id: "numeroPedido", desc: true }]}
           onRowClick={(item) => router.push(`/${lang}/obras/${item.id}`)}
