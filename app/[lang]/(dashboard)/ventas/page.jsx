@@ -61,6 +61,7 @@ import {
   updateDoc,
   serverTimestamp,
   limit,
+  orderBy,
   query,
 } from "firebase/firestore";
 import { useRouter, useParams } from "next/navigation";
@@ -494,10 +495,14 @@ const VentasPage = () => {
       if (esBusqueda && cargarVentas) setLoadingBusquedaVentas(true);
       if (esBusqueda && cargarPresupuestos) setLoadingBusquedaPresupuestos(true);
       const ventasRef = cargarVentas
-        ? (limitado ? query(collection(db, "ventas"), limit(500)) : collection(db, "ventas"))
+        ? (limitado
+            ? query(collection(db, "ventas"), orderBy("numeroPedido", "desc"), limit(500))
+            : collection(db, "ventas"))
         : null;
       const presupuestosRef = cargarPresupuestos
-        ? (limitado ? query(collection(db, "presupuestos"), limit(500)) : collection(db, "presupuestos"))
+        ? (limitado
+            ? query(collection(db, "presupuestos"), orderBy("numeroPedido", "desc"), limit(500))
+            : collection(db, "presupuestos"))
         : null;
       const [ventasSnap, presupuestosSnap] = await Promise.all([
         ventasRef ? getDocs(ventasRef) : Promise.resolve(null),
