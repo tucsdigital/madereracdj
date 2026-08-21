@@ -3367,8 +3367,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </div>
           )}
-          <div className="flex w-fit max-w-full self-end flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
+          <div className="flex w-full justify-end">
+            <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
               <input
                 type="checkbox"
                 checked={aplicarIva}
@@ -3377,8 +3378,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
               />
               Aplicar IVA
-            </label>
-            <div className="flex items-center gap-2 text-sm">
+              </label>
+              <div className="flex items-center gap-2 text-sm">
               <label htmlFor="ivaPorcentaje" className="text-muted-foreground">
                 Porcentaje:
               </label>
@@ -3396,6 +3397,7 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                 <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                   %
                 </span>
+              </div>
               </div>
             </div>
           </div>

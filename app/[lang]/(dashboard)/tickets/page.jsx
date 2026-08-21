@@ -56,7 +56,7 @@ const TicketsPage = () => {
         const ref = collection(db, "tickets");
         let snap;
         if (isAdmin) {
-          snap = await getDocs(query(ref, orderBy("updatedAt", "desc")));
+          snap = await getDocs(query(ref, orderBy("createdAt", "desc")));
         } else {
           const email = String(user?.email || "").trim().toLowerCase();
           snap = await getDocs(query(ref, where("participantsEmails", "array-contains", email)));
@@ -64,7 +64,7 @@ const TicketsPage = () => {
 
         const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         if (!isAdmin) {
-          rows.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+          rows.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
         }
         setTickets(rows);
       } catch (e) {
@@ -266,7 +266,7 @@ const TicketsPage = () => {
                   <TableHead>Estado</TableHead>
                   {showDueDateColumn ? <TableHead>Vence</TableHead> : null}
                   {isAdmin ? <TableHead>Asignado</TableHead> : null}
-                  <TableHead>Actualizado</TableHead>
+                  <TableHead>Fecha</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
@@ -305,7 +305,7 @@ const TicketsPage = () => {
                     ) : null}
                     {isAdmin ? <TableCell>{t.assignee?.name || t.assignee?.email || "-"}</TableCell> : null}
                     <TableCell className="text-muted-foreground">
-                      {t.updatedAt ? String(t.updatedAt).slice(0, 10) : "-"}
+                      {t.createdAt ? String(t.createdAt).slice(0, 10) : "-"}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center gap-2">
