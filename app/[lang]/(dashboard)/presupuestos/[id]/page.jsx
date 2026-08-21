@@ -327,7 +327,7 @@ const PresupuestoDetalle = () => {
     };
   }, [presupuesto?.numeroPedido]);
 
-  // 3. Cargar clientes y productos para selects y actualización de precios
+  // Cargar clientes y productos para selects y actualización de precios
   useEffect(() => {
     const fetchClientesYProductos = async () => {
       const snapClientes = await getDocs(collection(db, "clientes"));

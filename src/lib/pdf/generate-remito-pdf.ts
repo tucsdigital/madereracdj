@@ -193,10 +193,10 @@ export function buildRemitoHtml(
   ]
     .filter(Boolean)
     .join(", ");
-  const mapsUrlForQr = String(envio?.mapsUrl || "").trim()
-    || (mapsQueryText
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQueryText)}`
-      : "");
+  // Priorizar dirección legible para que la app de mapas muestre la calle/localidad.
+  const mapsUrlForQr = mapsQueryText
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQueryText)}`
+    : String(envio?.mapsUrl || "").trim();
   const qrUrl = mapsUrlForQr
     ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrlForQr)}`
     : "";

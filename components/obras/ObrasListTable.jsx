@@ -32,6 +32,22 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const getCorrelativeNumber = (value) => {
+  const text = String(value || "");
+  const matches = text.match(/\d+/g);
+  if (!matches || matches.length === 0) return Number.NEGATIVE_INFINITY;
+  const lastChunk = matches[matches.length - 1];
+  const parsed = Number(lastChunk);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+};
+
+const compareByNumeroPedidoDesc = (rowA, rowB, columnId) => {
+  const a = getCorrelativeNumber(rowA.getValue(columnId));
+  const b = getCorrelativeNumber(rowB.getValue(columnId));
+  if (a === b) return 0;
+  return a > b ? 1 : -1;
+};
+
 export function ObrasListTable({
   tabs = [],
   activeTab,
@@ -56,9 +72,22 @@ export function ObrasListTable({
     pageSize: 10,
   });
 
+  const columnsWithCorrelativeSort = useMemo(
+    () =>
+      (Array.isArray(columns) ? columns : []).map((column) => {
+        const columnId = String(column?.id || column?.accessorKey || "");
+        if (columnId !== "numeroPedido") return column;
+        return {
+          ...column,
+          sortingFn: compareByNumeroPedidoDesc,
+        };
+      }),
+    [columns]
+  );
+
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithCorrelativeSort,
     state: {
       sorting,
       pagination,
