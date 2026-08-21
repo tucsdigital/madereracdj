@@ -58,6 +58,37 @@ export default function GoogleAddressInput({
   const [mapsReady, setMapsReady] = useState(false);
 
   useEffect(() => {
+    const styleId = "google-address-input-pac-style";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.innerHTML = `
+      .pac-container {
+        z-index: 2147483647 !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+      }
+      .pac-item {
+        background: #ffffff !important;
+        color: #111827 !important;
+      }
+      .pac-item:hover,
+      .pac-item-selected {
+        background: #f3f4f6 !important;
+      }
+      .pac-item-query,
+      .pac-matched {
+        color: #111827 !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     let retryId;
     const initialize = () => {

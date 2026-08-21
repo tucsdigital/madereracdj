@@ -18,6 +18,36 @@ import {
   computeQuantityDisplay,
 } from "../../../lib/pricing";
 
+function buildMapsUrlFallback({
+  explicitMapsUrl,
+  lat,
+  lng,
+  direccion,
+  localidad,
+}: {
+  explicitMapsUrl?: string;
+  lat?: number | string | null;
+  lng?: number | string | null;
+  direccion?: string;
+  localidad?: string;
+}): string | undefined {
+  const mapsUrl = String(explicitMapsUrl || "").trim();
+  if (mapsUrl) return mapsUrl;
+
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latNum},${lngNum}`)}`;
+  }
+
+  const addressText = [String(direccion || "").trim(), String(localidad || "").trim()]
+    .filter(Boolean)
+    .join(", ");
+
+  if (!addressText) return undefined;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`;
+}
+
 /**
  * Mapea productos a items del remito
  */
@@ -171,6 +201,15 @@ export function mapVentaToRemito(venta: any): RemitoModel {
       ? venta.localidadEnvio
       : cliente.localidad
     : undefined;
+  const mapsUrlEnvio = tieneEnvioDomicilio
+    ? buildMapsUrlFallback({
+        explicitMapsUrl: venta.direccionMapsUrl || venta.cliente?.mapsUrl,
+        lat: venta.direccionLat ?? venta.cliente?.lat,
+        lng: venta.direccionLng ?? venta.cliente?.lng,
+        direccion: direccionEnvio,
+        localidad: localidadEnvio,
+      })
+    : undefined;
 
   return {
     numero: buildNumeroComprobante(venta.numeroPedido, venta.id),
@@ -201,7 +240,7 @@ export function mapVentaToRemito(venta: any): RemitoModel {
           fechaEntrega: venta.fechaEntrega ? formatFechaLocalConDia(venta.fechaEntrega) : undefined,
           rangoHorario: venta.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
-          mapsUrl: venta.direccionMapsUrl || venta.cliente?.mapsUrl || undefined,
+          mapsUrl: mapsUrlEnvio,
         }
       : undefined,
     items: mapItems(items),
@@ -267,6 +306,15 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
       ? presupuesto.localidadEnvio
       : cliente.localidad
     : undefined;
+  const mapsUrlEnvio = tieneEnvioDomicilio
+    ? buildMapsUrlFallback({
+        explicitMapsUrl: presupuesto.direccionMapsUrl || presupuesto.cliente?.mapsUrl,
+        lat: presupuesto.direccionLat ?? presupuesto.cliente?.lat,
+        lng: presupuesto.direccionLng ?? presupuesto.cliente?.lng,
+        direccion: direccionEnvio,
+        localidad: localidadEnvio,
+      })
+    : undefined;
 
   return {
     numero: buildNumeroComprobante(presupuesto.numeroPedido, presupuesto.id),
@@ -300,7 +348,7 @@ export function mapPresupuestoToRemito(presupuesto: any): RemitoModel {
           fechaEntrega: presupuesto.fechaEntrega ? formatFechaLocalConDia(presupuesto.fechaEntrega) : undefined,
           rangoHorario: presupuesto.rangoHorario,
           costoEnvio: costoEnvio > 0 ? costoEnvio : undefined,
-          mapsUrl: presupuesto.direccionMapsUrl || presupuesto.cliente?.mapsUrl || undefined,
+          mapsUrl: mapsUrlEnvio,
         }
       : undefined,
     items: mapItems(items),
