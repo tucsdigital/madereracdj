@@ -159,11 +159,11 @@ export function buildRemitoHtml(
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
-      ${totales.ivaMonto > 0 ? `
+      ${Number(totales.ivaMonto || 0) > 0 ? `
       <tr>
         <td colspan="4" style="padding: 6px;"></td>
         <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
-        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(totales.ivaMonto)}</td>
+        <td style="padding: 6px; text-align: right; font-weight: 800; color: #000000; font-size: 11px;">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
       </tr>
       ` : ""}
       <tr>
@@ -185,6 +185,24 @@ export function buildRemitoHtml(
   const telEnvio = esRetiroLocal
     ? (esEnvioDoc ? (empresa.telefono || cliente.telefono || null) : null)
     : (cliente.telefono || null);
+
+  // URL de mapa para QR (prioriza mapsUrl guardada, si no usa dirección/localidad)
+  const mapsQueryText = [
+    String(envio?.direccion || lugarEntrega || "").trim(),
+    String(envio?.localidad || cliente.localidad || "").trim(),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const mapsUrlForQr = String(envio?.mapsUrl || "").trim()
+    || (mapsQueryText
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQueryText)}`
+      : "");
+  const qrUrl = mapsUrlForQr
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrlForQr)}`
+    : "";
+  const qrHtml = esEnvioDoc && qrUrl
+    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:72px; height:72px;" /><span style="font-size:8px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
+    : "";
 
   // Combinar localidad y provincia
   const provinciaCompleta = cliente.localidad && cliente.partido
@@ -287,10 +305,6 @@ export function buildRemitoHtml(
         : formatCurrency(Number(envio.costoEnvio) || 0);
     const observacionesEmpleado =
       observaciones && observaciones.trim() ? escapeHtml(observaciones.trim()) : "";
-    const mapsUrl = String(envio?.mapsUrl || "").trim();
-    const qrUrl = mapsUrl
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrl)}`
-      : "";
 
     const leftItems = [
       `<div class="envio-info-item"><strong>Tipo de envío:</strong> <span class="envio-strong-value">${tipoLabel}</span></div>`,
@@ -306,16 +320,11 @@ export function buildRemitoHtml(
 
     const right = esVenta && paymentStatusHtml ? `<div class="envio-info-right" style="margin-left:auto;">${paymentStatusHtml}</div>` : "";
 
-    const qrHtml = qrUrl
-      ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:72px; height:72px;" /><span style="font-size:8px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
-      : "";
-
     return `
       <div class="envio-info">
         <div class="envio-info-left">
           ${leftItems}
         </div>
-        ${qrHtml}
         ${right}
       </div>
     `;
@@ -340,6 +349,7 @@ export function buildRemitoHtml(
   const envioHeaderHtml = esEnvioDoc
     ? `
       <div class="header header-envio">
+        ${qrHtml ? `<div class="header-envio-qr">${qrHtml}</div>` : ""}
         <div class="header-envio-inner">
           <div class="doc-icon doc-icon-envio" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -465,6 +475,13 @@ export function buildRemitoHtml(
       align-items: center;
       padding-bottom: 10px;
       margin-bottom: 12px;
+      position: relative;
+    }
+    .header-envio-qr {
+      position: absolute;
+      top: 0;
+      right: 0;
+      margin: 0;
     }
     .header-envio-inner {
       display: flex;
@@ -473,6 +490,9 @@ export function buildRemitoHtml(
       justify-content: center;
       gap: 8px;
       width: 100%;
+    }
+    .header-envio .envio-qr {
+      margin-left: 0 !important;
     }
     .doc-icon-envio {
       margin: 0;
