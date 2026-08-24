@@ -419,6 +419,13 @@ export function buildRemitoHtml(
         margin: 0;
         padding: 0;
       }
+      .products-table thead {
+        display: table-header-group;
+      }
+      .products-table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
       .no-print {
         display: none !important;
       }
@@ -443,7 +450,8 @@ export function buildRemitoHtml(
       color: #000000;
       background: #fff;
       width: 210mm;
-      height: 287mm;
+      min-height: 287mm;
+      height: auto;
       padding: 8mm 10mm;
       display: flex;
       flex-direction: column;
@@ -452,13 +460,12 @@ export function buildRemitoHtml(
     .page {
       width: 100%;
       flex: 1;
-      min-height: 0;
+      min-height: 271mm;
       display: flex;
       flex-direction: column;
     }
     .main {
-      flex: 1;
-      min-height: 0;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
     }
@@ -653,9 +660,8 @@ export function buildRemitoHtml(
       flex: 1;
     }
     .products-section {
-      flex: 1;
+      flex: 0 0 auto;
       margin-bottom: 14px;
-      min-height: 0;
     }
     .products-table {
       width: 100%;
@@ -665,7 +671,7 @@ export function buildRemitoHtml(
       border-radius: 10px;
       font-size: 11px;
       background: #fff;
-      overflow: hidden;
+      overflow: visible;
     }
     .products-table thead {
       background: #fff;
@@ -727,6 +733,8 @@ export function buildRemitoHtml(
       flex-shrink: 0;
       padding-top: 12px;
       padding-bottom: 8mm;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .disclaimer {
       font-size: 10px;
