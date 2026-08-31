@@ -70,10 +70,16 @@ export default function GoogleAddressInput({
         color: #111827 !important;
         border: 1px solid #e5e7eb !important;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+        /* Los Dialog modales (Radix) ponen pointer-events:none en <body>; el pac-container
+           se agrega como hermano del modal, así que hay que reactivar pointer-events acá o los
+           ítems quedan visibles pero no clickeables. */
+        pointer-events: auto !important;
       }
       .pac-item {
         background: #ffffff !important;
         color: #111827 !important;
+        pointer-events: auto !important;
+        cursor: pointer;
       }
       .pac-item:hover,
       .pac-item-selected {
