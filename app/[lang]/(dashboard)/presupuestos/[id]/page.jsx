@@ -87,6 +87,7 @@ const PresupuestoDetalle = () => {
   const [productos, setProductos] = useState([]);
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
+  const [guardandoCambios, setGuardandoCambios] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [downloadingPDFEmpleado, setDownloadingPDFEmpleado] = useState(false);
   const [printingPDF, setPrintingPDF] = useState(false);
@@ -1550,6 +1551,7 @@ const PresupuestoDetalle = () => {
 
   // 6. Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
+    if (guardandoCambios) return;
     setErrorForm("");
     // Validaciones mejoradas de cliente
     if (
@@ -1574,6 +1576,7 @@ const PresupuestoDetalle = () => {
         return;
       }
     }
+    setGuardandoCambios(true);
     try {
       // Recalcular totales
       const productosArr = presupuestoEdit.productos || presupuestoEdit.items;
@@ -1654,6 +1657,8 @@ const PresupuestoDetalle = () => {
     } catch (error) {
       console.error("Error al guardar cambios:", error);
       setErrorForm(`Error al guardar: ${error.message}`);
+    } finally {
+      setGuardandoCambios(false);
     }
   };
 
@@ -3863,16 +3868,25 @@ const PresupuestoDetalle = () => {
                   <Button
                     variant="default"
                     onClick={handleGuardarCambios}
-                    disabled={loadingPrecios}
+                    disabled={loadingPrecios || guardandoCambios}
                     className="flex-1 lg:flex-none text-sm lg:text-base"
                   >
-                    <span className="hidden sm:inline">Guardar cambios</span>
-                    <span className="sm:hidden">💾</span>
+                    {guardandoCambios ? (
+                      <span className="inline-flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        <span className="hidden sm:inline">Guardando...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">Guardar cambios</span>
+                        <span className="sm:hidden">💾</span>
+                      </>
+                    )}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => setEditando(false)}
-                    disabled={loadingPrecios}
+                    disabled={loadingPrecios || guardandoCambios}
                     className="flex-1 lg:flex-none text-sm lg:text-base"
                   >
                     <span className="hidden sm:inline">Cancelar</span>

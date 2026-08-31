@@ -147,6 +147,7 @@ const VentaDetalle = () => {
   const [productos, setProductos] = useState([]);
   const [loadingPrecios, setLoadingPrecios] = useState(false);
   const [errorForm, setErrorForm] = useState("");
+  const [guardandoCambios, setGuardandoCambios] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const ventaAnulada = useMemo(() => {
     if (!venta) return false;
@@ -1527,8 +1528,20 @@ const VentaDetalle = () => {
 
   // Guardar cambios en Firestore
   const handleGuardarCambios = async () => {
+    if (guardandoCambios) return;
     setErrorForm("");
+    setGuardandoCambios(true);
+    try {
+      await guardarCambiosVenta();
+    } catch (error) {
+      console.error("Error al guardar cambios de la venta:", error);
+      setErrorForm(error?.message || "Error al guardar los cambios.");
+    } finally {
+      setGuardandoCambios(false);
+    }
+  };
 
+  const guardarCambiosVenta = async () => {
     // Debug logs para entender qué está pasando
     console.log("=== DEBUG handleGuardarCambios ===");
     console.log("ventaEdit:", ventaEdit);
@@ -4094,16 +4107,25 @@ const VentaDetalle = () => {
                 <Button
                   variant="default"
                   onClick={handleGuardarCambios}
-                  disabled={loadingPrecios}
+                  disabled={loadingPrecios || guardandoCambios}
                   className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
-                  <span className="hidden sm:inline">Guardar cambios</span>
-                  <span className="sm:hidden">💾</span>
+                  {guardandoCambios ? (
+                    <span className="inline-flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                      <span className="hidden sm:inline">Guardando...</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">Guardar cambios</span>
+                      <span className="sm:hidden">💾</span>
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setEditando(false)}
-                  disabled={loadingPrecios}
+                  disabled={loadingPrecios || guardandoCambios}
                   className="no-print flex-1 lg:flex-none text-sm lg:text-base"
                 >
                   <span className="hidden sm:inline">Cancelar</span>

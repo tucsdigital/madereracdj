@@ -107,6 +107,14 @@ export default function GoogleAddressInput({
     };
   }, []);
 
+  // Referencia estable al último onChange: evita recrear el Autocomplete (y perder el listener
+  // "place_changed" a mitad de una selección) cada vez que el padre re-renderiza con una nueva
+  // función inline, que es lo que causaba tener que hacer doble clic y que no se guarde la dirección.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   useEffect(() => {
     if (!mapsReady || !inputRef.current || autocompleteRef.current) return undefined;
 
@@ -129,7 +137,7 @@ export default function GoogleAddressInput({
         component.types?.includes("locality") || component.types?.includes("administrative_area_level_2")
       )?.long_name || "";
 
-      onChange?.({ address, locality, lat, lng, mapsUrl, place });
+      onChangeRef.current?.({ address, locality, lat, lng, mapsUrl, place });
     });
 
     autocompleteRef.current = autocomplete;
@@ -140,7 +148,7 @@ export default function GoogleAddressInput({
       listenerRef.current = null;
       autocompleteRef.current = null;
     };
-  }, [mapsReady, onChange]);
+  }, [mapsReady]);
 
   return (
     <Input
