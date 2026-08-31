@@ -355,6 +355,8 @@ const PresupuestoDetalle = () => {
       const presupuestoClonado = JSON.parse(JSON.stringify(presupuesto));
       presupuestoClonado.aplicaIva = presupuestoClonado.aplicaIva ?? false;
       presupuestoClonado.ivaPorcentaje = Number(presupuestoClonado.ivaPorcentaje) || 21;
+      presupuestoClonado.aplicaTransferencia = presupuestoClonado.aplicaTransferencia ?? false;
+      presupuestoClonado.transferenciaPorcentaje = Number(presupuestoClonado.transferenciaPorcentaje) || 0;
       // Asegurar que clienteId y cliente estén presentes
       if (!presupuestoClonado.clienteId && presupuestoClonado.cliente?.cuit) {
         presupuestoClonado.clienteId = presupuestoClonado.cliente.cuit;
@@ -1593,7 +1595,9 @@ const PresupuestoDetalle = () => {
       const baseImponible = Math.max(0, totalCalc - descuentoEfectivo);
       const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
       const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-      const total = baseImponible + ivaMonto + costoEnvioCalculado;
+      const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 0);
+      const transferenciaMonto = presupuestoEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+      const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
       let numeroPedido = presupuestoEdit.numeroPedido;
       if (!numeroPedido) {
         numeroPedido = await getNextPresupuestoNumber();
@@ -1609,6 +1613,9 @@ const PresupuestoDetalle = () => {
         aplicaIva: presupuestoEdit?.aplicaIva !== false,
         ivaPorcentaje,
         ivaMonto,
+        aplicaTransferencia: Boolean(presupuestoEdit?.aplicaTransferencia),
+        transferenciaPorcentaje,
+        transferenciaMonto,
         total,
         costoEnvio: costoEnvioCalculado,
         productos: productosArr,
@@ -3828,13 +3835,19 @@ const PresupuestoDetalle = () => {
                   const baseImponible = Math.max(0, total - descuentoEfectivo);
                   const ivaPorcentaje = Math.max(0, Number(presupuestoEdit?.ivaPorcentaje) || 21);
                   const ivaMonto = presupuestoEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-                  const totalFinal = baseImponible + ivaMonto + envio;
+                  const transferenciaPorcentaje = Math.max(0, Number(presupuestoEdit?.transferenciaPorcentaje) || 0);
+                  const transferenciaMonto = presupuestoEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+                  const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                   return (
                     <div className="flex flex-col items-end gap-2 mt-4">
                       <div className="flex w-fit max-w-full self-end flex-col gap-3">
                         <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
                           <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={presupuestoEdit?.aplicaIva !== false} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaIva: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Aplicar IVA</label>
                           <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.ivaPorcentaje ?? 21} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || presupuestoEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
+                        </div>
+                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="inline-flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(presupuestoEdit?.aplicaTransferencia)} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />Pago con Transferencia</label>
+                          <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Porcentaje:</span><input type="number" min="0" step="0.01" value={presupuestoEdit?.transferenciaPorcentaje ?? 0} onChange={(e) => setPresupuestoEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !presupuestoEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" /><span className="text-xs text-muted-foreground">%</span></label>
                         </div>
                         <div className="bg-primary/5 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
                         <div>
@@ -3854,6 +3867,7 @@ const PresupuestoDetalle = () => {
                           </div>
                         )}
                         {ivaMonto > 0 && <div>IVA ({ivaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(ivaMonto)}</span></div>}
+                        {transferenciaMonto > 0 && <div>Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">$ {formatearNumeroArgentino(transferenciaMonto)}</span></div>}
                         <div>
                           Total: <span className="font-bold text-primary">$ {formatearNumeroArgentino(totalFinal)}</span>
                         </div>

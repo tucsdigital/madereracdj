@@ -171,6 +171,13 @@ export function buildRemitoHtml(
         <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
       </tr>
       ` : ""}
+      ${Number(totales.transferenciaMonto || 0) > 0 ? `
+      <tr>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">TRANSFERENCIA (${Number(totales.transferenciaPorcentaje || 0)}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(Number(totales.transferenciaMonto || 0))}</td>
+      </tr>
+      ` : ""}
       <tr>
         <td colspan="4" style="padding: ${totalesPad};"></td>
         <td style="padding: ${totalesPad}; text-align: right; font-weight: 900; font-size: ${totalesFontSizeGrande}; color: #000000;">TOTAL</td>

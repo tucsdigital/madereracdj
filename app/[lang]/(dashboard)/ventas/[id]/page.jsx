@@ -535,6 +535,8 @@ const VentaDetalle = () => {
       ventaClonada.valorOficialDolar = ventaClonada.valorOficialDolar ?? null;
       ventaClonada.aplicaIva = ventaClonada.aplicaIva ?? false;
       ventaClonada.ivaPorcentaje = Number(ventaClonada.ivaPorcentaje) || 21;
+      ventaClonada.aplicaTransferencia = ventaClonada.aplicaTransferencia ?? false;
+      ventaClonada.transferenciaPorcentaje = Number(ventaClonada.transferenciaPorcentaje) || 0;
       ventaClonada.productos = (ventaClonada.productos || []).map((p) =>
         p.categoria === "Maderas"
           ? (() => {
@@ -1639,7 +1641,9 @@ const VentaDetalle = () => {
     const baseImponible = Math.max(0, totalSinEnvio - descuentoEfectivo);
     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
     const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-    const total = baseImponible + ivaMonto + costoEnvioCalculado;
+    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 0);
+    const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+    const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
     // Asegurar que la información del cliente se preserve
     if (!ventaEdit.cliente && venta.cliente) {
       ventaEdit.cliente = venta.cliente;
@@ -1681,6 +1685,9 @@ const VentaDetalle = () => {
       aplicaIva: ventaEdit?.aplicaIva !== false,
       ivaPorcentaje,
       ivaMonto,
+      aplicaTransferencia: Boolean(ventaEdit?.aplicaTransferencia),
+      transferenciaPorcentaje,
+      transferenciaMonto,
       total,
       productos: productosArr,
       items: productosArr,
@@ -3903,7 +3910,9 @@ const VentaDetalle = () => {
                     const baseImponible = Math.max(0, total - descuentoEfectivo);
                     const ivaPorcentaje = Math.max(0, Number(ventaEdit?.ivaPorcentaje) || 21);
                     const ivaMonto = ventaEdit?.aplicaIva === false ? 0 : baseImponible * (ivaPorcentaje / 100);
-                    const totalFinal = baseImponible + ivaMonto + envio;
+                    const transferenciaPorcentaje = Math.max(0, Number(ventaEdit?.transferenciaPorcentaje) || 0);
+                    const transferenciaMonto = ventaEdit?.aplicaTransferencia ? baseImponible * (transferenciaPorcentaje / 100) : 0;
+                    const totalFinal = baseImponible + ivaMonto + transferenciaMonto + envio;
                     return (
                       <div className="flex w-fit max-w-full self-end flex-col gap-3">
                         <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -3914,6 +3923,17 @@ const VentaDetalle = () => {
                           <label className="flex items-center gap-2 text-sm">
                             <span className="text-muted-foreground">Porcentaje:</span>
                             <input type="number" min="0" step="0.01" value={ventaEdit?.ivaPorcentaje ?? 21} onChange={(e) => setVentaEdit((prev) => ({ ...prev, ivaPorcentaje: e.target.value }))} disabled={loadingPrecios || ventaEdit?.aplicaIva === false} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
+                            <span className="text-xs text-muted-foreground">%</span>
+                          </label>
+                        </div>
+                        <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="inline-flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" checked={Boolean(ventaEdit?.aplicaTransferencia)} onChange={(e) => setVentaEdit((prev) => ({ ...prev, aplicaTransferencia: e.target.checked }))} disabled={loadingPrecios} className="h-4 w-4" />
+                            Pago con Transferencia
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Porcentaje:</span>
+                            <input type="number" min="0" step="0.01" value={ventaEdit?.transferenciaPorcentaje ?? 0} onChange={(e) => setVentaEdit((prev) => ({ ...prev, transferenciaPorcentaje: e.target.value }))} disabled={loadingPrecios || !ventaEdit?.aplicaTransferencia} className="h-8 w-24 rounded-md border border-default-300 bg-background px-2 text-right text-sm disabled:opacity-50" />
                             <span className="text-xs text-muted-foreground">%</span>
                           </label>
                         </div>
@@ -3937,6 +3957,11 @@ const VentaDetalle = () => {
                         {ivaMonto > 0 && (
                           <div>
                             IVA ({ivaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(ivaMonto)}</span>
+                          </div>
+                        )}
+                        {transferenciaMonto > 0 && (
+                          <div>
+                            Transferencia ({transferenciaPorcentaje}%): <span className="font-bold">${formatearNumeroArgentino(transferenciaMonto)}</span>
                           </div>
                         )}
                         <div>

@@ -58,6 +58,8 @@ export interface RemitoTotalesModel {
   descuentoEfectivo?: number;
   ivaPorcentaje?: number;
   ivaMonto?: number;
+  transferenciaPorcentaje?: number;
+  transferenciaMonto?: number;
   costoEnvio: number;
   total: number;
 }

@@ -228,6 +228,8 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const [pagoEnEfectivo, setPagoEnEfectivo] = useState(false);
   const [aplicarIva, setAplicarIva] = useState(false);
   const [ivaPorcentaje, setIvaPorcentaje] = useState("21");
+  const [aplicarTransferencia, setAplicarTransferencia] = useState(false);
+  const [transferenciaPorcentaje, setTransferenciaPorcentaje] = useState("0");
   const [productosLoading, setProductosLoading] = useState(true);
   // Búsqueda en memoria: no usamos búsqueda remota ni carga global aparte
 
@@ -936,7 +938,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
   const baseImponible = Math.max(0, totalesCalculados.total - descuentoEfectivo);
   const ivaPorcentajeNumerico = Math.max(0, Number(String(ivaPorcentaje).replace(",", ".")) || 0);
   const ivaMonto = aplicarIva ? baseImponible * (ivaPorcentajeNumerico / 100) : 0;
-  const total = baseImponible + ivaMonto + costoEnvioCalculado;
+  const transferenciaPorcentajeNumerico = Math.max(0, Number(String(transferenciaPorcentaje).replace(",", ".")) || 0);
+  const transferenciaMonto = aplicarTransferencia ? baseImponible * (transferenciaPorcentajeNumerico / 100) : 0;
+  const total = baseImponible + ivaMonto + transferenciaMonto + costoEnvioCalculado;
 
   const advertenciasVenta = useMemo(() => {
     if (tipo !== "venta") {
@@ -1281,6 +1285,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               aplicaIva: aplicarIva,
               ivaPorcentaje: ivaPorcentajeNumerico,
               ivaMonto: ivaMonto,
+              aplicaTransferencia: aplicarTransferencia,
+              transferenciaPorcentaje: transferenciaPorcentajeNumerico,
+              transferenciaMonto: transferenciaMonto,
               total: total,
               fechaCreacion: new Date().toISOString(),
               tipo: tipo,
@@ -1306,6 +1313,9 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               aplicaIva: aplicarIva,
               ivaPorcentaje: ivaPorcentajeNumerico,
               ivaMonto: ivaMonto,
+              aplicaTransferencia: aplicarTransferencia,
+              transferenciaPorcentaje: transferenciaPorcentajeNumerico,
+              transferenciaMonto: transferenciaMonto,
               total: total,
               ...paymentFields,
               fechaCreacion: new Date().toISOString(),
@@ -3401,6 +3411,40 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
               </div>
             </div>
           </div>
+          <div className="flex w-full justify-end">
+            <div className="flex w-fit max-w-full flex-col gap-3 rounded-lg border border-default-200 bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-default-800">
+              <input
+                type="checkbox"
+                checked={aplicarTransferencia}
+                onChange={(e) => setAplicarTransferencia(e.target.checked)}
+                disabled={isSubmitting}
+                className="h-4 w-4 rounded border-default-300 text-primary focus:ring-primary"
+              />
+              Pago con Transferencia
+              </label>
+              <div className="flex items-center gap-2 text-sm">
+              <label htmlFor="transferenciaPorcentaje" className="text-muted-foreground">
+                Porcentaje:
+              </label>
+              <div className="relative w-24">
+                <input
+                  id="transferenciaPorcentaje"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={transferenciaPorcentaje}
+                  onChange={(e) => setTransferenciaPorcentaje(e.target.value)}
+                  disabled={isSubmitting || !aplicarTransferencia}
+                  className="h-8 w-full rounded-md border border-default-300 bg-background px-2 pr-6 text-right text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  %
+                </span>
+              </div>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-col items-end gap-2">
             <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg px-6 py-3 flex flex-col md:flex-row gap-4 md:gap-8 text-lg shadow-sm w-full md:w-auto font-semibold">
               <div>
@@ -3436,6 +3480,14 @@ function FormularioVentaPresupuesto({ tipo, onClose, onSubmit }) {
                   IVA ({ivaPorcentajeNumerico}%):{" "}
                   <span className="font-bold">
                     ${formatearNumeroArgentino(ivaMonto)}
+                  </span>
+                </div>
+              )}
+              {aplicarTransferencia && transferenciaMonto > 0 && (
+                <div>
+                  Transferencia ({transferenciaPorcentajeNumerico}%):{" "}
+                  <span className="font-bold">
+                    ${formatearNumeroArgentino(transferenciaMonto)}
                   </span>
                 </div>
               )}
