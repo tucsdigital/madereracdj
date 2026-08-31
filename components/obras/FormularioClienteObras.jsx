@@ -230,7 +230,20 @@ const FormularioClienteObras = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent
+        className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto p-0"
+        onPointerDownOutside={(event) => {
+          // El dropdown de Google Places se monta fuera del Dialog; evitar que se interprete como click afuera y cierre/interrumpa la selección.
+          if (event.target?.closest?.(".pac-container")) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          if (event.target?.closest?.(".pac-container")) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="border-b px-6 pt-6 pb-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md">

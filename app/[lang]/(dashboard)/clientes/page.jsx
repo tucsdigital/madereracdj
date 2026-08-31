@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
 import FormularioClienteObras from "@/components/obras/FormularioClienteObras";
+import GoogleAddressInput from "@/components/ui/google-address-input";
 
 const ClientesPage = () => {
   const [open, setOpen] = useState(false);
@@ -159,7 +160,21 @@ const ClientesPage = () => {
       />
       {/* Modal detalle cliente */}
       <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
-        <DialogContent hiddenCloseIcon className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card">
+        <DialogContent
+          hiddenCloseIcon
+          className="w-[98vw] max-w-[960px] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-border/60 outline-none focus:outline-none bg-card"
+          onPointerDownOutside={(event) => {
+            // El dropdown de Google Places se monta fuera del Dialog; evitar que se interprete como click afuera y cierre/interrumpa la selección.
+            if (event.target?.closest?.(".pac-container")) {
+              event.preventDefault();
+            }
+          }}
+          onInteractOutside={(event) => {
+            if (event.target?.closest?.(".pac-container")) {
+              event.preventDefault();
+            }
+          }}
+        >
           <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-border/60 bg-gradient-to-r from-muted/50 to-card">
             <DialogTitle className="text-xl font-bold tracking-tight">Detalle del Cliente</DialogTitle>
             <DialogClose asChild>
@@ -273,12 +288,21 @@ const ClientesPage = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label htmlFor="direccion">Dirección *</Label>
-                          <Input
+                          <GoogleAddressInput
                             id="direccion"
                             placeholder="Calle, número, piso..."
                             className="w-full h-9 rounded-lg"
                             value={editCliente.direccion || ""}
-                            onChange={(e) => setEditCliente((c) => ({ ...c, direccion: e.target.value }))}
+                            onChange={({ address, locality, lat, lng, mapsUrl }) =>
+                              setEditCliente((c) => ({
+                                ...c,
+                                direccion: address,
+                                localidad: locality || c.localidad,
+                                lat,
+                                lng,
+                                mapsUrl,
+                              }))
+                            }
                           />
                         </div>
                         <div>

@@ -112,22 +112,25 @@ export function buildRemitoHtml(
       </tr>
     `;
 
-  // Agregar solo 1-2 filas vacías si hay pocos items, para no desperdiciar espacio en boletas largas
+  // Agregar solo 2-3 filas vacías si hay pocos items (solo para llenar un poco el espacio)
+  // No agregar si hay muchos items (Puppeteer manejará el overflow automáticamente)
     let filasVacias = "";
     if (items.length > 0 && items.length < 8) {
-      const numFilasVacias = Math.min(2, 8 - items.length);
+      const numFilasVacias = Math.min(esEnvioDoc ? 2 : 3, 8 - items.length);
+      const fillerPad = esEnvioDoc ? "3px 5px" : "4px 6px";
+      const fillerHeight = esEnvioDoc ? "14px" : "20px";
       filasVacias = Array.from({ length: numFilasVacias }, () => `
       <tr>
-        <td style="padding: 3px 5px; height: 14px;"></td>
-        <td style="padding: 3px 5px;"></td>
-        <td style="padding: 3px 5px;"></td>
-        <td style="padding: 3px 5px;"></td>
+        <td style="padding: ${fillerPad}; height: ${fillerHeight};"></td>
+        <td style="padding: ${fillerPad};"></td>
+        <td style="padding: ${fillerPad};"></td>
+        <td style="padding: ${fillerPad};"></td>
         ${!paraEmpleado ? `
-        <td style="padding: 3px 5px;"></td>
-        <td style="padding: 3px 5px;"></td>
+        <td style="padding: ${fillerPad};"></td>
+        <td style="padding: ${fillerPad};"></td>
         ` : `
-        <td style="padding: 3px 5px;" class="precio-empleado"></td>
-        <td style="padding: 3px 5px;" class="total-empleado"></td>
+        <td style="padding: ${fillerPad};" class="precio-empleado"></td>
+        <td style="padding: ${fillerPad};" class="total-empleado"></td>
         `}
       </tr>
     `).join("");
@@ -137,38 +140,41 @@ export function buildRemitoHtml(
   const descuentoUnificado = (totales.descuentoTotal || 0) + (totales.descuentoEfectivo || 0);
 
   // Generar filas de totales en el footer de la tabla (alineados como en el PDF)
+  const totalesPad = esEnvioDoc ? "4px 5px" : "6px";
+  const totalesFontSize = esEnvioDoc ? "10px" : "11px";
+  const totalesFontSizeGrande = esEnvioDoc ? "12.5px" : "14px";
   const totalesRowsHtml = !paraEmpleado
     ? `
       <tr>
-        <td colspan="4" style="padding: 4px 5px;"></td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">SUBTOTAL</td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(totales.subtotal)}</td>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">SUBTOTAL</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(totales.subtotal)}</td>
       </tr>
       ${descuentoUnificado > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 4px 5px;"></td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">DESCUENTO</td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(descuentoUnificado)}</td>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">DESCUENTO</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(descuentoUnificado)}</td>
       </tr>
       ` : ""}
       ${totales.costoEnvio > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 4px 5px;"></td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">ENVÍO</td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(totales.costoEnvio)}</td>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">ENVÍO</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(totales.costoEnvio)}</td>
       </tr>
       ` : ""}
       ${Number(totales.ivaMonto || 0) > 0 ? `
       <tr>
-        <td colspan="4" style="padding: 4px 5px;"></td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 800; color: #000000; font-size: 10px;">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">IVA (${Number(totales.ivaPorcentaje || 0)}%)</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 800; color: #000000; font-size: ${totalesFontSize};">${formatCurrency(Number(totales.ivaMonto || 0))}</td>
       </tr>
       ` : ""}
       <tr>
-        <td colspan="4" style="padding: 4px 5px;"></td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 900; font-size: 12.5px; color: #000000;">TOTAL</td>
-        <td style="padding: 4px 5px; text-align: right; font-weight: 900; font-size: 12.5px; color: #000000;">${formatCurrency(totales.total)}</td>
+        <td colspan="4" style="padding: ${totalesPad};"></td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 900; font-size: ${totalesFontSizeGrande}; color: #000000;">TOTAL</td>
+        <td style="padding: ${totalesPad}; text-align: right; font-weight: 900; font-size: ${totalesFontSizeGrande}; color: #000000;">${formatCurrency(totales.total)}</td>
       </tr>
     `
     : "";
@@ -200,7 +206,7 @@ export function buildRemitoHtml(
     ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(mapsUrlForQr)}`
     : "";
   const qrHtml = esEnvioDoc && qrUrl
-    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:72px; height:72px;" /><span style="font-size:8px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
+    ? `<div class="envio-qr" style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left:12px;"><img src="${qrUrl}" alt="Ubicación en Google Maps" style="width:52px; height:52px;" /><span style="font-size:7px; font-weight:700;">ESCANEAR UBICACIÓN</span></div>`
     : "";
 
   // Combinar localidad y provincia
@@ -351,7 +357,7 @@ export function buildRemitoHtml(
         ${qrHtml ? `<div class="header-envio-qr">${qrHtml}</div>` : ""}
         <div class="header-envio-inner">
           <div class="doc-icon doc-icon-envio" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3 7.5V17a2 2 0 0 0 2 2h1" stroke="#000" stroke-width="2" stroke-linecap="round"/>
               <path d="M6 17V8.5A1 1 0 0 1 7 7.5h9a1 1 0 0 1 1 1V17" stroke="#000" stroke-width="2" stroke-linecap="round"/>
               <path d="M17 10h2.2a1 1 0 0 1 .8.4l1.6 2.1a1 1 0 0 1 .2.6V17a2 2 0 0 1-2 2h-1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -444,12 +450,12 @@ export function buildRemitoHtml(
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, Helvetica, sans-serif;
-      font-size: 10.5px;
-      line-height: 1.25;
+      font-size: 12px;
+      line-height: 1.4;
       color: #000000;
       background: #fff;
       width: 210mm;
-      padding: 6mm 8mm;
+      padding: 8mm 10mm;
       box-sizing: border-box;
     }
     .page {
@@ -463,14 +469,14 @@ export function buildRemitoHtml(
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 8px;
-      padding-bottom: 6px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
       border-bottom: 1px solid #000000;
     }
     .header-envio {
       justify-content: center;
       align-items: center;
-      padding-bottom: 6px;
+      padding-bottom: 5px;
       margin-bottom: 6px;
       position: relative;
     }
@@ -485,7 +491,7 @@ export function buildRemitoHtml(
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 4px;
       width: 100%;
     }
     .header-envio .envio-qr {
@@ -495,7 +501,7 @@ export function buildRemitoHtml(
       margin: 0;
     }
     .remito-title-envio {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 950;
       letter-spacing: 0.8px;
       margin: 0;
@@ -504,7 +510,7 @@ export function buildRemitoHtml(
       font-size: 9.5px;
       font-weight: 800;
       color: #000000;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       text-align: right;
       letter-spacing: 0.2px;
     }
@@ -515,8 +521,8 @@ export function buildRemitoHtml(
       gap: 10px;
     }
     .header-logo-container {
-      width: 64px;
-      height: 64px;
+      width: 90px;
+      height: 90px;
       flex-shrink: 0;
       background: transparent;
       border: none;
@@ -534,24 +540,24 @@ export function buildRemitoHtml(
       flex: 1;
     }
     .header-empresa h1 {
-      font-size: 14.5px;
+      font-size: 18px;
       font-weight: 900;
-      margin-bottom: 1px;
+      margin-bottom: 3px;
       letter-spacing: 0.2px;
-      line-height: 1.2;
+      line-height: 1.3;
       color: #000000;
     }
     .header-empresa .direccion {
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
-      margin-bottom: 1px;
-      line-height: 1.2;
+      margin-bottom: 2px;
+      line-height: 1.3;
       font-weight: 600;
     }
     .header-empresa .telefono {
-      font-size: 9px;
+      font-size: 11px;
       color: #000000;
-      line-height: 1.2;
+      line-height: 1.3;
       font-weight: 600;
     }
     .header-center {
@@ -563,23 +569,23 @@ export function buildRemitoHtml(
       padding: 0 6px;
     }
     .x-box {
-      width: 50px;
-      height: 50px;
-      border: 2px solid #000000;
+      width: 70px;
+      height: 70px;
+      border: 3px solid #000000;
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 36px;
+      font-size: 50px;
       font-weight: 900;
-      margin-bottom: 3px;
+      margin-bottom: 6px;
       color: #000000;
       background: #fff;
     }
     .documento-invalido {
-      font-size: 8px;
+      font-size: 10px;
       text-align: center;
-      line-height: 1.15;
+      line-height: 1.2;
       font-weight: 800;
       color: #000000;
     }
@@ -587,91 +593,93 @@ export function buildRemitoHtml(
       flex: 0 0 34%;
       border: 1px solid #000000;
       border-radius: 8px;
-      padding: 6px 8px;
+      padding: 10px;
       text-align: center;
       background: #fff;
     }
     .header-right .doc-icon {
       display: flex;
       justify-content: center;
-      margin-bottom: 3px;
+      margin-bottom: 6px;
     }
     .header-right .remito-title {
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 900;
-      margin-bottom: 3px;
+      margin-bottom: 6px;
       letter-spacing: 0.5px;
       color: #000000;
     }
     .header-right .remito-numero {
-      font-size: 10.5px;
+      font-size: 12px;
       font-weight: 800;
-      margin-bottom: 1px;
+      margin-bottom: 3px;
       color: #000000;
     }
     .header-right .remito-fecha {
-      font-size: 9.5px;
+      font-size: 11px;
       font-weight: 700;
       color: #000000;
     }
     .client-section {
-      margin-bottom: 8px;
+      margin-bottom: 14px;
       border: 1px solid #000000;
       border-radius: 10px;
-      padding: 8px 10px;
+      padding: 14px;
       background: #fff;
     }
     .client-grid {
       display: flex;
-      gap: 14px;
+      gap: 20px;
     }
     .client-col {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 6px;
     }
     .client-row {
       display: flex;
       align-items: baseline;
-      gap: 6px;
-      line-height: 1.3;
+      gap: 8px;
+      line-height: 1.5;
     }
     .client-label {
       font-weight: 800;
-      font-size: 10px;
+      font-size: 11px;
       color: #000000;
-      min-width: 68px;
+      min-width: 80px;
     }
     .client-value {
-      font-size: 10px;
+      font-size: 11px;
       color: #000000;
       font-weight: 700;
       flex: 1;
     }
     .products-section {
       flex: 0 0 auto;
-      margin-bottom: 8px;
+      margin-bottom: 14px;
+    }
+    .products-table-frame {
+      border: 1px solid #000000;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
     }
     .products-table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      border: 1px solid #000000;
-      border-radius: 10px;
-      font-size: 10px;
+      border-collapse: collapse;
+      font-size: 11px;
       background: #fff;
-      overflow: visible;
     }
     .products-table thead {
       background: #fff;
     }
     .products-table th {
-      padding: 3px 5px;
+      padding: 4px 6px;
       text-align: left;
       font-weight: 900;
       border-bottom: 1px solid #000000;
-      font-size: 10.5px;
+      font-size: 12px;
       color: #000000;
       letter-spacing: 0.3px;
       text-transform: uppercase;
@@ -686,8 +694,8 @@ export function buildRemitoHtml(
       text-align: right;
     }
     .products-table td {
-      padding: 3px 5px;
-      line-height: 1.15;
+      padding: 4px 6px;
+      line-height: 1.2;
       color: #000000;
       vertical-align: middle;
     }
@@ -704,7 +712,7 @@ export function buildRemitoHtml(
       background: #fff;
     }
     .products-table tfoot td {
-      padding: 3px 5px;
+      padding: 4px 6px;
       background: #fff;
     }
     .products-table tfoot td:not(:last-child) {
@@ -887,6 +895,51 @@ export function buildRemitoHtml(
       font-weight: 600;
       white-space: pre-wrap;
     }
+    ${esEnvioDoc ? `
+    body.envio-doc {
+      font-size: 10.5px;
+      line-height: 1.25;
+      padding: 6mm 8mm;
+    }
+    .client-section {
+      margin-bottom: 8px;
+      padding: 8px 10px;
+    }
+    .client-grid {
+      gap: 14px;
+    }
+    .client-col {
+      gap: 3px;
+    }
+    .client-row {
+      gap: 6px;
+      line-height: 1.3;
+    }
+    .client-label {
+      font-size: 10px;
+      min-width: 68px;
+    }
+    .client-value {
+      font-size: 10px;
+    }
+    .products-section {
+      margin-bottom: 8px;
+    }
+    .products-table {
+      font-size: 10px;
+    }
+    .products-table th {
+      padding: 3px 5px;
+      font-size: 10.5px;
+    }
+    .products-table td {
+      padding: 3px 5px;
+      line-height: 1.15;
+    }
+    .products-table tfoot td {
+      padding: 3px 5px;
+    }
+    ` : ""}
     ${paraEmpleado ? `
     .precio-empleado,
     .total-empleado {
@@ -895,7 +948,7 @@ export function buildRemitoHtml(
     ` : ""}
   </style>
 </head>
-<body>
+<body class="${esEnvioDoc ? "envio-doc" : ""}">
   <div class="page">
     <div class="main">
       <!-- Header con 3 zonas -->
@@ -962,6 +1015,7 @@ export function buildRemitoHtml(
 
       <!-- Tabla de Productos -->
       <div class="products-section">
+        <div class="products-table-frame">
         <table class="products-table">
           <thead>
             <tr>
@@ -988,6 +1042,7 @@ export function buildRemitoHtml(
           </tfoot>
           ` : ""}
         </table>
+        </div>
       </div>
 
       ${observaciones && observaciones.trim() ? `
