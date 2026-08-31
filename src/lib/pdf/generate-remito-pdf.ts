@@ -450,22 +450,13 @@ export function buildRemitoHtml(
       color: #000000;
       background: #fff;
       width: 210mm;
-      min-height: 287mm;
-      height: auto;
       padding: 8mm 10mm;
-      display: flex;
-      flex-direction: column;
       box-sizing: border-box;
     }
     .page {
       width: 100%;
-      flex: 1;
-      min-height: 271mm;
-      display: flex;
-      flex-direction: column;
     }
     .main {
-      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
     }
@@ -729,8 +720,7 @@ export function buildRemitoHtml(
       font-weight: 900;
     }
     .bottom {
-      margin-top: auto;
-      flex-shrink: 0;
+      margin-top: 16px;
       padding-top: 12px;
       padding-bottom: 8mm;
       page-break-inside: avoid;
